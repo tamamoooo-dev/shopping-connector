@@ -1,0 +1,7 @@
+# Cloudflare Worker config.
+# Deploy with:  npx wrangler deploy   (after `npx wrangler login`)
+name = "shopping-connector"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+# Stateless by design: no KV, no D1, no Durable Objects, no cache bindings.
