@@ -6,10 +6,12 @@
 import { handleRequest } from './connector.js';
 import { pandaProvider } from './providers/panda.js';
 import { amazonProvider, setAmazonEnv } from './providers/amazon.js';
+import { tamimiProvider } from './providers/tamimi.js';
 
 const registry = {
   [pandaProvider.id]: pandaProvider,
   [amazonProvider.id]: amazonProvider,
+  [tamimiProvider.id]: tamimiProvider,
 };
 
 export default {
