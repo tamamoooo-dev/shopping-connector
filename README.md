@@ -129,6 +129,7 @@ the connector matters for stores that can't.)
 | `tamimi` | Public ZopSmart JSON API (`shop.tamimimarkets.com/api/layout/search?q=`) | **Stable (experimental).** Clean JSON, no auth, EN/AR. |
 | `danube` | Public Spree JSON API (`danube.sa/api/products.json?q[name_cont]=`) | **Stable (experimental).** Clean JSON, no auth, EN/AR, sale prices. |
 | `lulu` | Akinon list JSON (`gcc.luluhypermarket.com/{en-sa\|ar-sa}/list?search_text=&format=json`) | **Stable (experimental).** Clean JSON, EN/AR, SAR via pz-locale/pz-currency cookies. |
+| `noon` | Noon Minutes search page RSC flight (`minutes.noon.com/{saudi-en\|saudi-ar}/search/?q=`) | **Best-effort (experimental).** Parses server-rendered product JSON; EN/AR, SAR, sale prices. Main noon.com blocks datacenter IPs — Minutes does not. |
 
 ### Amazon caveat (read before relying on it)
 

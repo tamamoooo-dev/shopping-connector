@@ -9,6 +9,7 @@ import { amazonProvider, setAmazonEnv } from './providers/amazon.js';
 import { tamimiProvider } from './providers/tamimi.js';
 import { danubeProvider } from './providers/danube.js';
 import { luluProvider } from './providers/lulu.js';
+import { noonProvider } from './providers/noon.js';
 
 const registry = {
   [pandaProvider.id]: pandaProvider,
@@ -16,6 +17,7 @@ const registry = {
   [tamimiProvider.id]: tamimiProvider,
   [danubeProvider.id]: danubeProvider,
   [luluProvider.id]: luluProvider,
+  [noonProvider.id]: noonProvider,
 };
 
 export default {
