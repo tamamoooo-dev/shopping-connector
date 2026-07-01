@@ -1,0 +1,40 @@
+# Cloudflare Worker config for the Brochure Engine.
+# Deploy:  npx wrangler deploy   (after `npx wrangler login`)
+#
+# Unlike the stateless search connector, this Worker is STATEFUL: it binds a D1
+# database (metadata index + history + dedupe) and an object store (brochure
+# bytes), and runs on a weekly Cron trigger.
+name = "brochure-engine"
+main = "src/index.js"
+compatibility_date = "2025-06-01"
+
+# Weekly ingest (§6.3). Monday 06:00 UTC — adjust once real publish timing is
+# known. The cron calls ingestAll(); it dedupes, so extra fires are harmless.
+[triggers]
+crons = ["0 6 * * 1"]
+
+# --- MetadataStore: D1 (index + history + dedupe unique index) ---------------
+# Create once:  npx wrangler d1 create brochure-engine
+# then paste the returned database_id below and apply schema.sql.
+[[d1_databases]]
+binding = "DB"
+database_name = "brochure-engine"
+database_id = "50bbe1ea-aca0-4f1d-abfd-c586335d82ba"
+
+# --- ObjectStore: R2 (preferred) ---------------------------------------------
+# Requires R2 to be enabled on the account. If R2 is available, uncomment and
+# create the bucket:  npx wrangler r2 bucket create brochure-engine
+# [[r2_buckets]]
+# binding = "BROCHURES"
+# bucket_name = "brochure-engine"
+
+# --- ObjectStore: KV (fallback used when R2 is not available) -----------------
+# The storage interface (§5) makes this a drop-in for R2. Create once:
+#   npx wrangler kv namespace create BROCHURES_KV
+# then paste the returned id below.
+[[kv_namespaces]]
+binding = "BROCHURES_KV"
+id = "38b0639256a34d1ebd7d96dcb55d0a9b"
+
+# INGEST_SECRET (guards POST /ingest) is a secret, not committed:
+#   npx wrangler secret put INGEST_SECRET

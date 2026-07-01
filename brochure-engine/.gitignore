@@ -1,0 +1,8 @@
+node_modules/
+.wrangler/
+.wrangler-dryrun/
+.data/
+*.log
+.dev.vars
+.DS_Store
+Thumbs.db

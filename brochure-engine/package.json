@@ -1,0 +1,15 @@
+{
+  "name": "brochure-engine",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Stateful Brochure Engine (Cloudflare Worker + Cron): reusable collectors that detect, download, dedupe, store and expose weekly store brochures. M1: PdfIndexCollector (Othaim).",
+  "scripts": {
+    "dev": "node dev.mjs",
+    "selftest": "node dev.mjs selftest",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "wrangler": "^3.60.0"
+  }
+}
