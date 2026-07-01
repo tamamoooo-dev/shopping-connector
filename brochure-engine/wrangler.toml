@@ -8,10 +8,15 @@ name = "brochure-engine"
 main = "src/index.js"
 compatibility_date = "2025-06-01"
 
-# Weekly ingest (§6.3). Monday 06:00 UTC — adjust once real publish timing is
-# known. The cron calls ingestAll(); it dedupes, so extra fires are harmless.
+# Ingest cron (§6.3). Fires DAILY at 06:00 UTC but refreshes only ONE store per
+# fire — the stalest (see scheduled() in src/index.js) — so each invocation
+# stays within a Worker's 50-subrequest budget (an image-set store pulls ~45).
+# With 8 stores, each is refreshed roughly weekly, matching brochure cadence.
+# Dedupe makes re-fetches harmless. (M1 used a weekly all-stores cron; that
+# overflows the budget once M2's image-set stores are added — hence per-store
+# rotation. A paid plan with a 1000-subrequest limit could ingest all at once.)
 [triggers]
-crons = ["0 6 * * 1"]
+crons = ["0 6 * * *"]
 
 # --- MetadataStore: D1 (index + history + dedupe unique index) ---------------
 # Create once:  npx wrangler d1 create brochure-engine

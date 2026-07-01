@@ -4,8 +4,16 @@
 // architecture's pipeline:
 //   1. compute checksum over the downloaded bytes (the identity/dedupe key)
 //   2. MetadataStore.exists(checksum)? -> yes: skip (dedupe, no re-store)
-//   3. ObjectStore.put(storageKey/original.pdf + meta.json)
+//   3. ObjectStore.put(bytes/pages + meta.json)
 //   4. MetadataStore.upsert(row); flip prior is_current=0
+//
+// Two candidate shapes, one idempotent pipeline (§5.1 "original.pdf … or
+// /pageNN.jpg for image sets"):
+//   • PDF source  (PdfIndexCollector):  { doc, bytes, contentType }
+//   • image set   (AggregatorCollector): { doc, pages: [{ index, bytes, contentType, url }] }
+// The checksum is over the downloaded bytes for a PDF, or over the page bytes
+// concatenated in page order for an image set (§4, §7.2) — either way it is the
+// single "do we already have this week?" key.
 //
 // Re-running (cron or manual) never double-stores: the checksum pre-check plus
 // the ux_checksum unique index guarantee it (§6.1 "Idempotent").
@@ -18,11 +26,36 @@ async function sha256Hex(bytes) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// File extension for a stored page image, from its content-type, falling back
+// to the source URL's extension, then a neutral default.
+function imageExt(contentType, url) {
+  const ct = (contentType || '').toLowerCase();
+  if (ct.includes('webp')) return 'webp';
+  if (ct.includes('jpeg') || ct.includes('jpg')) return 'jpg';
+  if (ct.includes('png')) return 'png';
+  const m = /\.(webp|jpe?g|png)(?:[?#]|$)/i.exec(url || '');
+  return m ? m[1].toLowerCase().replace('jpeg', 'jpg') : 'img';
+}
+
 export function createPipeline({ objectStore, metadataStore }) {
+  const encoder = new TextEncoder();
+  const writeMeta = (base, finalDoc) =>
+    objectStore.put(`${base}/meta.json`, encoder.encode(JSON.stringify(finalDoc, null, 2)), {
+      contentType: 'application/json',
+    });
+
   return {
     // Persist one candidate. Returns { status, doc } where status is
     // 'new' | 'deduped'.
-    async ingest({ doc, bytes, contentType }) {
+    async ingest(candidate) {
+      // Image-set path (aggregator): multiple page images, checksum over the
+      // page bytes concatenated in page order (§7.2). Kept separate from the
+      // PDF path below, which is unchanged from M1.
+      if (candidate.pages && candidate.pages.length) {
+        return ingestImageSet(candidate, { objectStore, metadataStore, writeMeta });
+      }
+
+      const { doc, bytes, contentType } = candidate;
       // 1. checksum over the actual downloaded bytes.
       const checksum = `sha256:${await sha256Hex(bytes)}`;
       const finalDoc = { ...doc, checksum };
@@ -35,11 +68,7 @@ export function createPipeline({ objectStore, metadataStore }) {
       // 3. store the bytes + a meta.json snapshot under the edition prefix.
       const base = `brochures/${finalDoc.storageKey}`;
       await objectStore.put(`${base}/original.pdf`, bytes, { contentType });
-      await objectStore.put(
-        `${base}/meta.json`,
-        new TextEncoder().encode(JSON.stringify(finalDoc, null, 2)),
-        { contentType: 'application/json' },
-      );
+      await writeMeta(base, finalDoc);
 
       // 4. index the row; supersede the prior current edition for this store+region.
       await metadataStore.upsert(docToRow(finalDoc));
@@ -47,4 +76,41 @@ export function createPipeline({ objectStore, metadataStore }) {
       return { status: 'new', doc: finalDoc };
     },
   };
+}
+
+// Image-set variant of ingest() (aggregator sources). Same idempotent contract
+// as the PDF path; only the "bytes" differ (many page images vs one PDF).
+async function ingestImageSet({ doc, pages }, { objectStore, metadataStore, writeMeta }) {
+  const ordered = [...pages].sort((a, b) => a.index - b.index);
+
+  // 1. checksum over the concatenation of all page bytes, in page order.
+  const total = ordered.reduce((n, p) => n + p.bytes.byteLength, 0);
+  const concat = new Uint8Array(total);
+  let offset = 0;
+  for (const p of ordered) {
+    concat.set(p.bytes, offset);
+    offset += p.bytes.byteLength;
+  }
+  const checksum = `sha256:${await sha256Hex(concat)}`;
+
+  // 2. dedupe: identical page set already held?
+  if (await metadataStore.existsByChecksum(checksum)) {
+    return { status: 'deduped', doc: { ...doc, checksum } };
+  }
+
+  // 3. store each page under the edition prefix; record its object key in pages[].
+  const base = `brochures/${doc.storageKey}`;
+  const pageMeta = [];
+  for (const p of ordered) {
+    const key = `${base}/page${String(p.index).padStart(2, '0')}.${imageExt(p.contentType, p.url)}`;
+    await objectStore.put(key, p.bytes, { contentType: p.contentType });
+    pageMeta.push({ index: p.index, imageUrl: key });
+  }
+  const finalDoc = { ...doc, checksum, pages: pageMeta };
+  await writeMeta(base, finalDoc);
+
+  // 4. index the row; supersede the prior current edition for this store+region.
+  await metadataStore.upsert(docToRow(finalDoc));
+
+  return { status: 'new', doc: finalDoc };
 }

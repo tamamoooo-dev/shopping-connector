@@ -96,6 +96,23 @@ export async function ingestAll(ctx, { store } = {}) {
   return report;
 }
 
+// Pick the store most in need of a refresh: any registered store with no
+// current brochure first, then the one whose current brochure was detected
+// longest ago. Store-agnostic — it reasons purely over the registry keys and
+// the metadata rows, so adding/removing a provider needs no scheduler change.
+// Used by the Cron to refresh one store per fire (subrequest-budget friendly).
+export function pickStalestStore(registry, currentRows) {
+  const latestByStore = {};
+  for (const r of currentRows) {
+    if (!latestByStore[r.store] || r.detected_at > latestByStore[r.store]) {
+      latestByStore[r.store] = r.detected_at;
+    }
+  }
+  return Object.keys(registry).sort((a, b) =>
+    (latestByStore[a] || '').localeCompare(latestByStore[b] || ''),
+  )[0];
+}
+
 // --- HTTP router -------------------------------------------------------------
 // ctx = { registry, objectStore, metadataStore, pipeline, ingestSecret }
 export async function handleRequest(request, ctx) {
