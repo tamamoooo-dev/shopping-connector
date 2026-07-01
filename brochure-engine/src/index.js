@@ -5,15 +5,17 @@
 // else changes (the collector, pipeline and Core are store-agnostic).
 //
 // Bindings (wrangler.toml):
-//   DB           D1 database   -> MetadataStore (index + history + dedupe)
-//   BROCHURES    R2 bucket     -> ObjectStore (preferred, if bound)
-//   BROCHURES_KV KV namespace  -> ObjectStore (fallback when R2 is unavailable)
+//   DB           D1 database    -> MetadataStore (index + history + dedupe)
+//   BROCHURES    R2 bucket      -> ObjectStore (preferred, if bound)
+//   BROCHURES_KV KV namespace   -> ObjectStore (fallback when R2 is unavailable)
+//   SELF         Service binding (this Worker) -> cron fan-out (Architecture C)
 //   INGEST_SECRET  Worker secret guarding POST /ingest
 //
 // Storage lives behind narrow interfaces (§5), so which object backend is bound
 // is invisible to everything above it.
 
-import { handleRequest, ingestAll, pickStalestStore } from './engine.js';
+import { handleRequest } from './engine.js';
+import { runFanOut, createServiceBindingDispatcher } from './scheduler.js';
 import { createD1MetadataStore } from './storage/metadataStore.js';
 import { createR2ObjectStore, createKvObjectStore } from './storage/objectStore.js';
 import { createPipeline } from './pipeline.js';
@@ -60,22 +62,30 @@ export default {
     return handleRequest(request, buildContext(env));
   },
 
-  // Cron trigger (§6.3). Runs daily and refreshes ONE store per fire — the
-  // stalest (or not-yet-held) one — so each invocation stays within a Worker's
-  // 50-subrequest budget (an image-set store downloads up to ~45 subrequests;
-  // ingesting all 8 stores at once overflows it). Rotating stale-first means
-  // every store is refreshed roughly weekly, which matches brochure cadence,
-  // while the pipeline's checksum dedupe keeps re-fetches free of extra writes.
-  // Manual `POST /ingest?store=<id>` remains the way to refresh a specific store
-  // on demand; `POST /ingest` (all) is best-effort and only fits a paid plan.
+  // Cron trigger (§6.3) — Architecture C: Self Service-Binding Fan-out.
+  // On each fire the coordinator fans out to EVERY registered store CONCURRENTLY
+  // via the SELF service binding (see scheduler.js). Each store is ingested in
+  // its OWN child invocation (POST /ingest?store=<id>), which carries its own
+  // fresh 50-subrequest budget — so all stores refresh together, in the same
+  // minute, on the Workers Free plan (the coordinator itself makes only N
+  // service-binding calls and touches no storage). This replaces M2's one-store-
+  // per-day rotation, which spread the refresh across ~8 days — unacceptable
+  // because Saudi brochures drop on a single publication day (Tue/Wed). The
+  // pipeline's checksum dedupe keeps the Tue+Wed double-fire free of extra writes.
+  // The fan-out mechanism is isolated behind dispatchStore() so it can be swapped
+  // (e.g. for a Queue producer) without touching collectors, pipeline or storage.
   async scheduled(event, env, ctx) {
     ctx.waitUntil(
       (async () => {
-        const context = buildContext(env);
-        const current = await context.metadataStore.listCurrent();
-        const store = pickStalestStore(context.registry, current);
-        const report = await ingestAll(context, { store });
-        console.log('brochure-engine cron ingest', store, JSON.stringify(report.totals));
+        const dispatchStore = createServiceBindingDispatcher({
+          self: env.SELF,
+          ingestSecret: env.INGEST_SECRET,
+        });
+        const report = await runFanOut(registry, dispatchStore);
+        console.log(
+          'brochure-engine cron fan-out',
+          JSON.stringify({ dispatched: report.dispatched, ok: report.ok, failed: report.failed }),
+        );
       })(),
     );
   },

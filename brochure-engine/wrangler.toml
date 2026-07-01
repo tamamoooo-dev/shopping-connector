@@ -8,15 +8,26 @@ name = "brochure-engine"
 main = "src/index.js"
 compatibility_date = "2025-06-01"
 
-# Ingest cron (§6.3). Fires DAILY at 06:00 UTC but refreshes only ONE store per
-# fire — the stalest (see scheduled() in src/index.js) — so each invocation
-# stays within a Worker's 50-subrequest budget (an image-set store pulls ~45).
-# With 8 stores, each is refreshed roughly weekly, matching brochure cadence.
-# Dedupe makes re-fetches harmless. (M1 used a weekly all-stores cron; that
-# overflows the budget once M2's image-set stores are added — hence per-store
-# rotation. A paid plan with a 1000-subrequest limit could ingest all at once.)
+# Ingest cron (§6.3) — Architecture C: Self Service-Binding Fan-out.
+# Fires on the Saudi publication days (Tue & Wed) at 06:00 UTC (= 09:00 AST).
+# Each fire refreshes ALL stores TOGETHER: scheduled() fans out to one child
+# Worker invocation per store via the SELF binding below, and each child carries
+# its own fresh 50-subrequest budget — so an all-stores refresh fits the Free
+# plan without staggering across days. Running both Tue AND Wed catches whichever
+# day the brochures actually drop; the checksum dedupe makes the second fire free
+# of extra writes. (This replaces M2's daily one-store-per-fire rotation, which
+# spread the refresh across ~8 days.) Day/time are easily tunable here.
 [triggers]
-crons = ["0 6 * * *"]
+crons = ["0 6 * * 2,3"]
+
+# --- SELF service binding: the cron fan-out mechanism (Architecture C) ---------
+# Binds this Worker to itself so scheduled() can invoke POST /ingest?store=<id>
+# once per store, concurrently, each in its own invocation + subrequest budget.
+# Available on the Free plan. Swapping the fan-out to another scheduler (e.g. a
+# Queue) is a scheduler.js change; this binding is the only infra it needs.
+[[services]]
+binding = "SELF"
+service = "brochure-engine"
 
 # --- MetadataStore: D1 (index + history + dedupe unique index) ---------------
 # Create once:  npx wrangler d1 create brochure-engine
