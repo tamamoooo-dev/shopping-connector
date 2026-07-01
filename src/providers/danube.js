@@ -49,14 +49,46 @@ function normalize(product, lang) {
   };
 }
 
+// Danube's origin occasionally drops a single request from Cloudflare's edge
+// (transient 5xx / connection reset), which surfaced as an intermittent
+// "Could not reach Danube". One retry with a short backoff turns those blips
+// into a success. A 4xx (except 429) is treated as final — no point retrying.
+// The Accept-Language header nudges the origin to serve the normal catalogue.
+async function fetchDanubeJson(url, tries = 2) {
+  let lastErr;
+  for (let attempt = 1; attempt <= tries; attempt++) {
+    try {
+      const res = await fetch(url, {
+        headers: {
+          Accept: 'application/json',
+          'Accept-Language': 'en,ar;q=0.9',
+          'User-Agent': UA,
+        },
+      });
+      if (res.ok) return await res.json();
+      // Only transient statuses are worth retrying; a 4xx (except 429) is final.
+      const retryable = res.status >= 500 || res.status === 429;
+      if (!retryable) throw Object.assign(new Error(`HTTP ${res.status}`), { final: true });
+      lastErr = new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      if (err.final) throw err; // don't retry a definitive client error
+      lastErr = err; // network error / transient http — fall through to retry
+    }
+    if (attempt < tries) {
+      await new Promise((r) => setTimeout(r, 300 * attempt));
+    } else {
+      throw lastErr;
+    }
+  }
+  throw lastErr;
+}
+
 const productsApiStrategy = {
   name: 'spree-products-json',
   async run(query) {
     const lang = detectLang(query);
     const url = `${API_BASE}/api/products.json?q%5Bname_cont%5D=${encodeURIComponent(query)}&per_page=20`;
-    const res = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': UA } });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json = await res.json();
+    const json = await fetchDanubeJson(url);
     const products = json && json.products;
     if (!Array.isArray(products)) throw new Error('unexpected response shape');
     return products.map((p) => normalize(p, lang)).filter((r) => r.name);
