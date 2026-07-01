@@ -127,6 +127,7 @@ the connector matters for stores that can't.)
 | `panda` | Public JSON API (`api.panda.sa`) | **Stable.** Clean contract, used in production. |
 | `amazon` | Search-HTML parsing (`amazon.sa/s`) | **Best-effort only.** See caveat below. |
 | `tamimi` | Public ZopSmart JSON API (`shop.tamimimarkets.com/api/layout/search?q=`) | **Stable (experimental).** Clean JSON, no auth, EN/AR. |
+| `danube` | Public Spree JSON API (`danube.sa/api/products.json?q[name_cont]=`) | **Stable (experimental).** Clean JSON, no auth, EN/AR, sale prices. |
 
 ### Amazon caveat (read before relying on it)
 

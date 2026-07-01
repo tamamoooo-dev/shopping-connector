@@ -7,11 +7,13 @@ import { handleRequest } from './connector.js';
 import { pandaProvider } from './providers/panda.js';
 import { amazonProvider, setAmazonEnv } from './providers/amazon.js';
 import { tamimiProvider } from './providers/tamimi.js';
+import { danubeProvider } from './providers/danube.js';
 
 const registry = {
   [pandaProvider.id]: pandaProvider,
   [amazonProvider.id]: amazonProvider,
   [tamimiProvider.id]: tamimiProvider,
+  [danubeProvider.id]: danubeProvider,
 };
 
 export default {
