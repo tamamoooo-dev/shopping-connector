@@ -29,6 +29,16 @@ crons = ["0 6 * * 2,3"]
 binding = "SELF"
 service = "brochure-engine"
 
+# --- CONNECTOR service binding: the Search engine (Price History, Pillar 3) ----
+# Binds the stateless search connector Worker so the weekly price-history capture
+# can read each product's CURRENT market price (the only automated price source —
+# brochure images would need OCR, out of scope). Same account, Free plan, $0. The
+# connector stays the single source of live prices; Price History just samples it
+# once per brochure edition.
+[[services]]
+binding = "CONNECTOR"
+service = "shopping-connector"
+
 # --- MetadataStore: D1 (index + history + dedupe unique index) ---------------
 # Create once:  npx wrangler d1 create brochure-engine
 # then paste the returned database_id below and apply schema.sql.

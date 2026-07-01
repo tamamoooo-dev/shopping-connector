@@ -59,3 +59,29 @@ export function createMemoryMetadataStore() {
     },
   };
 }
+
+// --- PriceStore: an in-memory table with the same semantics as the D1 impl ----
+export function createMemoryPriceStore() {
+  const rows = new Map(); // id -> point
+  return {
+    async record(point) {
+      if (rows.has(point.id)) return { status: 'deduped' };
+      rows.set(point.id, { ...point });
+      return { status: 'new' };
+    },
+    async getHistory(product) {
+      return [...rows.values()]
+        .filter((p) => p.product === product)
+        .sort((a, b) => b.edition.localeCompare(a.edition) || a.store.localeCompare(b.store));
+    },
+    async getLowest(product) {
+      const points = [...rows.values()].filter((p) => p.product === product);
+      if (!points.length) return null;
+      // Lowest price; ties keep the earliest observation (first time it hit the low).
+      return points.sort((a, b) => a.price - b.price || a.observedAt.localeCompare(b.observedAt))[0];
+    },
+    async listProducts() {
+      return [...new Set([...rows.values()].map((p) => p.product))].sort();
+    },
+  };
+}

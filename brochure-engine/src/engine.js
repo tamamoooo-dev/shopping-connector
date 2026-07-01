@@ -14,6 +14,7 @@
 //     strategies: [ { name, collect(ctx) -> Promise<Candidate[]> } ] }
 
 import { rowToDoc } from './contract.js';
+import { recordPrices, getLowestDoc, getHistoryDoc, getPricesDoc } from './priceHistory.js';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -118,7 +119,11 @@ export async function handleRequest(request, ctx) {
       stateful: true,
       providers: Object.keys(ctx.registry),
       held,
-      usage: '/brochures?store=<id>&region=<key>',
+      priceHistory: {
+        products: (ctx.products || []).map((p) => p.id),
+        tracked: ctx.priceStore ? await ctx.priceStore.listProducts() : [],
+      },
+      usage: '/brochures?store=<id>&region=<key>  ·  /prices?product=<id>',
     });
   }
 
@@ -155,6 +160,45 @@ export async function handleRequest(request, ctx) {
       status: 200,
       headers: { 'Content-Type': obj.contentType, 'Cache-Control': 'public, max-age=3600', ...CORS },
     });
+  }
+
+  // --- Price History (Pillar 3) read API -------------------------------------
+  // Lows are derived from the brochure-edition-anchored price points (§ priceHistory).
+  const productParam = () => (url.searchParams.get('product') || '').trim();
+
+  // Headline: lowest historical price + where (store) + when (edition/observedAt).
+  if (path === '/lowest' && request.method === 'GET') {
+    const product = productParam();
+    if (!product) return json({ error: "Missing required parameter 'product'." }, 400);
+    if (!ctx.priceStore) return json({ error: 'Price history unavailable.' }, 503);
+    return json({ product, lowest: await getLowestDoc(ctx.priceStore, product) });
+  }
+
+  // Full picture: lowest-ever + latest price per store.
+  if (path === '/prices' && request.method === 'GET') {
+    const product = productParam();
+    if (!product) return json({ error: "Missing required parameter 'product'." }, 400);
+    if (!ctx.priceStore) return json({ error: 'Price history unavailable.' }, 503);
+    return json(await getPricesDoc(ctx.priceStore, product));
+  }
+
+  // The time series itself — the Pillar 3 substrate.
+  if (path === '/prices/history' && request.method === 'GET') {
+    const product = productParam();
+    if (!product) return json({ error: "Missing required parameter 'product'." }, 400);
+    if (!ctx.priceStore) return json({ error: 'Price history unavailable.' }, 503);
+    const points = await getHistoryDoc(ctx.priceStore, product);
+    return json({ product, count: points.length, points });
+  }
+
+  // Guarded manual capture — for testing/backfill without the cron. Same secret
+  // as /ingest; the cron calls recordPrices directly (see index.js scheduled()).
+  if (path === '/prices/record' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    const report = await recordPrices(ctx, { products: ctx.products, searchClient: ctx.searchClient });
+    return json(report);
   }
 
   // Guarded manual ingest (§8) — for testing/backfill without the cron. Shared

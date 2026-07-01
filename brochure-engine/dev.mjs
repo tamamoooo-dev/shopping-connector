@@ -15,7 +15,13 @@ import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { handleRequest, ingestAll } from './src/engine.js';
 import { createPipeline } from './src/pipeline.js';
-import { createFsObjectStore, createMemoryMetadataStore } from './src/storage/local.js';
+import {
+  createFsObjectStore,
+  createMemoryMetadataStore,
+  createMemoryPriceStore,
+} from './src/storage/local.js';
+import { recordPrices, getLowestDoc, createHttpSearchClient } from './src/priceHistory.js';
+import { products } from './src/products.js';
 import { othaimProvider } from './src/providers/othaim.js';
 import { hyperpandaProvider } from './src/providers/hyperpanda.js';
 import { carrefourProvider } from './src/providers/carrefour.js';
@@ -41,11 +47,21 @@ const PROVIDERS = [
 function buildContext() {
   const objectStore = createFsObjectStore(DATA_DIR);
   const metadataStore = createMemoryMetadataStore();
+  // Price History uses a local in-memory store; the search connector is reached
+  // over HTTP if CONNECTOR_URL is set (e.g. the production connector), else the
+  // read API still works and capture is a no-op.
+  const priceStore = createMemoryPriceStore();
+  const searchClient = process.env.CONNECTOR_URL
+    ? createHttpSearchClient(process.env.CONNECTOR_URL)
+    : null;
   return {
     registry: Object.fromEntries(PROVIDERS.map((p) => [p.id, p])),
     objectStore,
     metadataStore,
     pipeline: createPipeline({ objectStore, metadataStore }),
+    priceStore,
+    products,
+    searchClient,
     ingestSecret: 'dev',
   };
 }
@@ -133,16 +149,99 @@ async function selftestM2(ctx, store = 'lulu') {
   console.log(`✅ M2 verified: detect, download, dedupe, store, index, expose (images) for ${store}.\n`);
 }
 
+// Price History (Pillar 3). Deterministic + OFFLINE: an injected scripted
+// search client (live store prices fluctuate and would make assertions flaky).
+// Proves: brochure-edition anchoring, idempotent weekly capture (dedupe), the
+// lowest-ever with the correct WHERE (store) + WHEN (edition), that a later
+// LOWER price updates the low, and that a later HIGHER price does NOT.
+async function selftestPriceHistory() {
+  console.log('=== Price History (Pillar 3) ===');
+  const metadataStore = createMemoryMetadataStore();
+  const priceStore = createMemoryPriceStore();
+  const ctx = { metadataStore, priceStore };
+
+  // One tracked product at one store, so assertions are unambiguous.
+  const testProducts = [
+    { id: 'milk', query: 'milk', stores: [{ brochureStore: 'lulu', region: 'central', searchProvider: 'lulu' }] },
+  ];
+
+  // Seed a "current" brochure edition to anchor to (the brochure IS the history
+  // backbone — no edition, no price point).
+  const seedEdition = (edition) =>
+    metadataStore.upsert({
+      id: `lulu:central:${edition}`, store: 'lulu', region: 'central', edition,
+      title: null, valid_from: null, valid_to: null, detected_at: new Date().toISOString(),
+      source_type: 'images', source_url: null, pdf_url: null,
+      checksum: `sha256:seed-${edition}`, collector: 'aggregator', storage_key: `x/${edition}`,
+    });
+
+  // Scripted connector: mutate `price` between runs to simulate weekly prices.
+  const scripted = { price: 10.5 };
+  const searchClient = {
+    async search(provider) {
+      if (provider !== 'lulu') return [];
+      return [{ name: 'Fresh Milk 2L', price: scripted.price, currency: 'SAR', link: 'https://lulu/milk' }];
+    },
+  };
+  const run = () => recordPrices(ctx, { products: testProducts, searchClient });
+
+  // Run 1 — week W27 @ 10.50 -> one new point.
+  await seedEdition('2026-W27');
+  const r1 = await run();
+  console.log('run1:', JSON.stringify({ recorded: r1.recorded, deduped: r1.deduped, skipped: r1.skipped }));
+  if (r1.recorded !== 1) fail(`expected 1 recorded, got ${r1.recorded} (errors ${JSON.stringify(r1.errors)})`);
+
+  // Run 2 — same week, must dedupe (idempotent capture).
+  const r2 = await run();
+  console.log('run2 (same edition):', JSON.stringify({ recorded: r2.recorded, deduped: r2.deduped }));
+  if (r2.deduped !== 1 || r2.recorded !== 0) fail('same-week capture did not dedupe');
+
+  let low = await getLowestDoc(priceStore, 'milk');
+  console.log('lowest after W27:', JSON.stringify(low));
+  if (low.price !== 10.5 || low.store !== 'lulu' || low.edition !== '2026-W27') fail('wrong initial low (price/where/when)');
+
+  // Week W28 — a LOWER price 8.75 -> low updates to W28.
+  await seedEdition('2026-W28');
+  scripted.price = 8.75;
+  const r3 = await run();
+  if (r3.recorded !== 1) fail(`W28 not recorded (${JSON.stringify(r3.errors)})`);
+  low = await getLowestDoc(priceStore, 'milk');
+  console.log('lowest after W28:', JSON.stringify(low));
+  if (low.price !== 8.75 || low.edition !== '2026-W28') fail('low did not drop to the cheaper week');
+
+  // Week W29 — a HIGHER price 12.00 -> low must STAY at W28's 8.75.
+  await seedEdition('2026-W29');
+  scripted.price = 12.0;
+  const r4 = await run();
+  if (r4.recorded !== 1) fail(`W29 not recorded (${JSON.stringify(r4.errors)})`);
+  low = await getLowestDoc(priceStore, 'milk');
+  console.log('lowest after W29:', JSON.stringify(low));
+  if (low.price !== 8.75 || low.edition !== '2026-W28') fail('low changed on a higher price');
+
+  // A store with no brochure edition is skipped (history is brochure-anchored).
+  const noBrochure = await recordPrices(
+    { metadataStore, priceStore },
+    { products: [{ id: 'x', query: 'x', stores: [{ brochureStore: 'ghost', region: 'central', searchProvider: 'lulu' }] }], searchClient },
+  );
+  if (noBrochure.skipped !== 1 || noBrochure.recorded !== 0) fail('store without a brochure was not skipped');
+
+  console.log('✅ Price History verified: brochure-anchored capture, dedupe, lowest (price/where/when), lows only drop.\n');
+}
+
 async function selftest() {
   const ctx = buildContext();
   const store = process.argv[3]; // optional: `node dev.mjs selftest <aggregator-store>`
   await selftestM1(ctx);
   await selftestM2(ctx, store || 'lulu');
-  console.log('✅ ALL VERIFIED — M1 (PDF) and M2 (aggregator images) end-to-end.');
+  await selftestPriceHistory();
+  console.log('✅ ALL VERIFIED — M1 (PDF), M2 (aggregator images), Price History (Pillar 3) end-to-end.');
 }
 
 if (process.argv[2] === 'selftest') {
   selftest();
+} else if (process.argv[2] === 'pricetest') {
+  // Just the offline Price History proof (no live network).
+  selftestPriceHistory().then(() => console.log('✅ pricetest OK'));
 } else {
   const ctx = buildContext();
   const PORT = process.env.PORT || 8787;

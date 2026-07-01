@@ -18,7 +18,10 @@ import { handleRequest } from './engine.js';
 import { runFanOut, createServiceBindingDispatcher } from './scheduler.js';
 import { createD1MetadataStore } from './storage/metadataStore.js';
 import { createR2ObjectStore, createKvObjectStore } from './storage/objectStore.js';
+import { createD1PriceStore } from './storage/priceStore.js';
 import { createPipeline } from './pipeline.js';
+import { recordPrices, createServiceBindingSearchClient } from './priceHistory.js';
+import { products } from './products.js';
 import { othaimProvider } from './providers/othaim.js';
 import { hyperpandaProvider } from './providers/hyperpanda.js';
 import { carrefourProvider } from './providers/carrefour.js';
@@ -54,7 +57,23 @@ function buildContext(env) {
         })();
   const metadataStore = createD1MetadataStore(env.DB);
   const pipeline = createPipeline({ objectStore, metadataStore });
-  return { registry, objectStore, metadataStore, pipeline, ingestSecret: env.INGEST_SECRET };
+  // Price History (Pillar 3) shares this Worker's D1 database. The search
+  // connector (current-price source) is reached via the CONNECTOR service
+  // binding; absent it, the read API still works and capture is a no-op.
+  const priceStore = createD1PriceStore(env.DB);
+  const searchClient = env.CONNECTOR
+    ? createServiceBindingSearchClient({ connector: env.CONNECTOR })
+    : null;
+  return {
+    registry,
+    objectStore,
+    metadataStore,
+    pipeline,
+    priceStore,
+    products,
+    searchClient,
+    ingestSecret: env.INGEST_SECRET,
+  };
 }
 
 export default {
@@ -86,6 +105,27 @@ export default {
           'brochure-engine cron fan-out',
           JSON.stringify({ dispatched: report.dispatched, ok: report.ok, failed: report.failed }),
         );
+
+        // Price History (Pillar 3): AFTER the brochure fan-out has refreshed
+        // this week's editions, capture one edition-anchored price point per
+        // tracked product/store. It runs in THIS coordinator invocation — it
+        // only makes a few cheap CONNECTOR search calls (no image downloads), so
+        // it stays far inside the Free-plan subrequest budget. Awaiting the
+        // fan-out first guarantees the current editions it anchors to are
+        // already committed to D1.
+        const ctx = buildContext(env);
+        if (ctx.searchClient) {
+          const priceReport = await recordPrices(ctx, { products, searchClient: ctx.searchClient });
+          console.log(
+            'brochure-engine price-history capture',
+            JSON.stringify({
+              recorded: priceReport.recorded,
+              deduped: priceReport.deduped,
+              skipped: priceReport.skipped,
+              failed: priceReport.failed,
+            }),
+          );
+        }
       })(),
     );
   },
