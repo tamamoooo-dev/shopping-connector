@@ -54,22 +54,37 @@ function normalize(product, lang) {
 // "Could not reach Danube". One retry with a short backoff turns those blips
 // into a success. A 4xx (except 429) is treated as final — no point retrying.
 // The Accept-Language header nudges the origin to serve the normal catalogue.
-async function fetchDanubeJson(url, tries = 2) {
+async function fetchDanubeJson(url, tries = 3) {
   let lastErr;
   for (let attempt = 1; attempt <= tries; attempt++) {
     try {
       const res = await fetch(url, {
         headers: {
-          Accept: 'application/json',
+          Accept: 'application/json, text/plain, */*',
           'Accept-Language': 'en,ar;q=0.9',
           'User-Agent': UA,
+          // Present as an XHR from the site itself — the Spree JSON API is what
+          // the storefront calls, and this reduces the odd edge-dropped request.
+          'X-Requested-With': 'XMLHttpRequest',
+          Referer: `${API_BASE}/`,
         },
       });
-      if (res.ok) return await res.json();
-      // Only transient statuses are worth retrying; a 4xx (except 429) is final.
-      const retryable = res.status >= 500 || res.status === 429;
-      if (!retryable) throw Object.assign(new Error(`HTTP ${res.status}`), { final: true });
-      lastErr = new Error(`HTTP ${res.status}`);
+      if (res.ok) {
+        // A transient edge failure sometimes returns 200 with a non-JSON body
+        // (an HTML error/challenge page). Guard the parse so that counts as a
+        // retryable blip rather than a hard throw.
+        const text = await res.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          lastErr = new Error(`non-JSON body (${text.length}b)`);
+        }
+      } else {
+        // Only transient statuses are worth retrying; a 4xx (except 429) is final.
+        const retryable = res.status >= 500 || res.status === 429;
+        if (!retryable) throw Object.assign(new Error(`HTTP ${res.status}`), { final: true });
+        lastErr = new Error(`HTTP ${res.status}`);
+      }
     } catch (err) {
       if (err.final) throw err; // don't retry a definitive client error
       lastErr = err; // network error / transient http — fall through to retry

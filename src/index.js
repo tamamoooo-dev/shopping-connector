@@ -10,6 +10,7 @@ import { tamimiProvider } from './providers/tamimi.js';
 import { danubeProvider } from './providers/danube.js';
 import { luluProvider } from './providers/lulu.js';
 import { noonProvider } from './providers/noon.js';
+import { ninjaProvider } from './providers/ninja.js';
 
 const registry = {
   [pandaProvider.id]: pandaProvider,
@@ -18,6 +19,7 @@ const registry = {
   [danubeProvider.id]: danubeProvider,
   [luluProvider.id]: luluProvider,
   [noonProvider.id]: noonProvider,
+  [ninjaProvider.id]: ninjaProvider,
 };
 
 export default {

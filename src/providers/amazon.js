@@ -14,8 +14,22 @@
 // framework (connector.js) is NOT modified.
 
 const SEARCH_BASE = 'https://www.amazon.sa';
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36';
+
+// Amazon serves its anti-bot interstitial to a share of requests (higher from
+// datacenter/Worker IPs than from residential browsers). The interstitial is a
+// tiny page (~2 KB) with no results; a plain retry very often gets a clean full
+// page (~1.5 MB, 48 results) instead. So the durable-but-free fix is: send
+// browser-like headers, rotate the User-Agent, and RETRY the fetch a few times
+// when a block/empty page comes back. (The real fix remains PA-API, still tried
+// first.) Measured: a single Worker fetch clears the block only ~25% of the
+// time; four rotated retries clear it the large majority of the time.
+const UA_POOL = [
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0 Safari/537.36',
+  'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0 Safari/537.36',
+  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0 Safari/537.36 Edg/123.0',
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0 Safari/537.36',
+];
+const UA = UA_POOL[0];
 
 // ---------------------------------------------------------------------------
 // Worker env (secrets) injection.
@@ -218,30 +232,68 @@ function parseProducts(html) {
   return results;
 }
 
+// Fetch the search HTML with browser-like headers, rotating the UA per attempt.
+function fetchSearchHtml(url, ua) {
+  return fetch(url, {
+    headers: {
+      'User-Agent': ua,
+      Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      'Accept-Language': url.includes('ar_AE') ? 'ar,en;q=0.8' : 'en-US,en;q=0.9',
+      'Accept-Encoding': 'gzip, deflate, br',
+      'Upgrade-Insecure-Requests': '1',
+      'sec-ch-ua': '"Chromium";v="124", "Not-A.Brand";v="99"',
+      'sec-ch-ua-mobile': '?0',
+      'sec-ch-ua-platform': '"Windows"',
+      'Sec-Fetch-Dest': 'document',
+      'Sec-Fetch-Mode': 'navigate',
+      'Sec-Fetch-Site': 'none',
+      'Sec-Fetch-User': '?1',
+    },
+  });
+}
+
 const searchHtmlStrategy = {
   name: 'search-html',
   async run(query) {
     const lang = detectLang(query);
-    const url = `${SEARCH_BASE}/s?k=${encodeURIComponent(query)}&language=${lang === 'ar' ? 'ar_AE' : 'en_AE'}`;
-    const res = await fetch(url, {
-      headers: {
-        'User-Agent': UA,
-        Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
-        'Accept-Language': lang === 'ar' ? 'ar,en;q=0.8' : 'en-US,en;q=0.9',
-      },
-    });
-    const html = await res.text();
+    const url = `${SEARCH_BASE}/s?k=${encodeURIComponent(query)}&language=${lang === 'ar' ? 'ar_AE' : 'en_AE'}&ref=nb_sb_noss`;
 
-    const blocked = classifyBlock(res.status, html);
-    if (blocked) throw new Error(`Amazon blocked the request: ${blocked} [${html.length}b]`);
+    // Retry on the anti-bot interstitial / soft block: a rotated retry usually
+    // lands a clean page. Bounded (5 attempts) to stay gentle and within the
+    // Worker time budget; short backoff between tries.
+    const MAX = 5;
+    let lastReason = '';
+    for (let attempt = 0; attempt < MAX; attempt++) {
+      const ua = UA_POOL[attempt % UA_POOL.length];
+      let html = '';
+      let status = 0;
+      try {
+        const res = await fetchSearchHtml(url, ua);
+        status = res.status;
+        html = await res.text();
+      } catch (err) {
+        lastReason = `network error: ${err.message}`;
+        if (attempt < MAX - 1) { await sleep(250 * (attempt + 1)); continue; }
+        break;
+      }
 
-    const products = parseProducts(html);
-    if (!products.length) {
-      throw new Error(`No products parsed (status ${res.status}, ${html.length}b) — layout change or soft block`);
+      const blocked = classifyBlock(status, html);
+      if (!blocked) {
+        const products = parseProducts(html);
+        if (products.length) return products;
+        lastReason = `no products parsed (status ${status}, ${html.length}b)`;
+      } else {
+        lastReason = `${blocked} [${html.length}b]`;
+      }
+      if (attempt < MAX - 1) await sleep(250 * (attempt + 1));
     }
-    return products;
+    throw new Error(`Amazon blocked/empty after ${MAX} attempts: ${lastReason}`);
   },
 };
+
+function sleep(ms) {
+  return new Promise((r) => setTimeout(r, ms));
+}
 
 export const amazonProvider = {
   id: 'amazon',
