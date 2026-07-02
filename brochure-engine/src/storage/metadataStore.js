@@ -110,5 +110,28 @@ export function createD1MetadataStore(db) {
         .all();
       return results || [];
     },
+
+    // --- retention (see retention.js): metadata is forever, bytes are a window.
+    // Prunable = no longer current, expired before the cutoff, bytes not yet
+    // pruned. Oldest first so a backlog drains deterministically.
+    async listPrunable(cutoffISO, limit = 12) {
+      const { results } = await db
+        .prepare(
+          `SELECT * FROM brochures
+            WHERE is_current = 0 AND pruned_at IS NULL
+              AND valid_to IS NOT NULL AND valid_to < ?
+            ORDER BY valid_to ASC LIMIT ?`,
+        )
+        .bind(cutoffISO, limit)
+        .all();
+      return results || [];
+    },
+
+    async markPruned(id) {
+      await db
+        .prepare('UPDATE brochures SET pruned_at = ? WHERE id = ?')
+        .bind(new Date().toISOString(), id)
+        .run();
+    },
   };
 }

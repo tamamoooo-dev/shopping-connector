@@ -5,9 +5,10 @@
 //
 // Not part of the deployed Worker.
 
-import { mkdir, writeFile, readFile } from 'node:fs/promises';
+import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
+import { queryTokens, offerRelevance, rowToOffer } from '../offers/contract.js';
 
 // --- ObjectStore: files under a data directory --------------------------------
 export function createFsObjectStore(rootDir) {
@@ -26,6 +27,11 @@ export function createFsObjectStore(rootDir) {
       let contentType = 'application/octet-stream';
       if (existsSync(path + metaExt)) contentType = (await readFile(path + metaExt, 'utf8')).trim();
       return { bytes, contentType };
+    },
+    async delete(key) {
+      const path = join(rootDir, key);
+      await rm(path, { force: true });
+      await rm(path + metaExt, { force: true });
     },
   };
 }
@@ -72,6 +78,60 @@ export function createMemoryMetadataStore() {
       return [...rows.values()]
         .filter((r) => r.store === store && r.region === region)
         .sort((a, b) => b.edition.localeCompare(a.edition));
+    },
+    async listPrunable(cutoffISO, limit = 12) {
+      return [...rows.values()]
+        .filter((r) => !r.is_current && !r.pruned_at && r.valid_to && r.valid_to < cutoffISO)
+        .sort((a, b) => (a.valid_to || '').localeCompare(b.valid_to || ''))
+        .slice(0, limit);
+    },
+    async markPruned(id) {
+      const r = rows.get(id);
+      if (r) r.pruned_at = new Date().toISOString();
+    },
+  };
+}
+
+// --- OfferStore: an in-memory table with the same semantics as the D1 impl ----
+export function createMemoryOfferStore() {
+  const rows = new Map(); // id -> row (snake_case, like D1)
+  return {
+    async upsertMany(newRows) {
+      for (const r of newRows) {
+        const prior = rows.get(r.id);
+        // Same COALESCE semantics as D1: a link to a held edition, once made,
+        // is never overwritten by a later null.
+        rows.set(r.id, { ...r, edition: r.edition ?? prior?.edition ?? null });
+      }
+      return { stored: newRows.length };
+    },
+    async search({ q = '', store = '', region = '', currentOn = null, limit = 60 } = {}) {
+      const tokens = queryTokens(q);
+      return [...rows.values()]
+        .filter(
+          (r) =>
+            (!currentOn || (r.valid_to && r.valid_to >= currentOn)) &&
+            (!store || r.store === store) &&
+            (!region || r.region === region) &&
+            (!tokens.length || offerRelevance(rowToOffer(r), tokens, r.search_text || '') > 0),
+        )
+        .sort((a, b) => a.price - b.price)
+        .slice(0, Math.max(1, Math.min(Number(limit) || 60, 300)));
+    },
+    async counts(currentOn) {
+      const all = [...rows.values()];
+      const current = all.filter((r) => r.valid_to && r.valid_to >= currentOn);
+      return { total: all.length, current: current.length, stores: new Set(current.map((r) => r.store)).size };
+    },
+    async pruneExpiredBefore(cutoffISO) {
+      let n = 0;
+      for (const [id, r] of rows) {
+        if (r.valid_to && r.valid_to < cutoffISO) {
+          rows.delete(id);
+          n += 1;
+        }
+      }
+      return n;
     },
   };
 }

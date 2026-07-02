@@ -21,8 +21,13 @@ import {
   createFsObjectStore,
   createMemoryMetadataStore,
   createMemoryPriceStore,
+  createMemoryOfferStore,
 } from './src/storage/local.js';
 import { recordPrices, getLowestDoc, createHttpSearchClient } from './src/priceHistory.js';
+import { createD4dOffersSource } from './src/offers/d4dOffers.js';
+import { ingestOffers } from './src/offers/ingest.js';
+import { buildOffer, deriveNames, normalizeText, offerRelevance, queryTokens } from './src/offers/contract.js';
+import { pruneStoredBytes } from './src/retention.js';
 import { products } from './src/products.js';
 import { othaimProvider } from './src/providers/othaim.js';
 import { hyperpandaProvider } from './src/providers/hyperpanda.js';
@@ -32,6 +37,7 @@ import { danubeProvider } from './src/providers/danube.js';
 import { tamimiProvider } from './src/providers/tamimi.js';
 import { manuelProvider } from './src/providers/manuel.js';
 import { nestoProvider } from './src/providers/nesto.js';
+import { d4dStoreProviders } from './src/providers/d4dStores.js';
 
 const DATA_DIR = fileURLToPath(new URL('./.data', import.meta.url));
 
@@ -44,6 +50,7 @@ const PROVIDERS = [
   tamimiProvider,
   manuelProvider,
   nestoProvider,
+  ...d4dStoreProviders,
 ];
 
 function buildContext() {
@@ -62,6 +69,8 @@ function buildContext() {
     metadataStore,
     pipeline: createPipeline({ objectStore, metadataStore }),
     priceStore,
+    offerStore: createMemoryOfferStore(),
+    offersSource: createD4dOffersSource(),
     products,
     searchClient,
     ingestSecret: 'dev',
@@ -314,6 +323,153 @@ async function selftestFallback() {
   console.log('✅ Fallback verified: currency gate + aggregator-empty -> officialLink link brochure (no bytes), deduped.\n');
 }
 
+// Structured Offers — OFFLINE + deterministic. Proves the pure contract layer
+// (name derivation, price sanity gates, normalization, relevance) and the full
+// ingest with a scripted offers source: normalize -> gate -> link-to-held-
+// edition -> store -> idempotent re-ingest -> read via /offers.
+async function selftestOffers() {
+  console.log('=== Structured Offers (contract + ingest + read) ===');
+
+  // (a) pure contract: name derivation from a realistic OCR block.
+  const desc =
+    '\nlulu hypermarket\nلولو هايبرماركتactivia\nbillions of\nnatural probiotics\nkefir\nأكتيفيا مشروب ألبان\nالكفير ٨٥٠ مل\nactivia kefir probiotic\n850ml\n15.00\n#13.50\n\n';
+  const { name, nameAr } = deriveNames(desc, ['LULU Hypermarket', 'لولو هايبرماركت']);
+  console.log('derived names:', JSON.stringify({ name, nameAr }));
+  if (!name || !name.includes('activia')) fail(`EN name not derived (got '${name}')`);
+  if (!nameAr || !/[؀-ۿ]/.test(nameAr)) fail(`AR name not derived (got '${nameAr}')`);
+
+  // (b) gates: no price -> dropped; was<=price -> old_price nulled; Arabic-
+  // Indic digits fold in normalization.
+  const base = { offerId: '1', description: 'almarai milk 2l\n7.00', validFrom: '2026-06-30', validTo: '2026-07-07' };
+  const meta = { store: 's', region: 'central', source: 'test' };
+  if (buildOffer({ ...base, price: '0' }, meta) !== null) fail('zero price passed the gate');
+  if (buildOffer({ ...base, price: 'abc' }, meta) !== null) fail('non-numeric price passed the gate');
+  const flat = buildOffer({ ...base, price: '9.50', wasPrice: '9.50' }, meta);
+  if (flat.oldPrice !== null) fail('was==price kept as a strike-through');
+  const real = buildOffer({ ...base, price: '9.50', wasPrice: '12.00' }, meta);
+  if (real.oldPrice !== 12) fail('real strike-through lost');
+  if (normalizeText('٨٥٠ مل') !== '850 مل') fail('Arabic-Indic digits not folded');
+  if (offerRelevance(real, queryTokens('milk'), real.searchText) <= 0) fail('relevance miss on own text');
+  if (offerRelevance(real, queryTokens('coffee'), real.searchText) !== 0) fail('irrelevant query matched');
+  console.log('contract gates + normalization + relevance ✅');
+
+  // (c) ingest end-to-end with a scripted source (offline).
+  const metadataStore = createMemoryMetadataStore();
+  const offerStore = createMemoryOfferStore();
+  // A held current brochure the offer should LINK to (flyer id 738954).
+  await metadataStore.upsert({
+    id: 'teststore:central:2026-W27', store: 'teststore', region: 'central', edition: '2026-W27',
+    title: 'Weekly', valid_from: '2026-06-30', valid_to: '2026-07-07',
+    detected_at: new Date().toISOString(), source_type: 'images',
+    source_url: 'https://agg.example/offers/teststore-9/738954/weekly-flyer',
+    pdf_url: null, checksum: 'sha256:t', collector: 'd4d', storage_key: 'teststore/central/2026-W27',
+  });
+  const scriptedSource = {
+    name: 'test',
+    async listOffers() {
+      return [
+        { offerId: '101', flyerRef: '738954', price: '13.50', wasPrice: '15.00', description: 'activia kefir 850ml\n15.00', validFrom: '2026-06-30', validTo: '2026-07-07' },
+        { offerId: '102', flyerRef: '999999', price: '5.25', description: 'nadec laban 1l', validFrom: '2026-06-30', validTo: '2026-07-07' },
+        { offerId: '103', price: '0', description: 'broken row' }, // must be gated out
+      ];
+    },
+  };
+  const provider = { id: 'teststore', label: 'Test', regions: { central: { store: 'teststore-9', city: 'riyadh' } } };
+  const ictx = { registry: { teststore: provider }, metadataStore, offerStore, offersSource: scriptedSource };
+  const r1 = await ingestOffers(ictx, { store: 'teststore' });
+  console.log('ingest run1:', JSON.stringify(r1.totals));
+  if (r1.totals.fetched !== 3 || r1.totals.stored !== 2 || r1.totals.dropped !== 1) fail('offers ingest counts wrong');
+  if (r1.totals.linked !== 1) fail('offer was not linked to the held brochure edition');
+  const r2 = await ingestOffers(ictx, { store: 'teststore' });
+  if (r2.totals.stored !== 2) fail('offers re-ingest not idempotent (upsert)');
+
+  // (d) read path via the engine router (search + currency filter).
+  const rctx = { registry: { teststore: provider }, metadataStore, offerStore, objectStore: createFsObjectStore(DATA_DIR) };
+  const read = await readJson(rctx, '/offers?q=kefir');
+  console.log('read /offers?q=kefir:', JSON.stringify({ count: read.count, first: read.offers?.[0]?.name, price: read.offers?.[0]?.price }));
+  if (read.count !== 1 || read.offers[0].price !== 13.5) fail('offers read/search wrong');
+  if (read.offers[0].edition !== '2026-W27') fail('linked edition not exposed');
+  if (!read.note) fail('offers read missing the extraction disclaimer');
+  const none = await readJson(rctx, '/offers?q=zzznope');
+  if (none.count !== 0) fail('nonsense query returned offers');
+  console.log('✅ Structured Offers verified: gates, names, linking, idempotence, search, disclaimer.\n');
+}
+
+// Retention — OFFLINE + deterministic: metadata is forever, bytes are a rolling
+// window. Seeds an old superseded image brochure with stored bytes, prunes,
+// and proves: bytes gone, row kept + marked, current brochures untouched,
+// re-prune is a no-op, expired offers rows dropped.
+async function selftestRetention() {
+  console.log('=== Retention (bytes window, metadata forever) ===');
+  const objects = new Map();
+  const objectStore = {
+    async put(key, bytes, { contentType } = {}) { objects.set(key, { bytes, contentType }); },
+    async get(key) { return objects.get(key) || null; },
+    async delete(key) { objects.delete(key); },
+  };
+  const metadataStore = createMemoryMetadataStore();
+  const offerStore = createMemoryOfferStore();
+  const enc = new TextEncoder();
+
+  // An OLD, superseded image brochure (expired far beyond the window)…
+  const oldBase = 'brochures/s/central/2026-W01';
+  objects.set(`${oldBase}/page00.webp`, { bytes: enc.encode('img0'), contentType: 'image/webp' });
+  objects.set(`${oldBase}/meta.json`, {
+    bytes: enc.encode(JSON.stringify({ pages: [{ index: 0, imageUrl: `${oldBase}/page00.webp` }] })),
+    contentType: 'application/json',
+  });
+  await metadataStore.upsert({
+    id: 's:central:2026-W01', store: 's', region: 'central', edition: '2026-W01', title: null,
+    valid_from: '2026-01-01', valid_to: '2026-01-07', detected_at: '2026-01-01T00:00:00Z',
+    source_type: 'images', source_url: 'https://agg/old', pdf_url: null,
+    checksum: 'sha256:old', collector: 'd4d', storage_key: 's/central/2026-W01',
+  });
+  // …and a CURRENT one that must be untouched.
+  const curBase = 'brochures/s/central/2026-W27';
+  objects.set(`${curBase}/page00.webp`, { bytes: enc.encode('cur'), contentType: 'image/webp' });
+  await metadataStore.upsert({
+    id: 's:central:2026-W27', store: 's', region: 'central', edition: '2026-W27', title: null,
+    valid_from: '2026-06-30', valid_to: '2026-07-07', detected_at: new Date().toISOString(),
+    source_type: 'images', source_url: 'https://agg/new', pdf_url: null,
+    checksum: 'sha256:new', collector: 'd4d', storage_key: 's/central/2026-W27',
+  });
+  await metadataStore.setCurrent('s', 'central', ['sha256:new'], { supersedeOthers: true });
+  // An offers row expired beyond the offers horizon.
+  await offerStore.upsertMany([{ id: 'x', store: 's', region: 'central', source: 't', offer_id: '1', price: 1, valid_to: '2025-01-01', detected_at: 'x', search_text: 'old' }]);
+
+  const ctx = { metadataStore, objectStore, offerStore };
+  const r1 = await pruneStoredBytes(ctx, { keepDays: 28 });
+  console.log('prune run1:', JSON.stringify({ pruned: r1.pruned, deletes: r1.deletes, offersPruned: r1.offersPruned }));
+  if (r1.pruned !== 1 || r1.deletes !== 2) fail(`expected 1 row / 2 deletes, got ${r1.pruned}/${r1.deletes}`);
+  if (objects.has(`${oldBase}/page00.webp`) || objects.has(`${oldBase}/meta.json`)) fail('old bytes not deleted');
+  if (!objects.has(`${curBase}/page00.webp`)) fail('current bytes were deleted');
+  const rows = await metadataStore.getHistory('s', 'central');
+  const oldRow = rows.find((r) => r.id === 's:central:2026-W01');
+  if (!oldRow) fail('pruned ROW was deleted (metadata must be forever)');
+  if (!oldRow.pruned_at) fail('pruned row not marked');
+  if (r1.offersPruned !== 1) fail('expired offers row not pruned');
+  const r2 = await pruneStoredBytes(ctx, { keepDays: 28 });
+  if (r2.pruned !== 0 || r2.deletes !== 0) fail('re-prune was not a no-op');
+  console.log('✅ Retention verified: bytes pruned, metadata kept+marked, current untouched, idempotent.\n');
+}
+
+// LIVE offers leg (part of `selftest`): pull real structured offers for one
+// store from D4D, through the SAME ingest the production child invocation
+// runs, and read them back through /offers.
+async function selftestOffersLive(ctx, store = 'lulu') {
+  console.log(`=== Structured Offers LIVE (${store} via D4D) ===`);
+  const r = await ingestOffers(ctx, { store });
+  const line = r.targets[0];
+  console.log('live offers ingest:', JSON.stringify(line ? { fetched: line.fetched, stored: line.stored, dropped: line.dropped, linked: line.linked, errors: line.errors } : r.totals));
+  if (!line || line.errors.length) fail(`live offers ingest failed: ${JSON.stringify(line?.errors)}`);
+  if (line.stored < 50) fail(`expected a real offer volume, got ${line.stored}`);
+  const read = await readJson(ctx, `/offers?store=${store}&region=central&limit=5`);
+  if (read.count < 1) fail('live offers not readable back');
+  const milk = await readJson(ctx, '/offers?q=milk');
+  console.log(`live read: store query -> ${read.count}, q=milk -> ${milk.count}, cheapest match:`, JSON.stringify(milk.offers?.[0] ? { name: milk.offers[0].name, price: milk.offers[0].price, store: milk.offers[0].store } : null));
+  console.log(`✅ Structured Offers LIVE verified for ${store}.\n`);
+}
+
 async function selftest() {
   const ctx = buildContext();
   const store = process.argv[3]; // optional: `node dev.mjs selftest <aggregator-store>`
@@ -321,7 +477,10 @@ async function selftest() {
   await selftestM2(ctx, store || 'lulu');
   await selftestFallback();
   await selftestPriceHistory();
-  console.log('✅ ALL VERIFIED — M1 (PDF), M2 (D4D images), fallback (officialLink), Price History (Pillar 3) end-to-end.');
+  await selftestOffers();
+  await selftestRetention();
+  await selftestOffersLive(ctx, store || 'lulu');
+  console.log('✅ ALL VERIFIED — M1 (PDF), M2 (D4D images), fallback (officialLink), Price History (Pillar 3), Structured Offers (contract+ingest+live), Retention — end-to-end.');
 }
 
 if (process.argv[2] === 'selftest') {
@@ -329,6 +488,11 @@ if (process.argv[2] === 'selftest') {
 } else if (process.argv[2] === 'pricetest') {
   // Just the offline Price History proof (no live network).
   selftestPriceHistory().then(() => console.log('✅ pricetest OK'));
+} else if (process.argv[2] === 'offerstest') {
+  // Just the offline Offers + Retention proofs (no live network).
+  selftestOffers()
+    .then(() => selftestRetention())
+    .then(() => console.log('✅ offerstest OK'));
 } else {
   const ctx = buildContext();
   const PORT = process.env.PORT || 8787;

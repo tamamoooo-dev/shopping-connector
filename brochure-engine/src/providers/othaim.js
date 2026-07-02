@@ -76,8 +76,14 @@ export const othaimProvider = {
   id: 'othaim',
   label: 'Othaim Markets',
   // Canonical region key -> Othaim addressing (§5.3). Central == Riyadh here.
+  // The BROCHURE stays the official PDF (best source); structured OFFERS come
+  // from D4D's per-product records for Othaim's Riyadh flyer (company 72) —
+  // the `offers` config is read only by the offers ingest, never by collectors.
   regions: {
-    central: { slug: 'central-region-offers-corner' },
+    central: {
+      slug: 'central-region-offers-corner',
+      offers: { company: 72, city: 'riyadh', storePageSlug: 'othaim-markets-72' },
+    },
   },
   strategies: [collector], // best-first; M1 = official PDF only
 };

@@ -19,8 +19,11 @@ import { runFanOut, createServiceBindingDispatcher } from './scheduler.js';
 import { createD1MetadataStore } from './storage/metadataStore.js';
 import { createR2ObjectStore, createKvObjectStore } from './storage/objectStore.js';
 import { createD1PriceStore } from './storage/priceStore.js';
+import { createD1OfferStore } from './storage/offerStore.js';
 import { createPipeline } from './pipeline.js';
 import { recordPrices, createServiceBindingSearchClient } from './priceHistory.js';
+import { createD4dOffersSource } from './offers/d4dOffers.js';
+import { pruneStoredBytes } from './retention.js';
 import { products } from './products.js';
 import { othaimProvider } from './providers/othaim.js';
 import { hyperpandaProvider } from './providers/hyperpanda.js';
@@ -30,11 +33,13 @@ import { danubeProvider } from './providers/danube.js';
 import { tamimiProvider } from './providers/tamimi.js';
 import { manuelProvider } from './providers/manuel.js';
 import { nestoProvider } from './providers/nesto.js';
+import { d4dStoreProviders } from './providers/d4dStores.js';
 
 // M1: Othaim via the official PdfIndexCollector. The other stores via the
 // reusable AggregatorCollector (D4D adapter) with an official-offers-page
-// fallback. Adding a store = one import + one line; the Core, collectors,
-// adapter, pipeline and storage never change.
+// fallback; d4dStoreProviders carries the Coverage Expansion stores (one
+// config line each). Adding a store = one import + one line; the Core,
+// collectors, adapter, pipeline and storage never change.
 const registry = Object.fromEntries(
   [
     othaimProvider,
@@ -45,6 +50,7 @@ const registry = Object.fromEntries(
     tamimiProvider,
     manuelProvider,
     nestoProvider,
+    ...d4dStoreProviders,
   ].map((p) => [p.id, p]),
 );
 
@@ -65,12 +71,17 @@ function buildContext(env) {
   const searchClient = env.CONNECTOR
     ? createServiceBindingSearchClient({ connector: env.CONNECTOR })
     : null;
+  // Structured offers (the price-comparison substrate) share the same D1.
+  const offerStore = createD1OfferStore(env.DB);
+  const offersSource = createD4dOffersSource();
   return {
     registry,
     objectStore,
     metadataStore,
     pipeline,
     priceStore,
+    offerStore,
+    offersSource,
     products,
     searchClient,
     ingestSecret: env.INGEST_SECRET,
@@ -127,6 +138,21 @@ export default {
             }),
           );
         }
+
+        // Retention (see retention.js): metadata is forever, BYTES are a
+        // rolling window. Runs in the coordinator (KV/D1 ops don't consume the
+        // fetch-subrequest budget); capped per run so the KV daily delete
+        // budget is never at risk and a backlog drains across fires.
+        const pruneReport = await pruneStoredBytes(ctx);
+        console.log(
+          'brochure-engine retention',
+          JSON.stringify({
+            pruned: pruneReport.pruned,
+            deletes: pruneReport.deletes,
+            offersPruned: pruneReport.offersPruned,
+            errors: pruneReport.errors.length,
+          }),
+        );
       })(),
     );
   },

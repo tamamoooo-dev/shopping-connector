@@ -82,8 +82,14 @@ export function createAggregatorCollector(config) {
     // don't fit this run's budget are picked up by the next run (the cron
     // already fires twice a week), because already-held flyers cost nothing.
     maxCandidates = 6,
-    maxPages = 40,
-    maxTotalPages = 40,
+    // 36 (was 40): leaves ~4 subrequests of the child's 50-budget for the
+    // structured-offers pull that now runs in the same per-store invocation.
+    // maxPages MUST NOT exceed maxTotalPages — a flyer longer than the per-run
+    // budget would otherwise never fit ANY run and starve forever; instead it
+    // is truncated to the cap (the tail pages of an oversized flyer are the
+    // acceptable cost of structured offers riding the same invocation).
+    maxPages = 36,
+    maxTotalPages = 36,
   } = config;
 
   if (!adapter || typeof adapter.listBrochures !== 'function') {

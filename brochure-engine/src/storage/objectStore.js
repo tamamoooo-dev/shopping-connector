@@ -28,6 +28,9 @@ export function createR2ObjectStore(bucket) {
       const bytes = new Uint8Array(await obj.arrayBuffer());
       return { bytes, contentType: obj.httpMetadata?.contentType || 'application/octet-stream' };
     },
+    async delete(key) {
+      await bucket.delete(key);
+    },
   };
 }
 
@@ -46,6 +49,9 @@ export function createKvObjectStore(kv) {
         bytes: new Uint8Array(value),
         contentType: metadata?.contentType || 'application/octet-stream',
       };
+    },
+    async delete(key) {
+      await kv.delete(key);
     },
   };
 }

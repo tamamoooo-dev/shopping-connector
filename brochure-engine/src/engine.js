@@ -15,6 +15,14 @@
 
 import { rowToDoc } from './contract.js';
 import { recordPrices, getLowestDoc, getHistoryDoc, getPricesDoc } from './priceHistory.js';
+import { ingestOffers } from './offers/ingest.js';
+import { rowToOffer, offerRelevance, queryTokens } from './offers/contract.js';
+import { pruneStoredBytes } from './retention.js';
+
+// The honesty disclaimer every offers read carries (the aggregator machine-
+// extracts prices from flyer images; the flyer prevails on any mismatch).
+const OFFERS_NOTE =
+  'Prices are machine-extracted from flyer images by the aggregator; the flyer itself prevails on any mismatch. Each offer links to its flyer page.';
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -143,12 +151,48 @@ export async function handleRequest(request, ctx) {
       stateful: true,
       providers: Object.keys(ctx.registry),
       held,
+      offers: ctx.offerStore ? await ctx.offerStore.counts(todayISO()) : null,
       priceHistory: {
         products: (ctx.products || []).map((p) => p.id),
         tracked: ctx.priceStore ? await ctx.priceStore.listProducts() : [],
       },
-      usage: '/brochures?store=<id>&region=<key>  ·  /prices?product=<id>',
+      usage:
+        '/brochures?store=<id>&region=<key>  ·  /offers?q=<query>  ·  /prices?product=<id>',
     });
+  }
+
+  // Structured flyer offers — the price-comparison substrate (§8). Current by
+  // default (validity contains today); `q` is a normalized token-AND search
+  // over the offer's OCR text, with name-matched offers ranked first.
+  if (path === '/offers' && request.method === 'GET') {
+    if (!ctx.offerStore) return json({ error: 'Offers unavailable.' }, 503);
+    const q = (url.searchParams.get('q') || '').trim();
+    const store = (url.searchParams.get('store') || '').trim();
+    const region = (url.searchParams.get('region') || '').trim();
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 60, 200));
+    if (store && !ctx.registry[store]) return json({ error: `Unknown store '${store}'.` }, 404);
+
+    const rows = await ctx.offerStore.search({
+      q,
+      store,
+      region,
+      currentOn: todayISO(),
+      // Over-fetch when searching so the name-first re-rank has material.
+      limit: q ? Math.min(limit * 3, 300) : limit,
+    });
+    const tokens = queryTokens(q);
+    const scored = rows
+      .map((r) => {
+        const offer = rowToOffer(r);
+        return { offer, score: offerRelevance(offer, tokens, r.search_text || '') };
+      })
+      .filter((s) => s.score > 0);
+    // Name-matched (score >= 3 per token ≈ any name hit) before text-only,
+    // cheapest first within each tier — rows arrive already price-ascending.
+    const nameHits = scored.filter((s) => s.score >= tokens.length * 3);
+    const textHits = scored.filter((s) => s.score < tokens.length * 3);
+    const offers = [...nameHits, ...textHits].slice(0, limit).map((s) => s.offer);
+    return json({ query: q || null, count: offers.length, note: OFFERS_NOTE, offers });
   }
 
   // Current brochures (§8). Omit store -> all current (a "this week's flyers" grid).
@@ -226,7 +270,9 @@ export async function handleRequest(request, ctx) {
   }
 
   // Guarded manual ingest (§8) — for testing/backfill without the cron. Shared
-  // secret header; cron uses ingestAll directly (no HTTP, no secret needed).
+  // secret header; the cron's fan-out children hit this same route. Brochures
+  // first (offers link to the freshly-committed editions), then that store's
+  // structured offers — both fit one child's Free-plan subrequest budget.
   if (path === '/ingest' && request.method === 'POST') {
     if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
       return json({ error: 'Forbidden' }, 403);
@@ -234,8 +280,22 @@ export async function handleRequest(request, ctx) {
     const store = (url.searchParams.get('store') || '').trim() || undefined;
     if (store && !ctx.registry[store]) return json({ error: `Unknown store '${store}'.` }, 404);
     const report = await ingestAll(ctx, { store });
+    if (ctx.offerStore && ctx.offersSource && url.searchParams.get('offers') !== '0') {
+      report.offers = await ingestOffers(ctx, { store });
+    }
     return json(report);
+  }
+
+  // Guarded retention run (see retention.js) — the cron coordinator calls
+  // pruneStoredBytes directly; this route exists for manual/backfill runs.
+  if (path === '/prune' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    return json(await pruneStoredBytes(ctx));
   }
 
   return json({ error: 'Not found' }, 404);
 }
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
