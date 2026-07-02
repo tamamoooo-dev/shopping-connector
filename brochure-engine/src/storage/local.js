@@ -39,10 +39,26 @@ export function createMemoryMetadataStore() {
       return false;
     },
     async upsert(row) {
-      for (const r of rows.values()) {
-        if (r.store === row.store && r.region === row.region && r.id !== row.id) r.is_current = 0;
-      }
+      // Same semantics as D1: insert-or-refresh one row as current; superseding
+      // prior rows is the ingest run's job via setCurrent() (a store may hold
+      // several concurrent current flyers).
       rows.set(row.id, { ...row, is_current: 1 });
+    },
+    async setCurrent(store, region, checksums, { supersedeOthers = true } = {}) {
+      if (!checksums || !checksums.length) return;
+      const keep = new Set(checksums);
+      for (const r of rows.values()) {
+        if (r.store !== store || r.region !== region) continue;
+        if (keep.has(r.checksum)) r.is_current = 1;
+        else if (supersedeOthers) r.is_current = 0;
+      }
+    },
+    async getBySourceUrl(store, region, sourceUrl) {
+      if (!sourceUrl) return null;
+      const hits = [...rows.values()]
+        .filter((r) => r.store === store && r.region === region && r.source_url === sourceUrl)
+        .sort((a, b) => (b.detected_at || '').localeCompare(a.detected_at || ''));
+      return hits[0] || null;
     },
     async getCurrent(store, region) {
       return [...rows.values()].filter((r) => r.store === store && r.region === region && r.is_current);

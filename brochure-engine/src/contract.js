@@ -40,15 +40,21 @@ export function deriveEdition({ validFrom, publishedAt, detectedAt }) {
 // Finalize a collector's partial doc into a full BrochureDoc: fill defaults,
 // derive edition/storageKey/id. `checksum` is filled by the pipeline once the
 // bytes are hashed. Store-agnostic — operates purely on the contract fields.
+//
+// `variant` disambiguates CONCURRENT brochures for the same store+region whose
+// validity falls in the same week (a store may run several flyers at once): the
+// primary flyer keeps the plain weekly edition, siblings get "-<variant>"
+// appended, so each holds its own identity/storage prefix instead of colliding.
 export function buildBrochureDoc(partial) {
   const store = req(partial.store, 'store');
   const region = req(partial.region, 'region');
   const detectedAt = partial.detectedAt || new Date().toISOString();
-  const edition = deriveEdition({
+  const baseEdition = deriveEdition({
     validFrom: partial.validFrom,
     publishedAt: partial.publishedAt,
     detectedAt,
   });
+  const edition = partial.variant ? `${baseEdition}-${partial.variant}` : baseEdition;
   const storageKey = `${store}/${region}/${edition}`;
   return {
     store,

@@ -110,26 +110,47 @@ async function selftestM1(ctx) {
 }
 
 // M2: AggregatorCollector (D4D adapter) for one store. Proves the image-set path
-// end-to-end: detect leaflet -> download page images -> dedupe -> store each
-// page -> index -> expose (meta.json + page asset).
+// end-to-end: detect leaflets -> download page images (main weekly flyer FIRST,
+// within the per-run budget) -> dedupe -> store each page -> index -> expose
+// (meta.json + page asset). A store may hold SEVERAL concurrent current flyers;
+// runs converge on the full set (already-held flyers cost no downloads).
 async function selftestM2(ctx, store = 'lulu') {
   console.log(`=== M2: AggregatorCollector / D4D (${store}) ===`);
-  console.log('--- run 1: detect -> download page images -> store -> index ---');
+  console.log('--- run 1: detect -> download page images (main flyer first) -> store -> index ---');
   const r1 = await ingestAll(ctx, { store });
   console.log(JSON.stringify(r1.targets[0]));
-  if (r1.totals.new !== 1) fail(`expected 1 new ${store} brochure, got ${r1.totals.new} (errors: ${JSON.stringify(r1.targets[0]?.errors)})`);
+  if (r1.totals.new < 1) fail(`expected >=1 new ${store} brochure, got ${r1.totals.new} (errors: ${JSON.stringify(r1.targets[0]?.errors)})`);
+  if (r1.totals.failed) fail(`${store} run 1 had failures: ${JSON.stringify(r1.targets[0]?.errors)}`);
 
-  console.log('--- run 2: same leaflet -> must dedupe (no re-store) ---');
+  console.log('--- run 2: held flyers must dedupe (no re-download); remaining siblings may land ---');
   const r2 = await ingestAll(ctx, { store });
   console.log(JSON.stringify(r2.totals));
-  if (r2.totals.deduped !== 1 || r2.totals.new !== 0) fail(`${store} run 2 did not dedupe`);
+  if (r2.totals.deduped < 1) fail(`${store} run 2 did not dedupe the already-held flyer`);
+  if (r2.totals.failed) fail(`${store} run 2 had failures: ${JSON.stringify(r2.targets[0]?.errors)}`);
+
+  // Converge: each run holds what it already has (deduped) and lands what fits
+  // its budget. Live aggregator fetches back-to-back can rate-limit, so allow a
+  // few paced runs (the real cron fires days apart) before requiring the fixed
+  // point: everything detected is held, nothing new.
+  let converged = false;
+  for (let i = 3; i <= 7 && !converged; i++) {
+    await new Promise((r) => setTimeout(r, 2500));
+    const r = await ingestAll(ctx, { store });
+    console.log(`--- run ${i}:`, JSON.stringify(r.totals));
+    if (r.totals.failed) fail(`${store} run ${i} had failures: ${JSON.stringify(r.targets[0]?.errors)}`);
+    converged = r.totals.new === 0 && r.totals.deduped === r.totals.detected && r.totals.detected > 0;
+  }
+  if (!converged) fail(`${store} did not converge on the full current flyer set`);
 
   const read = await readJson(ctx, `/brochures?store=${store}&region=central`);
-  const doc = read.brochures?.[0];
-  if (!doc) fail(`no ${store} brochure returned by read API`);
+  if (!read.brochures?.length) fail(`no ${store} brochure returned by read API`);
+  console.log(`current brochures held for ${store}: ${read.count}`);
+  // The PRIMARY (main weekly) flyer holds the plain weekly edition; concurrent
+  // siblings carry a variant suffix. The primary must exist and be the fullest.
+  const doc = read.brochures.find((b) => /^\d{4}-W\d{2}$/.test(b.edition)) || read.brochures[0];
   if (doc.sourceType !== 'images') fail(`${store} sourceType is not images`);
   if (!doc.checksum?.startsWith('sha256:')) fail('missing checksum');
-  console.log('doc:', JSON.stringify({ id: doc.id, title: doc.title, validFrom: doc.validFrom, validTo: doc.validTo, sourceUrl: doc.sourceUrl }));
+  console.log('primary doc:', JSON.stringify({ id: doc.id, title: doc.title, validFrom: doc.validFrom, validTo: doc.validTo, sourceUrl: doc.sourceUrl }));
 
   // pages[] are persisted in the meta.json snapshot (the D1 row projection omits
   // them); read it back and stream the first page image to prove exposure.

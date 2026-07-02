@@ -33,12 +33,19 @@ function json(body, status = 200, extra = {}) {
 // The first collector that yields candidates wins; failures are collected and
 // non-fatal, so a later fallback collector (e.g. aggregator, a future milestone)
 // still gets its turn. For M1 each provider declares a single [pdfIndex].
-async function collectBestFirst(provider, region) {
+async function collectBestFirst(ctx, provider, region) {
   const regionConfig = provider.regions[region];
+  // Lets a collector skip re-downloading a brochure the engine already holds
+  // (matched by its source URL) — it stays store-agnostic; the collector only
+  // sees "is this sourceUrl already held for my store+region?".
+  const findHeld = (sourceUrl) =>
+    sourceUrl && ctx.metadataStore.getBySourceUrl
+      ? ctx.metadataStore.getBySourceUrl(provider.id, region, sourceUrl)
+      : null;
   const failures = [];
   for (const strategy of provider.strategies) {
     try {
-      const candidates = await strategy.collect({ store: provider.id, region, regionConfig });
+      const candidates = await strategy.collect({ store: provider.id, region, regionConfig, findHeld });
       if (candidates && candidates.length) return { collector: strategy.name, candidates };
       failures.push(`${strategy.name}: no brochure`);
     } catch (err) {
@@ -56,21 +63,38 @@ async function ingestTarget(ctx, provider, region) {
   const line = { store: provider.id, region, detected: 0, new: 0, deduped: 0, failed: 0, errors: [] };
   let collected;
   try {
-    collected = await collectBestFirst(provider, region);
+    collected = await collectBestFirst(ctx, provider, region);
   } catch (err) {
     line.failed = 1;
     line.errors = err.failures || [err.message];
     return line;
   }
+  // A store may hold SEVERAL current brochures at once (concurrent flyers), so
+  // "current" is set per RUN, not per row: everything this run confirmed (new,
+  // deduped, or already-held `existing`) is current; anything else for this
+  // store+region is superseded — but only when nothing failed, so a partial
+  // run never un-currents brochures it couldn't confirm.
+  const confirmed = [];
   for (const candidate of collected.candidates) {
     line.detected += 1;
+    if (candidate.existing) {
+      line.deduped += 1;
+      confirmed.push(candidate.existing.checksum);
+      continue;
+    }
     try {
-      const { status } = await ctx.pipeline.ingest(candidate);
+      const { status, doc } = await ctx.pipeline.ingest(candidate);
       line[status === 'new' ? 'new' : 'deduped'] += 1;
+      if (doc && doc.checksum) confirmed.push(doc.checksum);
     } catch (err) {
       line.failed += 1;
       line.errors.push(err.message);
     }
+  }
+  if (confirmed.length && ctx.metadataStore.setCurrent) {
+    await ctx.metadataStore.setCurrent(provider.id, region, confirmed, {
+      supersedeOthers: line.failed === 0,
+    });
   }
   return line;
 }

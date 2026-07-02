@@ -110,12 +110,19 @@ export async function recordPrices(ctx, { products, searchClient }) {
       const where = `${product.id}@${entry.brochureStore}/${entry.region}`;
       try {
         // 1. Anchor to the store's current brochure edition (the "when"/"where").
+        // A store may hold several concurrent current flyers; anchor to the
+        // PRIMARY weekly edition (a plain "YYYY-Wnn" — concurrent siblings
+        // carry a variant suffix), newest week first.
         const current = await ctx.metadataStore.getCurrent(entry.brochureStore, entry.region);
         if (!current.length) {
           report.skipped += 1; // no brochure to anchor to yet
           continue;
         }
-        const edition = current[0].edition;
+        const primary = [...current].sort((a, b) => {
+          const plain = (r) => (/^\d{4}-W\d{2}$/.test(r.edition) ? 1 : 0);
+          return plain(b) - plain(a) || b.edition.localeCompare(a.edition);
+        })[0];
+        const edition = primary.edition;
 
         // 2. Current market price via the search connector (the number only).
         const results = await searchClient.search(entry.searchProvider, product.query);

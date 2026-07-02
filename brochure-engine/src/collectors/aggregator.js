@@ -17,10 +17,15 @@
 //   Candidate = { doc: PartialBrochureDoc, pages: [{ index, bytes, contentType, url }] }
 //
 // Behaviour per run (§7.2): ask the adapter for the store's current leaflets in
-// this region -> pick the most current one (one BrochureDoc per store+region,
-// §4) -> download its page images -> emit a candidate with sourceType "images".
-// The pipeline (not the collector) computes the checksum over the concatenated
-// page bytes, dedupes, and persists each page + a meta snapshot.
+// this region -> keep EVERY current one (a store may run several flyers at
+// once), ranked main-flyer-first -> download page images within a per-run
+// budget -> emit one candidate per flyer with sourceType "images". Flyers the
+// engine already holds (matched by sourceUrl via ctx.findHeld) are emitted as
+// `existing` candidates without re-downloading anything, so consecutive runs
+// converge on the full current set while each run stays inside the Free-plan
+// subrequest budget. The pipeline (not the collector) computes the checksum
+// over the concatenated page bytes, dedupes, and persists each page + a meta
+// snapshot.
 
 import { buildBrochureDoc } from '../contract.js';
 
@@ -31,19 +36,36 @@ const DEFAULT_HEADERS = {
   Accept: '*/*',
 };
 
-// Choose the single "current" brochure for a store+region from the adapter's
-// candidates (§4 "one weekly brochure for one store+region"): prefer one whose
-// validity window contains today, then the latest validTo, then the newest id.
-function pickCurrent(brochures) {
+// Rank a store's current brochures, MAIN WEEKLY FLYER FIRST. A store often runs
+// several concurrent flyers (the big weekly brochure plus small 1-page promos);
+// the ranking must never prefer a 1-page banner over the main brochure. Order:
+// validity window contains today, then MOST PAGES, then the latest validTo,
+// then the newest id. Also drops expired flyers (the currency gate) and dedupes
+// same-campaign duplicates (aggregators list the same flyer several times for
+// branch/language variants — same title + validity), keeping the fullest one.
+function rankCurrent(brochures) {
   const today = new Date().toISOString().slice(0, 10);
   const validNow = (b) => (b.validFrom && b.validTo && b.validFrom <= today && today <= b.validTo ? 1 : 0);
-  return [...brochures].sort((a, b) => {
+  const current = brochures.filter(
+    (b) => b.pages && b.pages.length && !(b.validTo && b.validTo < today),
+  );
+  // Dedupe same campaign: same (title, validFrom, validTo) -> keep the one with
+  // the most pages (the full flyer, not a per-branch/subset variant).
+  const byCampaign = new Map();
+  for (const b of current) {
+    const key = `${(b.title || b.slug || '').toLowerCase()}|${b.validFrom || ''}|${b.validTo || ''}`;
+    const prior = byCampaign.get(key);
+    if (!prior || b.pages.length > prior.pages.length) byCampaign.set(key, b);
+  }
+  return [...byCampaign.values()].sort((a, b) => {
     const v = validNow(b) - validNow(a);
     if (v) return v;
+    const p = b.pages.length - a.pages.length;
+    if (p) return p;
     const vt = (b.validTo || '').localeCompare(a.validTo || '');
     if (vt) return vt;
     return (b.id || 0) - (a.id || 0);
-  })[0];
+  });
 }
 
 export function createAggregatorCollector(config) {
@@ -54,9 +76,14 @@ export function createAggregatorCollector(config) {
     fetchImpl = fetch,
     // Bound the work per run so the weekly Cron stays gentle on the aggregator
     // (§10.F legal posture) and within a Worker's per-invocation subrequest
-    // budget: at most `maxCandidates` leaflet HTML fetches + `maxPages` images.
-    maxCandidates = 4,
+    // budget (Free plan: 50/invocation): at most `maxCandidates` leaflet HTML
+    // fetches, `maxPages` images per flyer (checksum-stable cap), and
+    // `maxTotalPages` image downloads per RUN across all flyers. Flyers that
+    // don't fit this run's budget are picked up by the next run (the cron
+    // already fires twice a week), because already-held flyers cost nothing.
+    maxCandidates = 6,
     maxPages = 40,
+    maxTotalPages = 40,
   } = config;
 
   if (!adapter || typeof adapter.listBrochures !== 'function') {
@@ -86,7 +113,7 @@ export function createAggregatorCollector(config) {
 
   return {
     name,
-    async collect({ store, region, regionConfig }) {
+    async collect({ store, region, regionConfig, findHeld }) {
       if (!regionConfig || !regionConfig.store) {
         throw new Error(`aggregator: region '${region}' has no aggregator store key configured`);
       }
@@ -100,47 +127,77 @@ export function createAggregatorCollector(config) {
       });
       if (!brochures || !brochures.length) return []; // no brochure -> best-first moves on
 
-      // 2. Pick the current one (one BrochureDoc per store+region).
-      const best = pickCurrent(brochures);
-      if (!best || !best.pages || !best.pages.length) return [];
+      // 2. Keep EVERY current flyer, ranked main-first. rankCurrent also applies
+      // the currency gate (Brochure Source Migration rule "confirm dates
+      // current"): expired flyers are dropped, so an all-expired listing yields
+      // nothing and best-first falls through to the official-offers-page
+      // fallback rather than showing a stale brochure.
+      const ranked = rankCurrent(brochures);
+      if (!ranked.length) return [];
 
-      // Currency gate (Brochure Source Migration rule "confirm dates current"):
-      // never serve an expired flyer. If the best candidate has a known validTo
-      // in the past, yield nothing so best-first falls through to the official-
-      // offers-page fallback rather than showing a stale brochure.
-      const today = new Date().toISOString().slice(0, 10);
-      if (best.validTo && best.validTo < today) return [];
+      // 3. Build each flyer's identity. The primary (main weekly) flyer keeps
+      // the plain weekly edition; concurrent siblings get the aggregator offer
+      // id as a variant so same-week flyers don't collide.
+      const slots = ranked.map((b, i) =>
+        [b, buildBrochureDoc({
+          store,
+          region,
+          title: b.title ?? null,
+          validFrom: b.validFrom ?? null,
+          validTo: b.validTo ?? null,
+          sourceType: 'images',
+          sourceUrl: b.sourceUrl ?? null,
+          pdfUrl: null,
+          collector: name,
+          variant: i === 0 ? null : String(b.id ?? i),
+        })],
+      );
+      const claimedIds = new Set(slots.map(([, doc]) => doc.id));
 
-      // 3. Download its page images (bounded). The pipeline hashes + stores them.
-      const pageUrls = best.pages.slice(0, maxPages);
-      const pages = [];
-      for (let i = 0; i < pageUrls.length; i++) {
-        const res = await fetchWithRetry(pageUrls[i], 'page image');
-        const bytes = new Uint8Array(await res.arrayBuffer());
-        if (bytes.byteLength === 0) continue;
-        pages.push({
-          index: i,
-          bytes,
-          contentType: res.headers.get('content-type') || 'image/jpeg',
-          url: pageUrls[i],
-        });
+      // 4. Emit a candidate per flyer. Already-held flyers (same sourceUrl) are
+      // emitted as `existing` (zero downloads) — unless their held row's id is
+      // claimed by ANOTHER flyer this run (the row is about to be superseded),
+      // in which case they re-download under their own identity. New flyers
+      // download their page images within this run's remaining budget; ones
+      // that don't fit wait for the next run.
+      const out = [];
+      const errors = [];
+      let budget = maxTotalPages;
+      for (const [best, doc] of slots) {
+        try {
+          const held = findHeld ? await findHeld(best.sourceUrl) : null;
+          if (held && held.checksum && (held.id === doc.id || !claimedIds.has(held.id))) {
+            out.push({ existing: held });
+            continue;
+          }
+          const pageUrls = best.pages.slice(0, maxPages);
+          if (pageUrls.length > budget) continue; // next run's budget picks it up
+
+          const pages = [];
+          for (let i = 0; i < pageUrls.length; i++) {
+            const res = await fetchWithRetry(pageUrls[i], 'page image');
+            const bytes = new Uint8Array(await res.arrayBuffer());
+            if (bytes.byteLength === 0) continue;
+            pages.push({
+              index: i,
+              bytes,
+              contentType: res.headers.get('content-type') || 'image/jpeg',
+              url: pageUrls[i],
+            });
+          }
+          if (!pages.length) throw new Error(`no page images downloaded for ${doc.id}`);
+          budget -= pages.length;
+          out.push({ doc, pages });
+        } catch (err) {
+          errors.push(err.message);
+        }
       }
-      if (!pages.length) throw new Error(`aggregator: no page images downloaded for ${store}/${region}`);
-
-      // 4. Build the (partial) BrochureDoc; the pipeline fills checksum + page keys.
-      const doc = buildBrochureDoc({
-        store,
-        region,
-        title: best.title ?? null,
-        validFrom: best.validFrom ?? null,
-        validTo: best.validTo ?? null,
-        sourceType: 'images',
-        sourceUrl: best.sourceUrl ?? null,
-        pdfUrl: null,
-        collector: name,
-      });
-
-      return [{ doc, pages }];
+      if (!out.length) {
+        throw new Error(
+          `aggregator: no page images downloaded for ${store}/${region}${errors.length ? ` (${errors.join('; ')})` : ''}`,
+        );
+      }
+      return out;
     },
   };
 }
