@@ -104,6 +104,13 @@ export function createAggregatorCollector(config) {
       const best = pickCurrent(brochures);
       if (!best || !best.pages || !best.pages.length) return [];
 
+      // Currency gate (Brochure Source Migration rule "confirm dates current"):
+      // never serve an expired flyer. If the best candidate has a known validTo
+      // in the past, yield nothing so best-first falls through to the official-
+      // offers-page fallback rather than showing a stale brochure.
+      const today = new Date().toISOString().slice(0, 10);
+      if (best.validTo && best.validTo < today) return [];
+
       // 3. Download its page images (bounded). The pipeline hashes + stores them.
       const pageUrls = best.pages.slice(0, maxPages);
       const pages = [];

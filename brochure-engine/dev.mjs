@@ -15,6 +15,8 @@ import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { handleRequest, ingestAll } from './src/engine.js';
 import { createPipeline } from './src/pipeline.js';
+import { createAggregatorCollector } from './src/collectors/aggregator.js';
+import { createOfficialLinkCollector } from './src/collectors/officialLink.js';
 import {
   createFsObjectStore,
   createMemoryMetadataStore,
@@ -107,11 +109,11 @@ async function selftestM1(ctx) {
   console.log('✅ M1 verified: detect, download, dedupe, store, index, expose (PDF).\n');
 }
 
-// M2: AggregatorCollector (OffersInMe) for one store. Proves the image-set path
+// M2: AggregatorCollector (D4D adapter) for one store. Proves the image-set path
 // end-to-end: detect leaflet -> download page images -> dedupe -> store each
 // page -> index -> expose (meta.json + page asset).
 async function selftestM2(ctx, store = 'lulu') {
-  console.log(`=== M2: AggregatorCollector (${store}) ===`);
+  console.log(`=== M2: AggregatorCollector / D4D (${store}) ===`);
   console.log('--- run 1: detect -> download page images -> store -> index ---');
   const r1 = await ingestAll(ctx, { store });
   console.log(JSON.stringify(r1.targets[0]));
@@ -228,13 +230,77 @@ async function selftestPriceHistory() {
   console.log('✅ Price History verified: brochure-anchored capture, dedupe, lowest (price/where/when), lows only drop.\n');
 }
 
+// Fallback (Brochure Source Migration): when the aggregator (D4D) has no CURRENT
+// brochure — expired or unavailable — the provider's best-first strategies must
+// fall through to the officialLink collector, exposing the store's OFFICIAL
+// offers page (NEVER another aggregator). Offline + deterministic: no network.
+// Proves (a) the aggregator's currency gate rejects an expired flyer, and
+// (b) the link brochure is ingested (row indexed, sourceType "link", sourceUrl
+// set, NO pages and NO object bytes) and dedupes on re-run.
+async function selftestFallback() {
+  console.log('=== Fallback: officialLink (aggregator expired / unavailable) ===');
+
+  // (a) currency gate: an EXPIRED aggregator brochure yields nothing so that
+  // best-first can fall through (the "expired" half of the rule).
+  const expiredAdapter = {
+    name: 'd4d',
+    async listBrochures() {
+      return [
+        {
+          id: 1, slug: 'old', title: 'Old Flyer',
+          validFrom: '2020-01-01', validTo: '2020-01-07',
+          pages: ['https://cdn.example/old-1.webp'], sourceUrl: 'https://agg/old',
+        },
+      ];
+    },
+  };
+  const gated = createAggregatorCollector({ name: 'd4d', adapter: expiredAdapter });
+  const cands = await gated.collect({ store: 'x', region: 'central', regionConfig: { store: 'x' } });
+  if (cands.length !== 0) fail('currency gate did not reject an expired aggregator brochure');
+  console.log('currency gate: expired flyer rejected ✅');
+
+  // (b) end-to-end fallback: an EMPTY aggregator (unavailable) -> officialLink.
+  const objectStore = createFsObjectStore(DATA_DIR);
+  const metadataStore = createMemoryMetadataStore();
+  const pipeline = createPipeline({ objectStore, metadataStore });
+  const emptyAggregator = { name: 'd4d', async collect() { return []; } };
+  const OFFICIAL_URL = 'https://official-store.example/offers';
+  const provider = {
+    id: 'teststore', label: 'Test Store',
+    regions: { central: { store: 'x', city: 'riyadh', officialUrl: OFFICIAL_URL } },
+    strategies: [emptyAggregator, createOfficialLinkCollector()],
+  };
+  const ctx = { registry: { teststore: provider }, pipeline, metadataStore, objectStore };
+
+  const r1 = await ingestAll(ctx, { store: 'teststore' });
+  console.log('run1:', JSON.stringify(r1.totals));
+  if (r1.totals.new !== 1) fail(`expected 1 new link brochure, got ${r1.totals.new} (${JSON.stringify(r1.targets[0]?.errors)})`);
+
+  const r2 = await ingestAll(ctx, { store: 'teststore' });
+  console.log('run2 (same URL):', JSON.stringify(r2.totals));
+  if (r2.totals.deduped !== 1 || r2.totals.new !== 0) fail('link fallback did not dedupe on re-run');
+
+  const read = await readJson(ctx, '/brochures?store=teststore&region=central');
+  const doc = read.brochures?.[0];
+  if (!doc) fail('no fallback brochure returned by read API');
+  if (doc.sourceType !== 'link') fail(`fallback sourceType is '${doc.sourceType}', not 'link'`);
+  if (doc.sourceUrl !== OFFICIAL_URL) fail(`fallback sourceUrl is '${doc.sourceUrl}'`);
+  if (doc.pages.length) fail('a link brochure must have no pages');
+  // A link brochure writes NO object bytes — its storage prefix must be empty.
+  const asset = await handleRequest(new Request('http://local/asset/brochures/' + doc.storageKey + '/meta.json'), ctx);
+  if (asset.status !== 404) fail('a link brochure must not write object bytes (meta.json)');
+  console.log('fallback doc:', JSON.stringify({ id: doc.id, sourceType: doc.sourceType, sourceUrl: doc.sourceUrl }));
+  console.log('✅ Fallback verified: currency gate + aggregator-empty -> officialLink link brochure (no bytes), deduped.\n');
+}
+
 async function selftest() {
   const ctx = buildContext();
   const store = process.argv[3]; // optional: `node dev.mjs selftest <aggregator-store>`
   await selftestM1(ctx);
   await selftestM2(ctx, store || 'lulu');
+  await selftestFallback();
   await selftestPriceHistory();
-  console.log('✅ ALL VERIFIED — M1 (PDF), M2 (aggregator images), Price History (Pillar 3) end-to-end.');
+  console.log('✅ ALL VERIFIED — M1 (PDF), M2 (D4D images), fallback (officialLink), Price History (Pillar 3) end-to-end.');
 }
 
 if (process.argv[2] === 'selftest') {

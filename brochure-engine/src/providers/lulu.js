@@ -1,24 +1,32 @@
 // providers/lulu.js — LuLu Hypermarket brochure provider (aggregator-covered).
 //
 // PURE CONFIG (project rule 2). LuLu's official in-store promotions page is
-// bot-protected (Discovery §10.B, Akinon 403), so its only reliable brochure
-// source is the aggregator (§7.2). All store knowledge lives here; the Core,
+// bot-protected (Discovery §10.B, Akinon 403), so its reliable brochure source
+// is the aggregator (§7.2), now D4D. All store knowledge lives here; the Core,
 // collector, adapter and storage never learn the name "lulu".
 //
-// LuLu publishes explicitly province-tagged leaflets on OffersInMe
-// ("central-province-…", "eastern-province-…"), so Central/Riyadh is selected
-// with an `include` matcher — the §5.3 region map in practice.
+// Best-first strategies:
+//   1. d4d          — the current Riyadh flyer as page images (served in-app).
+//   2. officialLink — if D4D is expired/unavailable, expose LuLu's official
+//                     offers page as the fallback destination (NO other
+//                     aggregator, per the Brochure Source Migration rule).
 
 import { createAggregatorCollector } from '../collectors/aggregator.js';
-import { offersInMeAdapter } from '../collectors/adapters/offersinme.js';
+import { d4dAdapter } from '../collectors/adapters/d4d.js';
+import { createOfficialLinkCollector } from '../collectors/officialLink.js';
 
-const collector = createAggregatorCollector({ name: 'aggregator', adapter: offersInMeAdapter });
+const d4d = createAggregatorCollector({ name: 'd4d', adapter: d4dAdapter });
+const official = createOfficialLinkCollector();
 
 export const luluProvider = {
   id: 'lulu',
   label: 'LuLu Hypermarket',
   regions: {
-    central: { store: 'lulu-hypermarket-offers', include: /central-province/i },
+    central: {
+      store: 'lulu-hypermarket-63',
+      city: 'riyadh',
+      officialUrl: 'https://www.luluhypermarket.com/en-sa',
+    },
   },
-  strategies: [collector], // best-first; aggregator is LuLu's only reliable source
+  strategies: [d4d, official],
 };

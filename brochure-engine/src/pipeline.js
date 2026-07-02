@@ -48,6 +48,14 @@ export function createPipeline({ objectStore, metadataStore }) {
     // Persist one candidate. Returns { status, doc } where status is
     // 'new' | 'deduped'.
     async ingest(candidate) {
+      // Link path (officialLink fallback): a doc that is just a pointer to the
+      // store's official offers page — no bytes, no pages. Checksum is over the
+      // sourceUrl so an unchanged URL dedupes and a changed one supersedes; the
+      // row is indexed but NOTHING is written to the object store.
+      if (candidate.link || (candidate.doc && candidate.doc.sourceType === 'link')) {
+        return ingestLink(candidate, { metadataStore });
+      }
+
       // Image-set path (aggregator): multiple page images, checksum over the
       // page bytes concatenated in page order (§7.2). Kept separate from the
       // PDF path below, which is unchanged from M1.
@@ -76,6 +84,24 @@ export function createPipeline({ objectStore, metadataStore }) {
       return { status: 'new', doc: finalDoc };
     },
   };
+}
+
+// Link variant of ingest() (officialLink fallback). A link brochure has no
+// bytes to store — it is a pointer to the store's official offers page. We hash
+// the sourceUrl as the identity/dedupe key and index only the row (the same
+// idempotent contract: re-ingesting the same URL dedupes; a changed URL, or a
+// switch away from a prior images/pdf edition, supersedes it).
+async function ingestLink({ doc }, { metadataStore }) {
+  const encoder = new TextEncoder();
+  const checksum = `sha256:${await sha256Hex(encoder.encode(doc.sourceUrl || doc.storageKey))}`;
+  const finalDoc = { ...doc, checksum };
+
+  if (await metadataStore.existsByChecksum(checksum)) {
+    return { status: 'deduped', doc: finalDoc };
+  }
+
+  await metadataStore.upsert(docToRow(finalDoc));
+  return { status: 'new', doc: finalDoc };
 }
 
 // Image-set variant of ingest() (aggregator sources). Same idempotent contract

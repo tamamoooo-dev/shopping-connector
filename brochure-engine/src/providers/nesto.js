@@ -1,21 +1,29 @@
 // providers/nesto.js — Nesto Hypermarket brochure provider (aggregator-covered).
 //
 // PURE CONFIG (project rule 2). Nesto has an official site but heavy aggregator
-// coverage and a KSA footprint that skews Eastern/Western (Discovery §10.B), so
-// M2 uses the aggregator (§7.2). Nesto mixes national leaflets with Dammam
-// (Eastern) ones; the default `exclude` (other-KSA-region blocklist) drops the
-// Dammam/Eastern flyers, leaving the national leaflets valid for Central/Riyadh.
+// coverage (Discovery §10.B), so it uses the aggregator (§7.2), now D4D. D4D
+// scopes offers by the city in the URL, so the Riyadh store page already yields
+// only Central/Riyadh flyers — no per-region slug matcher is needed (unlike the
+// retired OffersInMe adapter, which mixed in Dammam/Eastern leaflets).
+//
+// Best-first: D4D current flyer (images) -> else Nesto's official site.
 
 import { createAggregatorCollector } from '../collectors/aggregator.js';
-import { offersInMeAdapter } from '../collectors/adapters/offersinme.js';
+import { d4dAdapter } from '../collectors/adapters/d4d.js';
+import { createOfficialLinkCollector } from '../collectors/officialLink.js';
 
-const collector = createAggregatorCollector({ name: 'aggregator', adapter: offersInMeAdapter });
+const d4d = createAggregatorCollector({ name: 'd4d', adapter: d4dAdapter });
+const official = createOfficialLinkCollector();
 
 export const nestoProvider = {
   id: 'nesto',
   label: 'Nesto Hypermarket',
   regions: {
-    central: { store: 'nesto-hypermarket-offers' },
+    central: {
+      store: 'nesto-73',
+      city: 'riyadh',
+      officialUrl: 'https://nesto.sa/',
+    },
   },
-  strategies: [collector],
+  strategies: [d4d, official],
 };

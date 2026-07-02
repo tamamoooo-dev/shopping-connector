@@ -1,0 +1,140 @@
+// collectors/adapters/d4d.js — the D4D Online adapter for the generic
+// AggregatorCollector (ARCHITECTURE.md §7.2). Replaces the retired OffersInMe
+// adapter as the project's sole aggregator (Brochure Source Migration).
+//
+// ONE adapter per aggregator. This is aggregator-generic, NOT store-specific:
+// it knows D4D's URL scheme and page markup, nothing about any store. The
+// store-specific bits (which D4D store slug+id a store maps to, and which city
+// = region to read) arrive as `regionConfig` from the provider (project rule 2
+// / §5.3), so a new aggregator store is a provider config addition, not an
+// adapter change.
+//
+// Why D4D (replacing OffersInMe): D4D Online server-renders clean, fetchable
+// pages for the KSA stores, scopes offers by CITY in the URL path (so Riyadh =
+// Central is selected by the URL, not a slug matcher), and — crucially — carries
+// CURRENT Riyadh flyers with machine-readable validity dates (JSON-LD
+// datePublished/expires), which OffersInMe increasingly lacked (stale/lagging
+// flyers). The AggregatorCollector is adapter-driven precisely so this swap is a
+// one-file change (§10.F risk #1: "don't hard-depend on one aggregator").
+//
+// D4D shape (verified live against the KSA site):
+//   store page:  https://d4donline.com/en/saudi-arabia/<city>/offers/<slug>-<id>
+//                -> offer cards: <a href=".../offers/<slug>-<id>/<offerId>/<offerSlug>"
+//                                   class="book-cover" title="… . <expiresISO>">
+//                   (the store page's raw HTML lists only CURRENT offers; the
+//                    expired archive is loaded client-side and never fetched)
+//   leaflet page: https://d4donline.com/en/saudi-arabia/<city>/offers/<slug>-<id>/<offerId>/<offerSlug>
+//                -> JSON-LD CreativeWork: name / datePublished / expires
+//                -> page images as <picture class="offer-page" data-index="<n>">
+//                     <img src="https://cdn.d4donline.com/u/d/YY/MM/DD/<hash>.webp" alt="Page n+1">
+//                   (data-index is the 0-based page order; the hash filename
+//                    carries no index, so we key on data-index)
+//
+// Interface (the brochure analogue of a search adapter), identical to the one
+// the AggregatorCollector expects:
+//   name
+//   listBrochures(storeKey, ctx) -> Promise<Brochure[]>
+//     ctx = { region, regionConfig, fetchText, maxCandidates }
+//     Brochure = { id, slug, title, validFrom, validTo, pages:[imageUrl…], sourceUrl }
+// The collector downloads the page-image BYTES (the heavy part) for only the
+// chosen brochure; this adapter fetches only HTML.
+
+const HOST = 'https://d4donline.com';
+const DEFAULT_CITY = 'riyadh'; // Central region == Riyadh for this project
+
+// today's date (UTC, YYYY-MM-DD) — the currency cutoff.
+const todayISO = () => new Date().toISOString().slice(0, 10);
+
+// Escape a store slug for safe interpolation into a RegExp.
+function esc(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// The store page lists its current offers as `book-cover` links whose `title`
+// attribute ends with the offer's expiry ISO. Extract { id, slug, url, expiry }
+// per offer, deduped by offer id.
+function extractOffers(html, storeKey, city) {
+  const seen = new Map(); // offerId -> offer
+  const re = new RegExp(
+    `/offers/${esc(storeKey)}/(\\d+)/([a-z0-9-]+)"\\s+class="book-cover"\\s+title="([^"]*)"`,
+    'gi',
+  );
+  for (const m of html.matchAll(re)) {
+    const id = Number(m[1]);
+    if (seen.has(id)) continue;
+    const expiry = (/(\d{4}-\d{2}-\d{2})T[\d:]+Z/.exec(m[3]) || [])[1] || null;
+    seen.set(id, {
+      id,
+      slug: m[2].toLowerCase(),
+      url: `${HOST}/en/saudi-arabia/${city}/offers/${storeKey}/${m[1]}/${m[2]}`,
+      expiry,
+    });
+  }
+  return [...seen.values()];
+}
+
+// "2026-06-30T21:30:00Z" -> "2026-06-30" (null if absent/unparseable).
+function isoDate(text) {
+  const m = /(\d{4}-\d{2}-\d{2})/.exec(text || '');
+  return m ? m[1] : null;
+}
+
+// Parse one leaflet page into a Brochure (title + validity from JSON-LD, ordered
+// page images from the <picture class="offer-page"> blocks).
+function parseLeaflet(html, offer) {
+  const title =
+    (/"@type":"CreativeWork","name":"([^"]*)"/.exec(html) || [])[1] || offer.slug || null;
+  const validFrom = isoDate((/"datePublished":"([^"]+)"/.exec(html) || [])[1]);
+  const validTo = isoDate((/"expires":"([^"]+)"/.exec(html) || [])[1]) || offer.expiry;
+
+  // Each page is a <picture class="offer-page" data-index="N"> … <img src="…">.
+  // The <source srcset> before it also carries a cdn URL, so we anchor on the
+  // <img src=…> specifically (it is the one alt-tagged "Page N").
+  const re =
+    /<picture class="offer-page" data-index="(\d+)">[\s\S]*?<img\s+src="(https:\/\/cdn\.d4donline\.com\/[^"]+?)"/gi;
+  const byIndex = new Map();
+  for (const m of html.matchAll(re)) {
+    const idx = Number(m[1]);
+    if (!byIndex.has(idx)) byIndex.set(idx, m[2]);
+  }
+  const pages = [...byIndex.entries()].sort((a, b) => a[0] - b[0]).map((e) => e[1]);
+
+  return { id: offer.id, slug: offer.slug, title, validFrom, validTo, pages, sourceUrl: offer.url };
+}
+
+export const d4dAdapter = {
+  name: 'd4d',
+
+  async listBrochures(storeKey, { region, regionConfig = {}, fetchText, maxCandidates = 4 } = {}) {
+    if (!storeKey) throw new Error(`d4d: region '${region}' has no store slug configured`);
+    if (typeof fetchText !== 'function') throw new Error('d4d: fetchText is required');
+
+    const city = regionConfig.city || DEFAULT_CITY;
+    const html = await fetchText(`${HOST}/en/saudi-arabia/${city}/offers/${storeKey}`);
+
+    // Currency (§ rule "confirm dates are current"): keep only offers that are
+    // NOT expired. D4D scopes offers to the city in the URL, so — unlike the
+    // OffersInMe adapter — no per-store slug include/exclude is needed for
+    // region selection; the region IS the city path.
+    const cutoff = todayISO();
+    let offers = extractOffers(html, storeKey, city).filter(
+      (o) => !o.expiry || o.expiry >= cutoff,
+    );
+
+    // Newest first (higher offer id == more recently published), then cap the
+    // number of leaflet pages we fetch — gentle on the aggregator (§10.F).
+    offers.sort((a, b) => b.id - a.id);
+    offers = offers.slice(0, maxCandidates);
+
+    const out = [];
+    for (const offer of offers) {
+      try {
+        const parsed = parseLeaflet(await fetchText(offer.url), offer);
+        if (parsed.pages.length) out.push(parsed);
+      } catch {
+        /* skip a leaflet that fails to fetch/parse; others still count */
+      }
+    }
+    return out;
+  },
+};

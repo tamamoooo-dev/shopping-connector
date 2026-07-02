@@ -31,9 +31,10 @@ import { tamimiProvider } from './providers/tamimi.js';
 import { manuelProvider } from './providers/manuel.js';
 import { nestoProvider } from './providers/nesto.js';
 
-// M1: Othaim via the official PdfIndexCollector. M2: the other stores via the
-// reusable AggregatorCollector (OffersInMe). Adding a store = one import + one
-// line; the Core, collectors, adapter, pipeline and storage never change.
+// M1: Othaim via the official PdfIndexCollector. The other stores via the
+// reusable AggregatorCollector (D4D adapter) with an official-offers-page
+// fallback. Adding a store = one import + one line; the Core, collectors,
+// adapter, pipeline and storage never change.
 const registry = Object.fromEntries(
   [
     othaimProvider,
