@@ -12,6 +12,7 @@
 // editions); "current" is derived from valid_to at read time, never stored.
 
 import { queryTokens } from '../offers/contract.js';
+import { expandToken } from '../matching.js';
 
 export function createD1OfferStore(db) {
   const upsertStmt = `
@@ -65,9 +66,15 @@ export function createD1OfferStore(db) {
         where.push('region = ?');
         binds.push(region);
       }
+      // Broad SQL prefilter only — final word-boundary relevance runs in JS
+      // (engine.js). Each token ORs across its bilingual synonym variants so an
+      // English query can reach Arabic-only OCR rows (and vice versa); rows the
+      // prefilter lets through that don't match at word level are dropped by
+      // offerRelevance.
       for (const tok of tokens) {
-        where.push("(search_text LIKE ? ESCAPE '\\')");
-        binds.push(`%${tok.replace(/[%_\\]/g, (c) => '\\' + c)}%`);
+        const variants = expandToken(tok);
+        where.push(`(${variants.map(() => "search_text LIKE ? ESCAPE '\\'").join(' OR ')})`);
+        for (const v of variants) binds.push(`%${v.replace(/[%_\\]/g, (c) => '\\' + c)}%`);
       }
       const sql = `SELECT * FROM offers
         ${where.length ? 'WHERE ' + where.join(' AND ') : ''}

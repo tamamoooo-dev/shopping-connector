@@ -8,7 +8,7 @@
 import { mkdir, writeFile, readFile, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';
-import { queryTokens, offerRelevance, rowToOffer } from '../offers/contract.js';
+import { queryTokens, offerRelevance, relevanceScore, rowToOffer } from '../offers/contract.js';
 
 // --- ObjectStore: files under a data directory --------------------------------
 export function createFsObjectStore(rootDir) {
@@ -113,7 +113,7 @@ export function createMemoryOfferStore() {
             (!currentOn || (r.valid_to && r.valid_to >= currentOn)) &&
             (!store || r.store === store) &&
             (!region || r.region === region) &&
-            (!tokens.length || offerRelevance(rowToOffer(r), tokens, r.search_text || '') > 0),
+            (!tokens.length || relevanceScore(offerRelevance(rowToOffer(r), tokens, r.search_text || '')) > 0),
         )
         .sort((a, b) => a.price - b.price)
         .slice(0, Math.max(1, Math.min(Number(limit) || 60, 300)));
@@ -132,6 +132,63 @@ export function createMemoryOfferStore() {
         }
       }
       return n;
+    },
+  };
+}
+
+// --- WatchStore: an in-memory table with the same semantics as the D1 impl ----
+export function createMemoryWatchStore() {
+  const watches = new Map(); // id -> watch (doc shape, like rowToWatch output)
+  const alerts = new Map(); // id -> alert (doc shape)
+  return {
+    async create(watch) {
+      watches.set(watch.id, { ...watch });
+      return watch;
+    },
+    async list({ activeOnly = false } = {}) {
+      return [...watches.values()]
+        .filter((w) => !activeOnly || w.active)
+        .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+    },
+    async get(id) {
+      const w = watches.get(id);
+      return w ? { ...w } : null;
+    },
+    async remove(id) {
+      for (const [aid, a] of alerts) if (a.watchId === id) alerts.delete(aid);
+      return watches.delete(id);
+    },
+    async count() {
+      return [...watches.values()].filter((w) => w.active).length;
+    },
+    async updateState(id, fields) {
+      const w = watches.get(id);
+      if (!w) return;
+      for (const key of ['isBelow', 'checkedAt', 'lastPrice', 'lastStore', 'lastSource', 'lastName', 'lastLink']) {
+        if (key in fields) w[key] = key === 'isBelow' ? !!fields[key] : fields[key] ?? null;
+      }
+    },
+    async insertAlert(alert) {
+      alerts.set(alert.id, { ...alert, seen: false });
+    },
+    async listAlerts({ limit = 50, unseenOnly = false } = {}) {
+      return [...alerts.values()]
+        .filter((a) => !unseenOnly || !a.seen)
+        .sort((a, b) => (b.observedAt || '').localeCompare(a.observedAt || ''))
+        .slice(0, Math.max(1, Math.min(Number(limit) || 50, 200)));
+    },
+    async markAlertsSeen() {
+      let n = 0;
+      for (const a of alerts.values()) {
+        if (!a.seen) {
+          a.seen = true;
+          n += 1;
+        }
+      }
+      return n;
+    },
+    async countUnseen() {
+      return [...alerts.values()].filter((a) => !a.seen).length;
     },
   };
 }

@@ -19,28 +19,19 @@
 // page deep-link) and `imageUrl` (the product's own flyer crop) so a human can
 // always verify. Nothing here knows any store name.
 
-// --- text normalization (matching-only fold, Arabic + English) ----------------
-// Mirrors the frontend's match.js normalization ideas, kept dependency-free:
-// lowercase, strip Arabic diacritics/tatweel, unify alef/hamza/taa-marbuta/
-// alef-maqsura, fold Arabic-Indic digits to ASCII, drop punctuation.
-const AR_DIACRITICS = /[ً-ٰٟـ]/g;
-const AR_INDIC = /[٠-٩]/g;
-const PUNCT = /[^\p{L}\p{N}\s]/gu;
+// --- text normalization + relevance --------------------------------------------
+// Normalization, the bilingual synonym bridge, and word-boundary token scoring
+// live in the engine-wide matching module (src/matching.js) — shared with the
+// Price Monitoring watch evaluation so both layers agree on what "matches".
+// Re-exported here so offer consumers keep a single import site.
+import {
+  normalizeText,
+  queryTokens,
+  bestVariantScore,
+  compoundPenalty,
+} from '../matching.js';
 
-export function normalizeText(text) {
-  return String(text || '')
-    .toLowerCase()
-    .replace(AR_DIACRITICS, '')
-    .replace(/[أإآٱ]/g, 'ا')
-    .replace(/ة/g, 'ه')
-    .replace(/ى/g, 'ي')
-    .replace(/ؤ/g, 'و')
-    .replace(/ئ/g, 'ي')
-    .replace(AR_INDIC, (d) => String(d.charCodeAt(0) - 0x0660))
-    .replace(PUNCT, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
+export { normalizeText, queryTokens };
 
 // --- name derivation from the flyer's OCR text --------------------------------
 // The aggregator's `description` is raw OCR of the flyer cell: bilingual
@@ -230,22 +221,42 @@ export function rowToOffer(r) {
 }
 
 // --- query-side relevance (shared by the /offers read API) ---------------------
-// Token-AND match over the normalized searchText/name, with a light score so
-// name hits outrank description-only hits. Pure, so it is unit-testable.
-export function offerRelevance(offer, queryTokens, searchText) {
-  if (!queryTokens.length) return 1;
+// Word-boundary token matching with the bilingual synonym bridge, AND semantics:
+// every query token must match the offer's NAME or OCR text at word level (whole
+// word / word-start prefix for long tokens / long substring — see matching.js).
+// Raw substring matching is gone: it made short Arabic stems match unrelated
+// words ("بيض" eggs -> "بيضاء" white), the "irrelevant brochure offers" bug.
+// Name-tier hits dominate so genuinely-named products outrank OCR-noise hits,
+// and compound look-alikes ("milk chocolate") are demoted. Pure & unit-tested.
+export function offerRelevance(offer, tokens, searchText) {
+  if (!tokens.length) return 1;
   const name = normalizeText(`${offer.name || ''} ${offer.nameAr || ''}`);
+  const nameWords = new Set(name ? name.split(' ') : []);
   const hay = searchText || '';
+  const hayWords = new Set(hay ? hay.split(' ') : []);
   let score = 0;
-  for (const tok of queryTokens) {
-    const inName = name.includes(tok);
-    const inText = hay.includes(tok);
-    if (!inName && !inText) return 0; // every token must appear somewhere
-    score += inName ? 3 : 1;
+  let nameMisses = 0;
+  for (const tok of tokens) {
+    const inName = bestVariantScore(tok, name, nameWords);
+    const inText = bestVariantScore(tok, hay, hayWords);
+    if (!inName && !inText) return 0; // AND: every token must match somewhere
+    if (!inName) nameMisses += 1;
+    // Name hits weigh 3× text-only hits (same spirit as before, tiered now).
+    score += inName ? inName * 3 : inText;
   }
-  return score;
+  const penalty = name ? compoundPenalty(name, tokens) : 1;
+  return { score: score * penalty, nameMatch: nameMisses === 0 };
 }
 
-export function queryTokens(q) {
-  return normalizeText(q).split(' ').filter(Boolean).slice(0, 6);
+// The score floor a fully name-matched offer always clears, used by the read
+// API to tier name-matched offers above text-only matches. A whole-word name
+// hit scores 100×3 per token; the weakest name tier (long substring, 40×3)
+// still beats the strongest text-only tier (100).
+export function isNameMatch(rel) {
+  return !!(rel && typeof rel === 'object' && rel.nameMatch);
+}
+
+export function relevanceScore(rel) {
+  if (!rel) return 0;
+  return typeof rel === 'object' ? rel.score : rel;
 }

@@ -16,8 +16,9 @@
 import { rowToDoc } from './contract.js';
 import { recordPrices, getLowestDoc, getHistoryDoc, getPricesDoc } from './priceHistory.js';
 import { ingestOffers } from './offers/ingest.js';
-import { rowToOffer, offerRelevance, queryTokens } from './offers/contract.js';
+import { rowToOffer, offerRelevance, queryTokens, isNameMatch, relevanceScore } from './offers/contract.js';
 import { pruneStoredBytes } from './retention.js';
+import { buildWatch, checkWatches, MAX_WATCHES } from './monitor.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
 // extracts prices from flyer images; the flyer prevails on any mismatch).
@@ -152,6 +153,9 @@ export async function handleRequest(request, ctx) {
       providers: Object.keys(ctx.registry),
       held,
       offers: ctx.offerStore ? await ctx.offerStore.counts(todayISO()) : null,
+      watches: ctx.watchStore
+        ? { active: await ctx.watchStore.count(), unseenAlerts: await ctx.watchStore.countUnseen() }
+        : null,
       priceHistory: {
         products: (ctx.products || []).map((p) => p.id),
         tracked: ctx.priceStore ? await ctx.priceStore.listProducts() : [],
@@ -184,14 +188,17 @@ export async function handleRequest(request, ctx) {
     const scored = rows
       .map((r) => {
         const offer = rowToOffer(r);
-        return { offer, score: offerRelevance(offer, tokens, r.search_text || '') };
+        const rel = offerRelevance(offer, tokens, r.search_text || '');
+        return { offer, name: isNameMatch(rel), score: relevanceScore(rel) };
       })
       .filter((s) => s.score > 0);
-    // Name-matched (score >= 3 per token ≈ any name hit) before text-only,
-    // cheapest first within each tier — rows arrive already price-ascending.
-    const nameHits = scored.filter((s) => s.score >= tokens.length * 3);
-    const textHits = scored.filter((s) => s.score < tokens.length * 3);
-    const offers = [...nameHits, ...textHits].slice(0, limit).map((s) => s.offer);
+    // Fully name-matched offers before text-only matches; within a tier the
+    // strongest match first (whole-word beats prefix, compound look-alikes are
+    // demoted), then cheapest first.
+    scored.sort(
+      (a, b) => (b.name ? 1 : 0) - (a.name ? 1 : 0) || b.score - a.score || a.offer.price - b.offer.price,
+    );
+    const offers = scored.slice(0, limit).map((s) => s.offer);
     return json({ query: q || null, count: offers.length, note: OFFERS_NOTE, offers });
   }
 
@@ -257,6 +264,80 @@ export async function handleRequest(request, ctx) {
     if (!ctx.priceStore) return json({ error: 'Price history unavailable.' }, 503);
     const points = await getHistoryDoc(ctx.priceStore, product);
     return json({ product, count: points.length, points });
+  }
+
+  // --- Price Monitoring (Personal Alerts) -------------------------------------
+  // Watches + alerts (see monitor.js). Reads and user writes are open like the
+  // rest of the personal tool's API, but writes are strictly validated and
+  // capped (MAX_WATCHES); the check runner stays secret-guarded because it
+  // spends the subrequest budget.
+
+  // The watch list with its current state, plus the unseen-alert count (the
+  // frontend's badge). One call paints the whole Alerts page.
+  if (path === '/watches' && request.method === 'GET') {
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    const watches = await ctx.watchStore.list();
+    return json({
+      count: watches.length,
+      max: MAX_WATCHES,
+      unseenAlerts: await ctx.watchStore.countUnseen(),
+      watches,
+    });
+  }
+
+  // Create a watch. Validation + the active-watch cap live in buildWatch/here.
+  if (path === '/watches' && request.method === 'POST') {
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'Body must be JSON.' }, 400);
+    }
+    const { watch, error } = buildWatch(body);
+    if (error) return json({ error }, 400);
+    if ((await ctx.watchStore.count()) >= MAX_WATCHES) {
+      return json({ error: `Watch limit reached (${MAX_WATCHES}). Delete one first.` }, 409);
+    }
+    await ctx.watchStore.create(watch);
+    return json({ watch }, 201);
+  }
+
+  // Delete a watch (and its alerts).
+  if (path === '/watches' && request.method === 'DELETE') {
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    const id = (url.searchParams.get('id') || '').trim();
+    if (!id) return json({ error: "Missing required parameter 'id'." }, 400);
+    const removed = await ctx.watchStore.remove(id);
+    return removed ? json({ removed: id }) : json({ error: 'Watch not found.' }, 404);
+  }
+
+  // Recent alerts (newest first). `unseen=1` narrows to unread ones.
+  if (path === '/alerts' && request.method === 'GET') {
+    if (!ctx.watchStore) return json({ error: 'Alerts unavailable.' }, 503);
+    const unseenOnly = url.searchParams.get('unseen') === '1';
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 50, 200));
+    const alerts = await ctx.watchStore.listAlerts({ limit, unseenOnly });
+    return json({ count: alerts.length, unseen: await ctx.watchStore.countUnseen(), alerts });
+  }
+
+  // Mark all alerts read (the Alerts page calls this when viewed).
+  if (path === '/alerts/seen' && request.method === 'POST') {
+    if (!ctx.watchStore) return json({ error: 'Alerts unavailable.' }, 503);
+    return json({ marked: await ctx.watchStore.markAlertsSeen() });
+  }
+
+  // Guarded check runner — evaluates watches NOW. The daily cron fans out to
+  // this route in batches (?ids=a,b,c) so each batch gets its own subrequest
+  // budget; a bare call checks every active watch (manual/backfill).
+  if (path === '/watches/check' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    const idsParam = (url.searchParams.get('ids') || '').trim();
+    const ids = idsParam ? idsParam.split(',').map((s) => s.trim()).filter(Boolean) : null;
+    return json(await checkWatches(ctx, { ids }));
   }
 
   // Guarded manual capture — for testing/backfill without the cron. Same secret

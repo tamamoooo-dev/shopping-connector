@@ -22,11 +22,27 @@ import {
   createMemoryMetadataStore,
   createMemoryPriceStore,
   createMemoryOfferStore,
+  createMemoryWatchStore,
 } from './src/storage/local.js';
 import { recordPrices, getLowestDoc, createHttpSearchClient } from './src/priceHistory.js';
 import { createD4dOffersSource } from './src/offers/d4dOffers.js';
 import { ingestOffers } from './src/offers/ingest.js';
-import { buildOffer, deriveNames, normalizeText, offerRelevance, queryTokens } from './src/offers/contract.js';
+import {
+  buildOffer,
+  deriveNames,
+  normalizeText,
+  offerRelevance,
+  queryTokens,
+  relevanceScore,
+  isNameMatch,
+} from './src/offers/contract.js';
+import {
+  nameRelevance,
+  isRelevantName,
+  parseSize as parseSizeM,
+  sizeComparable as sizeComparableM,
+} from './src/matching.js';
+import { buildWatch, checkWatch, MAX_WATCHES } from './src/monitor.js';
 import { pruneStoredBytes } from './src/retention.js';
 import { products } from './src/products.js';
 import { othaimProvider } from './src/providers/othaim.js';
@@ -71,6 +87,8 @@ function buildContext() {
     priceStore,
     offerStore: createMemoryOfferStore(),
     offersSource: createD4dOffersSource(),
+    watchStore: createMemoryWatchStore(),
+    notifier: null,
     products,
     searchClient,
     ingestSecret: 'dev',
@@ -349,8 +367,8 @@ async function selftestOffers() {
   const real = buildOffer({ ...base, price: '9.50', wasPrice: '12.00' }, meta);
   if (real.oldPrice !== 12) fail('real strike-through lost');
   if (normalizeText('٨٥٠ مل') !== '850 مل') fail('Arabic-Indic digits not folded');
-  if (offerRelevance(real, queryTokens('milk'), real.searchText) <= 0) fail('relevance miss on own text');
-  if (offerRelevance(real, queryTokens('coffee'), real.searchText) !== 0) fail('irrelevant query matched');
+  if (relevanceScore(offerRelevance(real, queryTokens('milk'), real.searchText)) <= 0) fail('relevance miss on own text');
+  if (relevanceScore(offerRelevance(real, queryTokens('coffee'), real.searchText)) !== 0) fail('irrelevant query matched');
   console.log('contract gates + normalization + relevance ✅');
 
   // (c) ingest end-to-end with a scripted source (offline).
@@ -470,6 +488,157 @@ async function selftestOffersLive(ctx, store = 'lulu') {
   console.log(`✅ Structured Offers LIVE verified for ${store}.\n`);
 }
 
+// Matching — OFFLINE: the word-boundary + bilingual-synonym relevance that
+// fixes the "irrelevant brochure offers" class of bug (e.g. the Arabic query
+// "بيض" (eggs) substring-matching "بيضاء" (white) under the old matcher).
+async function selftestMatching() {
+  console.log('=== Matching (word boundaries, synonyms, size gate) ===');
+  // Word-boundary honesty: eggs must NOT match "white" words.
+  if (nameRelevance('بصل ابيض طازج', 'بيض') !== 0) fail('بيض matched ابيض (white) — substring bug is back');
+  if (nameRelevance('بيض ابيض ٣٠ حبه', 'بيض') <= 0) fail('real eggs name not matched');
+  // Bilingual synonym bridge, both directions.
+  if (nameRelevance('حليب المراعي طازج 2 لتر', 'milk') <= 0) fail('EN query missed AR milk name');
+  if (nameRelevance('Almarai Fresh Milk 2L', 'حليب') <= 0) fail('AR query missed EN milk name');
+  // Compound look-alike demoted below the monitor floor, plain product above.
+  if (isRelevantName('Milk Chocolate Biscuit 90g', 'milk', 50)) fail('milk chocolate passed the alert gate');
+  if (!isRelevantName('Nadec Fresh Milk 2 L', 'milk', 50)) fail('plain milk failed the alert gate');
+  // Size parsing + comparability (the grocery alert size gate).
+  const two = parseSizeM('Almarai Milk 2 L');
+  if (two.unit !== 'ml' || two.total !== 2000) fail('2 L did not parse');
+  if (parseSizeM('حليب ٢ لتر').total !== 2000) fail('Arabic-Indic 2 لتر did not parse');
+  if (!sizeComparableM(two, parseSizeM('Nadec Milk 1.9 LTR'))) fail('1.9 L not comparable to 2 L');
+  if (sizeComparableM(two, parseSizeM('Milk 200 ml'))) fail('200 ml wrongly comparable to 2 L');
+  // Offer relevance tiers: name matches rank above text-only matches.
+  const t = queryTokens('milk');
+  const nameHit = offerRelevance({ name: 'nadec milk 2l', nameAr: null }, t, 'nadec milk 2l fresh');
+  const textHit = offerRelevance({ name: 'weekly deal', nameAr: null }, t, 'banner text milk somewhere');
+  if (!isNameMatch(nameHit) || isNameMatch(textHit)) fail('name/text tiering broken');
+  if (relevanceScore(nameHit) <= relevanceScore(textHit)) fail('name hit does not outrank text hit');
+  console.log('✅ Matching verified: boundaries, synonyms, compound gate, size gate, tiering.\n');
+}
+
+// Price Monitoring — OFFLINE + deterministic. Proves validation, the relevance
+// + size trust gates, cross-source evaluation (online + flyer), crossing
+// semantics (one drop -> one alert, re-arm on recovery), product-id matching,
+// and the watch API routes end-to-end through the engine router.
+async function selftestWatches() {
+  console.log('=== Price Monitoring (watches + alerts) ===');
+
+  // (a) validation.
+  if (!buildWatch({ kind: 'nope' }).error) fail('bad kind passed validation');
+  if (!buildWatch({ kind: 'grocery', query: 'x', targetPrice: 5 }).error) fail('1-char query passed');
+  if (!buildWatch({ kind: 'grocery', query: 'milk', targetPrice: -1 }).error) fail('negative target passed');
+  if (!buildWatch({ kind: 'product', query: 'iphone', targetPrice: 100 }).error) fail('product watch without provider/id passed');
+  const g = buildWatch({ kind: 'grocery', query: 'milk', targetPrice: 9, label: 'Almarai Milk 2 L', sizeText: 'Almarai Milk 2 L' });
+  if (g.error) fail(`good grocery watch rejected: ${g.error}`);
+  if (g.watch.sizeUnit !== 'ml' || g.watch.sizeTotal !== 2000) fail('reference size not captured');
+  console.log('validation ✅');
+
+  // (b) the trust gates + cross-source evaluation + crossing semantics.
+  const watchStore = createMemoryWatchStore();
+  const offerStore = createMemoryOfferStore();
+  const today = new Date().toISOString().slice(0, 10);
+  const inWeek = new Date(Date.now() + 6 * 86400000).toISOString().slice(0, 10);
+  // Current flyer offers: a genuine 2 L milk at 8, a tiny 200 ml at 1 (size
+  // gate), and an eggs-vs-white trap row that must never surface for بيض.
+  await offerStore.upsertMany([
+    { id: 'f1', store: 'othaim', region: 'central', source: 't', offer_id: '1', name: 'nadec fresh milk 2l', name_ar: null, price: 8, currency: 'SAR', valid_from: today, valid_to: inWeek, detected_at: 'x', search_text: 'nadec fresh milk 2l', source_url: 'https://agg/flyer/1' },
+    { id: 'f2', store: 'othaim', region: 'central', source: 't', offer_id: '2', name: 'nadec milk 200 ml', name_ar: null, price: 1, currency: 'SAR', valid_from: today, valid_to: inWeek, detected_at: 'x', search_text: 'nadec milk 200 ml' },
+    { id: 'f3', store: 'ramez', region: 'central', source: 't', offer_id: '3', name: null, name_ar: 'بصل ابيض', price: 2, currency: 'SAR', valid_from: today, valid_to: inWeek, detected_at: 'x', search_text: 'بصل ابيض طازج' },
+  ]);
+  // Scripted online results: one relevant 2 L milk at 12, one compound
+  // look-alike at 3 (relevance gate), one 200 ml at 1 (size gate).
+  let onlineMilkPrice = 12;
+  const searchClient = {
+    async search(provider, query) {
+      if (provider === 'panda' && /milk/.test(query)) {
+        return [
+          { id: 'p1', name: 'Milk Chocolate Biscuit', price: 3, currency: 'SAR' },
+          { id: 'p2', name: 'Almarai Fresh Milk 2 L', price: onlineMilkPrice, currency: 'SAR', link: 'https://panda/milk' },
+          { id: 'p3', name: 'Almarai Fresh Milk 200 ml', price: 1, currency: 'SAR' },
+        ];
+      }
+      if (provider === 'amazon' && /echo/.test(query)) {
+        return [
+          { id: 'B0OTHER', name: 'Echo Dot case', price: 49, currency: 'SAR', link: 'https://amazon.sa/dp/B0OTHER' },
+          { id: 'B0TARGET', name: 'Amazon Echo Dot 5', price: 189, currency: 'SAR', link: 'https://amazon.sa/dp/B0TARGET' },
+        ];
+      }
+      return [];
+    },
+  };
+  const notifications = [];
+  const mctx = {
+    watchStore,
+    offerStore,
+    searchClient,
+    notifier: { async send(n) { notifications.push(n); } },
+  };
+
+  const milkWatch = g.watch;
+  await watchStore.create(milkWatch);
+  const c1 = await checkWatch(mctx, milkWatch);
+  // Best trustworthy price: flyer 8 (beats online 12; the 1-SAR rows are gated).
+  if (c1.price !== 8) fail(`expected best price 8 (flyer), got ${c1.price}`);
+  if (c1.status !== 'below-target' || !c1.alerted) fail('crossing to below-target did not alert');
+  let alerts = await watchStore.listAlerts({});
+  if (alerts.length !== 1 || alerts[0].source !== 'flyer' || alerts[0].store !== 'othaim') fail('alert row wrong');
+  if (notifications.length !== 1) fail('notifier not called once');
+
+  // Still below on the next check -> NO second alert.
+  const c2 = await checkWatch(mctx, await watchStore.get(milkWatch.id));
+  if (c2.alerted) fail('re-alerted while still below target');
+
+  // Price recovers above target -> re-arms; drops again -> ONE new alert.
+  await offerStore.upsertMany([{ id: 'f1', store: 'othaim', region: 'central', source: 't', offer_id: '1', name: 'nadec fresh milk 2l', name_ar: null, price: 9.75, currency: 'SAR', valid_from: today, valid_to: inWeek, detected_at: 'x', search_text: 'nadec fresh milk 2l' }]);
+  const c3 = await checkWatch(mctx, await watchStore.get(milkWatch.id));
+  if (c3.status !== 'above-target' || c3.alerted) fail('recovery above target mishandled');
+  await offerStore.upsertMany([{ id: 'f1', store: 'othaim', region: 'central', source: 't', offer_id: '1', name: 'nadec fresh milk 2l', name_ar: null, price: 8.5, currency: 'SAR', valid_from: today, valid_to: inWeek, detected_at: 'x', search_text: 'nadec fresh milk 2l' }]);
+  const c4 = await checkWatch(mctx, await watchStore.get(milkWatch.id));
+  if (!c4.alerted) fail('second crossing did not alert');
+  alerts = await watchStore.listAlerts({});
+  if (alerts.length !== 2) fail(`expected 2 alerts total, got ${alerts.length}`);
+  console.log('grocery watch: gates + cross-source best + crossing semantics ✅');
+
+  // (c) product watch: the EXACT product by stable id, not the cheaper noise.
+  const p = buildWatch({ kind: 'product', query: 'echo dot', targetPrice: 200, provider: 'amazon', productId: 'B0TARGET', label: 'Echo Dot 5' });
+  if (p.error) fail(`good product watch rejected: ${p.error}`);
+  await watchStore.create(p.watch);
+  const cp = await checkWatch(mctx, p.watch);
+  if (cp.price !== 189 || !cp.alerted) fail(`product watch matched wrong item (price ${cp.price})`);
+  // A vanished product -> no-data, arming state untouched.
+  const p2 = buildWatch({ kind: 'product', query: 'echo dot', targetPrice: 10, provider: 'amazon', productId: 'B0GONE' });
+  await watchStore.create(p2.watch);
+  const cg = await checkWatch(mctx, p2.watch);
+  if (cg.status !== 'no-data' || cg.alerted) fail('vanished product mishandled');
+  console.log('product watch: id matching + not-found ✅');
+
+  // (d) the API routes through the engine router (create -> read -> check ->
+  // alerts -> seen -> delete), with the cap enforced.
+  const rctx = { registry: {}, watchStore: createMemoryWatchStore(), offerStore, searchClient, notifier: null, ingestSecret: 'dev' };
+  const mk = (body) => new Request('http://local/watches', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const created = await (await handleRequest(mk({ kind: 'grocery', query: 'milk', targetPrice: 9, sizeText: '2 L' }), rctx)).json();
+  if (!created.watch?.id) fail('POST /watches did not create');
+  const bad = await handleRequest(mk({ kind: 'grocery', query: 'm', targetPrice: 9 }), rctx);
+  if (bad.status !== 400) fail('invalid watch not rejected');
+  const listed = await readJson(rctx, '/watches');
+  if (listed.count !== 1 || listed.max !== MAX_WATCHES) fail('GET /watches wrong');
+  const checkRes = await handleRequest(new Request('http://local/watches/check', { method: 'POST', headers: { 'X-Ingest-Secret': 'dev' } }), rctx);
+  const checkBody = await checkRes.json();
+  if (checkBody.checked !== 1 || checkBody.alerted !== 1) fail('POST /watches/check wrong');
+  const unguarded = await handleRequest(new Request('http://local/watches/check', { method: 'POST' }), rctx);
+  if (unguarded.status !== 403) fail('check runner not guarded');
+  const alertsRead = await readJson(rctx, '/alerts?unseen=1');
+  if (alertsRead.count !== 1 || alertsRead.unseen !== 1) fail('GET /alerts wrong');
+  await handleRequest(new Request('http://local/alerts/seen', { method: 'POST' }), rctx);
+  if ((await readJson(rctx, '/alerts?unseen=1')).count !== 0) fail('alerts/seen did not mark');
+  const del = await handleRequest(new Request(`http://local/watches?id=${created.watch.id}`, { method: 'DELETE' }), rctx);
+  if (del.status !== 200) fail('DELETE /watches failed');
+  if ((await readJson(rctx, '/watches')).count !== 0) fail('watch not deleted');
+  console.log('watch API routes ✅');
+  console.log('✅ Price Monitoring verified: validation, trust gates, cross-source, crossings, product-id, routes.\n');
+}
+
 async function selftest() {
   const ctx = buildContext();
   const store = process.argv[3]; // optional: `node dev.mjs selftest <aggregator-store>`
@@ -479,8 +648,10 @@ async function selftest() {
   await selftestPriceHistory();
   await selftestOffers();
   await selftestRetention();
+  await selftestMatching();
+  await selftestWatches();
   await selftestOffersLive(ctx, store || 'lulu');
-  console.log('✅ ALL VERIFIED — M1 (PDF), M2 (D4D images), fallback (officialLink), Price History (Pillar 3), Structured Offers (contract+ingest+live), Retention — end-to-end.');
+  console.log('✅ ALL VERIFIED — M1 (PDF), M2 (D4D images), fallback (officialLink), Price History (Pillar 3), Structured Offers (contract+ingest+live), Retention, Matching, Price Monitoring — end-to-end.');
 }
 
 if (process.argv[2] === 'selftest') {
@@ -493,14 +664,24 @@ if (process.argv[2] === 'selftest') {
   selftestOffers()
     .then(() => selftestRetention())
     .then(() => console.log('✅ offerstest OK'));
+} else if (process.argv[2] === 'watchtest') {
+  // Just the offline Matching + Price Monitoring proofs (no live network).
+  selftestMatching()
+    .then(() => selftestWatches())
+    .then(() => console.log('✅ watchtest OK'));
 } else {
   const ctx = buildContext();
   const PORT = process.env.PORT || 8787;
   http
     .createServer(async (req, res) => {
+      // Buffer the request body so JSON POSTs (e.g. /watches) work locally.
+      const chunks = [];
+      for await (const chunk of req) chunks.push(chunk);
+      const body = Buffer.concat(chunks);
       const request = new Request(`http://localhost:${PORT}${req.url}`, {
         method: req.method,
         headers: req.headers,
+        body: body.length ? body : undefined,
       });
       try {
         const response = await handleRequest(request, ctx);

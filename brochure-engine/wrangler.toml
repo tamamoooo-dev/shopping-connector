@@ -18,7 +18,10 @@ compatibility_date = "2025-06-01"
 # of extra writes. (This replaces M2's daily one-store-per-fire rotation, which
 # spread the refresh across ~8 days.) Day/time are easily tunable here.
 [triggers]
-crons = ["0 6 * * 2,3"]
+crons = [
+  "0 6 * * 2,3", # weekly brochure/offers pipeline (fan-out -> prices -> prune)
+  "45 5 * * *",  # daily Price Monitoring: check every active watch (08:45 AST)
+]
 
 # --- SELF service binding: the cron fan-out mechanism (Architecture C) ---------
 # Binds this Worker to itself so scheduled() can invoke POST /ingest?store=<id>

@@ -15,11 +15,18 @@
 // is invisible to everything above it.
 
 import { handleRequest } from './engine.js';
-import { runFanOut, createServiceBindingDispatcher } from './scheduler.js';
+import {
+  runFanOut,
+  createServiceBindingDispatcher,
+  runWatchFanOut,
+  createWatchCheckDispatcher,
+} from './scheduler.js';
 import { createD1MetadataStore } from './storage/metadataStore.js';
 import { createR2ObjectStore, createKvObjectStore } from './storage/objectStore.js';
 import { createD1PriceStore } from './storage/priceStore.js';
 import { createD1OfferStore } from './storage/offerStore.js';
+import { createD1WatchStore } from './storage/watchStore.js';
+import { createNtfyNotifier, CHECK_BATCH } from './monitor.js';
 import { createPipeline } from './pipeline.js';
 import { recordPrices, createServiceBindingSearchClient } from './priceHistory.js';
 import { createD4dOffersSource } from './offers/d4dOffers.js';
@@ -74,6 +81,13 @@ function buildContext(env) {
   // Structured offers (the price-comparison substrate) share the same D1.
   const offerStore = createD1OfferStore(env.DB);
   const offersSource = createD4dOffersSource();
+  // Price Monitoring (watches + alerts) shares the same D1 too. Push delivery
+  // is optional: set the NTFY_TOPIC secret to a private ntfy.sh topic and the
+  // monitor pushes each alert to the user's phone; absent, alerts are in-app.
+  const watchStore = createD1WatchStore(env.DB);
+  const notifier = env.NTFY_TOPIC
+    ? createNtfyNotifier({ topic: env.NTFY_TOPIC, server: env.NTFY_SERVER || 'https://ntfy.sh' })
+    : null;
   return {
     registry,
     objectStore,
@@ -82,6 +96,8 @@ function buildContext(env) {
     priceStore,
     offerStore,
     offersSource,
+    watchStore,
+    notifier,
     products,
     searchClient,
     ingestSecret: env.INGEST_SECRET,
@@ -106,6 +122,43 @@ export default {
   // The fan-out mechanism is isolated behind dispatchStore() so it can be swapped
   // (e.g. for a Queue producer) without touching collectors, pipeline or storage.
   async scheduled(event, env, ctx) {
+    // TWO schedules share this handler (wrangler.toml [triggers]):
+    //   • "45 5 * * *"  — DAILY Price Monitoring: check every active watch.
+    //     Fanned out in batches via SELF (each batch gets its own subrequest
+    //     budget); kept OUT of the weekly fire so the two never compound
+    //     against the per-event invocation caps.
+    //   • "0 6 * * 2,3" — the WEEKLY brochure/offers pipeline (fan-out ->
+    //     price capture -> retention), unchanged below.
+    if (event.cron === '45 5 * * *') {
+      ctx.waitUntil(
+        (async () => {
+          const context = buildContext(env);
+          const watches = await context.watchStore.list({ activeOnly: true });
+          if (!watches.length) return;
+          const dispatchBatch = createWatchCheckDispatcher({
+            self: env.SELF,
+            ingestSecret: env.INGEST_SECRET,
+          });
+          const report = await runWatchFanOut(
+            watches.map((w) => w.id),
+            dispatchBatch,
+            { batchSize: CHECK_BATCH },
+          );
+          console.log(
+            'brochure-engine watch check',
+            JSON.stringify({
+              watches: report.watches,
+              batches: report.batches,
+              ok: report.ok,
+              failed: report.failed,
+              alerted: report.alerted,
+            }),
+          );
+        })(),
+      );
+      return;
+    }
+
     ctx.waitUntil(
       (async () => {
         const dispatchStore = createServiceBindingDispatcher({

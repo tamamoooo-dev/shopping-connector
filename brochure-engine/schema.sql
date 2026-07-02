@@ -98,3 +98,52 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_offer ON offers(store, region, source, offe
 -- "Current offers for a store" and global currency filters.
 CREATE INDEX IF NOT EXISTS ix_offers_store_valid ON offers(store, region, valid_to);
 CREATE INDEX IF NOT EXISTS ix_offers_valid ON offers(valid_to);
+
+-- ---------------------------------------------------------------------------
+-- Price Monitoring (the Keepa-inspired Personal Alerts feature — monitor.js).
+-- A watch is a user-set target price on either a specific identifiable product
+-- (kind 'product': provider + stable product id, e.g. an Amazon ASIN) or a
+-- grocery query (kind 'grocery': evaluated across ALL sources — live online
+-- stores + current flyer offers). Checked by a daily cron; an alert row is
+-- written when the price CROSSES down to the target (is_below tracks the
+-- arming state so one drop produces one alert).
+CREATE TABLE IF NOT EXISTS watches (
+  id           TEXT PRIMARY KEY,   -- w_<random>
+  kind         TEXT NOT NULL,      -- 'product' | 'grocery'
+  label        TEXT,
+  query        TEXT NOT NULL,      -- the search query that re-finds the product
+  provider     TEXT,               -- kind=product: search-connector provider id
+  product_id   TEXT,               -- kind=product: the stable result id (ASIN…)
+  link         TEXT,
+  image        TEXT,
+  target_price REAL NOT NULL,
+  currency     TEXT NOT NULL DEFAULT 'SAR',
+  size_unit    TEXT,               -- kind=grocery: reference size (the size gate)
+  size_total   REAL,               --   e.g. 'ml' + 2000 for a 2 L milk
+  active       INTEGER NOT NULL DEFAULT 1,
+  is_below     INTEGER NOT NULL DEFAULT 0, -- crossing detector state
+  created_at   TEXT NOT NULL,
+  checked_at   TEXT,
+  last_price   REAL,               -- best trustworthy price at the last check
+  last_store   TEXT,
+  last_source  TEXT,               -- 'online' | 'flyer'
+  last_name    TEXT,
+  last_link    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS alerts (
+  id           TEXT PRIMARY KEY,   -- a_<random>
+  watch_id     TEXT NOT NULL,
+  price        REAL NOT NULL,
+  target_price REAL NOT NULL,
+  currency     TEXT,
+  store        TEXT,
+  source       TEXT,               -- 'online' | 'flyer'
+  name         TEXT,
+  link         TEXT,
+  observed_at  TEXT NOT NULL,
+  seen         INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE INDEX IF NOT EXISTS ix_alerts_watch ON alerts(watch_id, observed_at);
+CREATE INDEX IF NOT EXISTS ix_alerts_seen ON alerts(seen);

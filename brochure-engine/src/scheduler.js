@@ -78,3 +78,53 @@ export function createServiceBindingDispatcher({ self, ingestSecret, origin = 'h
     return body.totals || body;
   };
 }
+
+// --- Price Monitoring fan-out (the daily watch-check cron) ---------------------
+// Same Architecture-C mechanism, different unit of work: the coordinator lists
+// the active watches (a D1 read — no fetch subrequest), chunks their ids into
+// small batches, and dispatches each batch to POST /watches/check?ids=… via the
+// SELF binding. Each child invocation gets its own fresh 50-subrequest budget;
+// a grocery watch sweeps ~7 stores, so a batch of 3 stays comfortably inside.
+export async function runWatchFanOut(watchIds, dispatchBatch, { batchSize = 3 } = {}) {
+  const startedAt = new Date().toISOString();
+  const batches = [];
+  for (let i = 0; i < watchIds.length; i += batchSize) {
+    batches.push(watchIds.slice(i, i + batchSize));
+  }
+  const settled = await Promise.allSettled(batches.map((ids) => dispatchBatch(ids)));
+  const perBatch = batches.map((ids, i) => {
+    const r = settled[i];
+    return r.status === 'fulfilled'
+      ? { ids, ok: true, result: r.value }
+      : { ids, ok: false, error: r.reason?.message || String(r.reason) };
+  });
+  return {
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    watches: watchIds.length,
+    batches: batches.length,
+    ok: perBatch.filter((b) => b.ok).length,
+    failed: perBatch.filter((b) => !b.ok).length,
+    alerted: perBatch.reduce((n, b) => n + (b.ok && b.result ? b.result.alerted || 0 : 0), 0),
+    lines: perBatch,
+  };
+}
+
+export function createWatchCheckDispatcher({ self, ingestSecret, origin = 'https://brochure-engine.internal' }) {
+  if (!self || typeof self.fetch !== 'function') {
+    throw new Error('scheduler: a SELF service binding (env.SELF) is required for the watch-check dispatcher');
+  }
+  return async function dispatchBatch(ids) {
+    const res = await self.fetch(`${origin}/watches/check?ids=${encodeURIComponent(ids.join(','))}`, {
+      method: 'POST',
+      headers: { 'X-Ingest-Secret': ingestSecret || '' },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(`watch check ${ids.join(',')} -> HTTP ${res.status}`);
+      err.body = body;
+      throw err;
+    }
+    return body;
+  };
+}
