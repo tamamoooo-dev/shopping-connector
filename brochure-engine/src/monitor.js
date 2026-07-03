@@ -35,6 +35,8 @@ import {
   isRelevantName,
   parseSize,
   sizeComparable,
+  productFamily,
+  queryFamily,
 } from './matching.js';
 import {
   rowToOffer,
@@ -137,10 +139,22 @@ function refSize(watch) {
     : null;
 }
 
+// Family gate (trust rule): when the watched query names a product family, a
+// candidate of a KNOWN different family never counts — a milk watch must not
+// alert on a yogurt, an eggs watch must not alert on an egg-pastry, however
+// well the name tokens match. Family-less candidates pass (relevance + size
+// gates still apply); we only act on a provable mismatch.
+function familyMismatch(watchFamily, candidateName) {
+  if (!watchFamily) return false;
+  const fam = productFamily(candidateName);
+  return fam != null && fam !== watchFamily;
+}
+
 // kind 'grocery': sweep every online store + the current flyer offers.
 async function evaluateGrocery(ctx, watch, notes) {
   const candidates = [];
   const ref = refSize(watch);
+  const watchFamily = queryFamily(watch.query);
 
   // Online stores (via the search connector). Per-store failures are noted,
   // never fatal — monitoring degrades gracefully with flaky stores.
@@ -154,6 +168,7 @@ async function evaluateGrocery(ctx, watch, notes) {
             const price = Number(r.price);
             if (!Number.isFinite(price) || price <= 0) continue;
             if (!isRelevantName(r.name, watch.query, REL_FLOOR)) continue;
+            if (familyMismatch(watchFamily, r.name)) continue; // wrong product family
             if (ref) {
               const sz = parseSize(r.name, r.size);
               if (!sizeComparable(ref, sz)) continue; // wrong/unknown size
@@ -189,6 +204,7 @@ async function evaluateGrocery(ctx, watch, notes) {
         if (!isNameMatch(rel)) continue;
         const display = offer.name || offer.nameAr;
         if (!display || !isRelevantName(display, watch.query, REL_FLOOR)) continue;
+        if (familyMismatch(watchFamily, `${offer.name || ''} ${offer.nameAr || ''}`)) continue;
         if (ref) {
           const sz = parseSize(`${offer.name || ''} ${offer.nameAr || ''}`, '');
           if (!sizeComparable(ref, sz)) continue;

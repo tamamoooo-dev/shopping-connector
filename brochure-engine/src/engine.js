@@ -17,6 +17,7 @@ import { rowToDoc } from './contract.js';
 import { recordPrices, getLowestDoc, getHistoryDoc, getPricesDoc } from './priceHistory.js';
 import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, isNameMatch, relevanceScore } from './offers/contract.js';
+import { productFamily, queryFamily } from './matching.js';
 import { pruneStoredBytes } from './retention.js';
 import { buildWatch, checkWatches, MAX_WATCHES } from './monitor.js';
 
@@ -27,7 +28,7 @@ const OFFERS_NOTE =
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, X-Ingest-Secret',
 };
 
@@ -181,22 +182,34 @@ export async function handleRequest(request, ctx) {
       store,
       region,
       currentOn: todayISO(),
-      // Over-fetch when searching so the name-first re-rank has material.
-      limit: q ? Math.min(limit * 3, 300) : limit,
+      // Over-fetch when searching so the name-first re-rank has material —
+      // floor of 120 so a small `limit` never shrinks the candidate window
+      // (the JS relevance filter needs slack to drop prefilter noise).
+      limit: q ? Math.min(Math.max(limit * 3, 120), 300) : limit,
     });
     const tokens = queryTokens(q);
+    const qFamily = q ? queryFamily(q) : null;
     const scored = rows
       .map((r) => {
         const offer = rowToOffer(r);
         const rel = offerRelevance(offer, tokens, r.search_text || '');
-        return { offer, name: isNameMatch(rel), score: relevanceScore(rel) };
+        // Family tier: when the query names a product family ("بيض" -> eggs),
+        // offers OF that family outrank derived look-alikes (an egg-pastry is
+        // pastry, not eggs); family-less offers sit between.
+        const fam = qFamily ? productFamily(`${offer.name || ''} ${offer.nameAr || ''}`) : null;
+        const famRank = !qFamily ? 1 : fam === qFamily ? 2 : fam ? 0 : 1;
+        return { offer, name: isNameMatch(rel), score: relevanceScore(rel), famRank };
       })
       .filter((s) => s.score > 0);
     // Fully name-matched offers before text-only matches; within a tier the
-    // strongest match first (whole-word beats prefix, compound look-alikes are
-    // demoted), then cheapest first.
+    // query's own product family first, then the strongest match (whole-word
+    // beats prefix, compound look-alikes are demoted), then cheapest first.
     scored.sort(
-      (a, b) => (b.name ? 1 : 0) - (a.name ? 1 : 0) || b.score - a.score || a.offer.price - b.offer.price,
+      (a, b) =>
+        (b.name ? 1 : 0) - (a.name ? 1 : 0) ||
+        b.famRank - a.famRank ||
+        b.score - a.score ||
+        a.offer.price - b.offer.price,
     );
     const offers = scored.slice(0, limit).map((s) => s.offer);
     return json({ query: q || null, count: offers.length, note: OFFERS_NOTE, offers });

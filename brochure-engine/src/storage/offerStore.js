@@ -71,14 +71,39 @@ export function createD1OfferStore(db) {
       // English query can reach Arabic-only OCR rows (and vice versa); rows the
       // prefilter lets through that don't match at word level are dropped by
       // offerRelevance.
+      //
+      // The fetch window MUST be filled word-boundary-matches-first: a plain
+      // "cheapest substring matches" window starves real results, because a
+      // substring like "rice" lives inside "price" (2,500+ rows) and "بيض"
+      // (eggs) inside "بيضاء"/"ابيض" (white) — the cheapest N noise rows crowd
+      // out every genuine match, which the JS filter then rejects, yielding
+      // zero results for a query the data can answer. Per token, rows are
+      // banded: exact whole-word match (2) > word-start match (1, catches
+      // "eggs" via "egg" but also "eggplant") > substring-only (0); the bands
+      // sum across tokens and fill the window best-first, price ordering
+      // within each band. search_text is space-normalized, so padding it with
+      // spaces makes ' tok ' an exact-word test.
+      const esc = (v) => v.replace(/[%_\\]/g, (c) => '\\' + c);
+      const boundaryParts = [];
+      const boundaryBinds = [];
       for (const tok of tokens) {
         const variants = expandToken(tok);
         where.push(`(${variants.map(() => "search_text LIKE ? ESCAPE '\\'").join(' OR ')})`);
-        for (const v of variants) binds.push(`%${v.replace(/[%_\\]/g, (c) => '\\' + c)}%`);
+        for (const v of variants) binds.push(`%${esc(v)}%`);
+        boundaryParts.push(
+          `(CASE WHEN ${variants.map(() => "(' ' || search_text || ' ') LIKE ? ESCAPE '\\'").join(' OR ')} THEN 2 ` +
+            `WHEN ${variants.map(() => "(' ' || search_text) LIKE ? ESCAPE '\\'").join(' OR ')} THEN 1 ELSE 0 END)`,
+        );
+        for (const v of variants) boundaryBinds.push(`% ${esc(v)} %`);
+        for (const v of variants) boundaryBinds.push(`% ${esc(v)}%`);
       }
+      const orderBy = boundaryParts.length
+        ? `ORDER BY (${boundaryParts.join(' + ')}) DESC, price ASC`
+        : 'ORDER BY price ASC';
       const sql = `SELECT * FROM offers
         ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
-        ORDER BY price ASC LIMIT ?`;
+        ${orderBy} LIMIT ?`;
+      binds.push(...boundaryBinds);
       binds.push(Math.max(1, Math.min(Number(limit) || 60, 300)));
       const { results } = await db.prepare(sql).bind(...binds).all();
       return results || [];

@@ -38,7 +38,6 @@ import { carrefourProvider } from './providers/carrefour.js';
 import { luluProvider } from './providers/lulu.js';
 import { danubeProvider } from './providers/danube.js';
 import { tamimiProvider } from './providers/tamimi.js';
-import { manuelProvider } from './providers/manuel.js';
 import { nestoProvider } from './providers/nesto.js';
 import { d4dStoreProviders } from './providers/d4dStores.js';
 
@@ -55,7 +54,6 @@ const registry = Object.fromEntries(
     luluProvider,
     danubeProvider,
     tamimiProvider,
-    manuelProvider,
     nestoProvider,
     ...d4dStoreProviders,
   ].map((p) => [p.id, p]),

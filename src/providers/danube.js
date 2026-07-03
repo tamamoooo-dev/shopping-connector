@@ -98,12 +98,28 @@ async function fetchDanubeJson(url, tries = 3) {
   throw lastErr;
 }
 
+const searchUrl = (q) =>
+  `${API_BASE}/api/products.json?q%5Bname_cont%5D=${encodeURIComponent(q)}&per_page=20`;
+
 const productsApiStrategy = {
   name: 'spree-products-json',
   async run(query) {
     const lang = detectLang(query);
-    const url = `${API_BASE}/api/products.json?q%5Bname_cont%5D=${encodeURIComponent(query)}&per_page=20`;
-    const json = await fetchDanubeJson(url);
+    let json;
+    try {
+      json = await fetchDanubeJson(searchUrl(query));
+    } catch (err) {
+      // Danube's origin rejects MULTI-WORD queries that start with Arabic with
+      // HTTP 422 (verified 2026-07-03: "كيري مربعات" -> 422 while "كيري" and
+      // "fresh milk" are 200). Rather than fail the store for every multi-word
+      // Arabic search, retry with the single most specific token (the longest)
+      // — the client-side relevance ranking narrows the broader result set.
+      const tokens = query.trim().split(/\s+/);
+      const is422 = /HTTP 422/.test(err && err.message);
+      if (!(is422 && lang === 'ar' && tokens.length > 1)) throw err;
+      const head = tokens.reduce((a, b) => (b.length > a.length ? b : a));
+      json = await fetchDanubeJson(searchUrl(head));
+    }
     const products = json && json.products;
     if (!Array.isArray(products)) throw new Error('unexpected response shape');
     return products.map((p) => normalize(p, lang)).filter((r) => r.name);

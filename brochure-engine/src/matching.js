@@ -62,6 +62,9 @@ const SYNONYMS = [
   ['yogurt', 'yoghurt', 'زبادي', 'روب'],
   ['juice', 'عصير'],
   ['butter', 'زبده'],
+  // fat-content descriptors: "منزوع الدسم" and "خالي الدسم" both mean skimmed
+  ['skimmed', 'skim', 'منزوع', 'خالي'],
+  ['squares', 'مربعات'],
 ];
 const SYN_INDEX = (() => {
   const m = new Map();
@@ -75,6 +78,94 @@ const SYN_INDEX = (() => {
 // A query token plus its cross-language synonyms (all normalized).
 export function expandToken(tok) {
   return SYN_INDEX.get(tok) || [tok];
+}
+
+// --- product families ---------------------------------------------------------
+// A coarse, bilingual product-family classifier — MIRRORS the frontend's
+// src/match.js (keep the two in sync). Products from DIFFERENT families must
+// never compete or satisfy each other's watches, however similar their names:
+// an egg-pastry offer is pastry, not eggs; "milk chocolate" is chocolate.
+//
+// Two tiers: any DERIVED-family keyword (compound products) outranks every
+// BASE-family keyword; within a tier the EARLIEST keyword in the name wins.
+// Whole-word matches only, with the Arabic definite article (ال/وال) stripped
+// but بال/لل left attached ("بالبيض" = "with egg" marks an ingredient).
+const BASE_FAMILIES = {
+  milk: ['milk', 'حليب'],
+  laban: ['laban', 'لبن'],
+  yogurt: ['yogurt', 'yoghurt', 'زبادي', 'روب'],
+  cheese: ['cheese', 'جبن', 'جبنه', 'موزاريلا', 'mozzarella', 'شيدر', 'cheddar', 'حلوم', 'halloumi', 'فيتا', 'feta', 'قشقوان'],
+  cream: ['cream', 'قشطه', 'قشده', 'كريمه'],
+  butter: ['butter', 'زبده'],
+  eggs: ['egg', 'eggs', 'بيض'],
+  chicken: ['chicken', 'دجاج', 'فراخ'],
+  meat: ['meat', 'beef', 'لحم', 'لحوم', 'بقري', 'غنم', 'mutton'],
+  fish: ['fish', 'tuna', 'سمك', 'تونه', 'سلمون', 'salmon'],
+  rice: ['rice', 'رز', 'ارز'],
+  pasta: ['pasta', 'spaghetti', 'مكرونه', 'معكرونه', 'سباغيتي', 'نودلز', 'noodles', 'شعيريه'],
+  bread: ['bread', 'toast', 'خبز', 'توست', 'صامولي'],
+  oil: ['oil', 'زيت', 'زيوت'],
+  water: ['water', 'ماء', 'مياه', 'مويه'],
+  juice: ['juice', 'عصير'],
+  tea: ['tea', 'شاي'],
+  coffee: ['coffee', 'قهوه', 'نسكافيه', 'nescafe'],
+  sugar: ['sugar', 'سكر'],
+  flour: ['flour', 'دقيق', 'طحين'],
+  dates: ['dates', 'تمر', 'تمور'],
+  honey: ['honey', 'عسل'],
+};
+const DERIVED_FAMILIES = {
+  chocolate: ['chocolate', 'cocoa', 'شوكولاته', 'شوكولا', 'كاكاو'],
+  biscuit: ['biscuit', 'biscuits', 'cookie', 'cookies', 'wafer', 'cracker', 'crackers', 'بسكويت', 'كوكيز', 'ويفر'],
+  cake: ['cake', 'cakes', 'muffin', 'croissant', 'كيك', 'كعك', 'مافن', 'كرواسون'],
+  pastry: ['pastry', 'pastries', 'puff', 'dough', 'عجينه', 'عجين', 'فطاير', 'فطيره', 'سمبوسه', 'سمبوسك', 'بف', 'باف', 'donut', 'donuts', 'دونات'],
+  icecream: ['icecream', 'gelato', 'ايس', 'بوظه'],
+  powder: ['powder', 'بودره', 'مجفف', 'مجففه'],
+  cereal: ['cereal', 'cereals', 'flakes', 'oats', 'granola', 'muesli', 'كورن', 'فليكس', 'شوفان', 'جرانولا'],
+  candy: ['candy', 'gum', 'marshmallow', 'حلوى', 'حلاوه', 'جيلي', 'علكه'],
+  chips: ['chips', 'crisps', 'شيبس'],
+  sauce: ['sauce', 'ketchup', 'mayonnaise', 'صوص', 'صلصه', 'كاتشب', 'مايونيز', 'مسطرده'],
+  dessert: ['dessert', 'custard', 'pudding', 'حلا', 'مهلبيه', 'كاسترد', 'بودينج'],
+  // prepared dishes: an "egg curry chappati" or "egg dosa" is a meal, not eggs
+  prepared: ['curry', 'كاري', 'chappati', 'شاباتي', 'dosa', 'دوسا', 'sandwich', 'ساندويتش', 'burger', 'برجر', 'pizza', 'بيتزا', 'شاورما', 'shawarma', 'combo', 'كومبو', 'وجبه', 'meal'],
+};
+const FAMILY_INDEX = (() => {
+  const m = new Map(); // keyword -> { family, derived }
+  for (const [family, words] of Object.entries(DERIVED_FAMILIES)) {
+    for (const w of words) m.set(normalizeText(w), { family, derived: true });
+  }
+  for (const [family, words] of Object.entries(BASE_FAMILIES)) {
+    for (const w of words) {
+      const k = normalizeText(w);
+      if (!m.has(k)) m.set(k, { family, derived: false });
+    }
+  }
+  return m;
+})();
+
+function familyKey(word) {
+  if (FAMILY_INDEX.has(word)) return word;
+  const stripped = word.replace(/^(وال|ال)/, '');
+  return stripped !== word && FAMILY_INDEX.has(stripped) ? stripped : null;
+}
+
+// The product family of a name (or any text), or null.
+export function productFamily(name) {
+  const words = normalizeText(name).split(' ');
+  let base = null;
+  for (const w of words) {
+    const key = familyKey(w);
+    if (!key) continue;
+    const hit = FAMILY_INDEX.get(key);
+    if (hit.derived) return hit.family;
+    if (!base) base = hit.family;
+  }
+  return base;
+}
+
+// The family the QUERY names ("حليب نادك" -> milk), or null (brand-only query).
+export function queryFamily(query) {
+  return productFamily(query);
 }
 
 // --- token-in-text scoring ------------------------------------------------------

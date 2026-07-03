@@ -41,6 +41,8 @@ import {
   isRelevantName,
   parseSize as parseSizeM,
   sizeComparable as sizeComparableM,
+  productFamily,
+  queryFamily,
 } from './src/matching.js';
 import { buildWatch, checkWatch, MAX_WATCHES } from './src/monitor.js';
 import { pruneStoredBytes } from './src/retention.js';
@@ -51,7 +53,6 @@ import { carrefourProvider } from './src/providers/carrefour.js';
 import { luluProvider } from './src/providers/lulu.js';
 import { danubeProvider } from './src/providers/danube.js';
 import { tamimiProvider } from './src/providers/tamimi.js';
-import { manuelProvider } from './src/providers/manuel.js';
 import { nestoProvider } from './src/providers/nesto.js';
 import { d4dStoreProviders } from './src/providers/d4dStores.js';
 
@@ -64,7 +65,6 @@ const PROVIDERS = [
   luluProvider,
   danubeProvider,
   tamimiProvider,
-  manuelProvider,
   nestoProvider,
   ...d4dStoreProviders,
 ];
@@ -514,7 +514,18 @@ async function selftestMatching() {
   const textHit = offerRelevance({ name: 'weekly deal', nameAr: null }, t, 'banner text milk somewhere');
   if (!isNameMatch(nameHit) || isNameMatch(textHit)) fail('name/text tiering broken');
   if (relevanceScore(nameHit) <= relevanceScore(textHit)) fail('name hit does not outrank text hit');
-  console.log('✅ Matching verified: boundaries, synonyms, compound gate, size gate, tiering.\n');
+  // Product families (mirrors frontend match.js): derived products belong to
+  // the derived family, never the ingredient's; ingredient markers (بال) and
+  // the definite article (ال) are handled; brand-only queries have no family.
+  if (productFamily('حليب نادك منزوع الدسم 1 لتر') !== 'milk') fail('milk name did not classify as milk');
+  if (productFamily('زبادي نادك منزوع الدسم') !== 'yogurt') fail('yogurt name did not classify as yogurt');
+  if (productFamily('egg spring roll pastry 550g') !== 'pastry') fail('egg pastry did not classify as pastry');
+  if (productFamily('Milk Chocolate Bar 90g') !== 'chocolate') fail('milk chocolate did not classify as chocolate');
+  if (productFamily('الحليب الطازج') !== 'milk') fail('definite article not stripped for family');
+  if (productFamily('رقايق بالبيض') === 'eggs') fail('ingredient marker بال wrongly classified as eggs');
+  if (queryFamily('كيري مربعات') !== null) fail('brand-only query wrongly got a family');
+  if (queryFamily('بيض') !== 'eggs') fail('eggs query did not get the eggs family');
+  console.log('✅ Matching verified: boundaries, synonyms, compound gate, size gate, tiering, families.\n');
 }
 
 // Price Monitoring — OFFLINE + deterministic. Proves validation, the relevance
@@ -547,7 +558,9 @@ async function selftestWatches() {
     { id: 'f3', store: 'ramez', region: 'central', source: 't', offer_id: '3', name: null, name_ar: 'بصل ابيض', price: 2, currency: 'SAR', valid_from: today, valid_to: inWeek, detected_at: 'x', search_text: 'بصل ابيض طازج' },
   ]);
   // Scripted online results: one relevant 2 L milk at 12, one compound
-  // look-alike at 3 (relevance gate), one 200 ml at 1 (size gate).
+  // look-alike at 3 (relevance gate), one 200 ml at 1 (size gate), and a 2 L
+  // laban at 2 — it passes relevance (لبن is a milk synonym) AND the size gate;
+  // only the FAMILY gate can keep a milk watch from alerting on laban.
   let onlineMilkPrice = 12;
   const searchClient = {
     async search(provider, query) {
@@ -556,6 +569,7 @@ async function selftestWatches() {
           { id: 'p1', name: 'Milk Chocolate Biscuit', price: 3, currency: 'SAR' },
           { id: 'p2', name: 'Almarai Fresh Milk 2 L', price: onlineMilkPrice, currency: 'SAR', link: 'https://panda/milk' },
           { id: 'p3', name: 'Almarai Fresh Milk 200 ml', price: 1, currency: 'SAR' },
+          { id: 'p4', name: 'لبن نادك 2 لتر', price: 2, currency: 'SAR' },
         ];
       }
       if (provider === 'amazon' && /echo/.test(query)) {
@@ -578,7 +592,9 @@ async function selftestWatches() {
   const milkWatch = g.watch;
   await watchStore.create(milkWatch);
   const c1 = await checkWatch(mctx, milkWatch);
-  // Best trustworthy price: flyer 8 (beats online 12; the 1-SAR rows are gated).
+  // Best trustworthy price: flyer 8 (beats online 12; the 1-SAR rows are size-
+  // gated, the 3-SAR compound is relevance-gated, the 2-SAR laban is FAMILY-
+  // gated — if this reads 2, the family gate is broken).
   if (c1.price !== 8) fail(`expected best price 8 (flyer), got ${c1.price}`);
   if (c1.status !== 'below-target' || !c1.alerted) fail('crossing to below-target did not alert');
   let alerts = await watchStore.listAlerts({});
