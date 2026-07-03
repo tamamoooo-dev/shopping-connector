@@ -17,7 +17,7 @@ import { rowToDoc } from './contract.js';
 import { recordPrices, getLowestDoc, getHistoryDoc, getPricesDoc } from './priceHistory.js';
 import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, isNameMatch, relevanceScore } from './offers/contract.js';
-import { productFamily, queryFamily } from './matching.js';
+import { queryFamily, offerFamily } from './matching.js';
 import { pruneStoredBytes } from './retention.js';
 import { buildWatch, checkWatches, MAX_WATCHES } from './monitor.js';
 
@@ -195,8 +195,9 @@ export async function handleRequest(request, ctx) {
         const rel = offerRelevance(offer, tokens, r.search_text || '');
         // Family tier: when the query names a product family ("بيض" -> eggs),
         // offers OF that family outrank derived look-alikes (an egg-pastry is
-        // pastry, not eggs); family-less offers sit between.
-        const fam = qFamily ? productFamily(`${offer.name || ''} ${offer.nameAr || ''}`) : null;
+        // pastry, not eggs); family-less offers sit between. The offer's own
+        // aggregator category backs up a debris-named offer (name-first).
+        const fam = qFamily ? offerFamily(offer) : null;
         const famRank = !qFamily ? 1 : fam === qFamily ? 2 : fam ? 0 : 1;
         return { offer, name: isNameMatch(rel), score: relevanceScore(rel), famRank };
       })

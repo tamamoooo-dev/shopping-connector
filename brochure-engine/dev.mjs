@@ -43,6 +43,8 @@ import {
   sizeComparable as sizeComparableM,
   productFamily,
   queryFamily,
+  categoryFamily,
+  offerFamily,
 } from './src/matching.js';
 import { buildWatch, checkWatch, MAX_WATCHES } from './src/monitor.js';
 import { pruneStoredBytes } from './src/retention.js';
@@ -190,6 +192,13 @@ async function selftestM2(ctx, store = 'lulu') {
   );
   console.log('pages in meta:', meta.pages.length, '| first key:', meta.pages[0]?.imageUrl);
   if (!meta.pages.length) fail(`${store} meta.json has no pages[]`);
+
+  // Page-id capture (flyer-offer deep-link target): D4D tags flyer pages with a
+  // data-page-id an offer references via its pageRef. At least some pages must
+  // carry it so a tapped offer can open the in-app viewer on ITS page.
+  const withPageIds = meta.pages.filter((p) => p.pageId).length;
+  console.log('pages carrying a deep-link pageId:', withPageIds, '/', meta.pages.length);
+  if (withPageIds === 0) fail(`${store} meta.json pages carry no pageId — flyer-offer deep-links can't jump to the right page`);
 
   const pageRes = await handleRequest(new Request('http://local/asset/' + meta.pages[0].imageUrl), ctx);
   const pbuf = new Uint8Array(await pageRes.arrayBuffer());
@@ -537,7 +546,18 @@ async function selftestMatching() {
   if (productFamily('رقايق بالبيض') === 'eggs') fail('ingredient marker بال wrongly classified as eggs');
   if (queryFamily('كيري مربعات') !== null) fail('brand-only query wrongly got a family');
   if (queryFamily('بيض') !== 'eggs') fail('eggs query did not get the eggs family');
-  console.log('✅ Matching verified: boundaries, synonyms, compound gate, size gate, tiering, families.\n');
+  // Category-as-family (retailer-taxonomy signal): a name keyword always wins;
+  // the aggregator category is a FALLBACK that recovers a debris-named offer,
+  // and only unambiguous categories are mapped.
+  if (categoryFamily('eggs') !== 'eggs') fail('eggs category did not map to eggs family');
+  if (categoryFamily('chocolates-candies') !== 'chocolate') fail('chocolates category did not map to chocolate');
+  if (categoryFamily('milk-laban') !== null) fail('ambiguous milk-laban category should be unmapped');
+  if (categoryFamily(null) !== null) fail('null category should be null');
+  // offerFamily: name wins over category, category fills a name gap.
+  if (offerFamily({ name: 'Milk Chocolate Bar', category: 'chocolates-candies' }) !== 'chocolate') fail('offerFamily name/category disagreement mishandled');
+  if (offerFamily({ name: 'casc 18 200ml', category: 'eggs' }) !== 'eggs') fail('offerFamily did not recover debris name via category');
+  if (offerFamily({ name: 'random promo', category: 'tea-coffee' }) !== null) fail('offerFamily used an ambiguous category');
+  console.log('✅ Matching verified: boundaries, synonyms, compound gate, size gate, tiering, families, category signal.\n');
 }
 
 // Price Monitoring — OFFLINE + deterministic. Proves validation, the relevance

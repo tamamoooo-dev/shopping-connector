@@ -37,6 +37,7 @@ import {
   sizeComparable,
   productFamily,
   queryFamily,
+  offerFamily,
 } from './matching.js';
 import {
   rowToOffer,
@@ -150,6 +151,14 @@ function familyMismatch(watchFamily, candidateName) {
   return fam != null && fam !== watchFamily;
 }
 
+// Same gate for a flyer offer, but the family may come from the offer's
+// aggregator category when its OCR name yields none (offerFamily is name-first).
+function offerFamilyMismatch(watchFamily, offer) {
+  if (!watchFamily) return false;
+  const fam = offerFamily(offer);
+  return fam != null && fam !== watchFamily;
+}
+
 // kind 'grocery': sweep every online store + the current flyer offers.
 async function evaluateGrocery(ctx, watch, notes) {
   const candidates = [];
@@ -204,7 +213,7 @@ async function evaluateGrocery(ctx, watch, notes) {
         if (!isNameMatch(rel)) continue;
         const display = offer.name || offer.nameAr;
         if (!display || !isRelevantName(display, watch.query, REL_FLOOR)) continue;
-        if (familyMismatch(watchFamily, `${offer.name || ''} ${offer.nameAr || ''}`)) continue;
+        if (offerFamilyMismatch(watchFamily, offer)) continue;
         if (ref) {
           const sz = parseSize(`${offer.name || ''} ${offer.nameAr || ''}`, '');
           if (!sizeComparable(ref, sz)) continue;

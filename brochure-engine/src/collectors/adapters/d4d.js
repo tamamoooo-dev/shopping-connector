@@ -87,19 +87,32 @@ function parseLeaflet(html, offer) {
   const validFrom = isoDate((/"datePublished":"([^"]+)"/.exec(html) || [])[1]);
   const validTo = isoDate((/"expires":"([^"]+)"/.exec(html) || [])[1]) || offer.expiry;
 
-  // Each page is a <picture class="offer-page" data-index="N"> … <img src="…">.
-  // The <source srcset> before it also carries a cdn URL, so we anchor on the
-  // <img src=…> specifically (it is the one alt-tagged "Page N").
-  const re =
-    /<picture class="offer-page" data-index="(\d+)">[\s\S]*?<img\s+src="(https:\/\/cdn\.d4donline\.com\/[^"]+?)"/gi;
-  const byIndex = new Map();
+  // Each flyer page is a <picture class="offer-page" … data-index="N"
+  // [data-page-id="PID"]> … <img (src|data-page-src)="cdn…">. D4D renders each
+  // page twice (a plain copy carrying the image URL and a lazy carousel copy
+  // carrying the data-page-id an OFFER deep-links to via its `?page=<PID>` /
+  // `pageRef`); merging by data-index gives each page BOTH its image and its
+  // page id, so a flyer offer can later open the in-app viewer on ITS page
+  // rather than page 1. Pages with no image are skipped; a missing page id is
+  // simply null (the viewer then opens at the first page).
+  const byIndex = new Map(); // index -> { url, pageId }
+  const re = /<picture class="offer-page"([^>]*)>([\s\S]*?)<\/picture>/gi;
   for (const m of html.matchAll(re)) {
-    const idx = Number(m[1]);
-    if (!byIndex.has(idx)) byIndex.set(idx, m[2]);
+    const idx = Number((/data-index="(\d+)"/.exec(m[1]) || [])[1]);
+    if (!Number.isInteger(idx)) continue;
+    const pageId = (/data-page-id="(\d+)"/.exec(m[1]) || [])[1] || null;
+    const url =
+      (/<img[^>]+\ssrc="(https:\/\/cdn\.d4donline\.com\/[^"]+?)"/i.exec(m[2]) || [])[1] ||
+      (/data-page-src="(https:\/\/cdn\.d4donline\.com\/[^"]+?)"/i.exec(m[2]) || [])[1] ||
+      null;
+    const prev = byIndex.get(idx) || { url: null, pageId: null };
+    byIndex.set(idx, { url: prev.url || url, pageId: prev.pageId || pageId });
   }
-  const pages = [...byIndex.entries()].sort((a, b) => a[0] - b[0]).map((e) => e[1]);
+  const entries = [...byIndex.entries()].filter(([, v]) => v.url).sort((a, b) => a[0] - b[0]);
+  const pages = entries.map(([, v]) => v.url);
+  const pageIds = entries.map(([, v]) => v.pageId);
 
-  return { id: offer.id, slug: offer.slug, title, validFrom, validTo, pages, sourceUrl: offer.url };
+  return { id: offer.id, slug: offer.slug, title, validFrom, validTo, pages, pageIds, sourceUrl: offer.url };
 }
 
 export const d4dAdapter = {

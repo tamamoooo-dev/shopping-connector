@@ -130,7 +130,11 @@ async function ingestImageSet({ doc, pages }, { objectStore, metadataStore, writ
   for (const p of ordered) {
     const key = `${base}/page${String(p.index).padStart(2, '0')}.${imageExt(p.contentType, p.url)}`;
     await objectStore.put(key, p.bytes, { contentType: p.contentType });
-    pageMeta.push({ index: p.index, imageUrl: key });
+    // pageId (the aggregator's deep-link page id) rides into meta.json so a
+    // flyer offer can open the in-app viewer on its own page; omitted when null.
+    const entry = { index: p.index, imageUrl: key };
+    if (p.pageId) entry.pageId = String(p.pageId);
+    pageMeta.push(entry);
   }
   const finalDoc = { ...doc, checksum, pages: pageMeta };
   await writeMeta(base, finalDoc);

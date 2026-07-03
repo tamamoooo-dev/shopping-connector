@@ -177,6 +177,7 @@ export function createAggregatorCollector(config) {
             continue;
           }
           const pageUrls = best.pages.slice(0, maxPages);
+          const pageIds = (best.pageIds || []).slice(0, maxPages);
           if (pageUrls.length > budget) continue; // next run's budget picks it up
 
           const pages = [];
@@ -189,6 +190,8 @@ export function createAggregatorCollector(config) {
               bytes,
               contentType: res.headers.get('content-type') || 'image/jpeg',
               url: pageUrls[i],
+              // the aggregator page id an offer deep-links to (null when unknown)
+              pageId: pageIds[i] || null,
             });
           }
           if (!pages.length) throw new Error(`no page images downloaded for ${doc.id}`);

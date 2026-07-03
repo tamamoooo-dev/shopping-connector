@@ -180,6 +180,55 @@ export function queryFamily(query) {
   return productFamily(query);
 }
 
+// --- category-as-family (a retailer-taxonomy semantic signal) -------------------
+// The aggregator tags every flyer offer with its OWN product category (D4D's
+// global taxonomy, e.g. "eggs", "yogurt-labneh", "chocolates-candies"). That is
+// a structured, human-curated signal we get for free — a semantic COMPLEMENT to
+// the keyword family classifier, not a replacement. We map only the categories
+// that resolve to exactly ONE of our families (ambiguous ones like "milk-laban",
+// "tea-coffee" or "cheese-creame" are deliberately left unmapped), and we use it
+// only as a FALLBACK: a name keyword always wins, so precision is unchanged and
+// the failure mode stays "no family", never "wrong family". The payoff is
+// recovering offers whose OCR name is debris ("casc 18 200ml") into their true
+// family — sharpening both the /offers family ranking and the watch gate.
+const CATEGORY_FAMILY = {
+  eggs: 'eggs',
+  rice: 'rice',
+  water: 'water',
+  'juices-drinks': 'juice',
+  'oil-ghee': 'oil',
+  'sugar-sweetener': 'sugar',
+  'pasta-noodles': 'pasta',
+  'bread-buns': 'bread',
+  biscuits: 'biscuit',
+  'chocolates-candies': 'chocolate',
+  'yogurt-labneh': 'yogurt',
+  'butter-margarine': 'butter',
+  'fresh-chicken-poultry': 'chicken',
+  'frozen-chicken-poultry': 'chicken',
+  'meat-fresh-chilled': 'meat',
+  'fresh-fish': 'fish',
+  'frozen-fish': 'fish',
+  'cereals-bars': 'cereal',
+};
+
+// The family implied by an aggregator category slug, or null (unmapped/ambiguous).
+export function categoryFamily(slug) {
+  if (!slug) return null;
+  return CATEGORY_FAMILY[String(slug).toLowerCase()] || null;
+}
+
+// The family of a flyer OFFER: its name-derived family (most specific), falling
+// back to its aggregator category. Name always wins, so "milk chocolate" in the
+// chocolates category is chocolate, and an "egg curry" is a prepared dish — the
+// category only fills the gap when the name yields nothing.
+export function offerFamily(offer) {
+  if (!offer) return null;
+  const nameFam = productFamily(`${offer.name || ''} ${offer.nameAr || ''}`);
+  if (nameFam) return nameFam;
+  return categoryFamily(offer.category);
+}
+
 // --- token-in-text scoring ------------------------------------------------------
 // How strongly one (already normalized) token variant appears in a normalized
 // text. Tiers: whole word (best) > word-start prefix (long tokens only — short

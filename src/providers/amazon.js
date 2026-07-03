@@ -200,7 +200,57 @@ function classifyBlock(status, html) {
   return null;
 }
 
-function parseProducts(html) {
+// Decode the handful of HTML entities Amazon titles actually contain, so a name
+// reads and MATCHES cleanly ("Fruit &amp; Nut" -> "Fruit & Nut").
+function decodeEntities(s) {
+  return (s || '')
+    .replace(/&amp;/g, '&')
+    .replace(/&#0*38;/g, '&')
+    .replace(/&quot;|&#0*34;/g, '"')
+    .replace(/&#0*39;|&apos;/g, "'")
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&nbsp;/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+}
+
+// Amazon SA's search layout renders up to two <h2>s per result:
+//   1. a compact BRAND line — class "a-size-mini s-line-clamp-…"
+//      (English results only; e.g. "Almarai")
+//   2. the PRODUCT TITLE — class "…a-text-normal" (or "a-size-base-plus"),
+//      usually with an aria-label carrying the full, untruncated name.
+// The old parser took the FIRST h2's span, which on the current markup is the
+// BRAND — so English results were named "Almarai"/"Saudia" (no product words),
+// and the frontend's honest relevance filter then dropped them, which read as
+// "Amazon is unreliable". We now extract title and brand SEPARATELY, and compose
+// the display name the way every other Souq store does (brand-led), so results
+// are both correctly identified and matchable. Arabic pages carry only the title
+// h2, and still parse correctly. A legacy fallback keeps working if Amazon
+// reverts the markup.
+function parseTitleAndBrand(raw) {
+  const h2s = [...raw.matchAll(/<h2\b([^>]*)>([\s\S]*?)<\/h2>/g)].map((m) => {
+    const attrs = m[1] || '';
+    const cls = (attrs.match(/class="([^"]*)"/) || [])[1] || '';
+    const aria = (attrs.match(/aria-label="([^"]*)"/) || [])[1] || '';
+    const span = (m[2].match(/<span[^>]*>([\s\S]*?)<\/span>/) || [])[1] || m[2];
+    return { cls, aria, text: decodeEntities(span.replace(/<[^>]+>/g, ' ')) };
+  });
+  if (!h2s.length) return { title: '', brand: '' };
+
+  const isBrandLine = (h) => /s-line-clamp|a-size-mini/.test(h.cls);
+  const brandH2 = h2s.find(isBrandLine);
+  // Title = the non-brand h2 (prefer its aria-label — the full untruncated name,
+  // minus any "Sponsored Ad – " prefix); fall back to the only/last h2.
+  const titleH2 = h2s.find((h) => !isBrandLine(h)) || h2s[h2s.length - 1];
+  const title = decodeEntities((titleH2.aria || titleH2.text).replace(/^Sponsored Ad\s*[–-]\s*/i, ''));
+  const brand = brandH2 && brandH2 !== titleH2 ? brandH2.text : '';
+  return { title, brand };
+}
+
+// Exported for the fixture test (amazon.test.mjs) that locks the brand-vs-title
+// regression; not part of the provider's public surface.
+export function parseProducts(html) {
   const results = [];
   const blocks = html.split(/data-asin="/).slice(1);
   for (const raw of blocks) {
@@ -208,25 +258,34 @@ function parseProducts(html) {
     if (!asin) continue;
     if (!/data-component-type="s-search-result"/.test(raw.slice(0, 200))) continue;
 
-    const title =
-      (raw.match(/<h2[^>]*>.*?<span[^>]*>([^<]{3,})<\/span>/s) || [])[1] ||
-      (raw.match(/<span[^>]*class="[^"]*a-text-normal[^"]*"[^>]*>([^<]{3,})<\/span>/) || [])[1];
-    if (!title) continue;
+    const { title, brand } = parseTitleAndBrand(raw);
+    if (!title || title.length < 3) continue;
+    // Brand-led display name (Souq convention: Panda/Lulu names include the
+    // brand), without duplicating a brand the title already starts with.
+    const name =
+      brand && !title.toLowerCase().startsWith(brand.toLowerCase())
+        ? `${brand} ${title}`
+        : title;
 
     const image = (raw.match(/<img[^>]+class="s-image"[^>]+src="([^"]+)"/) || [])[1] || '';
     const price = toNumber((raw.match(/<span class="a-offscreen">([^<]+)<\/span>/) || [])[1]);
+    // The strike-through list price sits in a "a-price a-text-price" wrapper;
+    // keep it only when it is a genuine reduction over the current price.
+    const listRaw = (raw.match(/<span class="a-price a-text-price"[^>]*>\s*<span class="a-offscreen">([^<]+)<\/span>/) || [])[1];
+    const listPrice = toNumber(listRaw);
+    const oldPrice = listPrice != null && price != null && listPrice > price ? listPrice : null;
 
     results.push({
       id: asin,
-      name: title.trim(),
+      name,
       image,
       price,
-      oldPrice: null,
+      oldPrice,
       currency: 'SAR',
       link: `${SEARCH_BASE}/dp/${asin}`,
       size: '',
-      brand: '',
-      discountLabel: '',
+      brand: brand.trim(),
+      discountLabel: oldPrice ? `-${Math.round((1 - price / oldPrice) * 100)}%` : '',
     });
   }
   return results;
