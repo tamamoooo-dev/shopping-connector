@@ -19,8 +19,13 @@ compatibility_date = "2025-06-01"
 # spread the refresh across ~8 days.) Day/time are easily tunable here.
 [triggers]
 crons = [
-  "0 6 * * 2,3", # weekly brochure/offers pipeline (fan-out -> prices -> prune)
-  "45 5 * * *",  # daily Price Monitoring: check every active watch (08:45 AST)
+  # Tue & Wed catch the Saudi weekly drop; Fri closes the WEEKEND coverage
+  # hole: ~20% of offers expire Thu-Mon and weekend flyers publish Thu/Fri,
+  # so without a Friday fire the marketplace thins out exactly when the user
+  # shops. Same per-fire budget as Tue/Wed (§19.C); unchanged flyers dedupe
+  # to zero KV writes, offers upsert is D1-only.
+  "0 6 * * 2,3,5", # brochure/offers pipeline (fan-out -> prices -> prune)
+  "45 5 * * *",    # daily Price Monitoring: check every active watch (08:45 AST)
 ]
 
 # --- SELF service binding: the cron fan-out mechanism (Architecture C) ---------

@@ -53,7 +53,7 @@ const SYNONYMS = [
   ['chicken', 'دجاج', 'فراخ'],
   ['rice', 'رز', 'ارز'],
   ['sugar', 'سكر'],
-  ['water', 'ماء', 'مياه'],
+  ['water', 'ماء', 'مياه', 'مويه'],
   ['oil', 'زيت'],
   ['bread', 'خبز', 'عيش'],
   ['cheese', 'جبن', 'جبنه'],
@@ -65,6 +65,18 @@ const SYNONYMS = [
   // fat-content descriptors: "منزوع الدسم" and "خالي الدسم" both mean skimmed
   ['skimmed', 'skim', 'منزوع', 'خالي'],
   ['squares', 'مربعات'],
+  // household + personal-care staples that flyer shoppers actually search
+  ['tuna', 'تونه', 'تن'],
+  ['shampoo', 'شامبو'],
+  ['tissue', 'tissues', 'مناديل', 'محارم'],
+  ['chocolate', 'شوكولاته', 'شوكولا'],
+  ['diapers', 'حفاضات', 'حفايض'],
+  // common brand transliterations (Saudi shoppers search brands in Arabic;
+  // flyer OCR often carries only the English brand line, and vice versa)
+  ['pepsi', 'بيبسي'],
+  ['cola', 'كولا'],
+  ['tide', 'تايد'],
+  ['nutella', 'نوتيلا'],
 ];
 const SYN_INDEX = (() => {
   const m = new Map();

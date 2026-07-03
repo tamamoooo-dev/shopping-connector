@@ -107,6 +107,9 @@ export function deriveNames(description, storeWords = []) {
         bestScore = score;
       }
     }
+    // A lone short fragment ("casc") is OCR debris, not a name — returning
+    // null lets the other language's (usually intact) name carry the card.
+    if (best && !best.includes(' ') && best.length < 5) return null;
     return best ? title80(best) : null;
   };
   return { name: pick(en), nameAr: pick(ar) };

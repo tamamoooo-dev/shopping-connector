@@ -355,6 +355,11 @@ async function selftestOffers() {
   console.log('derived names:', JSON.stringify({ name, nameAr }));
   if (!name || !name.includes('activia')) fail(`EN name not derived (got '${name}')`);
   if (!nameAr || !/[؀-ۿ]/.test(nameAr)) fail(`AR name not derived (got '${nameAr}')`);
+  // A lone short OCR fragment must not become the display name (the "casc"
+  // class of debris) — null lets the other language's name carry the card.
+  const debris = deriveNames('casc\nفاين مناديل للجيب ١٠ حبات\n2.50', []);
+  if (debris.name !== null) fail(`OCR debris kept as EN name (got '${debris.name}')`);
+  if (!debris.nameAr) fail('AR name lost alongside the debris guard');
 
   // (b) gates: no price -> dropped; was<=price -> old_price nulled; Arabic-
   // Indic digits fold in normalization.
@@ -499,6 +504,13 @@ async function selftestMatching() {
   // Bilingual synonym bridge, both directions.
   if (nameRelevance('حليب المراعي طازج 2 لتر', 'milk') <= 0) fail('EN query missed AR milk name');
   if (nameRelevance('Almarai Fresh Milk 2L', 'حليب') <= 0) fail('AR query missed EN milk name');
+  // Coverage-milestone additions: colloquial water, household staples, brands.
+  if (nameRelevance('مياه نوفا 330 مل', 'مويه') <= 0) fail('مويه missed مياه (colloquial water)');
+  if (nameRelevance('Nova Water 40x330ml', 'مويه') <= 0) fail('مويه missed English water');
+  if (nameRelevance('فاين مناديل للجيب', 'tissue') <= 0) fail('tissue missed مناديل');
+  if (nameRelevance('Pantene Shampoo 400ml', 'شامبو') <= 0) fail('شامبو missed shampoo');
+  if (nameRelevance('Tide Detergent 5kg', 'تايد') <= 0) fail('تايد missed Tide (brand transliteration)');
+  if (nameRelevance('بيبسي كولا 320 مل', 'pepsi') <= 0) fail('pepsi missed بيبسي');
   // Compound look-alike demoted below the monitor floor, plain product above.
   if (isRelevantName('Milk Chocolate Biscuit 90g', 'milk', 50)) fail('milk chocolate passed the alert gate');
   if (!isRelevantName('Nadec Fresh Milk 2 L', 'milk', 50)) fail('plain milk failed the alert gate');
