@@ -45,6 +45,8 @@ import {
   queryFamily,
   categoryFamily,
   offerFamily,
+  productType,
+  queryType,
 } from './src/matching.js';
 import { buildWatch, checkWatch, MAX_WATCHES } from './src/monitor.js';
 import { pruneStoredBytes } from './src/retention.js';
@@ -557,7 +559,14 @@ async function selftestMatching() {
   if (offerFamily({ name: 'Milk Chocolate Bar', category: 'chocolates-candies' }) !== 'chocolate') fail('offerFamily name/category disagreement mishandled');
   if (offerFamily({ name: 'casc 18 200ml', category: 'eggs' }) !== 'eggs') fail('offerFamily did not recover debris name via category');
   if (offerFamily({ name: 'random promo', category: 'tea-coffee' }) !== null) fail('offerFamily used an ambiguous category');
-  console.log('✅ Matching verified: boundaries, synonyms, compound gate, size gate, tiering, families, category signal.\n');
+  // Product TYPE (the form attribute, mirrors frontend match.js): same family,
+  // different form -> different product. A form-less name has a null type.
+  if (productType('Herfy Chicken Nuggets 750g') !== 'nuggets') fail('nuggets form not classified');
+  if (productType('Herfy Minced Chicken Roll') !== 'mince') fail('minced-roll form not classified');
+  if (productType('Fresh Whole Chicken 1kg') !== null) fail('plain chicken wrongly got a form');
+  if (queryType('chicken nuggets') !== 'nuggets') fail('query form not read');
+  if (queryType('chicken') !== null) fail('bare family query wrongly got a form');
+  console.log('✅ Matching verified: boundaries, synonyms, compound gate, size gate, tiering, families, category signal, forms.\n');
 }
 
 // Price Monitoring — OFFLINE + deterministic. Proves validation, the relevance

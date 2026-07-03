@@ -38,6 +38,8 @@ import {
   productFamily,
   queryFamily,
   offerFamily,
+  productType,
+  queryType,
 } from './matching.js';
 import {
   rowToOffer,
@@ -151,6 +153,16 @@ function familyMismatch(watchFamily, candidateName) {
   return fam != null && fam !== watchFamily;
 }
 
+// Type gate (trust rule, the FORM attribute): when the watched query names a
+// product form ("chicken nuggets" -> nuggets), a candidate of a KNOWN different
+// form ("chicken roll" -> roll) never counts, even at the same brand+family.
+// Form-less candidates pass — we only act on a provable mismatch.
+function typeMismatch(watchType, candidateName) {
+  if (!watchType) return false;
+  const ty = productType(candidateName);
+  return ty != null && ty !== watchType;
+}
+
 // Same gate for a flyer offer, but the family may come from the offer's
 // aggregator category when its OCR name yields none (offerFamily is name-first).
 function offerFamilyMismatch(watchFamily, offer) {
@@ -164,6 +176,7 @@ async function evaluateGrocery(ctx, watch, notes) {
   const candidates = [];
   const ref = refSize(watch);
   const watchFamily = queryFamily(watch.query);
+  const watchType = queryType(watch.query);
 
   // Online stores (via the search connector). Per-store failures are noted,
   // never fatal — monitoring degrades gracefully with flaky stores.
@@ -178,6 +191,7 @@ async function evaluateGrocery(ctx, watch, notes) {
             if (!Number.isFinite(price) || price <= 0) continue;
             if (!isRelevantName(r.name, watch.query, REL_FLOOR)) continue;
             if (familyMismatch(watchFamily, r.name)) continue; // wrong product family
+            if (typeMismatch(watchType, r.name)) continue; // wrong product form
             if (ref) {
               const sz = parseSize(r.name, r.size);
               if (!sizeComparable(ref, sz)) continue; // wrong/unknown size
@@ -214,6 +228,7 @@ async function evaluateGrocery(ctx, watch, notes) {
         const display = offer.name || offer.nameAr;
         if (!display || !isRelevantName(display, watch.query, REL_FLOOR)) continue;
         if (offerFamilyMismatch(watchFamily, offer)) continue;
+        if (typeMismatch(watchType, `${offer.name || ''} ${offer.nameAr || ''}`)) continue;
         if (ref) {
           const sz = parseSize(`${offer.name || ''} ${offer.nameAr || ''}`, '');
           if (!sizeComparable(ref, sz)) continue;

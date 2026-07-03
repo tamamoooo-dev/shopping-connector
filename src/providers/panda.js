@@ -74,20 +74,29 @@ function pickImage(variety) {
   return '';
 }
 
-function normalizeProduct(product, lang) {
+export function normalizeProduct(product, lang) {
   const variety = (product.varieties && product.varieties[0]) || {};
   const price = toNumber(variety.price);
   const undiscounted = toNumber(variety.undiscounted_price);
   const oldPrice = undiscounted && price && undiscounted > price ? undiscounted : null;
 
+  // NAVIGATION FIX: panda.sa's product page is keyed by the VARIETY id, not the
+  // catalogue `product.id`. The product-list API returns product.id (18499) but
+  // the storefront's /p/<id> page (and its /v3/products/<id> detail call) resolve
+  // only the variety id (28874) — using product.id landed the user on a live
+  // Panda page that then rendered "No products found". The suggestions strategy
+  // already emitted the variety id, so this aligns the two paths. Fall back to
+  // product.id only if a product somehow has no variety.
+  const varietyId = variety.id != null ? variety.id : product.id;
+
   return {
-    id: product.id,
+    id: varietyId,
     name: (product.name || '').trim(),
     image: pickImage(variety),
     price,
     oldPrice,
     currency: 'SAR',
-    link: productLink(product.id, product.name, lang),
+    link: productLink(varietyId, product.name, lang),
     size: [variety.size, variety.unit].filter(Boolean).join(' ').trim(),
     brand: product.brand && product.brand.name ? product.brand.name.trim() : '',
     discountLabel: variety.discount_label || '',

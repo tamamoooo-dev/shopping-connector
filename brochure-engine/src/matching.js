@@ -180,6 +180,55 @@ export function queryFamily(query) {
   return productFamily(query);
 }
 
+// --- product types (a FORM attribute, orthogonal to family) ---------------------
+// MIRRORS the frontend's src/match.js (keep the two in sync). A product's FAMILY
+// answers "what is it / which aisle" (chicken); its TYPE answers "what form is
+// it" (nuggets vs roll vs breast). Two listings can share a brand AND a family
+// and still be different products — "chicken nuggets" is not "chicken roll" — so
+// a watch/comparison must not treat a different KNOWN form as the same product.
+// Narrow by design; a name with no type keyword has type null (nothing gated).
+const PRODUCT_TYPES = {
+  nuggets: ['nugget', 'nuggets', 'ناجتس', 'ناغتس', 'نجتس', 'نجت'],
+  burger: ['burger', 'burgers', 'hamburger', 'برجر', 'برغر', 'همبرجر', 'هامبرجر', 'همبرغر'],
+  sausage: ['sausage', 'sausages', 'frankfurter', 'hotdog', 'سجق', 'سوسيس', 'نقانق'],
+  roll: ['roll', 'rolls', 'رول', 'رولات'],
+  mince: ['mince', 'minced', 'مفروم', 'مفرومه'],
+  fillet: ['fillet', 'fillets', 'filet', 'فيليه', 'فيليت'],
+  breast: ['breast', 'breasts', 'صدر', 'صدور'],
+  strips: ['strip', 'strips', 'ستربس', 'شرائح'],
+  wings: ['wing', 'wings', 'جناح', 'اجنحه', 'جوانح'],
+  kofta: ['kofta', 'kufta', 'kabab', 'kebab', 'كفته', 'كباب'],
+  luncheon: ['luncheon', 'mortadella', 'لانشون', 'مرتديلا'],
+};
+const TYPE_INDEX = (() => {
+  const m = new Map();
+  for (const [type, words] of Object.entries(PRODUCT_TYPES)) {
+    for (const w of words) m.set(normalizeText(w), type);
+  }
+  return m;
+})();
+
+function typeKey(word) {
+  if (TYPE_INDEX.has(word)) return word;
+  const stripped = word.replace(/^(وال|ال)/, '');
+  return stripped !== word && TYPE_INDEX.has(stripped) ? stripped : null;
+}
+
+// The product type/form named by a text, or null when none appears.
+export function productType(name) {
+  const words = normalizeText(name).split(' ');
+  for (const w of words) {
+    const key = typeKey(w);
+    if (key) return TYPE_INDEX.get(key);
+  }
+  return null;
+}
+
+// The type the QUERY names ("chicken nuggets" -> nuggets), or null.
+export function queryType(query) {
+  return productType(query);
+}
+
 // --- category-as-family (a retailer-taxonomy semantic signal) -------------------
 // The aggregator tags every flyer offer with its OWN product category (D4D's
 // global taxonomy, e.g. "eggs", "yogurt-labneh", "chocolates-candies"). That is
