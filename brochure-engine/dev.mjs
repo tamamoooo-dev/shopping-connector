@@ -24,7 +24,7 @@ import {
   createMemoryOfferStore,
   createMemoryWatchStore,
 } from './src/storage/local.js';
-import { recordPrices, getLowestDoc, createHttpSearchClient } from './src/priceHistory.js';
+import { recordPrices, getLowestDoc, createHttpSearchClient, groupVariants } from './src/priceHistory.js';
 import { createD4dOffersSource } from './src/offers/d4dOffers.js';
 import { ingestOffers } from './src/offers/ingest.js';
 import {
@@ -286,7 +286,29 @@ async function selftestPriceHistory() {
   );
   if (noBrochure.skipped !== 1 || noBrochure.recorded !== 0) fail('store without a brochure was not skipped');
 
-  console.log('✅ Price History verified: brochure-anchored capture, dedupe, lowest (price/where/when), lows only drop.\n');
+  // Per-size/variant history: each parsed size keeps its OWN lowest-ever record,
+  // so a product-wide MIN can never mix a small pack's low into a big pack's
+  // record. Points with no parseable size fall into the 'unsized' bucket.
+  const varHistory = [
+    { store: 'lulu', edition: '2026-W20', price: 30, name: 'Philadelphia Cream Cheese 500g', observedAt: '2026-03-10' },
+    { store: 'panda', edition: '2026-W19', price: 34, name: 'Philadelphia Cream Cheese 500g', observedAt: '2026-02-24' },
+    { store: 'lulu', edition: '2026-W10', price: 13, name: 'Philadelphia Cream Cheese 180g', observedAt: '2026-01-05' },
+    { store: 'danube', edition: '2026-W15', price: 19, name: 'Philadelphia Cream Cheese 280g', observedAt: '2026-02-08' },
+    { store: 'tamimi', edition: '2026-W12', price: 11, name: 'Philadelphia Spreadable', observedAt: '2026-01-20' }, // unsized
+  ];
+  const variants = groupVariants(varHistory);
+  const byLabel = Object.fromEntries(variants.filter((v) => v.label).map((v) => [v.label, v]));
+  if (!byLabel['180 g'] || byLabel['180 g'].lowest.price !== 13) fail('variant: 180g record wrong');
+  if (!byLabel['280 g'] || byLabel['280 g'].lowest.price !== 19) fail('variant: 280g record wrong');
+  if (!byLabel['500 g'] || byLabel['500 g'].lowest.price !== 30 || byLabel['500 g'].lowest.store !== 'lulu') {
+    fail('variant: 500g record wrong (should be 30 @ lulu, not the panda 34)');
+  }
+  const unsized = variants.find((v) => v.key === 'unsized');
+  if (!unsized || unsized.lowest.price !== 11) fail('variant: unsized bucket wrong');
+  if (variants[variants.length - 1].key !== 'unsized') fail('variant: unsized bucket must sort last');
+  console.log('variants:', JSON.stringify(variants.map((v) => ({ label: v.label, low: v.lowest.price }))));
+
+  console.log('✅ Price History verified: brochure-anchored capture, dedupe, lowest (price/where/when), lows only drop, per-variant records.\n');
 }
 
 // Fallback (Brochure Source Migration): when the aggregator (D4D) has no CURRENT

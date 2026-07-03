@@ -16,6 +16,8 @@
 //     anchored points, carrying that point's store (where) and edition/observed
 //     time (when). Derived on read — no projection table (kept simple).
 
+import { parseSize } from './matching.js';
+
 // --- contract ---------------------------------------------------------------
 // PricePoint: { id, product, store, region, edition, price, currency, name,
 //               link, observedAt }
@@ -166,8 +168,83 @@ export async function getHistoryDoc(priceStore, product) {
   return rows.map(pointToDoc);
 }
 
+// --- per-size/variant history ------------------------------------------------
+// A single product-wide MIN is misleading: a 6-egg pack at 5 SAR and a 30-egg
+// tray at 18 SAR are DIFFERENT products, so one lowest-ever number mixes them.
+// We bucket the edition-anchored points by their PARSED SIZE and derive an
+// independent lowest-ever (price/where/when) + latest-per-store for each. Points
+// whose name carries no parseable size fall into the 'unsized' bucket, kept
+// separate so a real size's record is never contaminated by an unsized one.
+function variantLabel(sz) {
+  if (!sz || !sz.unit || sz.total == null) return null;
+  if (sz.unit === 'pcs') return `${sz.total} pcs`;
+  const bigUnit = sz.unit === 'ml' ? 'L' : 'kg';
+  const trim = (n) => Number(n.toFixed(2)).toString();
+  const each = sz.each >= 1000 ? `${trim(sz.each / 1000)} ${bigUnit}` : `${trim(sz.each)} ${sz.unit}`;
+  if (sz.pack > 1) return `${sz.pack} × ${each}`;
+  return sz.total >= 1000 ? `${trim(sz.total / 1000)} ${bigUnit}` : `${trim(sz.total)} ${sz.unit}`;
+}
+
+function variantOf(point) {
+  const sz = parseSize(point.name || '', '');
+  if (!sz || !sz.unit || sz.total == null) {
+    return { key: 'unsized', sizeUnit: null, sizeTotal: null, sizePack: 1, label: null };
+  }
+  return {
+    key: `${sz.unit}:${Math.round(sz.total)}`,
+    sizeUnit: sz.unit,
+    sizeTotal: sz.total,
+    sizePack: sz.pack || 1,
+    label: variantLabel(sz),
+  };
+}
+
+// Group point docs (edition-DESC) into per-variant records, each carrying its
+// own lowest-ever and latest-per-store snapshot. Sized variants first (most
+// observations, then smallest size); the 'unsized' bucket last.
+export function groupVariants(history) {
+  const buckets = new Map();
+  for (const p of history) {
+    const v = variantOf(p);
+    let b = buckets.get(v.key);
+    if (!b) {
+      b = { ...v, points: [] };
+      buckets.set(v.key, b);
+    }
+    b.points.push(p);
+  }
+  const variants = [];
+  for (const b of buckets.values()) {
+    // Lowest price; ties keep the earliest observation (first time it hit that low).
+    const lowest = b.points
+      .slice()
+      .sort((a, z) => a.price - z.price || String(a.observedAt).localeCompare(String(z.observedAt)))[0];
+    // Latest per store (points arrive edition-DESC, so first seen per store wins).
+    const latestByStore = {};
+    for (const p of b.points) if (!latestByStore[p.store]) latestByStore[p.store] = p;
+    variants.push({
+      key: b.key,
+      sizeUnit: b.sizeUnit,
+      sizeTotal: b.sizeTotal,
+      sizePack: b.sizePack,
+      label: b.label,
+      lowest,
+      latest: Object.values(latestByStore),
+      observations: b.points.length,
+    });
+  }
+  variants.sort(
+    (a, z) =>
+      (a.key === 'unsized' ? 1 : 0) - (z.key === 'unsized' ? 1 : 0) ||
+      z.observations - a.observations ||
+      (a.sizeTotal || 0) - (z.sizeTotal || 0),
+  );
+  return variants;
+}
+
 // Everything a shopper wants at a glance: the headline lowest-ever (price, where,
-// when) plus the latest observed price per store.
+// when) plus the latest observed price per store, AND a per-size/variant
+// breakdown (each size keeps its own independent lowest-ever record).
 export async function getPricesDoc(priceStore, product) {
   const history = (await priceStore.getHistory(product)).map(pointToDoc);
   const latestByStore = {};
@@ -179,6 +256,7 @@ export async function getPricesDoc(priceStore, product) {
     product,
     lowest: pointToDoc(await priceStore.getLowest(product)),
     latest: Object.values(latestByStore),
+    variants: groupVariants(history),
     observations: history.length,
   };
 }
