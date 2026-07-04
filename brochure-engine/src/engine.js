@@ -20,6 +20,7 @@ import { rowToOffer, offerRelevance, queryTokens, isNameMatch, relevanceScore } 
 import { queryFamily, offerFamily } from './matching.js';
 import { pruneStoredBytes } from './retention.js';
 import { buildWatch, checkWatches, MAX_WATCHES } from './monitor.js';
+import { getHotspotsDoc } from './hotspots.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
 // extracts prices from flyer images; the flyer prevails on any mismatch).
@@ -214,6 +215,17 @@ export async function handleRequest(request, ctx) {
     );
     const offers = scored.slice(0, limit).map((s) => s.offer);
     return json({ query: q || null, count: offers.length, note: OFFERS_NOTE, offers });
+  }
+
+  // Per-product tap targets for a held brochure's pages (see hotspots.js):
+  // parsed once from the flyer source, cached in KV, joined to the flyer's
+  // offers rows so one call powers the whole tappable-brochure experience.
+  if (path === '/brochures/hotspots' && request.method === 'GET') {
+    const id = (url.searchParams.get('id') || '').trim();
+    if (!id) return json({ error: "Missing required parameter 'id'." }, 400);
+    const { status, doc } = await getHotspotsDoc(ctx, id, { rowToOffer });
+    if (doc && doc.offers) doc.note = OFFERS_NOTE;
+    return json(doc, status, { 'Cache-Control': 'public, max-age=3600' });
   }
 
   // Current brochures (§8). Omit store -> all current (a "this week's flyers" grid).

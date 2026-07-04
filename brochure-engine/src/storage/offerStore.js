@@ -109,6 +109,18 @@ export function createD1OfferStore(db) {
       return results || [];
     },
 
+    // Every offer of ONE flyer (the hotspots join): tap targets are keyed by
+    // offer_id, so the whole flyer's products come back in a single query.
+    async byFlyer(store, region, flyerRef) {
+      const { results } = await db
+        .prepare(
+          'SELECT * FROM offers WHERE store = ? AND region = ? AND flyer_ref = ? LIMIT 2000',
+        )
+        .bind(store, region, String(flyerRef))
+        .all();
+      return results || [];
+    },
+
     async counts(currentOn) {
       const row = await db
         .prepare(

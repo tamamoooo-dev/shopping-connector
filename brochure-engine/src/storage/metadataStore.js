@@ -75,6 +75,12 @@ export function createD1MetadataStore(db) {
       await db.batch(stmts);
     },
 
+    async getById(id) {
+      if (!id) return null;
+      const row = await db.prepare('SELECT * FROM brochures WHERE id = ? LIMIT 1').bind(id).first();
+      return row || null;
+    },
+
     async getBySourceUrl(store, region, sourceUrl) {
       if (!sourceUrl) return null;
       const row = await db
