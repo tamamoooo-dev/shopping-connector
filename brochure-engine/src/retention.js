@@ -64,13 +64,27 @@ export async function pruneStoredBytes(ctx, { keepDays = 28, maxDeletes = 250, m
   }
 
   // Offers rows: comparison + recent history need a bounded horizon, not an
-  // archive. Expired > ~6 months -> gone (D1 delete, cheap).
+  // archive. Expired > ~6 months -> gone (D1 delete, cheap). Long-term price
+  // memory lives in the compact price-history tables, which survive this.
   if (ctx.offerStore && ctx.offerStore.pruneExpiredBefore) {
     try {
       const offerCutoff = new Date(Date.now() - 180 * 86400000).toISOString().slice(0, 10);
       report.offersPruned = await ctx.offerStore.pruneExpiredBefore(offerCutoff);
     } catch (err) {
       report.errors.push(`offers: ${err.message}`);
+    }
+  }
+
+  // Price-history identities unseen for a year (product discontinued, or an
+  // OCR-name variant that never recurred) are dead weight; their points go
+  // with them. Active products' histories are never touched, so lowest-ever
+  // claims stay backed by rows that exist. Capped per run like everything else.
+  if (ctx.historyStore && ctx.historyStore.pruneStale) {
+    try {
+      const historyCutoff = new Date(Date.now() - 365 * 86400000).toISOString().slice(0, 10);
+      report.historyPruned = await ctx.historyStore.pruneStale(historyCutoff, { maxRows: 400 });
+    } catch (err) {
+      report.errors.push(`history: ${err.message}`);
     }
   }
 

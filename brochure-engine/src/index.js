@@ -23,15 +23,14 @@ import {
 } from './scheduler.js';
 import { createD1MetadataStore } from './storage/metadataStore.js';
 import { createR2ObjectStore, createKvObjectStore } from './storage/objectStore.js';
-import { createD1PriceStore } from './storage/priceStore.js';
+import { createD1HistoryStore } from './storage/historyStore.js';
 import { createD1OfferStore } from './storage/offerStore.js';
 import { createD1WatchStore } from './storage/watchStore.js';
 import { createNtfyNotifier, CHECK_BATCH } from './monitor.js';
 import { createPipeline } from './pipeline.js';
-import { recordPrices, createServiceBindingSearchClient } from './priceHistory.js';
+import { createServiceBindingSearchClient } from './searchClient.js';
 import { createD4dOffersSource } from './offers/d4dOffers.js';
 import { pruneStoredBytes } from './retention.js';
-import { products } from './products.js';
 import { othaimProvider } from './providers/othaim.js';
 import { hyperpandaProvider } from './providers/hyperpanda.js';
 import { carrefourProvider } from './providers/carrefour.js';
@@ -69,10 +68,10 @@ function buildContext(env) {
         })();
   const metadataStore = createD1MetadataStore(env.DB);
   const pipeline = createPipeline({ objectStore, metadataStore });
-  // Price History (Pillar 3) shares this Worker's D1 database. The search
-  // connector (current-price source) is reached via the CONNECTOR service
-  // binding; absent it, the read API still works and capture is a no-op.
-  const priceStore = createD1PriceStore(env.DB);
+  // Price History (Pillar 3) shares this Worker's D1 database. It is harvested
+  // from the structured-offers ingest (priceHistory.js) — catalog-wide, no
+  // watchlist. The CONNECTOR search client only serves Price Monitoring now.
+  const historyStore = createD1HistoryStore(env.DB);
   const searchClient = env.CONNECTOR
     ? createServiceBindingSearchClient({ connector: env.CONNECTOR })
     : null;
@@ -91,12 +90,11 @@ function buildContext(env) {
     objectStore,
     metadataStore,
     pipeline,
-    priceStore,
+    historyStore,
     offerStore,
     offersSource,
     watchStore,
     notifier,
-    products,
     searchClient,
     ingestSecret: env.INGEST_SECRET,
   };
@@ -169,26 +167,10 @@ export default {
           JSON.stringify({ dispatched: report.dispatched, ok: report.ok, failed: report.failed }),
         );
 
-        // Price History (Pillar 3): AFTER the brochure fan-out has refreshed
-        // this week's editions, capture one edition-anchored price point per
-        // tracked product/store. It runs in THIS coordinator invocation — it
-        // only makes a few cheap CONNECTOR search calls (no image downloads), so
-        // it stays far inside the Free-plan subrequest budget. Awaiting the
-        // fan-out first guarantees the current editions it anchors to are
-        // already committed to D1.
+        // Price History (Pillar 3) is captured INSIDE each store's ingest
+        // child (offers/ingest.js -> recordOfferHistory) — every flyer offer
+        // is a price observation, so no separate capture step runs here.
         const ctx = buildContext(env);
-        if (ctx.searchClient) {
-          const priceReport = await recordPrices(ctx, { products, searchClient: ctx.searchClient });
-          console.log(
-            'brochure-engine price-history capture',
-            JSON.stringify({
-              recorded: priceReport.recorded,
-              deduped: priceReport.deduped,
-              skipped: priceReport.skipped,
-              failed: priceReport.failed,
-            }),
-          );
-        }
 
         // Retention (see retention.js): metadata is forever, BYTES are a
         // rolling window. Runs in the coordinator (KV/D1 ops don't consume the

@@ -14,7 +14,7 @@
 //     strategies: [ { name, collect(ctx) -> Promise<Candidate[]> } ] }
 
 import { rowToDoc } from './contract.js';
-import { recordPrices, getLowestDoc, getHistoryDoc, getPricesDoc } from './priceHistory.js';
+import { getQueryPricesDoc, getLowestDoc, recordOfferHistory } from './priceHistory.js';
 import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offers/contract.js';
 import { queryFamily, offerFamily, productType, freshProduceIntent, isProcessedProduce, producePresence, matchStage } from './matching.js';
@@ -158,12 +158,9 @@ export async function handleRequest(request, ctx) {
       watches: ctx.watchStore
         ? { active: await ctx.watchStore.count(), unseenAlerts: await ctx.watchStore.countUnseen() }
         : null,
-      priceHistory: {
-        products: (ctx.products || []).map((p) => p.id),
-        tracked: ctx.priceStore ? await ctx.priceStore.listProducts() : [],
-      },
+      priceHistory: ctx.historyStore ? await ctx.historyStore.counts() : null,
       usage:
-        '/brochures?store=<id>&region=<key>  ·  /offers?q=<query>  ·  /prices?product=<id>',
+        '/brochures?store=<id>&region=<key>  ·  /offers?q=<query>  ·  /prices?q=<query>',
     });
   }
 
@@ -287,32 +284,56 @@ export async function handleRequest(request, ctx) {
   }
 
   // --- Price History (Pillar 3) read API -------------------------------------
-  // Lows are derived from the brochure-edition-anchored price points (§ priceHistory).
-  const productParam = () => (url.searchParams.get('product') || '').trim();
+  // Catalog-wide and query-driven: statistics are derived at read time from the
+  // offers-harvested identity/point rows (§ priceHistory). The legacy `product`
+  // parameter is accepted as a query for compatibility.
+  const historyQuery = () =>
+    (url.searchParams.get('q') || url.searchParams.get('product') || '').trim();
 
-  // Headline: lowest historical price + where (store) + when (edition/observedAt).
+  // Headline: lowest historical price + where (store) + when (week/observedAt).
   if (path === '/lowest' && request.method === 'GET') {
-    const product = productParam();
-    if (!product) return json({ error: "Missing required parameter 'product'." }, 400);
-    if (!ctx.priceStore) return json({ error: 'Price history unavailable.' }, 503);
-    return json({ product, lowest: await getLowestDoc(ctx.priceStore, product) });
+    const q = historyQuery();
+    if (!q) return json({ error: "Missing required parameter 'q'." }, 400);
+    if (!ctx.historyStore) return json({ error: 'Price history unavailable.' }, 503);
+    return json({ product: q, lowest: await getLowestDoc(ctx.historyStore, q) });
   }
 
-  // Full picture: lowest-ever + latest price per store.
+  // Full picture: per-size/variant records (lowest ever, highest, latest per
+  // store, first seen, weeks observed, trend), stage-gated to the query's best
+  // match band. Flyer prices are aggregator-extracted — the disclaimer rides.
   if (path === '/prices' && request.method === 'GET') {
-    const product = productParam();
-    if (!product) return json({ error: "Missing required parameter 'product'." }, 400);
-    if (!ctx.priceStore) return json({ error: 'Price history unavailable.' }, 503);
-    return json(await getPricesDoc(ctx.priceStore, product));
+    const q = historyQuery();
+    if (!q) return json({ error: "Missing required parameter 'q'." }, 400);
+    if (!ctx.historyStore) return json({ error: 'Price history unavailable.' }, 503);
+    const doc = await getQueryPricesDoc(ctx.historyStore, q);
+    doc.note = OFFERS_NOTE;
+    return json(doc);
   }
 
-  // The time series itself — the Pillar 3 substrate.
-  if (path === '/prices/history' && request.method === 'GET') {
-    const product = productParam();
-    if (!product) return json({ error: "Missing required parameter 'product'." }, 400);
-    if (!ctx.priceStore) return json({ error: 'Price history unavailable.' }, 503);
-    const points = await getHistoryDoc(ctx.priceStore, product);
-    return json({ product, count: points.length, points });
+  // Guarded backfill — seed/repair the history from the offers rows ALREADY in
+  // D1 (no external fetches). One store per call keeps a run cheap; without
+  // `store` every registered store is processed sequentially.
+  if (path === '/prices/backfill' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.historyStore || !ctx.offerStore) {
+      return json({ error: 'Price history unavailable.' }, 503);
+    }
+    const store = (url.searchParams.get('store') || '').trim();
+    if (store && !ctx.registry[store]) return json({ error: `Unknown store '${store}'.` }, 404);
+    const stores = store ? [store] : Object.keys(ctx.registry);
+    const report = { startedAt: new Date().toISOString(), targets: [] };
+    for (const s of stores) {
+      const rows = await ctx.offerStore.listAll({ store: s });
+      const offers = rows.map(rowToOffer);
+      const h = await recordOfferHistory(ctx.historyStore, offers, {
+        observedAt: rows[0]?.detected_at,
+      });
+      report.targets.push({ store: s, ...h });
+    }
+    report.finishedAt = new Date().toISOString();
+    return json(report);
   }
 
   // --- Price Monitoring (Personal Alerts) -------------------------------------
@@ -387,16 +408,6 @@ export async function handleRequest(request, ctx) {
     const idsParam = (url.searchParams.get('ids') || '').trim();
     const ids = idsParam ? idsParam.split(',').map((s) => s.trim()).filter(Boolean) : null;
     return json(await checkWatches(ctx, { ids }));
-  }
-
-  // Guarded manual capture — for testing/backfill without the cron. Same secret
-  // as /ingest; the cron calls recordPrices directly (see index.js scheduled()).
-  if (path === '/prices/record' && request.method === 'POST') {
-    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
-      return json({ error: 'Forbidden' }, 403);
-    }
-    const report = await recordPrices(ctx, { products: ctx.products, searchClient: ctx.searchClient });
-    return json(report);
   }
 
   // Guarded manual ingest (§8) — for testing/backfill without the cron. Shared

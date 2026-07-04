@@ -121,6 +121,19 @@ export function createD1OfferStore(db) {
       return results || [];
     },
 
+    // Every stored offer row of one store (or all) WITHOUT search_text — the
+    // price-history backfill's read path (search_text is matching payload the
+    // backfill doesn't need; leaving it out keeps the result set small).
+    async listAll({ store = '' } = {}) {
+      const sql = `SELECT id, store, region, source, offer_id, flyer_ref, page_ref,
+          edition, name, name_ar, price, old_price, currency, category_id,
+          category, image_url, source_url, valid_from, valid_to, detected_at
+        FROM offers ${store ? 'WHERE store = ?' : ''} LIMIT 20000`;
+      const stmt = store ? db.prepare(sql).bind(store) : db.prepare(sql);
+      const { results } = await stmt.all();
+      return results || [];
+    },
+
     async counts(currentOn) {
       const row = await db
         .prepare(

@@ -30,35 +30,61 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_checksum ON brochures(checksum);
 CREATE INDEX IF NOT EXISTS ix_store_region_current ON brochures(store, region, is_current);
 
 -- ---------------------------------------------------------------------------
--- Price History (Pillar 3) — a FEATURE of the Brochure Engine, not a separate
--- service. Each row is the price of a tracked product at a store, ANCHORED to
--- that store's brochure edition: the edition is the "when" (weekly bucket) and
--- the store is the "where". The Brochure Engine's retained editions are thus the
--- backbone of the price history. The price NUMBER comes from the search
--- connector (the only automated price source — brochure images would need OCR,
--- which is out of scope); it is captured once per brochure edition (weekly),
--- never as a daily search-driven time-series. Lows are derived by MIN(price)
--- over these rows (no projection table — kept simple for a personal tool).
-CREATE TABLE IF NOT EXISTS price_points (
-  id          TEXT PRIMARY KEY,   -- `${product}:${store}:${edition}`
-  product     TEXT NOT NULL,      -- tracked product key (config id)
-  store       TEXT NOT NULL,      -- where the price occurred (brochure store)
-  region      TEXT NOT NULL,
-  edition     TEXT NOT NULL,      -- brochure edition (weekly) = the "when" bucket
-  price       REAL NOT NULL,
-  currency    TEXT,
-  name        TEXT,               -- product name as seen at the store
-  link        TEXT,
-  observed_at TEXT NOT NULL       -- ISO datetime the price was captured
+-- Price History (Pillar 3) — CATALOG-WIDE, harvested from the structured-offers
+-- ingest (redesigned 2026-07-04; the old watchlist-based `price_points` table
+-- is retired but left in the deployed DB — see migrate-2026-07-price-history.sql).
+--
+-- THE MODEL: every flyer offer is a price observation. The aggregator's
+-- offer_id is per-flyer-extraction (NOT stable across weeks — verified in
+-- production), so cross-week product identity is DERIVED conservatively at
+-- ingest: store + region + normalized bilingual name + parsed size, hashed.
+-- Identities the deriver can't trust (nameless / single-token OCR debris) are
+-- skipped rather than risked (never mix two products' histories). An identity
+-- split (the same product OCR-ing slightly differently two weeks apart) is
+-- harmless: the read API matches identities by QUERY and merges them per
+-- size/variant, so stats degrade gracefully instead of mixing.
+--
+-- Storage is incremental: one identity row per product (refreshed in place),
+-- and a point row ONLY when the price actually changes (plus the first
+-- sighting). All statistics (lowest ever, highest, current, first seen, trend)
+-- are derived from these rows at read time — nothing is hard-coded.
+CREATE TABLE IF NOT EXISTS price_identities (
+  id            TEXT PRIMARY KEY, -- ph_<fnv64(store|region|names|size)>
+  store         TEXT NOT NULL,
+  region        TEXT NOT NULL,
+  name          TEXT,             -- display name (EN), from the offer
+  name_ar       TEXT,             -- display name (AR)
+  match_text    TEXT NOT NULL,    -- normalized bilingual name (query matching)
+  size_unit     TEXT,             -- parsed size (ml | g | pcs) or null
+  size_total    REAL,
+  size_pack     INTEGER,
+  category      TEXT,             -- aggregator category slug (family backup)
+  image_url     TEXT,             -- latest flyer crop (display)
+  source_url    TEXT,             -- latest flyer deep-link (human verification)
+  currency      TEXT NOT NULL DEFAULT 'SAR',
+  first_seen    TEXT NOT NULL,    -- ISO date of the first observation
+  last_seen     TEXT NOT NULL,    -- ISO date of the latest observation
+  weeks_seen    INTEGER NOT NULL DEFAULT 1, -- distinct ISO weeks observed (depth)
+  last_price    REAL NOT NULL,    -- latest observed price (the change detector)
+  last_valid_to TEXT              -- latest offer's validity end ("current" test)
 );
 
--- One price point per product+store+edition — idempotent weekly capture: a
--- re-fire in the same brochure week never adds a duplicate (mirrors the
--- brochure checksum gate).
-CREATE UNIQUE INDEX IF NOT EXISTS ux_price_point ON price_points(product, store, edition);
+CREATE INDEX IF NOT EXISTS ix_pi_store ON price_identities(store, region);
+CREATE INDEX IF NOT EXISTS ix_pi_last_seen ON price_identities(last_seen);
 
--- Fast "lowest / history for this product" reads.
-CREATE INDEX IF NOT EXISTS ix_price_product ON price_points(product, price);
+-- The append-only price series: first sighting + every price CHANGE, keyed by
+-- the offer's validity week so idempotent re-ingests never duplicate a point
+-- (a corrected extraction in the same window replaces its point in place).
+CREATE TABLE IF NOT EXISTS price_history (
+  identity    TEXT NOT NULL,      -- -> price_identities.id
+  week        TEXT NOT NULL,      -- the offer's valid_from date (weekly bucket)
+  price       REAL NOT NULL,
+  old_price   REAL,               -- strike-through price, when the flyer had one
+  observed_at TEXT NOT NULL,
+  PRIMARY KEY (identity, week)
+);
+
+CREATE INDEX IF NOT EXISTS ix_ph_price ON price_history(identity, price);
 
 -- ---------------------------------------------------------------------------
 -- Structured Offers — the price-comparison substrate. One row per PRODUCT deal

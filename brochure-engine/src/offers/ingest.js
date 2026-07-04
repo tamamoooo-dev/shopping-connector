@@ -9,6 +9,7 @@
 // Free-plan 50-subrequest budget.
 
 import { buildOffer, offerToRow } from './contract.js';
+import { recordOfferHistory } from '../priceHistory.js';
 
 // The provider's offers addressing:
 //   regionConfig.offers = { company: <id> }   (explicit — e.g. a PDF-collector
@@ -70,6 +71,7 @@ export async function ingestOffersForTarget(ctx, provider, region) {
 
     const detectedAt = new Date().toISOString();
     const rows = [];
+    const offers = [];
     for (const raw of raws) {
       const offer = buildOffer(raw, {
         store: provider.id,
@@ -86,10 +88,19 @@ export async function ingestOffersForTarget(ctx, provider, region) {
         offer.edition = edition;
         line.linked += 1;
       }
+      offers.push(offer);
       rows.push(offerToRow(offer));
     }
     if (rows.length) await ctx.offerStore.upsertMany(rows);
     line.stored = rows.length;
+
+    // Price History (Pillar 3): every offer is a price observation. Derive
+    // identities and record first-sighting/price-change points — D1-only work,
+    // zero external subrequests, idempotent on re-ingest (see priceHistory.js).
+    if (ctx.historyStore && offers.length) {
+      const h = await recordOfferHistory(ctx.historyStore, offers, { observedAt: detectedAt });
+      line.history = { identities: h.identities, points: h.points, skipped: h.skipped };
+    }
   } catch (err) {
     line.errors.push(err.message);
   }
