@@ -33,6 +33,9 @@ export function normalizeText(text) {
     .replace(/ى/g, 'ي')
     .replace(/ؤ/g, 'و')
     .replace(/ئ/g, 'ي')
+    // Farsi glyphs D4D flyer OCR emits inside Arabic names: yeh U+06CC, kaf U+06A9
+    .replace(/ی/g, 'ي')
+    .replace(/ک/g, 'ك')
     .replace(AR_INDIC, (d) => String(d.charCodeAt(0) - 0x0660))
     .replace(PUNCT, ' ')
     .replace(/\s+/g, ' ')
@@ -733,6 +736,9 @@ function normSize(s) {
     .replace(/[٠-٩]/g, (d) => AR_INDIC_MAP[d] || d)
     .replace(AR_DIACRITICS, '')
     .replace(/٫/g, '.')
+    // Farsi yeh/kaf from flyer OCR — unit/count words (كيلو، كيس، ليتر…) must match
+    .replace(/ی/g, 'ي')
+    .replace(/ک/g, 'ك')
     .replace(/[^\p{L}\p{N}\s.,x×*]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();

@@ -556,6 +556,8 @@ async function selftestMatching() {
   const two = parseSizeM('Almarai Milk 2 L');
   if (two.unit !== 'ml' || two.total !== 2000) fail('2 L did not parse');
   if (parseSizeM('حليب ٢ لتر').total !== 2000) fail('Arabic-Indic 2 لتر did not parse');
+  if (parseSizeM('رز بسمتي 5 کجم').total !== 5000) fail('Farsi-kaf کجم (OCR) did not parse');
+  if (parseSizeM('حليب 2 لیتر').total !== 2000) fail('Farsi-yeh لیتر (OCR) did not parse');
   if (!sizeComparableM(two, parseSizeM('Nadec Milk 1.9 LTR'))) fail('1.9 L not comparable to 2 L');
   if (sizeComparableM(two, parseSizeM('Milk 200 ml'))) fail('200 ml wrongly comparable to 2 L');
   // Offer relevance tiers: name matches rank above text-only matches.
@@ -585,6 +587,11 @@ async function selftestMatching() {
   if (productFamily('حليب فراولة 200 مل') !== 'milk') fail('strawberry milk (AR) did not stay milk');
   if (productFamily('Strawberry Milk 180ml') !== 'milk') fail('strawberry milk (EN) did not stay milk');
   if (productFamily('مربى الفراولة 450 جم') !== 'jam') fail('strawberry jam did not classify as jam');
+  // D4D flyer OCR emits Farsi yeh (U+06CC) / kaf (U+06A9) inside Arabic names —
+  // normalizeText must fold them or lexicon keywords silently miss.
+  if (productFamily('مربی بوني ماما فراولة 450 جم') !== 'jam') fail('Farsi-yeh مربی (OCR) did not classify as jam');
+  if (productFamily('کیکة الفراولة') !== 'cake') fail('Farsi-kaf کیکة (OCR) did not classify as cake');
+  if (!isProcessedProduce('داری فراولة 1 كجم')) fail('Farsi-yeh داری (OCR) not detected as frozen brand');
   if (productFamily('بنكهة الفراولة') !== null) fail('flavour marker wrongly classified as produce');
   if (productFamily('صابون فراولة') !== 'care') fail('strawberry soap did not classify as care');
   if (productFamily('Cherry Tomatoes 250g') !== 'tomato') fail('cherry tomatoes did not stay tomato');
