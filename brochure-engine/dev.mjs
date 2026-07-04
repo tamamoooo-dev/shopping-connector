@@ -47,6 +47,9 @@ import {
   offerFamily,
   productType,
   queryType,
+  freshProduceIntent,
+  isProcessedProduce,
+  producePresence,
 } from './src/matching.js';
 import { buildWatch, checkWatch, MAX_WATCHES } from './src/monitor.js';
 import { pruneStoredBytes } from './src/retention.js';
@@ -585,6 +588,18 @@ async function selftestMatching() {
   if (productFamily('Cherry Tomatoes 250g') !== 'tomato') fail('cherry tomatoes did not stay tomato');
   if (queryFamily('طماطم') !== 'tomato') fail('طماطم query did not get the tomato family');
   if (nameRelevance('Fresh Tomatoes 1kg', 'طماطم') <= 0) fail('طماطم missed EN tomatoes (produce synonym bridge)');
+  if (productFamily('جالكسي الفراولة 30غ') !== 'chocolate') fail('galaxy strawberry did not classify as chocolate');
+  if (productFamily('سردين بالفلفل الحار وصلصة الطماطم') !== 'fish') fail('sardines in tomato sauce did not stay fish');
+  // Fresh-produce intent: a bare produce query names the FRESH product;
+  // naming the processing/form in the query switches the intent off.
+  if (freshProduceIntent('فراولة') !== 'strawberry') fail('فراولة did not carry fresh intent');
+  if (freshProduceIntent('فراولة مجمدة') !== null) fail('فراولة مجمدة wrongly kept fresh intent');
+  if (freshProduceIntent('دجاج') !== null) fail('non-produce query wrongly got fresh intent');
+  if (!isProcessedProduce('Happy Farm Frozen Strawberry')) fail('frozen marker not detected');
+  if (isProcessedProduce('فراولة طازجة 250 جم')) fail('fresh punnet wrongly marked processed');
+  if (producePresence('كيس مصاصات بالفراولة', 'strawberry') !== 'flavored') fail('بالفراولة not read as a flavour');
+  if (producePresence('فراولة طازجة 250 جم', 'strawberry') !== 'product') fail('fresh strawberries not read as the product');
+  if (producePresence('حليب المراعي 2 لتر', 'strawberry') !== null) fail('unrelated name wrongly got a produce presence');
   // Category-as-family (retailer-taxonomy signal): a name keyword always wins;
   // the aggregator category is a FALLBACK that recovers a debris-named offer,
   // and only unambiguous categories are mapped.

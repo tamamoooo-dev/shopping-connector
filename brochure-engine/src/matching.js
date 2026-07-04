@@ -149,7 +149,7 @@ const BASE_FAMILIES = {
   eggs: ['egg', 'eggs', 'بيض'],
   chicken: ['chicken', 'دجاج', 'فراخ'],
   meat: ['meat', 'beef', 'لحم', 'لحوم', 'بقري', 'غنم', 'mutton'],
-  fish: ['fish', 'tuna', 'سمك', 'تونه', 'سلمون', 'salmon'],
+  fish: ['fish', 'tuna', 'سمك', 'تونه', 'سلمون', 'salmon', 'سردين', 'sardine', 'sardines'],
   rice: ['rice', 'رز', 'ارز'],
   pasta: ['pasta', 'spaghetti', 'مكرونه', 'معكرونه', 'سباغيتي', 'نودلز', 'noodles', 'شعيريه'],
   bread: ['bread', 'toast', 'خبز', 'توست', 'صامولي'],
@@ -165,14 +165,16 @@ const BASE_FAMILIES = {
   vinegar: ['vinegar', 'خل'],
 };
 const DERIVED_FAMILIES = {
-  chocolate: ['chocolate', 'cocoa', 'شوكولاته', 'شوكولا', 'كاكاو'],
+  // incl. confectionery brands that ARE the product name on shelves ("جالكسي
+  // الفراولة" carries no word for chocolate) — same precedent as نسكافيه/coffee
+  chocolate: ['chocolate', 'cocoa', 'شوكولاته', 'شيكولاته', 'شوكلاته', 'شكولاته', 'شوكلت', 'شوكولا', 'كاكاو', 'جالكسي', 'كيندر', 'kinder', 'اوريو', 'oreo', 'سنيكرز', 'snickers', 'تويكس', 'twix', 'كيتكات', 'kitkat'],
   biscuit: ['biscuit', 'biscuits', 'cookie', 'cookies', 'wafer', 'cracker', 'crackers', 'بسكويت', 'كوكيز', 'ويفر'],
   cake: ['cake', 'cakes', 'muffin', 'croissant', 'كيك', 'كيكه', 'كعك', 'مافن', 'كرواسون'],
   pastry: ['pastry', 'pastries', 'puff', 'dough', 'عجينه', 'عجين', 'فطاير', 'فطيره', 'سمبوسه', 'سمبوسك', 'بف', 'باف', 'donut', 'donuts', 'دونات'],
   icecream: ['icecream', 'gelato', 'ايس', 'بوظه'],
-  powder: ['powder', 'بودره', 'مجفف', 'مجففه'],
+  powder: ['powder', 'بودره', 'مسحوق', 'مجفف', 'مجففه'],
   cereal: ['cereal', 'cereals', 'flakes', 'oats', 'granola', 'muesli', 'كورن', 'فليكس', 'شوفان', 'جرانولا'],
-  candy: ['candy', 'gum', 'marshmallow', 'حلوى', 'حلاوه', 'جيلي', 'علكه'],
+  candy: ['candy', 'gum', 'marshmallow', 'lollipop', 'chupa', 'chups', 'حلوى', 'حلاوه', 'جيلي', 'علكه', 'لولي', 'مصاص', 'مصاصه', 'مصاصات', 'شوبا', 'شوبس'],
   chips: ['chips', 'crisps', 'شيبس'],
   sauce: ['sauce', 'ketchup', 'mayonnaise', 'paste', 'puree', 'صوص', 'صلصه', 'كاتشب', 'مايونيز', 'مسطرده', 'معجون', 'بيوريه'],
   dessert: ['dessert', 'custard', 'pudding', 'حلا', 'مهلبيه', 'كاسترد', 'بودينج'],
@@ -183,9 +185,11 @@ const DERIVED_FAMILIES = {
   // drowning fresh produce in the grid.
   soup: ['soup', 'شوربه', 'شوربات'],
   jam: ['jam', 'marmalade', 'مربي'],
-  syrup: ['syrup', 'nectar', 'cocktail', 'mojito', 'smoothie', 'shake', 'milkshake', 'سيرب', 'شراب', 'نكتار', 'كوكتيل', 'موهيتو', 'سموذي', 'شيك', 'ميلكشيك', 'تانج', 'tang'],
-  soda: ['soda', 'cola', 'pepsi', 'fanta', 'mirinda', 'sprite', '7up', 'cocacola', 'صودا', 'كولا', 'بيبسي', 'فانتا', 'ميرندا', 'سبرايت', 'سفن', 'كوكاكولا', 'غازي', 'غازيه'],
+  syrup: ['syrup', 'nectar', 'cocktail', 'mojito', 'smoothie', 'shake', 'milkshake', 'سيرب', 'شراب', 'مشروب', 'مشروبات', 'نكتار', 'كوكتيل', 'موهيتو', 'سموذي', 'شيك', 'ميلكشيك', 'تانج', 'tang'],
+  soda: ['soda', 'cola', 'pepsi', 'fanta', 'mirinda', 'sprite', '7up', 'cocacola', 'صودا', 'كولا', 'بيبسي', 'فانتا', 'ميرندا', 'سبرايت', 'سفن', 'كوكاكولا', 'غازي', 'غازيه', 'malt', 'شعير', 'هولستن', 'holsten', 'بربيكان', 'barbican', 'موسي', 'moussy'],
   pickle: ['pickle', 'pickles', 'مخلل', 'مخللات', 'طرشي'],
+  // produce-shaped non-food ("لعبة على شكل فراولة" squeeze toys from Amazon)
+  toy: ['toy', 'toys', 'لعبه', 'العاب'],
   // personal/household care: strawberry SOAP and lemon DISHWASHING liquid are
   // care products, not produce (scented look-alikes under produce queries).
   care: ['shampoo', 'soap', 'lotion', 'conditioner', 'detergent', 'dishwashing', 'شامبو', 'صابون', 'لوشن', 'بلسم', 'معطر', 'منظف', 'مطهر', 'غسول', 'ملمع'],
@@ -261,6 +265,10 @@ const FAMILY_INDEX = (() => {
   return m;
 })();
 
+// Strips the definite article only. بال/لل stay attached (ingredient/purpose
+// markers) — and so does a bare conjunction waw: "سردين وصلصة الطماطم" is
+// sardines WITH sauce, an accompaniment; stripping و would let the derived
+// keyword hijack the family.
 function familyKey(word) {
   if (FAMILY_INDEX.has(word)) return word;
   const stripped = word.replace(/^(وال|ال)/, '');
@@ -343,6 +351,90 @@ export function productType(name) {
 // The type the QUERY names ("chicken nuggets" -> nuggets), or null.
 export function queryType(query) {
   return productType(query);
+}
+
+// --- fresh-produce intent (mirrors frontend match.js) ------------------------
+// A bare produce query ("فراولة", "طماطم") names the FRESH product: if the
+// shopper wanted the frozen/canned/formed variant they would have said so
+// ("فراولة مجمدة"). Consumers (/offers famRank) demote same-family offers that
+// are processed or carry a FORM word — produce has no forms, so a typed
+// same-family name ("رول فراولة") is really a different product the family
+// lexicon couldn't see. Naming the processing/form in the query disables it.
+const PROCESSED_MARKERS = new Set(
+  [
+    'مجمد', 'مجمده', 'مجمدات', 'frozen',
+    'معلب', 'معلبه', 'معلبات', 'canned', 'tinned',
+    'مقشر', 'مقشره', 'peeled',
+    'مجروش', 'مجروشه', 'crushed',
+    'مطبوخ', 'مطبوخه', 'cooked',
+    'chopped', 'diced', 'sliced',
+    'مغطي', 'مغطاه', 'coated', // chocolate-COATED strawberries etc.
+    'dried', // freeze-dried fruit (Arabic مجفف already classifies as powder)
+    // frozen-food BRANDS whose produce bags never say "frozen" on the name
+    // line ("مونتانا فراولة 1 كجم" is a frozen kilo bag). Only consulted for
+    // fresh-produce-intent demotion, so "صدور ساديا" etc. are unaffected.
+    'مونتانا', 'montana', 'داري', 'dari', 'الكبير', 'alkabeer', 'kabeer', 'ساديا', 'sadia', 'سيارا', 'seara', 'سنبله', 'sunbulah', 'sunbula',
+  ].map(normalizeText),
+);
+
+// Does a name carry a processing marker (frozen/canned/peeled/…)? Article and
+// conjunction-waw prefixes are stripped like family keywords ("المجمدة").
+export function isProcessedProduce(text) {
+  for (const w of normalizeText(text).split(' ')) {
+    if (PROCESSED_MARKERS.has(w)) return true;
+    const stripped = w.replace(/^(وال|ال|و)/, '');
+    if (stripped !== w && PROCESSED_MARKERS.has(stripped)) return true;
+  }
+  return false;
+}
+
+// Is this family one of the fresh-produce (lowest-tier) families?
+export function isProduceFamily(family) {
+  return !!family && Object.prototype.hasOwnProperty.call(PRODUCE_FAMILIES, family);
+}
+
+// The produce family a query names with FRESH intent, or null: the query must
+// resolve to a produce family and itself carry no form/processing words.
+export function freshProduceIntent(query) {
+  const fam = queryFamily(query);
+  if (!isProduceFamily(fam)) return null;
+  if (queryType(query) || isProcessedProduce(query)) return null;
+  return fam;
+}
+
+const PRODUCE_KEYWORDS = (() => {
+  const m = new Map(); // family -> Set of normalized keywords
+  for (const [family, words] of Object.entries(PRODUCE_FAMILIES)) {
+    m.set(family, new Set(words.map(normalizeText)));
+  }
+  return m;
+})();
+
+// How a produce family appears in a text: as the PRODUCT itself ('product' —
+// a standalone word, definite article allowed), as a FLAVOUR/ingredient only
+// ('flavored' — بال/لل attached, or next to a flavour marker), or not at all
+// (null). "مصاصات بالفراولة" is a flavoured product even though no candy
+// keyword survived OCR; "فراولة طازجة" is the product. A standalone mention
+// anywhere wins over a flavoured one.
+export function producePresence(text, family) {
+  const keys = PRODUCE_KEYWORDS.get(family);
+  if (!keys) return null;
+  const words = normalizeText(text).split(' ');
+  let flavored = false;
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    const plain = w.replace(/^(وال|ال)/, '');
+    if (keys.has(plain)) {
+      if (FLAVOR_MARKERS.has(words[i - 1]) || FLAVOR_MARKERS.has(words[i + 1])) {
+        flavored = true;
+        continue;
+      }
+      return 'product';
+    }
+    const attached = w.replace(/^(بال|لل)/, '');
+    if (attached !== w && keys.has(attached)) flavored = true;
+  }
+  return flavored ? 'flavored' : null;
 }
 
 // --- category-as-family (a retailer-taxonomy semantic signal) -------------------

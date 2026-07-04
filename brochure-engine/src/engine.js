@@ -17,7 +17,7 @@ import { rowToDoc } from './contract.js';
 import { recordPrices, getLowestDoc, getHistoryDoc, getPricesDoc } from './priceHistory.js';
 import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, isNameMatch, relevanceScore } from './offers/contract.js';
-import { queryFamily, offerFamily } from './matching.js';
+import { queryFamily, offerFamily, productType, freshProduceIntent, isProcessedProduce, producePresence } from './matching.js';
 import { pruneStoredBytes } from './retention.js';
 import { buildWatch, checkWatches, MAX_WATCHES } from './monitor.js';
 import { getHotspotsDoc } from './hotspots.js';
@@ -190,6 +190,7 @@ export async function handleRequest(request, ctx) {
     });
     const tokens = queryTokens(q);
     const qFamily = q ? queryFamily(q) : null;
+    const freshFam = q ? freshProduceIntent(q) : null;
     const scored = rows
       .map((r) => {
         const offer = rowToOffer(r);
@@ -199,7 +200,21 @@ export async function handleRequest(request, ctx) {
         // pastry, not eggs); family-less offers sit between. The offer's own
         // aggregator category backs up a debris-named offer (name-first).
         const fam = qFamily ? offerFamily(offer) : null;
-        const famRank = !qFamily ? 1 : fam === qFamily ? 2 : fam ? 0 : 1;
+        let famRank = !qFamily ? 1 : fam === qFamily ? 2 : fam ? 0 : 1;
+        // A bare produce query means FRESH: a same-family offer with a FORM
+        // word ("رول فراولة") drops to the bottom tier, a processed one
+        // (frozen/canned/peeled) to the middle, and a family-less offer that
+        // mentions the produce only as a FLAVOUR ("مصاصات بالفراولة") drops
+        // to the bottom — mirrors the frontend grid and comparison gates.
+        if (freshFam) {
+          const text = `${offer.name || ''} ${offer.nameAr || ''}`;
+          if (famRank === 2) {
+            if (productType(text)) famRank = 0;
+            else if (isProcessedProduce(text)) famRank = 1;
+          } else if (famRank === 1 && producePresence(text, freshFam) === 'flavored') {
+            famRank = 0;
+          }
+        }
         return { offer, name: isNameMatch(rel), score: relevanceScore(rel), famRank };
       })
       .filter((s) => s.score > 0);
