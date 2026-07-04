@@ -119,7 +119,7 @@ export function createAggregatorCollector(config) {
 
   return {
     name,
-    async collect({ store, region, regionConfig, findHeld }) {
+    async collect({ store, region, regionConfig, findHeld, readHeldPages }) {
       if (!regionConfig || !regionConfig.store) {
         throw new Error(`aggregator: region '${region}' has no aggregator store key configured`);
       }
@@ -173,8 +173,31 @@ export function createAggregatorCollector(config) {
         try {
           const held = findHeld ? await findHeld(best.sourceUrl) : null;
           if (held && held.checksum && (held.id === doc.id || !claimedIds.has(held.id))) {
-            out.push({ existing: held });
-            continue;
+            // Re-render detection: the aggregator can re-render a flyer under
+            // the SAME URL (page set re-paginated, or deep-link page ids newly
+            // exposed). A held match by sourceUrl alone would freeze the stale
+            // copy until the edition rolls over, so compare the held page set
+            // with what the source advertises now and re-download on drift.
+            // Unreadable held meta (pruned bytes) conservatively counts as
+            // unchanged — that keeps the zero-download convergence property.
+            let stale = false;
+            if (readHeldPages) {
+              const heldPages = await readHeldPages(held);
+              if (heldPages && heldPages.length) {
+                const srcCount = Math.min(best.pages.length, maxPages);
+                if (heldPages.length !== srcCount) stale = true;
+                else if (
+                  (best.pageIds || []).slice(0, maxPages).some(Boolean) &&
+                  !heldPages.some((p) => p && p.pageId)
+                ) {
+                  stale = true; // source now carries deep-link ids the held copy lacks
+                }
+              }
+            }
+            if (!stale) {
+              out.push({ existing: held });
+              continue;
+            }
           }
           const pageUrls = best.pages.slice(0, maxPages);
           const pageIds = (best.pageIds || []).slice(0, maxPages);

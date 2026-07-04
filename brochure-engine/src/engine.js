@@ -53,10 +53,25 @@ async function collectBestFirst(ctx, provider, region) {
     sourceUrl && ctx.metadataStore.getBySourceUrl
       ? ctx.metadataStore.getBySourceUrl(provider.id, region, sourceUrl)
       : null;
+  // Lets a collector compare a held edition's stored page set against what the
+  // source advertises NOW (re-render detection): the aggregator can re-render a
+  // flyer under the same URL, which findHeld alone can't see. KV read, zero
+  // external subrequests. Null when the meta is unreadable (e.g. bytes pruned).
+  const readHeldPages = async (heldRow) => {
+    if (!heldRow || !heldRow.storage_key || !ctx.objectStore) return null;
+    const obj = await ctx.objectStore.get(`brochures/${heldRow.storage_key}/meta.json`);
+    if (!obj) return null;
+    try {
+      const meta = JSON.parse(new TextDecoder().decode(obj.bytes));
+      return Array.isArray(meta.pages) ? meta.pages : null;
+    } catch {
+      return null;
+    }
+  };
   const failures = [];
   for (const strategy of provider.strategies) {
     try {
-      const candidates = await strategy.collect({ store: provider.id, region, regionConfig, findHeld });
+      const candidates = await strategy.collect({ store: provider.id, region, regionConfig, findHeld, readHeldPages });
       if (candidates && candidates.length) return { collector: strategy.name, candidates };
       failures.push(`${strategy.name}: no brochure`);
     } catch (err) {

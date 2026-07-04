@@ -119,21 +119,33 @@ async function ingestImageSet({ doc, pages }, { objectStore, metadataStore, writ
   }
   const checksum = `sha256:${await sha256Hex(concat)}`;
 
-  // 2. dedupe: identical page set already held?
-  if (await metadataStore.existsByChecksum(checksum)) {
-    return { status: 'deduped', doc: { ...doc, checksum } };
-  }
-
-  // 3. store each page under the edition prefix; record its object key in pages[].
   const base = `brochures/${doc.storageKey}`;
-  const pageMeta = [];
-  for (const p of ordered) {
+  const buildPageEntry = (p) => {
     const key = `${base}/page${String(p.index).padStart(2, '0')}.${imageExt(p.contentType, p.url)}`;
-    await objectStore.put(key, p.bytes, { contentType: p.contentType });
     // pageId (the aggregator's deep-link page id) rides into meta.json so a
     // flyer offer can open the in-app viewer on its own page; omitted when null.
     const entry = { index: p.index, imageUrl: key };
     if (p.pageId) entry.pageId = String(p.pageId);
+    return entry;
+  };
+
+  // 2. dedupe: identical page set already held? Byte-identical pages can still
+  // carry NEW deep-link page ids (the aggregator can add them to the leaflet
+  // markup without re-rendering the images — that's what makes the collector
+  // re-download a held flyer). Refresh meta.json only (the page keys are
+  // derived the same way, no byte writes) so the ids land and the collector's
+  // staleness trigger goes quiet on the next run.
+  if (await metadataStore.existsByChecksum(checksum)) {
+    const finalDoc = { ...doc, checksum, pages: ordered.map(buildPageEntry) };
+    if (ordered.some((p) => p.pageId)) await writeMeta(base, finalDoc);
+    return { status: 'deduped', doc: finalDoc };
+  }
+
+  // 3. store each page under the edition prefix; record its object key in pages[].
+  const pageMeta = [];
+  for (const p of ordered) {
+    const entry = buildPageEntry(p);
+    await objectStore.put(entry.imageUrl, p.bytes, { contentType: p.contentType });
     pageMeta.push(entry);
   }
   const finalDoc = { ...doc, checksum, pages: pageMeta };
