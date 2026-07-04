@@ -139,6 +139,14 @@ async function ingestImageSet({ doc, pages }, { objectStore, metadataStore, writ
   const finalDoc = { ...doc, checksum, pages: pageMeta };
   await writeMeta(base, finalDoc);
 
+  // Hotspot geometry is immutable per RENDERING, not per edition: the
+  // aggregator can re-render a flyer under the same URL/edition (page count and
+  // data-index layout change), and a hotspots.json cached from the old
+  // rendering would then misalign with the freshly stored pages. Reaching this
+  // point means the bytes CHANGED (the dedupe above didn't fire), so drop the
+  // cache and let the next /brochures/hotspots request re-parse and re-cache.
+  await objectStore.delete(`${base}/hotspots.json`);
+
   // 4. index the row; supersede the prior current edition for this store+region.
   await metadataStore.upsert(docToRow(finalDoc));
 
