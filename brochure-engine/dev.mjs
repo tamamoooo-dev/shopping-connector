@@ -50,6 +50,8 @@ import {
   freshProduceIntent,
   isProcessedProduce,
   producePresence,
+  matchStage,
+  queryTokenPresence,
 } from './src/matching.js';
 import { buildWatch, checkWatch, MAX_WATCHES } from './src/monitor.js';
 import { pruneStoredBytes } from './src/retention.js';
@@ -618,7 +620,24 @@ async function selftestMatching() {
   if (productType('Fresh Whole Chicken 1kg') !== null) fail('plain chicken wrongly got a form');
   if (queryType('chicken nuggets') !== 'nuggets') fail('query form not read');
   if (queryType('chicken') !== null) fail('bare family query wrongly got a form');
-  console.log('✅ Matching verified: boundaries, synonyms, compound gate, size gate, tiering, families, category signal, forms.\n');
+  // Search Roadmap stages (mirrors frontend match.js matchStage — the /offers
+  // primary sort key). Single word: primary product-name matches before
+  // flavour/ingredient look-alikes; multi word: every term mandatory (exact
+  // phrase first) before gradual relaxation.
+  if (matchStage({ name: 'Almarai Fresh Milk 1 L' }, 'milk') !== 5) fail('primary milk not stage 5');
+  if (matchStage({ name: 'Milk Chocolate Bar 90g' }, 'milk') !== 1) fail('milk chocolate not secondary stage');
+  if (matchStage({ name: 'حليب بنكهة الفراولة 200 مل' }, 'حليب') !== 5) fail('flavoured milk lost primary stage for حليب');
+  if (matchStage({ name: 'حليب بنكهة الفراولة 200 مل' }, 'فراولة') !== 1) fail('flavour word not secondary for فراولة');
+  if (matchStage({ name: 'حليب فراولة 200 مل' }, 'فراولة') !== 1) fail('strawberry milk not secondary for فراولة');
+  if (matchStage({ name: 'فراولة طازجة 250 جم' }, 'فراولة') !== 5) fail('fresh strawberries not primary');
+  if (matchStage({ name: 'حليب المراعي كامل الدسم 2 لتر' }, 'حليب المراعي') !== 5) fail('exact phrase not stage 5');
+  if (matchStage({ name: 'حليب كامل الدسم 2 لتر', brand: 'المراعي' }, 'حليب المراعي') !== 4) fail('brand-completed coverage not stage 4');
+  if (matchStage({ name: 'حليب نادك كامل الدسم 2 لتر' }, 'حليب المراعي') !== 1) fail('missing term did not relax to stage 1');
+  if (matchStage({ name: 'عصير برتقال 1 لتر' }, 'حليب المراعي') !== 0) fail('unrelated product not stage 0');
+  if (queryTokenPresence('فراولة طازجة 250 جم', 'فراولة') !== 'primary') fail('standalone word not primary');
+  if (queryTokenPresence('مصاصات بالفراولة', 'فراولة') !== 'secondary') fail('بال-attached not secondary');
+  if (queryTokenPresence('حليب المراعي 2 لتر', 'فراولة') !== null) fail('absent token not null');
+  console.log('✅ Matching verified: boundaries, synonyms, compound gate, size gate, tiering, families, category signal, forms, roadmap stages.\n');
 }
 
 // Price Monitoring — OFFLINE + deterministic. Proves validation, the relevance

@@ -16,8 +16,8 @@
 import { rowToDoc } from './contract.js';
 import { recordPrices, getLowestDoc, getHistoryDoc, getPricesDoc } from './priceHistory.js';
 import { ingestOffers } from './offers/ingest.js';
-import { rowToOffer, offerRelevance, queryTokens, isNameMatch, relevanceScore } from './offers/contract.js';
-import { queryFamily, offerFamily, productType, freshProduceIntent, isProcessedProduce, producePresence } from './matching.js';
+import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offers/contract.js';
+import { queryFamily, offerFamily, productType, freshProduceIntent, isProcessedProduce, producePresence, matchStage } from './matching.js';
 import { pruneStoredBytes } from './retention.js';
 import { buildWatch, checkWatches, MAX_WATCHES } from './monitor.js';
 import { getHotspotsDoc } from './hotspots.js';
@@ -169,7 +169,7 @@ export async function handleRequest(request, ctx) {
 
   // Structured flyer offers — the price-comparison substrate (§8). Current by
   // default (validity contains today); `q` is a normalized token-AND search
-  // over the offer's OCR text, with name-matched offers ranked first.
+  // over the offer's OCR text, ranked by the Search Roadmap stage first.
   if (path === '/offers' && request.method === 'GET') {
     if (!ctx.offerStore) return json({ error: 'Offers unavailable.' }, 503);
     const q = (url.searchParams.get('q') || '').trim();
@@ -215,15 +215,23 @@ export async function handleRequest(request, ctx) {
             famRank = 0;
           }
         }
-        return { offer, name: isNameMatch(rel), score: relevanceScore(rel), famRank };
+        // The Search Roadmap stage over the offer's bilingual NAME — the
+        // primary sort key. Deterministic: a primary product-name match
+        // always precedes flavour/ingredient look-alikes (single word) and
+        // full-coverage matches always precede offers missing a query term
+        // (multi word); famRank/score/price only order within a stage. It
+        // subsumes the old name-tier key: any stage ≥1 is a name match, and
+        // OCR-text-only matches (stage 0) stay ranked last as before.
+        const stage = q ? matchStage({ name: `${offer.name || ''} ${offer.nameAr || ''}` }, q) : 0;
+        return { offer, stage, score: relevanceScore(rel), famRank };
       })
       .filter((s) => s.score > 0);
-    // Fully name-matched offers before text-only matches; within a tier the
-    // query's own product family first, then the strongest match (whole-word
-    // beats prefix, compound look-alikes are demoted), then cheapest first.
+    // Roadmap stage first; within a stage the query's own product family
+    // first, then the strongest match (whole-word beats prefix, compound
+    // look-alikes are demoted), then cheapest first.
     scored.sort(
       (a, b) =>
-        (b.name ? 1 : 0) - (a.name ? 1 : 0) ||
+        b.stage - a.stage ||
         b.famRank - a.famRank ||
         b.score - a.score ||
         a.offer.price - b.offer.price,

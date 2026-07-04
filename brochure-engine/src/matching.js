@@ -561,6 +561,144 @@ export function isRelevantName(name, query, floor = 40) {
   return nameRelevance(name, query) >= floor;
 }
 
+// --- Search Roadmap: deterministic match stages -------------------------------
+// This is a price COMPARISON engine, not a discovery engine — the first results
+// must be the products the user most likely wants to compare prices for. The
+// stage is the primary ranking key (/offers sorts it before famRank/score/
+// price; the frontend grid sorts stage → family band → price), so no other
+// signal may ever promote a result past a better stage. Deterministic:
+//   Single word  — 5 primary product-name (or brand) match; variants like
+//                  weight/size/origin/color stay primary · 2 weak substring-only
+//                  match · 1 the word is only a flavour/ingredient/scent or
+//                  modifies a KNOWN different family ("حليب فراولة" for فراولة)
+//                  — after ALL primary matches · 0 no match.
+//   Multi word   — every query term is mandatory before any relaxation:
+//                  5 exact phrase in the name · 4 all terms whole-word ·
+//                  3 all terms strong (word-start tier) · 2 all terms matched
+//                  (some substring-tier) · then gradually relax — 1 exactly one
+//                  term missing · 0 more missing. A term may match in the brand
+//                  field, but the exact-phrase stage lives in the name.
+// Mirrors the frontend match.js — keep in sync (HANDOFF rule 2).
+//
+// Flavour markers are DIRECTIONAL, unlike the produce-only FLAVOR_MARKERS:
+// Arabic markers precede the flavour word ("بنكهة الفراولة" — فراولة is the
+// flavour, the حليب before the marker is the product), English markers follow
+// it ("strawberry flavoured milk" — strawberry is the flavour). A symmetric
+// check would wrongly demote the head noun of "حليب بنكهة الفراولة" for حليب.
+const FLAVOR_BEFORE = new Set(
+  ['بنكهه', 'نكهه', 'نكهات', 'بطعم', 'طعم', 'برائحه', 'رائحه'].map(normalizeText),
+);
+const FLAVOR_AFTER = new Set(
+  ['flavor', 'flavour', 'flavored', 'flavoured', 'flavors', 'flavours', 'scented'].map(normalizeText),
+);
+
+// How ONE query token appears in a name: as the PRODUCT itself ('primary' — a
+// standalone word, definite article allowed), only as a flavour/ingredient/
+// scent ('secondary' — بال/لل attached, next to a directional flavour marker,
+// or followed by a compound shifter: "milk chocolate"), or not at all (null).
+// producePresence generalized to any query token; a standalone primary mention
+// anywhere wins over a secondary one. Conservative by design: when in doubt
+// the answer is 'primary' — the failure mode must stay "not demoted".
+export function queryTokenPresence(text, tok) {
+  const variants = new Set(expandToken(normalizeText(tok)));
+  const words = normalizeText(text).split(' ');
+  let secondary = false;
+  for (let i = 0; i < words.length; i++) {
+    const w = words[i];
+    const plain = w.replace(/^(وال|ال)/, '');
+    if (variants.has(w) || variants.has(plain)) {
+      if (
+        FLAVOR_BEFORE.has(words[i - 1]) ||
+        FLAVOR_AFTER.has(words[i + 1]) ||
+        COMPOUND_SHIFTERS.has(words[i + 1])
+      ) {
+        secondary = true;
+        continue;
+      }
+      return 'primary';
+    }
+    const attached = w.replace(/^(بال|لل)/, '');
+    if (attached !== w && (variants.has(attached) || variants.has(attached.replace(/^ال/, '')))) {
+      secondary = true;
+    }
+  }
+  return secondary ? 'secondary' : null;
+}
+
+// Per-variant match tier in a normalized text: 3 whole word · 2 word-start
+// prefix (≥4 chars — the eggs/eggplant guard) · 1 long substring · 0 none.
+function matchTier(v, text, wordSet) {
+  if (!v || !text) return 0;
+  if (wordSet.has(v)) return 3;
+  if (v.length >= 4 && new RegExp(`(^| )${escapeRe(v)}`).test(text)) return 2;
+  if (v.length >= 5 && text.includes(v)) return 1;
+  return 0;
+}
+
+// Do the query tokens appear as a contiguous in-order phrase in the name words
+// (synonym variants allowed, definite article stripped on the name side)?
+function phraseInName(qTokens, nameWords) {
+  if (qTokens.length > nameWords.length) return false;
+  const variantSets = qTokens.map((qt) => new Set(expandToken(qt)));
+  outer: for (let i = 0; i + variantSets.length <= nameWords.length; i++) {
+    for (let k = 0; k < variantSets.length; k++) {
+      const w = nameWords[i + k];
+      if (!variantSets[k].has(w) && !variantSets[k].has(w.replace(/^(وال|ال)/, ''))) continue outer;
+    }
+    return true;
+  }
+  return false;
+}
+
+export function matchStage(item, query) {
+  const qTokens = queryTokens(query);
+  if (!qTokens.length) return 0;
+  const name = normalizeText(item.name);
+  const nameWords = name ? name.split(' ') : [];
+  const nameSet = new Set(nameWords);
+  const brand = normalizeText(item.brand);
+  const brandSet = new Set(brand ? brand.split(' ') : []);
+  const tokTier = (qt) => {
+    let best = 0;
+    for (const v of expandToken(qt)) {
+      best = Math.max(best, matchTier(v, name, nameSet), matchTier(v, brand, brandSet));
+      if (best === 3) break;
+    }
+    return best;
+  };
+
+  if (qTokens.length === 1) {
+    const t = tokTier(qTokens[0]);
+    if (!t) return 0;
+    if (queryTokenPresence(item.name || '', qTokens[0]) === 'secondary') return 1;
+    // The word names a family but the product is a KNOWN different family —
+    // the word is an ingredient/modifier there ("حليب فراولة" is milk, so
+    // فراولة is a flavour in it). Unknown family never demotes.
+    const qFam = queryFamily(query);
+    if (qFam) {
+      const fam = productFamily(item.name || '');
+      if (fam && fam !== qFam) return 1;
+    }
+    return t >= 2 ? 5 : 2;
+  }
+
+  let whole = 0;
+  let strong = 0;
+  let matched = 0;
+  for (const qt of qTokens) {
+    const t = tokTier(qt);
+    if (t >= 1) matched += 1;
+    if (t >= 2) strong += 1;
+    if (t === 3) whole += 1;
+  }
+  const n = qTokens.length;
+  if (matched < n) return matched >= n - 1 ? 1 : 0;
+  if (phraseInName(qTokens, nameWords)) return 5;
+  if (whole === n) return 4;
+  if (strong === n) return 3;
+  return 2;
+}
+
 // --- size / quantity parsing -----------------------------------------------------
 // Ported from the frontend's match.js so the watch monitor can compare like with
 // like: a grocery watch remembers the watched product's size, and a candidate
