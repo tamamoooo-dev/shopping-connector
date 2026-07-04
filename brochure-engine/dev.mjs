@@ -628,11 +628,18 @@ async function selftestMatching() {
   if (queryType('chicken nuggets') !== 'nuggets') fail('query form not read');
   if (queryType('chicken') !== null) fail('bare family query wrongly got a form');
   // Search Roadmap stages (mirrors frontend match.js matchStage — the /offers
-  // primary sort key). Single word: primary product-name matches before
-  // flavour/ingredient look-alikes; multi word: every term mandatory (exact
-  // phrase first) before gradual relaxation.
-  if (matchStage({ name: 'Almarai Fresh Milk 1 L' }, 'milk') !== 5) fail('primary milk not stage 5');
+  // primary sort key). Single word: token-HEADED primary matches first, then
+  // other primary matches, then flavour/ingredient look-alikes; multi word:
+  // every term mandatory (exact phrase first) before gradual relaxation.
+  if (matchStage({ name: 'Fresh Milk Full Fat 1 L' }, 'milk') !== 5) fail('token-headed milk not stage 5');
+  if (matchStage({ name: 'Almarai Fresh Milk 1 L' }, 'milk') !== 4) fail('brand-led milk not stage 4');
   if (matchStage({ name: 'Milk Chocolate Bar 90g' }, 'milk') !== 1) fail('milk chocolate not secondary stage');
+  // Head-first single-word rule (the ليمون example, as a general rule).
+  if (matchStage({ name: 'ليمون اصفر' }, 'ليمون') !== 5) fail('ليمون اصفر not head stage 5');
+  if (matchStage({ name: 'الليمون الاخضر' }, 'ليمون') !== 5) fail('الليمون الاخضر not head stage 5');
+  if (matchStage({ name: 'كلوروكس ليمون' }, 'ليمون') !== 4) fail('كلوروكس ليمون not trailing stage 4');
+  if (matchStage({ name: 'عصير ليمون 1 لتر' }, 'ليمون') !== 1) fail('عصير ليمون not different-family stage 1');
+  if (matchStage({ name: 'حليب بنكهة الليمون' }, 'ليمون') !== 1) fail('حليب بنكهة الليمون not flavour stage 1');
   if (matchStage({ name: 'حليب بنكهة الفراولة 200 مل' }, 'حليب') !== 5) fail('flavoured milk lost primary stage for حليب');
   if (matchStage({ name: 'حليب بنكهة الفراولة 200 مل' }, 'فراولة') !== 1) fail('flavour word not secondary for فراولة');
   if (matchStage({ name: 'حليب فراولة 200 مل' }, 'فراولة') !== 1) fail('strawberry milk not secondary for فراولة');

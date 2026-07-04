@@ -570,11 +570,20 @@ export function isRelevantName(name, query, floor = 40) {
 // stage is the primary ranking key (/offers sorts it before famRank/score/
 // price; the frontend grid sorts stage → family band → price), so no other
 // signal may ever promote a result past a better stage. Deterministic:
-//   Single word  — 5 primary product-name (or brand) match; variants like
-//                  weight/size/origin/color stay primary · 2 weak substring-only
-//                  match · 1 the word is only a flavour/ingredient/scent or
-//                  modifies a KNOWN different family ("حليب فراولة" for فراولة)
-//                  — after ALL primary matches · 0 no match.
+//   Single word  — 5 primary match whose name is HEADED by the token ("ليمون
+//                  أصفر", "ليمون كيلو", "Fresh Lemon 1kg" — weight/size/
+//                  origin/color variants stay primary; generic lead-ins like
+//                  fresh/طازج and numbers are skipped) · 4 other primary
+//                  matches (the token trails a different head word —
+//                  "كلوروكس ليمون" — or matched in the brand field only) ·
+//                  2 weak substring-only match · 1 secondary — the word is
+//                  only a flavour/ingredient/scent ("حليب بنكهة الليمون") or
+//                  modifies a KNOWN different family ("عصير ليمون" for
+//                  ليمون) — after ALL primary matches · 0 no match.
+//                  NOTE: family agreement must never promote to 5 — the
+//                  classifier keys off the query token itself, so "كلوروكس
+//                  ليمون" is circularly "lemon family"; only the head word is
+//                  independent evidence the product IS the token.
 //   Multi word   — every query term is mandatory before any relaxation:
 //                  5 exact phrase in the name · 4 all terms whole-word ·
 //                  3 all terms strong (word-start tier) · 2 all terms matched
@@ -638,6 +647,24 @@ function matchTier(v, text, wordSet) {
   return 0;
 }
 
+// Generic lead-in words that never carry the product identity — skipped (along
+// with pure numbers) when locating a name's HEAD word, so "Fresh Lemon 1kg"
+// and "ليمون طازج" are both lemon-headed. Deliberately tiny: anything else in
+// front of the token ("كلوروكس", a brand, another noun) IS a different head.
+const HEAD_SKIP = new Set(
+  ['fresh', 'new', 'organic', 'طازج', 'طازجه', 'جديد', 'جديده', 'عضوي', 'عضويه'].map(normalizeText),
+);
+
+// The first meaningful (ال-stripped) word of a normalized name, or ''.
+function headWord(nameWords) {
+  for (const w of nameWords) {
+    const plain = w.replace(/^(وال|ال)/, '');
+    if (!plain || /^\d+$/.test(plain) || HEAD_SKIP.has(plain)) continue;
+    return plain;
+  }
+  return '';
+}
+
 // Do the query tokens appear as a contiguous in-order phrase in the name words
 // (synonym variants allowed, definite article stripped on the name side)?
 function phraseInName(qTokens, nameWords) {
@@ -671,18 +698,29 @@ export function matchStage(item, query) {
   };
 
   if (qTokens.length === 1) {
-    const t = tokTier(qTokens[0]);
-    if (!t) return 0;
-    if (queryTokenPresence(item.name || '', qTokens[0]) === 'secondary') return 1;
+    const qt = qTokens[0];
+    // The role detector strips ال properly ("الليمون" IS the word), so a
+    // 'primary' role is a word-level hit even when the raw tiers miss the
+    // ال-attached form.
+    const role = queryTokenPresence(item.name || '', qt);
+    if (role === 'secondary') return 1;
+    const t = tokTier(qt);
+    if (!t && !role) return 0;
     // The word names a family but the product is a KNOWN different family —
-    // the word is an ingredient/modifier there ("حليب فراولة" is milk, so
-    // فراولة is a flavour in it). Unknown family never demotes.
+    // the word is an ingredient/modifier there ("عصير ليمون" is juice, so
+    // ليمون is a flavour in it). Unknown family never demotes.
     const qFam = queryFamily(query);
     if (qFam) {
       const fam = productFamily(item.name || '');
       if (fam && fam !== qFam) return 1;
     }
-    return t >= 2 ? 5 : 2;
+    if (role !== 'primary' && t < 2) return 2;
+    // Head-first: a primary match whose product name is HEADED by the token
+    // ("ليمون أصفر") outranks one where the token trails a different head
+    // word ("كلوروكس ليمون") or that matched only in the brand field.
+    const variants = new Set(expandToken(qt));
+    if (variants.has(headWord(nameWords))) return 5;
+    return 4;
   }
 
   let whole = 0;
