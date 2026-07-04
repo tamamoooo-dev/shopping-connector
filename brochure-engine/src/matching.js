@@ -77,6 +77,36 @@ const SYNONYMS = [
   ['cola', 'كولا'],
   ['tide', 'تايد'],
   ['nutella', 'نوتيلا'],
+  // fresh produce (bilingual bridges so an Arabic produce query reaches
+  // English-named catalogue items and flyer OCR, and vice versa). English
+  // words that double as colours/scents ("orange") are deliberately left out.
+  ['tomato', 'tomatoes', 'طماطم'],
+  ['potato', 'potatoes', 'بطاطس', 'بطاطا'],
+  ['onion', 'onions', 'بصل'],
+  ['garlic', 'ثوم'],
+  ['cucumber', 'خيار'],
+  ['carrot', 'carrots', 'جزر'],
+  ['lemon', 'ليمون'],
+  ['strawberry', 'strawberries', 'فراوله'],
+  ['banana', 'bananas', 'موز'],
+  ['apple', 'apples', 'تفاح'],
+  ['grape', 'grapes', 'عنب'],
+  ['mango', 'مانجو', 'مانجا'],
+  ['watermelon', 'بطيخ', 'حبحب'],
+  ['pineapple', 'اناناس'],
+  ['pomegranate', 'رمان'],
+  ['avocado', 'افوكادو'],
+  ['peach', 'خوخ'],
+  ['apricot', 'مشمش'],
+  ['kiwi', 'كيوي'],
+  ['guava', 'جوافه'],
+  ['eggplant', 'aubergine', 'باذنجان'],
+  ['zucchini', 'courgette', 'كوسه'],
+  ['cabbage', 'ملفوف'],
+  ['cauliflower', 'قرنبيط'],
+  ['broccoli', 'بروكلي'],
+  ['spinach', 'سبانخ'],
+  ['okra', 'باميه'],
 ];
 const SYN_INDEX = (() => {
   const m = new Map();
@@ -98,10 +128,17 @@ export function expandToken(tok) {
 // never compete or satisfy each other's watches, however similar their names:
 // an egg-pastry offer is pastry, not eggs; "milk chocolate" is chocolate.
 //
-// Two tiers: any DERIVED-family keyword (compound products) outranks every
+// Three tiers: any DERIVED-family keyword (compound products) outranks every
 // BASE-family keyword; within a tier the EARLIEST keyword in the name wins.
 // Whole-word matches only, with the Arabic definite article (ال/وال) stripped
 // but بال/لل left attached ("بالبيض" = "with egg" marks an ingredient).
+//
+// PRODUCE is the third, LOWEST tier: fresh fruit/vegetable nouns are the
+// prototypical flavour/ingredient modifiers in BOTH word orders ("حليب فراولة"
+// and "Strawberry Milk" are milk; "معجون طماطم" and "tomato paste" are sauce),
+// so any base- or derived-family keyword anywhere in the name outranks a
+// produce keyword regardless of position. A name whose ONLY family signal is
+// the produce noun ("طماطم طازجة", "Fresh Tomatoes 1kg") IS the produce.
 const BASE_FAMILIES = {
   milk: ['milk', 'حليب'],
   laban: ['laban', 'لبن'],
@@ -125,24 +162,87 @@ const BASE_FAMILIES = {
   flour: ['flour', 'دقيق', 'طحين'],
   dates: ['dates', 'تمر', 'تمور'],
   honey: ['honey', 'عسل'],
+  vinegar: ['vinegar', 'خل'],
 };
 const DERIVED_FAMILIES = {
   chocolate: ['chocolate', 'cocoa', 'شوكولاته', 'شوكولا', 'كاكاو'],
   biscuit: ['biscuit', 'biscuits', 'cookie', 'cookies', 'wafer', 'cracker', 'crackers', 'بسكويت', 'كوكيز', 'ويفر'],
-  cake: ['cake', 'cakes', 'muffin', 'croissant', 'كيك', 'كعك', 'مافن', 'كرواسون'],
+  cake: ['cake', 'cakes', 'muffin', 'croissant', 'كيك', 'كيكه', 'كعك', 'مافن', 'كرواسون'],
   pastry: ['pastry', 'pastries', 'puff', 'dough', 'عجينه', 'عجين', 'فطاير', 'فطيره', 'سمبوسه', 'سمبوسك', 'بف', 'باف', 'donut', 'donuts', 'دونات'],
   icecream: ['icecream', 'gelato', 'ايس', 'بوظه'],
   powder: ['powder', 'بودره', 'مجفف', 'مجففه'],
   cereal: ['cereal', 'cereals', 'flakes', 'oats', 'granola', 'muesli', 'كورن', 'فليكس', 'شوفان', 'جرانولا'],
   candy: ['candy', 'gum', 'marshmallow', 'حلوى', 'حلاوه', 'جيلي', 'علكه'],
   chips: ['chips', 'crisps', 'شيبس'],
-  sauce: ['sauce', 'ketchup', 'mayonnaise', 'صوص', 'صلصه', 'كاتشب', 'مايونيز', 'مسطرده'],
+  sauce: ['sauce', 'ketchup', 'mayonnaise', 'paste', 'puree', 'صوص', 'صلصه', 'كاتشب', 'مايونيز', 'مسطرده', 'معجون', 'بيوريه'],
   dessert: ['dessert', 'custard', 'pudding', 'حلا', 'مهلبيه', 'كاسترد', 'بودينج'],
   // prepared dishes: an "egg curry chappati" or "egg dosa" is a meal, not eggs
   prepared: ['curry', 'كاري', 'chappati', 'شاباتي', 'dosa', 'دوسا', 'sandwich', 'ساندويتش', 'burger', 'برجر', 'pizza', 'بيتزا', 'شاورما', 'shawarma', 'combo', 'كومبو', 'وجبه', 'meal'],
+  // produce-derived shelf products: what turns "طماطم"/"فراولة" into paste,
+  // jam, syrup drinks, soda, soup, pickles — the very look-alikes that were
+  // drowning fresh produce in the grid.
+  soup: ['soup', 'شوربه', 'شوربات'],
+  jam: ['jam', 'marmalade', 'مربي'],
+  syrup: ['syrup', 'nectar', 'cocktail', 'mojito', 'smoothie', 'shake', 'milkshake', 'سيرب', 'شراب', 'نكتار', 'كوكتيل', 'موهيتو', 'سموذي', 'شيك', 'ميلكشيك', 'تانج', 'tang'],
+  soda: ['soda', 'cola', 'pepsi', 'fanta', 'mirinda', 'sprite', '7up', 'cocacola', 'صودا', 'كولا', 'بيبسي', 'فانتا', 'ميرندا', 'سبرايت', 'سفن', 'كوكاكولا', 'غازي', 'غازيه'],
+  pickle: ['pickle', 'pickles', 'مخلل', 'مخللات', 'طرشي'],
+  // personal/household care: strawberry SOAP and lemon DISHWASHING liquid are
+  // care products, not produce (scented look-alikes under produce queries).
+  care: ['shampoo', 'soap', 'lotion', 'conditioner', 'detergent', 'dishwashing', 'شامبو', 'صابون', 'لوشن', 'بلسم', 'معطر', 'منظف', 'مطهر', 'غسول', 'ملمع'],
 };
+// Fresh fruit & vegetables — the LOWEST family tier (see the tier note above).
+// Curated to common Saudi grocery produce with unambiguous words; ambiguous
+// English colour/flavour words ("orange", "cherry") are deliberately Arabic-only
+// so "Tide Orange" and "Cherry Tomatoes" never classify as fruit.
+const PRODUCE_FAMILIES = {
+  tomato: ['tomato', 'tomatoes', 'طماطم', 'طماط', 'بندوره'],
+  potato: ['potato', 'potatoes', 'بطاطس', 'بطاطا'],
+  onion: ['onion', 'onions', 'بصل'],
+  garlic: ['garlic', 'ثوم'],
+  cucumber: ['cucumber', 'cucumbers', 'خيار'],
+  carrot: ['carrot', 'carrots', 'جزر'],
+  lettuce: ['lettuce', 'خس'],
+  zucchini: ['zucchini', 'courgette', 'كوسه'],
+  eggplant: ['eggplant', 'aubergine', 'باذنجان'],
+  cabbage: ['cabbage', 'ملفوف', 'كرنب'],
+  cauliflower: ['cauliflower', 'broccoli', 'قرنبيط', 'بروكلي'],
+  spinach: ['spinach', 'سبانخ'],
+  okra: ['okra', 'باميه'],
+  corn: ['corn', 'ذره'],
+  lemon: ['lemon', 'lemons', 'ليمون'],
+  ginger: ['ginger', 'زنجبيل'],
+  mint: ['mint', 'نعناع'],
+  coriander: ['coriander', 'cilantro', 'كزبره'],
+  parsley: ['parsley', 'بقدونس'],
+  strawberry: ['strawberry', 'strawberries', 'فراوله'],
+  banana: ['banana', 'bananas', 'موز'],
+  apple: ['apple', 'apples', 'تفاح', 'تفاحه'],
+  orange: ['برتقال'],
+  grapes: ['grape', 'grapes', 'عنب'],
+  mango: ['mango', 'مانجو', 'مانجا'],
+  watermelon: ['watermelon', 'بطيخ', 'حبحب'],
+  melon: ['melon', 'cantaloupe', 'شمام'],
+  pineapple: ['pineapple', 'اناناس'],
+  peach: ['peach', 'خوخ'],
+  apricot: ['apricot', 'مشمش'],
+  plum: ['plum', 'برقوق'],
+  pear: ['pear', 'pears', 'كمثري', 'اجاص'],
+  kiwi: ['kiwi', 'كيوي'],
+  pomegranate: ['pomegranate', 'رمان'],
+  guava: ['guava', 'جوافه'],
+  cherry: ['كرز'],
+  berries: ['blueberry', 'blueberries', 'raspberry', 'raspberries', 'blackberry', 'توت', 'بلوبيري'],
+  fig: ['fig', 'figs', 'تين'],
+};
+// A produce word right next to one of these names a FLAVOUR/SCENT, not the
+// produce itself ("حليب بنكهة الفراولة", "strawberry flavoured", "برائحة
+// الليمون") — such a hit must not classify the product as produce.
+const FLAVOR_MARKERS = new Set(
+  ['بنكهه', 'نكهه', 'نكهات', 'بطعم', 'طعم', 'برائحه', 'رائحه',
+   'flavor', 'flavour', 'flavored', 'flavoured', 'flavors', 'flavours', 'scented'].map(normalizeText),
+);
 const FAMILY_INDEX = (() => {
-  const m = new Map(); // keyword -> { family, derived }
+  const m = new Map(); // keyword -> { family, derived, produce }
   for (const [family, words] of Object.entries(DERIVED_FAMILIES)) {
     for (const w of words) m.set(normalizeText(w), { family, derived: true });
   }
@@ -150,6 +250,12 @@ const FAMILY_INDEX = (() => {
     for (const w of words) {
       const k = normalizeText(w);
       if (!m.has(k)) m.set(k, { family, derived: false });
+    }
+  }
+  for (const [family, words] of Object.entries(PRODUCE_FAMILIES)) {
+    for (const w of words) {
+      const k = normalizeText(w);
+      if (!m.has(k)) m.set(k, { family, derived: false, produce: true });
     }
   }
   return m;
@@ -162,17 +268,27 @@ function familyKey(word) {
 }
 
 // The product family of a name (or any text), or null.
+// Tier order: derived > base > produce (see the tier note above).
 export function productFamily(name) {
   const words = normalizeText(name).split(' ');
   let base = null;
-  for (const w of words) {
-    const key = familyKey(w);
+  let produce = null;
+  for (let i = 0; i < words.length; i++) {
+    const key = familyKey(words[i]);
     if (!key) continue;
     const hit = FAMILY_INDEX.get(key);
     if (hit.derived) return hit.family;
-    if (!base) base = hit.family;
+    if (hit.produce) {
+      // a produce word next to a flavour/scent marker names a flavour, not the
+      // product ("بنكهة الفراولة", "strawberry flavoured")
+      if (!produce && !FLAVOR_MARKERS.has(words[i - 1]) && !FLAVOR_MARKERS.has(words[i + 1])) {
+        produce = hit.family;
+      }
+    } else if (!base) {
+      base = hit.family;
+    }
   }
-  return base;
+  return base || produce;
 }
 
 // The family the QUERY names ("حليب نادك" -> milk), or null (brand-only query).

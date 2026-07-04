@@ -570,6 +570,21 @@ async function selftestMatching() {
   if (productFamily('رقايق بالبيض') === 'eggs') fail('ingredient marker بال wrongly classified as eggs');
   if (queryFamily('كيري مربعات') !== null) fail('brand-only query wrongly got a family');
   if (queryFamily('بيض') !== 'eggs') fail('eggs query did not get the eggs family');
+  // Produce tier (mirrors frontend match.js): fresh produce is the LOWEST
+  // family tier, so paste/jam/flavoured/care look-alikes classify as their
+  // derived product in both word orders and never as the produce itself.
+  if (productFamily('طماطم طازجه 1 كجم') !== 'tomato') fail('fresh tomatoes did not classify as tomato');
+  if (productFamily('معجون طماطم 135 جم') !== 'sauce') fail('tomato paste did not classify as sauce');
+  if (productFamily('Tomato Paste 400g') !== 'sauce') fail('EN tomato paste did not classify as sauce');
+  if (productFamily('فراولة طازجة 250 جم') !== 'strawberry') fail('fresh strawberry did not classify as strawberry');
+  if (productFamily('حليب فراولة 200 مل') !== 'milk') fail('strawberry milk (AR) did not stay milk');
+  if (productFamily('Strawberry Milk 180ml') !== 'milk') fail('strawberry milk (EN) did not stay milk');
+  if (productFamily('مربى الفراولة 450 جم') !== 'jam') fail('strawberry jam did not classify as jam');
+  if (productFamily('بنكهة الفراولة') !== null) fail('flavour marker wrongly classified as produce');
+  if (productFamily('صابون فراولة') !== 'care') fail('strawberry soap did not classify as care');
+  if (productFamily('Cherry Tomatoes 250g') !== 'tomato') fail('cherry tomatoes did not stay tomato');
+  if (queryFamily('طماطم') !== 'tomato') fail('طماطم query did not get the tomato family');
+  if (nameRelevance('Fresh Tomatoes 1kg', 'طماطم') <= 0) fail('طماطم missed EN tomatoes (produce synonym bridge)');
   // Category-as-family (retailer-taxonomy signal): a name keyword always wins;
   // the aggregator category is a FALLBACK that recovers a debris-named offer,
   // and only unambiguous categories are mapped.
