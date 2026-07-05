@@ -106,6 +106,18 @@ async function ingestTarget(ctx, provider, region) {
     if (candidate.existing) {
       line.deduped += 1;
       confirmed.push(candidate.existing.checksum);
+      // Snapshot reconciliation for held flyers: the collector attaches
+      // freshly parsed tap geometry only after confirming the held page set
+      // still matches the source, so reconciling it here (write only when
+      // missing/different) heals editions that predate ingest-time capture —
+      // with zero re-downloads. See pipeline.ensureHotspots.
+      if (candidate.hotspots && ctx.pipeline.ensureHotspots && candidate.existing.storage_key) {
+        try {
+          await ctx.pipeline.ensureHotspots(candidate.existing.storage_key, candidate.hotspots);
+        } catch (err) {
+          line.errors.push(`hotspots ${candidate.existing.id}: ${err.message}`);
+        }
+      }
       continue;
     }
     try {

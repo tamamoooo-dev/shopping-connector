@@ -44,6 +44,8 @@ export async function pruneStoredBytes(ctx, { keepDays = 28, maxDeletes = 250, m
             /* unreadable meta — still delete the known fixed keys below */
           }
           keys.push(`${base}/meta.json`);
+          // Image sets store their tap-geometry snapshot next to the pages.
+          if (row.source_type === 'images') keys.push(`${base}/hotspots.json`);
         }
         if (row.source_type === 'pdf') keys.push(`${base}/original.pdf`);
         if (keys.length > budget) {

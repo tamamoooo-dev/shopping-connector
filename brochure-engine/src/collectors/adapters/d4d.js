@@ -35,9 +35,20 @@
 //   name
 //   listBrochures(storeKey, ctx) -> Promise<Brochure[]>
 //     ctx = { region, regionConfig, fetchText, maxCandidates }
-//     Brochure = { id, slug, title, validFrom, validTo, pages:[imageUrl…], sourceUrl }
+//     Brochure = { id, slug, title, validFrom, validTo, pages:[imageUrl…],
+//                  pageIds:[…], hotspots:[{index,spots}…], sourceUrl }
 // The collector downloads the page-image BYTES (the heavy part) for only the
 // chosen brochure; this adapter fetches only HTML.
+//
+// SNAPSHOT-AT-INGEST: the leaflet HTML parsed here is the ONLY D4D fetch the
+// hotspot experience ever makes — per-product tap geometry (hotspots.js
+// parseHotspots) is extracted from the SAME document that lists the page
+// images, remapped to the stored ordinal page indexes, and carried on the
+// Brochure so the pipeline persists it next to the pages. Nothing at runtime
+// re-reads D4D, so a later D4D re-render/markup change cannot invalidate a
+// brochure that already ingested.
+
+import { parseHotspots, remapHotspotPages } from '../../hotspots.js';
 
 const HOST = 'https://d4donline.com';
 const DEFAULT_CITY = 'riyadh'; // Central region == Riyadh for this project
@@ -112,7 +123,14 @@ function parseLeaflet(html, offer) {
   const pages = entries.map(([, v]) => v.url);
   const pageIds = entries.map(([, v]) => v.pageId);
 
-  return { id: offer.id, slug: offer.slug, title, validFrom, validTo, pages, pageIds, sourceUrl: offer.url };
+  // Per-product tap geometry, captured from THIS SAME document (snapshot-at-
+  // ingest) and remapped from D4D's data-index onto the ordinal position each
+  // page will be STORED under — so hotspots.json and meta.json always describe
+  // the same rendering with the same indexes, even if a source page had no
+  // image and shifted the ordinals.
+  const hotspots = remapHotspotPages(parseHotspots(html), entries.map(([srcIdx]) => srcIdx));
+
+  return { id: offer.id, slug: offer.slug, title, validFrom, validTo, pages, pageIds, hotspots, sourceUrl: offer.url };
 }
 
 export const d4dAdapter = {

@@ -1,4 +1,6 @@
-// hotspots.test.mjs — pure, offline tests for the D4D hotspot parser.
+// hotspots.test.mjs — pure, offline tests for the D4D hotspot parser, the
+// source-index -> stored-ordinal remap, and the STORAGE-ONLY doc builder
+// (snapshot-at-ingest: the read path serves stored geometry and never fetches).
 // Run: node src/hotspots.test.mjs
 //
 // The fixture mirrors the two blob locations observed live on d4donline.com
@@ -6,7 +8,7 @@
 // (owning the spread's FIRST page) and the plain copy's picture-level
 // data-next-page-coords (owning the FOLLOWING page).
 
-import { parseHotspots, flyerRefFromUrl } from './hotspots.js';
+import { parseHotspots, remapHotspotPages, flyerRefFromUrl, getHotspotsDoc } from './hotspots.js';
 
 let failures = 0;
 function check(name, cond, detail = '') {
@@ -83,6 +85,62 @@ check('flyerRefFromUrl extracts the flyer id',
   flyerRefFromUrl('https://d4donline.com/en/saudi-arabia/riyadh/offers/lulu-hypermarket-63/738954/some-slug') === '738954');
 check('flyerRefFromUrl null on non-leaflet URL',
   flyerRefFromUrl('https://d4donline.com/en/saudi-arabia/riyadh/offers/lulu-hypermarket-63') === null);
+
+// --- remap: source data-index -> stored ordinal ------------------------------
+// Stored ordinals come from the adapter's ordered page list; a source page
+// with no image (here data-index 1) is not stored, so its hotspots drop and
+// later pages' geometry lands on the SHIFTED ordinal, matching pageNN.webp.
+{
+  const spots = [{ offerId: '9', x: 0.1, y: 0.1, w: 0.2, h: 0.2 }];
+  const remapped = remapHotspotPages(
+    [
+      { index: 0, spots },
+      { index: 1, spots }, // source page not stored -> dropped
+      { index: 2, spots }, // stored at ordinal 1
+    ],
+    [0, 2, 3], // sourceIndexes: ordinal i holds source page sourceIndexes[i]
+  );
+  check('remap keeps stored pages on their ordinals',
+    remapped.length === 2 && remapped[0].index === 0 && remapped[1].index === 1,
+    JSON.stringify(remapped.map((p) => p.index)));
+  check('remap drops geometry for unstored source pages',
+    !remapped.some((p) => p.spots !== spots) && remapped.length === 2);
+}
+
+// --- doc builder: STORAGE-ONLY (never fetches the aggregator) -----------------
+{
+  const row = {
+    id: 'lulu:central:2026-W27',
+    store: 'lulu',
+    region: 'central',
+    source_type: 'images',
+    source_url: 'https://d4donline.com/en/saudi-arabia/riyadh/offers/lulu-hypermarket-63/738954/weekly',
+    storage_key: 'lulu/central/2026-W27',
+  };
+  const snapshot = { pages: [{ index: 0, spots: [{ offerId: '111', x: 0, y: 0, w: 0.5, h: 0.5 }] }] };
+  const objects = new Map([
+    ['brochures/lulu/central/2026-W27/hotspots.json',
+      { bytes: new TextEncoder().encode(JSON.stringify(snapshot)) }],
+  ]);
+  const ctx = {
+    metadataStore: { getById: async (id) => (id === row.id ? row : null) },
+    objectStore: { get: async (key) => objects.get(key) || null },
+    offerStore: { byFlyer: async () => [{ offer_id: '111', price: 9 }] },
+  };
+
+  const hit = await getHotspotsDoc(ctx, row.id, { rowToOffer: (r) => r });
+  check('stored snapshot is served with the offers join',
+    hit.status === 200 && hit.doc.pages.length === 1 && hit.doc.offers['111'].price === 9 &&
+    hit.doc.flyerRef === '738954');
+
+  objects.clear();
+  const miss = await getHotspotsDoc(ctx, row.id, { rowToOffer: (r) => r });
+  check('missing snapshot serves empty spots (no fetch path exists)',
+    miss.status === 200 && miss.doc.pages.length === 0);
+
+  const notFound = await getHotspotsDoc(ctx, 'nope:x:y', {});
+  check('unknown brochure is a 404', notFound.status === 404);
+}
 
 if (failures) {
   console.error(`\n${failures} failure(s)`);

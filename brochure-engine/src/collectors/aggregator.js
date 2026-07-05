@@ -171,6 +171,12 @@ export function createAggregatorCollector(config) {
       let budget = maxTotalPages;
       for (const [best, doc] of slots) {
         try {
+          // The tap-geometry snapshot the adapter parsed from the same leaflet
+          // HTML, truncated to the pages this run can actually store — it rides
+          // every candidate so the pipeline persists it WITH the pages.
+          const hotspotsFor = (pageCount) =>
+            (best.hotspots || []).filter((p) => p.index < pageCount);
+
           const held = findHeld ? await findHeld(best.sourceUrl) : null;
           if (held && held.checksum && (held.id === doc.id || !claimedIds.has(held.id))) {
             // Re-render detection: the aggregator can re-render a flyer under
@@ -181,9 +187,11 @@ export function createAggregatorCollector(config) {
             // Unreadable held meta (pruned bytes) conservatively counts as
             // unchanged — that keeps the zero-download convergence property.
             let stale = false;
+            let heldReadable = false;
             if (readHeldPages) {
               const heldPages = await readHeldPages(held);
               if (heldPages && heldPages.length) {
+                heldReadable = true;
                 const srcCount = Math.min(best.pages.length, maxPages);
                 if (heldPages.length !== srcCount) stale = true;
                 else if (
@@ -195,7 +203,16 @@ export function createAggregatorCollector(config) {
               }
             }
             if (!stale) {
-              out.push({ existing: held });
+              // Attach the freshly parsed geometry ONLY when the held page set
+              // was readable and confirmed to match the source (the !stale
+              // path) — then the snapshot describes the stored rendering and
+              // the engine can heal a missing/legacy hotspots.json without any
+              // re-download. An unreadable meta (pruned bytes) attaches
+              // nothing: never resurrect keys retention deleted.
+              out.push({
+                existing: held,
+                ...(heldReadable ? { hotspots: hotspotsFor(Math.min(best.pages.length, maxPages)) } : {}),
+              });
               continue;
             }
           }
@@ -219,7 +236,7 @@ export function createAggregatorCollector(config) {
           }
           if (!pages.length) throw new Error(`no page images downloaded for ${doc.id}`);
           budget -= pages.length;
-          out.push({ doc, pages });
+          out.push({ doc, pages, hotspots: hotspotsFor(pageUrls.length) });
         } catch (err) {
           errors.push(err.message);
         }

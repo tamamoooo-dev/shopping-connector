@@ -10,7 +10,13 @@
 // Two candidate shapes, one idempotent pipeline (§5.1 "original.pdf … or
 // /pageNN.jpg for image sets"):
 //   • PDF source  (PdfIndexCollector):  { doc, bytes, contentType }
-//   • image set   (AggregatorCollector): { doc, pages: [{ index, bytes, contentType, url }] }
+//   • image set   (AggregatorCollector): { doc, pages: [{ index, bytes, contentType, url }],
+//                                          hotspots: [{ index, spots }] }
+// An image-set candidate also carries the per-product tap GEOMETRY the adapter
+// parsed from the same leaflet HTML that listed the pages (snapshot-at-ingest):
+// it is written as hotspots.json in the same ingest as the page bytes, so the
+// stored geometry always describes the stored rendering and the read path
+// never has to consult the aggregator again.
 // The checksum is over the downloaded bytes for a PDF, or over the page bytes
 // concatenated in page order for an image set (§4, §7.2) — either way it is the
 // single "do we already have this week?" key.
@@ -43,8 +49,37 @@ export function createPipeline({ objectStore, metadataStore }) {
     objectStore.put(`${base}/meta.json`, encoder.encode(JSON.stringify(finalDoc, null, 2)), {
       contentType: 'application/json',
     });
+  const writeHotspots = (base, hotspotPages) =>
+    objectStore.put(
+      `${base}/hotspots.json`,
+      encoder.encode(JSON.stringify({ pages: hotspotPages || [], capturedAt: new Date().toISOString() })),
+      { contentType: 'application/json' },
+    );
+
+  // Reconcile a HELD edition's stored geometry with a freshly parsed snapshot
+  // of the SAME rendering (the collector only attaches one after confirming
+  // the held page set matches the source). Writes only when the stored
+  // snapshot is missing, unreadable, or differs — so legacy caches written by
+  // the old on-demand path (possibly from a different rendering) converge to
+  // ingest-derived truth without wasting KV writes on the steady state.
+  async function ensureHotspots(storageKey, hotspotPages) {
+    if (!storageKey || !Array.isArray(hotspotPages)) return 'skipped';
+    const base = `brochures/${storageKey}`;
+    const stored = await objectStore.get(`${base}/hotspots.json`);
+    if (stored) {
+      try {
+        const pages = JSON.parse(new TextDecoder().decode(stored.bytes)).pages || [];
+        if (JSON.stringify(pages) === JSON.stringify(hotspotPages)) return 'kept';
+      } catch {
+        /* unreadable -> rewrite below */
+      }
+    }
+    await writeHotspots(base, hotspotPages);
+    return 'written';
+  }
 
   return {
+    ensureHotspots,
     // Persist one candidate. Returns { status, doc } where status is
     // 'new' | 'deduped'.
     async ingest(candidate) {
@@ -60,7 +95,13 @@ export function createPipeline({ objectStore, metadataStore }) {
       // page bytes concatenated in page order (§7.2). Kept separate from the
       // PDF path below, which is unchanged from M1.
       if (candidate.pages && candidate.pages.length) {
-        return ingestImageSet(candidate, { objectStore, metadataStore, writeMeta });
+        return ingestImageSet(candidate, {
+          objectStore,
+          metadataStore,
+          writeMeta,
+          writeHotspots,
+          ensureHotspots,
+        });
       }
 
       const { doc, bytes, contentType } = candidate;
@@ -106,7 +147,10 @@ async function ingestLink({ doc }, { metadataStore }) {
 
 // Image-set variant of ingest() (aggregator sources). Same idempotent contract
 // as the PDF path; only the "bytes" differ (many page images vs one PDF).
-async function ingestImageSet({ doc, pages }, { objectStore, metadataStore, writeMeta }) {
+async function ingestImageSet(
+  { doc, pages, hotspots },
+  { objectStore, metadataStore, writeMeta, writeHotspots, ensureHotspots },
+) {
   const ordered = [...pages].sort((a, b) => a.index - b.index);
 
   // 1. checksum over the concatenation of all page bytes, in page order.
@@ -138,6 +182,10 @@ async function ingestImageSet({ doc, pages }, { objectStore, metadataStore, writ
   if (await metadataStore.existsByChecksum(checksum)) {
     const finalDoc = { ...doc, checksum, pages: ordered.map(buildPageEntry) };
     if (ordered.some((p) => p.pageId)) await writeMeta(base, finalDoc);
+    // Byte-identical pages = the same rendering, so the freshly parsed
+    // geometry is valid for the stored copy too — reconcile it (heals editions
+    // ingested before capture, or legacy caches from the old on-demand path).
+    if (Array.isArray(hotspots)) await ensureHotspots(doc.storageKey, hotspots);
     return { status: 'deduped', doc: finalDoc };
   }
 
@@ -148,16 +196,18 @@ async function ingestImageSet({ doc, pages }, { objectStore, metadataStore, writ
     await objectStore.put(entry.imageUrl, p.bytes, { contentType: p.contentType });
     pageMeta.push(entry);
   }
+
+  // Hotspot geometry is immutable per RENDERING, not per edition — and it was
+  // parsed from the SAME leaflet HTML that listed these pages, so it is stored
+  // in the same ingest, unconditionally: a changed-bytes re-store (the
+  // aggregator re-rendered under the same URL) OVERWRITES any stale snapshot,
+  // and an empty parse still writes `{pages: []}` so the old rendering's
+  // geometry can never survive its pages. Written BEFORE meta.json — the meta
+  // write is the edition's commit point.
+  await writeHotspots(base, hotspots || []);
+
   const finalDoc = { ...doc, checksum, pages: pageMeta };
   await writeMeta(base, finalDoc);
-
-  // Hotspot geometry is immutable per RENDERING, not per edition: the
-  // aggregator can re-render a flyer under the same URL/edition (page count and
-  // data-index layout change), and a hotspots.json cached from the old
-  // rendering would then misalign with the freshly stored pages. Reaching this
-  // point means the bytes CHANGED (the dedupe above didn't fire), so drop the
-  // cache and let the next /brochures/hotspots request re-parse and re-cache.
-  await objectStore.delete(`${base}/hotspots.json`);
 
   // 4. index the row; supersede the prior current edition for this store+region.
   await metadataStore.upsert(docToRow(finalDoc));

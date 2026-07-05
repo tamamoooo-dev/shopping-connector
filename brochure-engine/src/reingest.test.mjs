@@ -1,7 +1,9 @@
 // reingest.test.mjs — pure, offline tests for the held-flyer re-render
-// detection (collectors/aggregator.js) and the pipeline's stale-cache
-// handling (pipeline.js): hotspots.json invalidation on changed bytes and
-// meta-only refresh when byte-identical pages gain deep-link page ids.
+// detection (collectors/aggregator.js) and the pipeline's snapshot-at-ingest
+// hotspot handling (pipeline.js): hotspots.json is written WITH the pages it
+// describes, overwritten on a changed-bytes re-store, reconciled on dedupe,
+// and healable for held flyers — plus meta-only refresh when byte-identical
+// pages gain deep-link page ids.
 // Run: node src/reingest.test.mjs
 //
 // Why this exists (2026-07-05): D4D re-rendered live flyers mid-week under
@@ -31,7 +33,9 @@ const week = () => {
   return { from, to };
 };
 
-function fakeAdapter(pageCount, { withIds = false } = {}) {
+const spotFor = (i) => ({ offerId: String(100 + i), x: 0.1, y: 0.1, w: 0.2, h: 0.2 });
+
+function fakeAdapter(pageCount, { withIds = false, withHotspots = false } = {}) {
   const { from, to } = week();
   return {
     name: 'd4d',
@@ -47,6 +51,9 @@ function fakeAdapter(pageCount, { withIds = false } = {}) {
           pageIds: Array.from({ length: pageCount }, (_, i) =>
             withIds && i % 2 === 0 ? String(9000 + i) : null,
           ),
+          hotspots: withHotspots
+            ? Array.from({ length: pageCount }, (_, i) => ({ index: i, spots: [spotFor(i)] }))
+            : [],
           sourceUrl: 'https://d4donline.com/en/sa/riyadh/offers/store-1/738954/weekly',
         },
       ];
@@ -83,15 +90,26 @@ const collectCtx = (held, pages) => ({
 // --- collector: re-render detection ----------------------------------------
 
 {
-  // unchanged flyer (same count, no ids anywhere) -> existing, zero downloads
-  const out = await collector(fakeAdapter(20)).collect(collectCtx(heldRow, heldPages(20)));
+  // unchanged flyer (same count, no ids anywhere) -> existing, zero downloads,
+  // and the freshly parsed geometry rides along so the engine can heal a
+  // missing/legacy hotspots.json for the held copy.
+  const out = await collector(fakeAdapter(20, { withHotspots: true })).collect(
+    collectCtx(heldRow, heldPages(20)),
+  );
   check('unchanged held flyer stays existing', out.length === 1 && out[0].existing === heldRow);
+  check('existing candidate carries the geometry snapshot',
+    out.length === 1 && Array.isArray(out[0].hotspots) && out[0].hotspots.length === 20 &&
+    out[0].hotspots[0].spots[0].offerId === '100');
 }
 
 {
   // source re-paginated under the same URL (20 -> 30 pages) -> re-download
-  const out = await collector(fakeAdapter(30)).collect(collectCtx(heldRow, heldPages(20)));
+  const out = await collector(fakeAdapter(30, { withHotspots: true })).collect(
+    collectCtx(heldRow, heldPages(20)),
+  );
   check('re-paginated flyer re-downloads', out.length === 1 && out[0].pages && out[0].pages.length === 30);
+  check('re-download carries the geometry snapshot',
+    out.length === 1 && Array.isArray(out[0].hotspots) && out[0].hotspots.length === 30);
 }
 
 {
@@ -110,9 +128,11 @@ const collectCtx = (held, pages) => ({
 }
 
 {
-  // unreadable held meta (pruned bytes) -> conservative: existing, no downloads
-  const out = await collector(fakeAdapter(30)).collect(collectCtx(heldRow, null));
+  // unreadable held meta (pruned bytes) -> conservative: existing, no downloads,
+  // and NO geometry attached (never resurrect keys retention deleted).
+  const out = await collector(fakeAdapter(30, { withHotspots: true })).collect(collectCtx(heldRow, null));
   check('unreadable held meta counts as unchanged', out.length === 1 && out[0].existing === heldRow);
+  check('unreadable held meta attaches no geometry', out.length === 1 && out[0].hotspots === undefined);
 }
 
 // --- pipeline: hotspots invalidation + meta-only refresh --------------------
@@ -164,30 +184,72 @@ const page = (index, byte, pageId = null) => ({
   pageId,
 });
 
+const hotspotsKey = 'brochures/store/central/2026-W27/hotspots.json';
+const readSnapshot = (s) => {
+  const obj = s.objects.get(hotspotsKey);
+  return obj ? JSON.parse(new TextDecoder().decode(obj.bytes)) : null;
+};
+
 {
-  // changed bytes re-store -> stale hotspots.json is dropped
+  // new store -> hotspots.json is written WITH the pages (snapshot-at-ingest)
   const s = fakeStores();
   const pipeline = createPipeline(s);
-  const res = await pipeline.ingest({ doc, pages: [page(0, 1), page(1, 2)] });
+  const res = await pipeline.ingest({
+    doc,
+    pages: [page(0, 1), page(1, 2)],
+    hotspots: [{ index: 0, spots: [spotFor(0)] }],
+  });
   check('changed bytes store as new', res.status === 'new');
-  check(
-    'hotspots cache dropped on re-store',
-    s.deleted.includes('brochures/store/central/2026-W27/hotspots.json'),
-  );
+  const snap = readSnapshot(s);
+  check('geometry snapshot stored with the pages',
+    !!snap && snap.pages.length === 1 && snap.pages[0].spots[0].offerId === '100');
+
+  // changed-bytes re-store (re-render) -> the snapshot is OVERWRITTEN, even by
+  // an empty parse: the old rendering's geometry never survives its pages.
+  const res2 = await pipeline.ingest({ doc, pages: [page(0, 3), page(1, 4)], hotspots: [] });
+  check('re-render stores as new', res2.status === 'new');
+  const snap2 = readSnapshot(s);
+  check('stale snapshot overwritten on re-store', !!snap2 && snap2.pages.length === 0);
 }
 
 {
-  // byte-identical pages with NEW ids -> deduped, meta refreshed, no byte puts
+  // byte-identical pages with NEW ids -> deduped, meta refreshed, no byte puts,
+  // and a missing snapshot is healed (same rendering, so the geometry is valid)
   const s = fakeStores();
   const pipeline = createPipeline(s);
   const first = await pipeline.ingest({ doc, pages: [page(0, 1), page(1, 2)] });
-  const putsAfterFirst = s.objects.size;
+  s.objects.delete(hotspotsKey); // simulate an edition ingested before capture
+  const pageObjects = [...s.objects.keys()].filter((k) => /page\d+/.test(k)).length;
   s.metadataStore.existsByChecksum = async (sum) => sum === first.doc.checksum;
-  const res = await pipeline.ingest({ doc, pages: [page(0, 1, '9000'), page(1, 2)] });
+  const res = await pipeline.ingest({
+    doc,
+    pages: [page(0, 1, '9000'), page(1, 2)],
+    hotspots: [{ index: 1, spots: [spotFor(1)] }],
+  });
   check('identical bytes dedupe', res.status === 'deduped');
   const meta = JSON.parse(new TextDecoder().decode(s.objects.get('brochures/store/central/2026-W27/meta.json').bytes));
   check('deduped meta gains the pageId', meta.pages[0].pageId === '9000');
-  check('dedupe writes no page bytes', s.objects.size === putsAfterFirst);
+  check('dedupe writes no page bytes',
+    [...s.objects.keys()].filter((k) => /page\d+/.test(k)).length === pageObjects);
+  const snap = readSnapshot(s);
+  check('dedupe heals a missing snapshot', !!snap && snap.pages[0].index === 1);
+}
+
+{
+  // ensureHotspots (the held-flyer heal): writes when missing, keeps when
+  // identical, rewrites when different (legacy on-demand cache convergence)
+  const s = fakeStores();
+  const pipeline = createPipeline(s);
+  const pages1 = [{ index: 0, spots: [spotFor(0)] }];
+  check('heal writes a missing snapshot',
+    (await pipeline.ensureHotspots('store/central/2026-W27', pages1)) === 'written');
+  check('heal keeps an identical snapshot',
+    (await pipeline.ensureHotspots('store/central/2026-W27', pages1)) === 'kept');
+  const pages2 = [{ index: 0, spots: [spotFor(3)] }];
+  check('heal rewrites a differing snapshot',
+    (await pipeline.ensureHotspots('store/central/2026-W27', pages2)) === 'written');
+  check('healed snapshot holds the new geometry',
+    readSnapshot(s).pages[0].spots[0].offerId === '103');
 }
 
 if (failures) {

@@ -7,31 +7,37 @@
 // tap-a-product experience possible with data we already hold:
 //
 //   tap (x,y) on stored pageNN.webp
-//     -> hotspot polygon (this module, parsed from the flyer HTML)
+//     -> hotspot polygon (this module, parsed from the flyer HTML AT INGEST)
 //     -> offers row in D1 (price, was-price, bilingual name, product crop)
 //
-// Serving model: ON DEMAND with a permanent KV cache. Geometry for an edition
-// is immutable (same bytes, same coords), so the first request for a brochure
-// costs ONE external subrequest (the flyer HTML) + one KV write; every later
-// request is a KV read. Nothing changes in the ingest pipeline or its budgets,
-// and every ALREADY-HELD brochure gets hotspots immediately — no re-ingest.
-// The cached blob lives under the edition's storage prefix, so retention
-// prunes it together with the page images.
+// SNAPSHOT MODEL (the runtime-reliability contract): geometry is parsed at
+// INGEST TIME, from the same leaflet HTML fetch that yields the page list —
+// the d4d adapter runs parseHotspots on that HTML, the collector carries the
+// result on each candidate, and the pipeline writes `hotspots.json` next to
+// the page images it stores from the same document. Pages and geometry are
+// therefore two views of ONE rendering and can never misalign, and D4D
+// changing anything after ingestion (re-rendered flyers, changed markup,
+// removed pages) cannot invalidate what is already stored. The read path
+// below serves ONLY the stored snapshot — it never fetches from D4D.
 //
-// Page alignment: the flyer HTML keys pages by `data-index` — the exact value
-// the brochure adapter stored as each page's `index` in meta.json. Hotspot
-// pages therefore join viewer pages on that index, never on ordinal position.
+// A D4D markup change now degrades cleanly at ingest (an empty geometry
+// snapshot, no spots rendered) and self-heals on the next ingest after the
+// parser is fixed — it can no longer break brochures that were already
+// working.
+//
+// Page alignment: hotspot pages are keyed by the STORED ordinal page index
+// (the `index` field in meta.json / the NN in pageNN.webp). The adapter
+// remaps D4D's `data-index` to that ordinal via remapHotspotPages, so a
+// source page with no image (skipped at ingest) can never shift the join.
 //
 // Coordinates: D4D polygons are pixels in the page's `data-width`/`data-height`
 // frame. We reduce each polygon to a bounding box normalized to 0..1 fractions
 // so the frontend can position tap targets on ANY rendered size of the same
 // page image (the stored webp shares the flyer's aspect ratio).
 
-const UA =
-  'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
-
 // --- pure parser ---------------------------------------------------------------
-// Flyer HTML -> [{ index, spots: [{ offerId, x, y, w, h }] }] (fractions 0..1).
+// Flyer HTML -> [{ index, spots: [{ offerId, x, y, w, h }] }] (fractions 0..1),
+// keyed by the SOURCE `data-index` (remap to stored ordinals before persisting).
 //
 // Two complementary blob locations cover every page (verified live):
 //   • the lazy carousel copy wraps each spread's FIRST page:
@@ -122,6 +128,24 @@ function addPage(byIndex, index, rawJson) {
 const num = (m) => (m ? Number(m[1]) : null);
 const round4 = (v) => Math.round(v * 10000) / 10000;
 
+// Remap parser output (keyed by SOURCE data-index) onto the STORED ordinal
+// page indexes. `sourceIndexes[i]` is the source data-index of the page stored
+// at ordinal i — the adapter derives it from the same leaflet HTML. Hotspots
+// for source pages that were not stored (no image) are dropped; the join
+// between hotspots.json and meta.json becomes identity by construction.
+export function remapHotspotPages(hotspotPages, sourceIndexes) {
+  const ordinalBySource = new Map();
+  (sourceIndexes || []).forEach((src, i) => {
+    if (src != null && !ordinalBySource.has(src)) ordinalBySource.set(src, i);
+  });
+  const out = [];
+  for (const p of hotspotPages || []) {
+    const ordinal = ordinalBySource.get(p.index);
+    if (ordinal != null) out.push({ index: ordinal, spots: p.spots });
+  }
+  return out.sort((a, b) => a.index - b.index);
+}
+
 // The D4D flyer id inside a leaflet URL: /offers/<store-slug>/<flyerId>/<slug>.
 export function flyerRefFromUrl(sourceUrl) {
   const m = /\/offers\/[^/]+\/(\d+)(?:\/|$)/.exec(String(sourceUrl || ''));
@@ -130,51 +154,28 @@ export function flyerRefFromUrl(sourceUrl) {
 
 // --- doc builder (the /brochures/hotspots read path) ----------------------------
 // getHotspotsDoc(ctx, brochureId) -> { brochure, pages, offers } | { error }.
-// `offers` maps offerId -> the same read-API offer shape /offers serves, so the
-// frontend joins a tapped spot to its product with zero extra requests.
-export async function getHotspotsDoc(ctx, brochureId, { fetchImpl = fetch, rowToOffer } = {}) {
+// STORAGE-ONLY: reads the hotspots.json snapshot the ingest stored next to the
+// page images, joins the flyer's offers rows from D1, and never fetches from
+// the aggregator. A brochure with no snapshot (ingested before capture, or a
+// flyer whose HTML carried no geometry) simply serves no spots — the next
+// ingest run heals it. `offers` maps offerId -> the same read-API offer shape
+// /offers serves, so the frontend joins a tapped spot with zero extra requests.
+export async function getHotspotsDoc(ctx, brochureId, { rowToOffer } = {}) {
   const row = await ctx.metadataStore.getById(brochureId);
   if (!row) return { status: 404, doc: { error: 'Brochure not found' } };
 
   const empty = { brochure: brochureId, pages: [], offers: {} };
-  // Hotspots exist only for aggregator image sets whose source is a D4D
-  // leaflet page (PDF/link brochures have no per-product geometry).
-  if (row.source_type !== 'images' || !/^https:\/\/d4donline\.com\//.test(row.source_url || '')) {
-    return { status: 200, doc: empty };
-  }
+  // Only image-set brochures have per-product geometry (PDF/link ones don't).
+  if (row.source_type !== 'images') return { status: 200, doc: empty };
 
-  const cacheKey = `brochures/${row.storage_key}/hotspots.json`;
-  let pages = null;
-  const cached = await ctx.objectStore.get(cacheKey);
-  if (cached) {
+  let pages = [];
+  const stored = await ctx.objectStore.get(`brochures/${row.storage_key}/hotspots.json`);
+  if (stored) {
     try {
-      pages = JSON.parse(new TextDecoder().decode(cached.bytes)).pages || [];
+      pages = JSON.parse(new TextDecoder().decode(stored.bytes)).pages || [];
     } catch {
-      pages = null; // corrupt cache -> refetch below
+      pages = []; // corrupt snapshot -> no spots; the next ingest rewrites it
     }
-  }
-
-  if (!pages) {
-    let html;
-    try {
-      const res = await fetchImpl(row.source_url, {
-        headers: { 'User-Agent': UA, Accept: 'text/html' },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      html = await res.text();
-    } catch {
-      // Source unreachable (or the edition's flyer page is gone): serve "no
-      // hotspots" WITHOUT caching, so a transient failure heals on retry.
-      return { status: 200, doc: empty };
-    }
-    pages = parseHotspots(html);
-    // Cache even an empty parse: a flyer with no coords stays coord-less for
-    // its (immutable) edition — refetching it weekly would be waste.
-    await ctx.objectStore.put(
-      cacheKey,
-      new TextEncoder().encode(JSON.stringify({ pages })),
-      { contentType: 'application/json' },
-    );
   }
 
   // Join the spots' products from D1 in one query by the flyer id.

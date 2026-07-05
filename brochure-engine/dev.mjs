@@ -519,7 +519,9 @@ async function selftestRetention() {
   const ctx = { metadataStore, objectStore, offerStore };
   const r1 = await pruneStoredBytes(ctx, { keepDays: 28 });
   console.log('prune run1:', JSON.stringify({ pruned: r1.pruned, deletes: r1.deletes, offersPruned: r1.offersPruned }));
-  if (r1.pruned !== 1 || r1.deletes !== 2) fail(`expected 1 row / 2 deletes, got ${r1.pruned}/${r1.deletes}`);
+  // 3 deletes: page00.webp + meta.json + hotspots.json (the tap-geometry
+  // snapshot rides every images edition since snapshot-at-ingest).
+  if (r1.pruned !== 1 || r1.deletes !== 3) fail(`expected 1 row / 3 deletes, got ${r1.pruned}/${r1.deletes}`);
   if (objects.has(`${oldBase}/page00.webp`) || objects.has(`${oldBase}/meta.json`)) fail('old bytes not deleted');
   if (!objects.has(`${curBase}/page00.webp`)) fail('current bytes were deleted');
   const rows = await metadataStore.getHistory('s', 'central');
