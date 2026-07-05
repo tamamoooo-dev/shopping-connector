@@ -32,6 +32,11 @@ async function sha256Hex(bytes) {
   return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
+// Total tap targets across a hotspots snapshot's pages (for the parse-suspect log).
+function countSpots(pages) {
+  return (pages || []).reduce((n, p) => n + ((p && p.spots && p.spots.length) || 0), 0);
+}
+
 // File extension for a stored page image, from its content-type, falling back
 // to the source URL's extension, then a neutral default.
 function imageExt(contentType, url) {
@@ -57,21 +62,49 @@ export function createPipeline({ objectStore, metadataStore }) {
     );
 
   // Reconcile a HELD edition's stored geometry with a freshly parsed snapshot
-  // of the SAME rendering (the collector only attaches one after confirming
-  // the held page set matches the source). Writes only when the stored
-  // snapshot is missing, unreadable, or differs — so legacy caches written by
-  // the old on-demand path (possibly from a different rendering) converge to
+  // of the SAME rendering (every caller reaches here only after confirming the
+  // bytes are identical: the dedupe branch below, or the engine's held-flyer
+  // heal). Writes only when the stored snapshot is missing, unreadable, or
+  // differs — so legacy caches written by the old on-demand path converge to
   // ingest-derived truth without wasting KV writes on the steady state.
+  //
+  // SAFEGUARD (the destructive-overwrite fix): because this path is always the
+  // SAME rendering, a NON-EMPTY stored snapshot is still CORRECT for the stored
+  // pages. So if the fresh parse is EMPTY while the stored one has spots, that
+  // is almost certainly `parseHotspots` failing on a D4D markup change — not a
+  // flyer that genuinely lost every product. Overwriting would silently erase
+  // good geometry across all current editions on the very next cron. Instead we
+  // KEEP the good snapshot and log it as the early parser-failure signal; the
+  // feature keeps working on cached geometry until the parser is fixed. (This
+  // guard is only sound because bytes are identical here — the changed-bytes
+  // re-store path deliberately writes the fresh parse unconditionally, since
+  // keeping old geometry against new pages is the misalignment bug we removed.)
+  // Returns: 'skipped' | 'kept' | 'written' | 'refused-empty'.
   async function ensureHotspots(storageKey, hotspotPages) {
     if (!storageKey || !Array.isArray(hotspotPages)) return 'skipped';
     const base = `brochures/${storageKey}`;
     const stored = await objectStore.get(`${base}/hotspots.json`);
+    let storedPages = null;
     if (stored) {
       try {
-        const pages = JSON.parse(new TextDecoder().decode(stored.bytes)).pages || [];
-        if (JSON.stringify(pages) === JSON.stringify(hotspotPages)) return 'kept';
+        storedPages = JSON.parse(new TextDecoder().decode(stored.bytes)).pages || [];
       } catch {
-        /* unreadable -> rewrite below */
+        storedPages = null; // unreadable -> treat as missing, rewrite below
+      }
+    }
+    if (storedPages) {
+      if (JSON.stringify(storedPages) === JSON.stringify(hotspotPages)) return 'kept';
+      if (hotspotPages.length === 0 && storedPages.length > 0) {
+        console.warn(
+          'brochure-engine hotspots parse-suspect',
+          JSON.stringify({
+            storageKey,
+            storedSpots: countSpots(storedPages),
+            parsedPages: 0,
+            action: 'kept-stored',
+          }),
+        );
+        return 'refused-empty';
       }
     }
     await writeHotspots(base, hotspotPages);

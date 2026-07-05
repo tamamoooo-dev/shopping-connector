@@ -113,7 +113,11 @@ async function ingestTarget(ctx, provider, region) {
       // with zero re-downloads. See pipeline.ensureHotspots.
       if (candidate.hotspots && ctx.pipeline.ensureHotspots && candidate.existing.storage_key) {
         try {
-          await ctx.pipeline.ensureHotspots(candidate.existing.storage_key, candidate.hotspots);
+          const r = await ctx.pipeline.ensureHotspots(candidate.existing.storage_key, candidate.hotspots);
+          // 'refused-empty' = the parser produced NO spots for a flyer we hold
+          // WITH spots (same bytes) — a likely D4D-markup break. Surface a count
+          // in the ingest report so a manual/cron run shows it, not just the log.
+          if (r === 'refused-empty') line.hotspotsSuspect = (line.hotspotsSuspect || 0) + 1;
         } catch (err) {
           line.errors.push(`hotspots ${candidate.existing.id}: ${err.message}`);
         }

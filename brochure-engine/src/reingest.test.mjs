@@ -252,6 +252,42 @@ const readSnapshot = (s) => {
     readSnapshot(s).pages[0].spots[0].offerId === '103');
 }
 
+{
+  // SAFEGUARD: an EMPTY parse must NEVER overwrite a NON-EMPTY stored snapshot
+  // on the same rendering (the dedupe/held path) — that is the destructive
+  // parser-break case. ensureHotspots keeps the good geometry and reports it.
+  const s = fakeStores();
+  const pipeline = createPipeline(s);
+  const good = [{ index: 0, spots: [spotFor(0), spotFor(1)] }];
+  await pipeline.ensureHotspots('store/central/2026-W27', good);
+  const status = await pipeline.ensureHotspots('store/central/2026-W27', []);
+  check('empty parse over non-empty snapshot is refused', status === 'refused-empty');
+  check('good geometry survives a parser break',
+    readSnapshot(s).pages.length === 1 && readSnapshot(s).pages[0].spots.length === 2);
+
+  // A genuinely empty flyer (empty stored, empty parse) is fine — not a suspect.
+  const s2 = fakeStores();
+  const p2 = createPipeline(s2);
+  await p2.ensureHotspots('store/central/2026-W27', []);
+  check('empty over missing/empty writes normally (no false alarm)',
+    (await p2.ensureHotspots('store/central/2026-W27', [])) === 'kept');
+}
+
+{
+  // The DEDUPE path (byte-identical pages, same rendering) must also refuse to
+  // erase a held snapshot when this run's parse came back empty.
+  const s = fakeStores();
+  const pipeline = createPipeline(s);
+  const first = await pipeline.ingest({
+    doc, pages: [page(0, 1), page(1, 2)], hotspots: [{ index: 0, spots: [spotFor(0)] }],
+  });
+  s.metadataStore.existsByChecksum = async (sum) => sum === first.doc.checksum;
+  await pipeline.ingest({ doc, pages: [page(0, 1), page(1, 2)], hotspots: [] });
+  const snap = readSnapshot(s);
+  check('dedupe with empty parse keeps the held geometry',
+    !!snap && snap.pages.length === 1 && snap.pages[0].spots[0].offerId === '100');
+}
+
 if (failures) {
   console.error(`\n${failures} failure(s).`);
   process.exit(1);
