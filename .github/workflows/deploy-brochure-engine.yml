@@ -1,0 +1,127 @@
+# Deploy the Brochure Engine Worker to Cloudflare.
+#
+# This monorepo hosts TWO independent Workers (the root `shopping-connector` and
+# `brochure-engine/`). This workflow is scoped to brochure-engine ONLY, via the
+# `paths:` filter and `working-directory: brochure-engine` — it never touches the
+# sibling Worker.
+#
+# Behaviour:
+#   • push to main touching brochure-engine/** -> UNATTENDED deploy (code + crons)
+#     followed by a post-deploy verification against the Cloudflare API.
+#   • pull_request touching brochure-engine/** -> `wrangler deploy --dry-run`
+#     validation only (no credentials, safe for forks).
+#
+# A single `wrangler deploy` uploads the Worker script AND syncs the
+# [triggers] crons block from brochure-engine/wrangler.toml — so code and cron
+# triggers always update together.
+#
+# OUT OF SCOPE BY DESIGN (kept manual, never run here):
+#   • D1 migrations (schema.sql / migrate-*.sql) — destructive, run by hand.
+#   • Worker secrets (INGEST_SECRET, NTFY_TOPIC) — set via `wrangler secret put`;
+#     they persist across deploys and are never provided to CI.
+#
+# Required Environment (`production`) secrets:
+#   • CLOUDFLARE_API_TOKEN   — least-privilege "Edit Cloudflare Workers" token,
+#                              scoped to this one account; expiring + rotated.
+#   • CLOUDFLARE_ACCOUNT_ID  — the account the Worker lives in (no account_id is
+#                              committed in wrangler.toml).
+
+name: Deploy brochure-engine
+
+on:
+  push:
+    branches: [main]
+    paths: ['brochure-engine/**']
+  pull_request:
+    paths: ['brochure-engine/**']
+
+# Least privilege: the workflow only reads the repo; it never writes back.
+permissions:
+  contents: read
+
+# Serialize per ref so two main pushes never deploy concurrently; cancel only
+# superseded PR validation runs, never an in-flight production deploy.
+concurrency:
+  group: brochure-engine-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  NODE_VERSION: '20.18.0'
+  WRANGLER_VERSION: '3.114.17'   # pinned; matches package.json wrangler ^3.60.0
+
+jobs:
+  # PR gate — bundle + validate wrangler.toml (incl. the crons) without deploying.
+  # No secrets, no environment: --dry-run never authenticates or uploads.
+  validate:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: brochure-engine
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Validate build & config (dry-run)
+        run: npx --yes wrangler@${WRANGLER_VERSION} deploy --dry-run --outdir=dist
+
+  # Production deploy — unattended on merge to main.
+  deploy:
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    environment: production   # binds the Cloudflare secrets to this deploy
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
+
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Deploy Worker (code + cron triggers)
+        uses: cloudflare/wrangler-action@9acf94ace14e7dc412b076f2c5c20b8ce93c79cd # v3.15.0
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          workingDirectory: brochure-engine
+          wranglerVersion: ${{ env.WRANGLER_VERSION }}
+          command: deploy
+
+      # Post-deploy verification, straight from the Cloudflare API:
+      #   1. the API call for script "brochure-engine" succeeds (deploy landed,
+      #      correct Worker),
+      #   2. the active cron triggers exactly match the crons declared in
+      #      brochure-engine/wrangler.toml (source of truth).
+      - name: Verify deployment & cron triggers
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          SCRIPT_NAME: brochure-engine
+        run: |
+          set -euo pipefail
+
+          # Expected crons = every quoted entry inside the crons = [ ... ] block.
+          expected=$(awk '/crons[[:space:]]*=[[:space:]]*\[/{f=1;next} f&&/\]/{f=0} f' \
+            brochure-engine/wrangler.toml | grep -oE '"[^"]+"' | tr -d '"' | sort -u)
+          if [ -z "$expected" ]; then
+            echo "::error::Could not parse expected crons from wrangler.toml"; exit 1
+          fi
+
+          # 1 + correct-Worker: schedules endpoint is keyed by script name.
+          resp=$(curl -sS --fail-with-body \
+            -H "Authorization: Bearer ${CLOUDFLARE_API_TOKEN}" \
+            "https://api.cloudflare.com/client/v4/accounts/${CLOUDFLARE_ACCOUNT_ID}/workers/scripts/${SCRIPT_NAME}/schedules")
+          if ! echo "$resp" | jq -e '.success == true' >/dev/null; then
+            echo "::error::Cloudflare API did not confirm script '${SCRIPT_NAME}'"
+            echo "$resp"; exit 1
+          fi
+          echo "✅ Deploy confirmed for Worker: ${SCRIPT_NAME}"
+
+          # 3. active crons must equal the declared set.
+          actual=$(echo "$resp" | jq -r '.result.schedules[].cron' | sort -u)
+          echo "--- Expected cron triggers ---"; echo "$expected"
+          echo "--- Active cron triggers ---";   echo "$actual"
+          if [ "$expected" != "$actual" ]; then
+            echo "::error::Active cron triggers do not match wrangler.toml"; exit 1
+          fi
+          echo "✅ Cron triggers active and matching ($(echo "$actual" | wc -l) schedules)"
