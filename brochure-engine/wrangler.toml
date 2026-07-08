@@ -9,23 +9,31 @@ main = "src/index.js"
 compatibility_date = "2025-06-01"
 
 # Ingest cron (§6.3) — Architecture C: Self Service-Binding Fan-out.
-# Fires on the Saudi publication days (Tue & Wed) at 06:00 UTC (= 09:00 AST).
-# Each fire refreshes ALL stores TOGETHER: scheduled() fans out to one child
-# Worker invocation per store via the SELF binding below, and each child carries
-# its own fresh 50-subrequest budget — so an all-stores refresh fits the Free
-# plan without staggering across days. Running both Tue AND Wed catches whichever
-# day the brochures actually drop; the checksum dedupe makes the second fire free
-# of extra writes. (This replaces M2's daily one-store-per-fire rotation, which
-# spread the refresh across ~8 days.) Day/time are easily tunable here.
+# The brochure/offers pipeline fires 4×/week, all timed to the Saudi weekly
+# publication cycle (all times Asia/Riyadh = AST = UTC+3, no DST). Each fire
+# refreshes ALL stores TOGETHER: scheduled() fans out to one child Worker
+# invocation per store via the SELF binding below, and each child carries its own
+# fresh 50-subrequest budget — so an all-stores refresh fits the Free plan
+# without staggering across days. A fire that finds nothing new is cheap: the
+# checksum dedupe skips the page-image downloads and byte writes entirely
+# (only the leaflet HTML + offers pull remain), so the extra fires are near-free.
+# (This replaces M2's daily one-store-per-fire rotation, which spread the refresh
+# across ~8 days.) Day/time are easily tunable here.
+#
+# Why these four fires (was Tue/Wed/Fri 09:00): the two Wednesday-adjacent fires
+# catch the main weekly drop at the moment it lands (many stores publish just
+# after midnight into Wed; others not until Wed morning); the Thursday fire is a
+# safety net for delayed or corrected Wednesday flyers; the Friday fire keeps the
+# WEEKEND coverage the old schedule had — ~20% of offers expire Thu-Mon and
+# weekend flyers publish Thu/Fri, so without it the marketplace thins out exactly
+# when the user shops.
 [triggers]
 crons = [
-  # Tue & Wed catch the Saudi weekly drop; Fri closes the WEEKEND coverage
-  # hole: ~20% of offers expire Thu-Mon and weekend flyers publish Thu/Fri,
-  # so without a Friday fire the marketplace thins out exactly when the user
-  # shops. Same per-fire budget as Tue/Wed (§19.C); unchanged flyers dedupe
-  # to zero KV writes, offers upsert is D1-only.
-  "0 6 * * 2,3,5", # brochure/offers pipeline (fan-out -> prices -> prune)
-  "45 5 * * *",    # daily Price Monitoring: check every active watch (08:45 AST)
+  "0 22 * * 2", # Wed 01:00 AST — catch the post-midnight Wed drop
+  "0 6 * * 3",  # Wed 09:00 AST — catch Wed-morning publishers
+  "0 6 * * 4",  # Thu 09:00 AST — catch delayed / corrected Wed flyers
+  "0 6 * * 5",  # Fri 09:00 AST — weekend coverage (Thu/Fri drops, Thu-Mon expiries)
+  "45 5 * * *", # daily Price Monitoring: check every active watch (08:45 AST)
 ]
 
 # --- SELF service binding: the cron fan-out mechanism (Architecture C) ---------

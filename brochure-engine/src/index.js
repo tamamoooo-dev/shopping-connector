@@ -118,13 +118,17 @@ export default {
   // The fan-out mechanism is isolated behind dispatchStore() so it can be swapped
   // (e.g. for a Queue producer) without touching collectors, pipeline or storage.
   async scheduled(event, env, ctx) {
-    // TWO schedules share this handler (wrangler.toml [triggers]):
+    // TWO kinds of schedule share this handler (wrangler.toml [triggers]):
     //   • "45 5 * * *"  — DAILY Price Monitoring: check every active watch.
     //     Fanned out in batches via SELF (each batch gets its own subrequest
-    //     budget); kept OUT of the weekly fire so the two never compound
+    //     budget); kept OUT of the brochure fires so the two never compound
     //     against the per-event invocation caps.
-    //   • "0 6 * * 2,3" — the WEEKLY brochure/offers pipeline (fan-out ->
-    //     price capture -> retention), unchanged below.
+    //   • the brochure/offers pipeline (fan-out -> price capture -> retention),
+    //     unchanged below. It runs on the four weekly fires timed to the Saudi
+    //     publication cycle (Wed 01:00 / Wed 09:00 / Thu 09:00 / Fri 09:00 AST).
+    // The branch below matches ONLY the price-monitor cron by its exact string;
+    // every other fire (i.e. any brochure cron) falls through to the pipeline,
+    // so retiming or adding brochure fires needs no change here.
     if (event.cron === '45 5 * * *') {
       ctx.waitUntil(
         (async () => {
