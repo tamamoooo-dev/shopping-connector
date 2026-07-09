@@ -65,3 +65,5 @@ jobs:
           CITY: ${{ inputs.city || 'riyadh' }}
           PAGE: ${{ inputs.page || '6' }}
         run: node debug/hotspot-join-census.mjs --store "$STORE" --city "$CITY" --page "$PAGE"
+      - name: Offers shortfall census (why prod D1 has ~64, not 462)
+        run: node debug/offers-shortfall-census.mjs --flyer 742356 --brochure almadina:central:2026-W28
