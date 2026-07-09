@@ -68,11 +68,27 @@ function rawScan(html) {
     pics.push({ start: m.index, end: m.index + m[0].length, idx: idx ? Number(idx[1]) : null });
   }
 
-  const blobs = []; // { pageIndex, kind, records, parseError }
+  const blobs = []; // { pageIndex, kind, records, parseError, quote, prodMatch }
   const attrRe = /data-(coords-json|next-page-coords)=(?:'(\[[\s\S]*?\])'|"(\[[\s\S]*?\])")/gi;
   while ((m = attrRe.exec(html))) {
     const kind = m[1] === 'coords-json' ? 'container' : 'next-page';
     const raw = m[2] != null ? m[2] : m[3];
+    const quote = m[2] != null ? "'" : '"';
+    // Would the PRODUCTION regex have seen this blob? (hotspots.js: the
+    // single-quoted picture-attr regex for next-page blobs; the strict
+    // figure-prefix regex for container blobs.)
+    let prodMatch;
+    if (kind === 'next-page') {
+      // production sees it only if the enclosing picture's attrs match the
+      // single-quoted regex at hotspots.js (pictureRe loop)
+      const host = pics.find((p) => p.start <= m.index && m.index < p.end);
+      prodMatch = !!(host && /data-next-page-coords='(\[[^']*\])'/.test(html.slice(host.start, host.end)));
+    } else {
+      // production sees it only with the exact figure prefix AND single quotes
+      // (containerRe at hotspots.js); the attr match starts at `data-`
+      const figPrefix = '<figure class="image-container flyer-container" ';
+      prodMatch = quote === "'" && html.slice(m.index - figPrefix.length, m.index) === figPrefix;
+    }
     let records = null;
     let parseError = null;
     try {
@@ -90,7 +106,7 @@ function rawScan(html) {
       const next = pics.find((p) => p.start > m.index); // container wraps the following picture
       if (next && next.idx != null) pageIndex = next.idx;
     }
-    blobs.push({ pageIndex, kind, records, parseError, estimated: !!parseError });
+    blobs.push({ pageIndex, kind, records, parseError, estimated: !!parseError, quote, prodMatch });
   }
   return { pics, blobs };
 }
@@ -169,7 +185,10 @@ async function censusLeaflet(html, offer) {
     const dropStr = Object.entries(p.drops).filter(([k]) => k !== 'kept').map(([k, v]) => `${k}:${v}`).join(' ');
     if (dropStr) notes.push(dropStr);
     if (p.dims === null) notes.push('DROPPED: no data-width/height resolvable');
-    for (const b of p.rawBlobs) if (b.parseError) notes.push(`raw-blob-unparsable(${b.kind}): ${b.parseError}`);
+    for (const b of p.rawBlobs) {
+      if (b.parseError) notes.push(`raw-blob-unparsable(${b.kind}): ${b.parseError}`);
+      if (!b.prodMatch) notes.push(`INVISIBLE-TO-PARSER(${b.kind},quote=${b.quote}):${b.records}`);
+    }
     const regex = p.regex != null ? p.regex : 0;
     const norm = p.norm != null ? p.norm : 0;
     totals.raw += p.raw; totals.regex += regex; totals.norm += norm; totals.persisted += p.persisted;
@@ -195,7 +214,7 @@ async function censusLeaflet(html, offer) {
   }
   const rawDetail = blobs.filter((b) => b.pageIndex === src);
   for (const b of rawDetail) {
-    console.log(`  raw    ${b.kind} blob: ${b.records} records${b.estimated ? ' (estimated, blob unparsable)' : ''}${b.parseError ? ` — ${b.parseError}` : ''}`);
+    console.log(`  raw    ${b.kind} blob (quote=${b.quote}, visible-to-production-regex=${b.prodMatch}): ${b.records} records${b.estimated ? ' (estimated, blob unparsable)' : ''}${b.parseError ? ` — ${b.parseError}` : ''}`);
   }
   return { offer, totals, pages: byPage };
 }
