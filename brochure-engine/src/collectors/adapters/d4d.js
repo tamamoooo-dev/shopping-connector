@@ -64,7 +64,7 @@ function esc(s) {
 // The store page lists its current offers as `book-cover` links whose `title`
 // attribute ends with the offer's expiry ISO. Extract { id, slug, url, expiry }
 // per offer, deduped by offer id.
-function extractOffers(html, storeKey, city) {
+export function extractOffers(html, storeKey, city) {
   const seen = new Map(); // offerId -> offer
   const re = new RegExp(
     `/offers/${esc(storeKey)}/(\\d+)/([a-z0-9-]+)"\\s+class="book-cover"\\s+title="([^"]*)"`,
@@ -92,7 +92,9 @@ function isoDate(text) {
 
 // Parse one leaflet page into a Brochure (title + validity from JSON-LD, ordered
 // page images from the <picture class="offer-page"> blocks).
-function parseLeaflet(html, offer) {
+// `trace` (optional, diagnostics only — see parseHotspots) collects per-stage
+// hotspot accounting events; production callers pass nothing.
+export function parseLeaflet(html, offer, trace = null) {
   const title =
     (/"@type":"CreativeWork","name":"([^"]*)"/.exec(html) || [])[1] || offer.slug || null;
   const validFrom = isoDate((/"datePublished":"([^"]+)"/.exec(html) || [])[1]);
@@ -128,7 +130,7 @@ function parseLeaflet(html, offer) {
   // page will be STORED under — so hotspots.json and meta.json always describe
   // the same rendering with the same indexes, even if a source page had no
   // image and shifted the ordinals.
-  const hotspots = remapHotspotPages(parseHotspots(html), entries.map(([srcIdx]) => srcIdx));
+  const hotspots = remapHotspotPages(parseHotspots(html, trace), entries.map(([srcIdx]) => srcIdx), trace);
 
   return { id: offer.id, slug: offer.slug, title, validFrom, validTo, pages, pageIds, hotspots, sourceUrl: offer.url };
 }

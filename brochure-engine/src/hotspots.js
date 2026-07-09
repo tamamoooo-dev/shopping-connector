@@ -47,7 +47,16 @@
 //       <picture class="offer-page" data-index="N" … data-next-page-coords='…'>
 //     (those coords belong to page N+1)
 // First-seen wins on a duplicate index; pages with no blob simply have no spots.
-export function parseHotspots(html) {
+//
+// `trace` (optional) is a diagnostics sink: an array that receives one event
+// object per decision the parser makes, so a census harness can account for
+// every record between the raw HTML and the returned spots. Passing nothing
+// changes no behaviour — production callers never pay for it.
+//   { stage:'blob',   index, source:'container'|'next-page', outcome:'parsed'|'duplicate-blocked'|'json-error'|'not-array', records }
+//   { stage:'record', index, offerId, outcome:'kept'|'no-id'|'no-points'|'degenerate-bbox'|'tiny-spot', w?, h? }
+//   { stage:'page',   index, in, out, dims }   (dims null == page dropped for missing dimensions)
+export function parseHotspots(html, trace = null) {
+  const ev = trace ? (e) => trace.push(e) : null;
   const byIndex = new Map(); // index -> { spots, w, h }
   const dims = new Map(); // index -> { w, h } from any picture sighting
 
@@ -60,7 +69,7 @@ export function parseHotspots(html) {
     const h = num(/data-height="(\d+)"/.exec(attrs));
     if (w && h && !dims.has(idx)) dims.set(idx, { w, h });
     const next = /data-next-page-coords='(\[[^']*\])'/.exec(attrs);
-    if (next) addPage(byIndex, idx + 1, next[1]);
+    if (next) addPage(byIndex, idx + 1, next[1], ev, 'next-page');
   }
 
   // Carousel copy: pair each container blob with the picture nested inside it.
@@ -72,7 +81,7 @@ export function parseHotspots(html) {
     const w = num(/data-width="(\d+)"/.exec(m[2]));
     const h = num(/data-height="(\d+)"/.exec(m[2]));
     if (w && h && !dims.has(idx)) dims.set(idx, { w, h });
-    addPage(byIndex, idx, m[1]);
+    addPage(byIndex, idx, m[1], ev, 'container');
   }
 
   const pages = [];
@@ -80,12 +89,18 @@ export function parseHotspots(html) {
     // Pages inherit their own dims; a next-page blob falls back to its
     // sibling's (one flyer's pages share dimensions in practice).
     const d = dims.get(index) || dims.get(index - 1) || dims.get(index + 1);
-    if (!d) continue;
+    if (!d) {
+      if (ev) ev({ stage: 'page', index, in: raw.length, out: 0, dims: null });
+      continue;
+    }
     const spots = [];
     for (const prod of raw) {
       const id = prod && prod.id_product != null ? String(prod.id_product) : null;
       const pts = prod && Array.isArray(prod.coordinates) ? prod.coordinates : [];
-      if (!id || !pts.length) continue;
+      if (!id || !pts.length) {
+        if (ev) ev({ stage: 'record', index, offerId: id, outcome: !id ? 'no-id' : 'no-points' });
+        continue;
+      }
       let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
       for (const p of pts) {
         const px = Number(p && p.x);
@@ -96,7 +111,10 @@ export function parseHotspots(html) {
         if (px > maxX) maxX = px;
         if (py > maxY) maxY = py;
       }
-      if (!(maxX > minX) || !(maxY > minY)) continue;
+      if (!(maxX > minX) || !(maxY > minY)) {
+        if (ev) ev({ stage: 'record', index, offerId: id, outcome: 'degenerate-bbox' });
+        continue;
+      }
       const clamp = (v) => Math.min(1, Math.max(0, v));
       const x = clamp(minX / d.w);
       const y = clamp(minY / d.h);
@@ -107,22 +125,48 @@ export function parseHotspots(html) {
         w: round4(clamp(maxX / d.w) - x),
         h: round4(clamp(maxY / d.h) - y),
       };
-      if (spot.w > 0.005 && spot.h > 0.005) spots.push(spot);
+      if (spot.w > 0.005 && spot.h > 0.005) {
+        spots.push(spot);
+        if (ev) ev({ stage: 'record', index, offerId: id, outcome: 'kept', w: spot.w, h: spot.h });
+      } else if (ev) {
+        ev({ stage: 'record', index, offerId: id, outcome: 'tiny-spot', w: spot.w, h: spot.h });
+      }
     }
+    if (ev) ev({ stage: 'page', index, in: raw.length, out: spots.length, dims: d });
     if (spots.length) pages.push({ index, spots });
   }
   return pages;
 }
 
-function addPage(byIndex, index, rawJson) {
-  if (byIndex.has(index)) return;
+function addPage(byIndex, index, rawJson, ev = null, source = null) {
+  if (byIndex.has(index)) {
+    if (ev) ev({ stage: 'blob', index, source, outcome: 'duplicate-blocked', records: blobRecords(rawJson) });
+    return;
+  }
   let parsed;
   try {
     parsed = JSON.parse(rawJson.split('\\/').join('/'));
   } catch {
+    if (ev) ev({ stage: 'blob', index, source, outcome: 'json-error', records: null });
     return; // a malformed blob loses one page's spots, never the request
   }
-  if (Array.isArray(parsed)) byIndex.set(index, parsed);
+  if (Array.isArray(parsed)) {
+    byIndex.set(index, parsed);
+    if (ev) ev({ stage: 'blob', index, source, outcome: 'parsed', records: parsed.length });
+  } else if (ev) {
+    ev({ stage: 'blob', index, source, outcome: 'not-array', records: null });
+  }
+}
+
+// Record count of a blob we did NOT accept (diagnostics only): parse leniently
+// so a duplicate-blocked blob's size is still visible in a census.
+function blobRecords(rawJson) {
+  try {
+    const parsed = JSON.parse(String(rawJson).split('\\/').join('/'));
+    return Array.isArray(parsed) ? parsed.length : null;
+  } catch {
+    return null;
+  }
 }
 
 const num = (m) => (m ? Number(m[1]) : null);
@@ -133,7 +177,7 @@ const round4 = (v) => Math.round(v * 10000) / 10000;
 // at ordinal i — the adapter derives it from the same leaflet HTML. Hotspots
 // for source pages that were not stored (no image) are dropped; the join
 // between hotspots.json and meta.json becomes identity by construction.
-export function remapHotspotPages(hotspotPages, sourceIndexes) {
+export function remapHotspotPages(hotspotPages, sourceIndexes, trace = null) {
   const ordinalBySource = new Map();
   (sourceIndexes || []).forEach((src, i) => {
     if (src != null && !ordinalBySource.has(src)) ordinalBySource.set(src, i);
@@ -141,6 +185,15 @@ export function remapHotspotPages(hotspotPages, sourceIndexes) {
   const out = [];
   for (const p of hotspotPages || []) {
     const ordinal = ordinalBySource.get(p.index);
+    if (trace) {
+      trace.push({
+        stage: 'remap',
+        sourceIndex: p.index,
+        ordinal: ordinal != null ? ordinal : null,
+        spots: p.spots.length,
+        outcome: ordinal != null ? 'kept' : 'dropped-unstored',
+      });
+    }
     if (ordinal != null) out.push({ index: ordinal, spots: p.spots });
   }
   return out.sort((a, b) => a.index - b.index);

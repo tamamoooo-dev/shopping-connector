@@ -1,0 +1,51 @@
+# hotspot-census — on-demand, stage-by-stage hotspot accounting for a D4D
+# store's current leaflets (debug/hotspot-census.mjs). Manual dispatch only;
+# read-only against D4D (2-5 HTML fetches, no images); needs no secrets and
+# writes nothing anywhere — the numbers land in the job log.
+name: hotspot-census
+
+on:
+  workflow_dispatch:
+    inputs:
+      store:
+        description: 'D4D store key (<slug>-<companyId>)'
+        default: 'al-madina-hypermarket-212'
+        required: true
+      city:
+        description: 'D4D city path segment'
+        default: 'riyadh'
+        required: true
+      page:
+        description: '1-based page to dump record-level detail for'
+        default: '6'
+        required: true
+      leaflet_url:
+        description: 'optional: census exactly one leaflet URL instead of the store listing'
+        default: ''
+        required: false
+
+permissions: {}
+
+jobs:
+  census:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: brochure-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Unit tests (parser must be intact before we trust the census)
+        run: |
+          node src/hotspots.test.mjs
+          node src/reingest.test.mjs
+      - name: Hotspot census
+        run: |
+          if [ -n "${{ inputs.leaflet_url }}" ]; then
+            node debug/hotspot-census.mjs --leaflet "${{ inputs.leaflet_url }}" --page "${{ inputs.page }}"
+          else
+            node debug/hotspot-census.mjs --store "${{ inputs.store }}" --city "${{ inputs.city }}" --page "${{ inputs.page }}"
+          fi
