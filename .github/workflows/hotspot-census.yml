@@ -5,6 +5,11 @@
 name: hotspot-census
 
 on:
+  # push: workflow_dispatch of a branch-only workflow 404s (GitHub registers
+  # dispatchable workflows from the default branch only), so pushes to the
+  # census branch run it directly with the defaults below.
+  push:
+    branches: [claude/hotspot-count-instrumentation-kgph3s]
   workflow_dispatch:
     inputs:
       store:
@@ -43,9 +48,14 @@ jobs:
           node src/hotspots.test.mjs
           node src/reingest.test.mjs
       - name: Hotspot census
+        env:
+          STORE: ${{ inputs.store || 'al-madina-hypermarket-212' }}
+          CITY: ${{ inputs.city || 'riyadh' }}
+          PAGE: ${{ inputs.page || '6' }}
+          LEAFLET: ${{ inputs.leaflet_url || '' }}
         run: |
-          if [ -n "${{ inputs.leaflet_url }}" ]; then
-            node debug/hotspot-census.mjs --leaflet "${{ inputs.leaflet_url }}" --page "${{ inputs.page }}"
+          if [ -n "$LEAFLET" ]; then
+            node debug/hotspot-census.mjs --leaflet "$LEAFLET" --page "$PAGE"
           else
-            node debug/hotspot-census.mjs --store "${{ inputs.store }}" --city "${{ inputs.city }}" --page "${{ inputs.page }}"
+            node debug/hotspot-census.mjs --store "$STORE" --city "$CITY" --page "$PAGE"
           fi
