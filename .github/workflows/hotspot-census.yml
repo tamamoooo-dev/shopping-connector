@@ -51,7 +51,7 @@ jobs:
         env:
           STORE: ${{ inputs.store || 'al-madina-hypermarket-212' }}
           CITY: ${{ inputs.city || 'riyadh' }}
-          PAGE: ${{ inputs.page || '10' }}
+          PAGE: ${{ inputs.page || '6' }}
           LEAFLET: ${{ inputs.leaflet_url || '' }}
         run: |
           if [ -n "$LEAFLET" ]; then
@@ -59,3 +59,9 @@ jobs:
           else
             node debug/hotspot-census.mjs --store "$STORE" --city "$CITY" --page "$PAGE"
           fi
+      - name: Hotspot -> offer JOIN census
+        env:
+          STORE: ${{ inputs.store || 'al-madina-hypermarket-212' }}
+          CITY: ${{ inputs.city || 'riyadh' }}
+          PAGE: ${{ inputs.page || '6' }}
+        run: node debug/hotspot-join-census.mjs --store "$STORE" --city "$CITY" --page "$PAGE"
