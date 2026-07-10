@@ -290,8 +290,9 @@ async function runOperation(ctx, body) {
   const targets = await resolveTargets(ctx, op, body.stores);
 
   if (!targets.length) {
-    // Detection-driven op found nothing to do — that IS the result, not an error.
-    return {
+    // Detection-driven op found nothing to do — that IS the result, not an
+    // error, and it is still an operator action the audit timeline records.
+    const report = {
       action: `ops:${op}`,
       targets: [],
       ok: true,
@@ -299,6 +300,15 @@ async function runOperation(ctx, body) {
       message: op === 'repair' ? 'All stores healthy — nothing to repair.' : 'No failed stores — nothing to retry.',
       elapsedMs: Date.now() - t0,
     };
+    await auditOp(ctx, {
+      ts: new Date(t0).toISOString(),
+      action: `ops:${op}`,
+      stores: 0,
+      ok: true,
+      elapsed_ms: report.elapsedMs,
+      detail: { nothingToDo: true },
+    });
+    return report;
   }
 
   const fanout = await dispatchIngest(ctx, targets, MODE_FOR_OP[op] || '');

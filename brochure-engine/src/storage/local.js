@@ -60,6 +60,10 @@ export function createMemoryMetadataStore() {
         else if (supersedeOthers) r.is_current = 0;
       }
     },
+    async getById(id) {
+      if (!id) return null;
+      return rows.get(id) || null;
+    },
     async getBySourceUrl(store, region, sourceUrl) {
       if (!sourceUrl) return null;
       const hits = [...rows.values()]
