@@ -444,9 +444,9 @@ export async function handleRequest(request, ctx) {
   // Guarded ingest (§8). Shared secret header; the cron's fan-out children hit
   // this same route. Brochure ingest and offers ingest run in SEPARATE
   // invocations now (root-cause fix): a new edition's page-image downloads can
-  // no longer consume the subrequest budget the atomic offers write needs.
+  // no longer consume the subrequest budget the offers write needs.
   //   POST /ingest?store=<id>              -> brochures only (default)
-  //   POST /ingest?store=<id>&mode=offers  -> offers only, fresh budget, ATOMIC
+  //   POST /ingest?store=<id>&mode=offers  -> offers only, its own fresh budget
   //   POST /ingest?store=<id>&mode=all     -> both in one invocation (manual
   //                                           backfill for small stores only;
   //                                           the cron never uses this)
@@ -458,9 +458,10 @@ export async function handleRequest(request, ctx) {
     if (store && !ctx.registry[store]) return json({ error: `Unknown store '${store}'.` }, 404);
     const mode = (url.searchParams.get('mode') || '').trim();
 
-    // Offers-only invocation: its own fresh 50-subrequest budget, so the atomic
-    // stage->promote can complete. Fail LOUD (non-2xx) if any target errored —
-    // the dispatcher/coordinator surfaces it; nothing is swallowed.
+    // Offers-only invocation: its own fresh 50-subrequest budget, so the write
+    // completes without competing with brochure image downloads. Fail LOUD
+    // (non-2xx) if any target errored — the dispatcher/coordinator surfaces it;
+    // nothing is swallowed.
     if (mode === 'offers') {
       if (!ctx.offerStore || !ctx.offersSource) return json({ error: 'Offers ingest unavailable.' }, 503);
       const offers = await ingestOffers(ctx, { store });
