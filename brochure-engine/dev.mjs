@@ -399,6 +399,10 @@ async function selftestFallback() {
 // edition -> store -> idempotent re-ingest -> read via /offers.
 async function selftestOffers() {
   console.log('=== Structured Offers (contract + ingest + read) ===');
+  // Validity dates are RELATIVE to the run date (like selftestWatches): the
+  // read path filters on "current today", so hardcoded dates go stale.
+  const today = new Date().toISOString().slice(0, 10);
+  const inWeek = new Date(Date.now() + 7 * 86400000).toISOString().slice(0, 10);
 
   // (a) pure contract: name derivation from a realistic OCR block.
   const desc =
@@ -415,7 +419,7 @@ async function selftestOffers() {
 
   // (b) gates: no price -> dropped; was<=price -> old_price nulled; Arabic-
   // Indic digits fold in normalization.
-  const base = { offerId: '1', description: 'almarai milk 2l\n7.00', validFrom: '2026-06-30', validTo: '2026-07-07' };
+  const base = { offerId: '1', description: 'almarai milk 2l\n7.00', validFrom: today, validTo: inWeek };
   const meta = { store: 's', region: 'central', source: 'test' };
   if (buildOffer({ ...base, price: '0' }, meta) !== null) fail('zero price passed the gate');
   if (buildOffer({ ...base, price: 'abc' }, meta) !== null) fail('non-numeric price passed the gate');
@@ -434,7 +438,7 @@ async function selftestOffers() {
   // A held current brochure the offer should LINK to (flyer id 738954).
   await metadataStore.upsert({
     id: 'teststore:central:2026-W27', store: 'teststore', region: 'central', edition: '2026-W27',
-    title: 'Weekly', valid_from: '2026-06-30', valid_to: '2026-07-07',
+    title: 'Weekly', valid_from: today, valid_to: inWeek,
     detected_at: new Date().toISOString(), source_type: 'images',
     source_url: 'https://agg.example/offers/teststore-9/738954/weekly-flyer',
     pdf_url: null, checksum: 'sha256:t', collector: 'd4d', storage_key: 'teststore/central/2026-W27',
@@ -443,8 +447,8 @@ async function selftestOffers() {
     name: 'test',
     async listOffers() {
       return [
-        { offerId: '101', flyerRef: '738954', price: '13.50', wasPrice: '15.00', description: 'activia kefir 850ml\n15.00', validFrom: '2026-06-30', validTo: '2026-07-07' },
-        { offerId: '102', flyerRef: '999999', price: '5.25', description: 'nadec laban 1l', validFrom: '2026-06-30', validTo: '2026-07-07' },
+        { offerId: '101', flyerRef: '738954', price: '13.50', wasPrice: '15.00', description: 'activia kefir 850ml\n15.00', validFrom: today, validTo: inWeek },
+        { offerId: '102', flyerRef: '999999', price: '5.25', description: 'nadec laban 1l', validFrom: today, validTo: inWeek },
         { offerId: '103', price: '0', description: 'broken row' }, // must be gated out
       ];
     },

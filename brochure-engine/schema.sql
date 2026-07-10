@@ -173,3 +173,31 @@ CREATE TABLE IF NOT EXISTS alerts (
 
 CREATE INDEX IF NOT EXISTS ix_alerts_watch ON alerts(watch_id, observed_at);
 CREATE INDEX IF NOT EXISTS ix_alerts_seen ON alerts(seen);
+
+-- ---------------------------------------------------------------------------
+-- Operations Console (ops/ subsystem) — the audit timeline. One row per
+-- operation run: every cron fan-out child, every cron coordinator summary and
+-- every manual console operation records here (storage/opsStore.js). This is
+-- the ONLY table the console writes; engine data stays read-only to it.
+CREATE TABLE IF NOT EXISTS ops_runs (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  ts         TEXT NOT NULL,      -- run start, ISO datetime
+  action     TEXT NOT NULL,      -- 'ingest' | 'ingest:offers' | 'ingest:brochures'
+                                 -- | 'cron:fanout' | 'cron:watches' | 'ops:*'
+  origin     TEXT NOT NULL,      -- 'cron' (scheduler) | 'ops' (console operator)
+  store      TEXT,               -- single-store runs; NULL for coordinator rows
+  stores     INTEGER,            -- number of stores the run targeted
+  ok         INTEGER NOT NULL,
+  detected   INTEGER,            -- brochure totals (per-store ingest rows)
+  new_count  INTEGER,            -- `new` is an SQL keyword; interface maps it
+  deduped    INTEGER,
+  failed     INTEGER,
+  offers     INTEGER,            -- offers stored by the run
+  coverage   REAL,               -- post-run average coverage %, when verified
+  elapsed_ms INTEGER,
+  error      TEXT,               -- first error message, for the diagnostics view
+  detail     TEXT                -- JSON drill-down blob
+);
+
+CREATE INDEX IF NOT EXISTS ix_ops_runs_store ON ops_runs(store, id);
+CREATE INDEX IF NOT EXISTS ix_ops_runs_origin ON ops_runs(origin, id);

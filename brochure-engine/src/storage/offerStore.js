@@ -151,6 +151,16 @@ export function createD1OfferStore(db) {
       };
     },
 
+    // Current-offer count per store in one query (the Ops Console's coverage
+    // table paints every store from this + the metadata index).
+    async countsByStore(currentOn) {
+      const { results } = await db
+        .prepare('SELECT store, COUNT(*) AS n FROM offers WHERE valid_to >= ? GROUP BY store')
+        .bind(currentOn)
+        .all();
+      return Object.fromEntries((results || []).map((r) => [r.store, r.n]));
+    },
+
     // Retention: drop offer rows whose validity ended before the cutoff. The
     // useful history horizon is bounded (offers feed comparison + recent
     // history, not an archive); pruning keeps the D1 table lean.

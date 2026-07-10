@@ -60,14 +60,27 @@ export async function runFanOut(registry, dispatchStore) {
 // To migrate the scheduler later, write a sibling factory (e.g.
 // `createQueueDispatcher({ queue })` whose dispatchStore does `queue.send({ store })`)
 // and pass it to runFanOut instead. Nothing else in the engine changes.
-export function createServiceBindingDispatcher({ self, ingestSecret, origin = 'https://brochure-engine.internal' }) {
+// Optional knobs (both default off, so the cron path is byte-for-byte the same):
+//   mode  'offers' | 'brochures' — the child runs only that half of the ingest
+//         (engine.js /ingest `mode` param). The Ops Console's "Offers Only" /
+//         "Brochures Only" all-stores operations ride the SAME fan-out this way.
+//   tag   stamps X-Ops-Origin on the child request so its audit row records who
+//         triggered it ('ops' for console operations; absent = 'cron').
+export function createServiceBindingDispatcher({
+  self,
+  ingestSecret,
+  origin = 'https://brochure-engine.internal',
+  mode = '',
+  tag = '',
+}) {
   if (!self || typeof self.fetch !== 'function') {
     throw new Error('scheduler: a SELF service binding (env.SELF) is required for the fan-out dispatcher');
   }
   return async function dispatchStore(store) {
-    const res = await self.fetch(`${origin}/ingest?store=${encodeURIComponent(store)}`, {
+    const qs = `store=${encodeURIComponent(store)}` + (mode ? `&mode=${encodeURIComponent(mode)}` : '');
+    const res = await self.fetch(`${origin}/ingest?${qs}`, {
       method: 'POST',
-      headers: { 'X-Ingest-Secret': ingestSecret || '' },
+      headers: { 'X-Ingest-Secret': ingestSecret || '', ...(tag ? { 'X-Ops-Origin': tag } : {}) },
     });
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {

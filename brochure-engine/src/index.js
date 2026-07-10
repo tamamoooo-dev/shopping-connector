@@ -26,6 +26,7 @@ import { createR2ObjectStore, createKvObjectStore } from './storage/objectStore.
 import { createD1HistoryStore } from './storage/historyStore.js';
 import { createD1OfferStore } from './storage/offerStore.js';
 import { createD1WatchStore } from './storage/watchStore.js';
+import { createD1OpsStore } from './storage/opsStore.js';
 import { createNtfyNotifier, CHECK_BATCH } from './monitor.js';
 import { createPipeline } from './pipeline.js';
 import { createServiceBindingSearchClient } from './searchClient.js';
@@ -58,6 +59,14 @@ const registry = Object.fromEntries(
   ].map((p) => [p.id, p]),
 );
 
+// The deployed cron schedules — MUST mirror wrangler.toml [triggers] (the
+// runtime can't read its own config, and the Ops Console shows next-run times
+// computed from these).
+const CRONS = {
+  pipeline: '0 6 * * 2,3,5', // weekly brochure/offers fan-out
+  watches: '45 5 * * *', // daily Price Monitoring check
+};
+
 function buildContext(env) {
   const objectStore = env.BROCHURES
     ? createR2ObjectStore(env.BROCHURES)
@@ -85,6 +94,11 @@ function buildContext(env) {
   const notifier = env.NTFY_TOPIC
     ? createNtfyNotifier({ topic: env.NTFY_TOPIC, server: env.NTFY_SERVER || 'https://ntfy.sh' })
     : null;
+  // The Operations Console (ops/ subsystem): its audit store shares D1, its
+  // auth uses the dedicated OPS_TOKEN secret (human operators only —
+  // INGEST_SECRET stays machine-only), and its multi-store operations reuse
+  // the SELF fan-out, so it needs the binding in context.
+  const opsStore = createD1OpsStore(env.DB);
   return {
     registry,
     objectStore,
@@ -97,6 +111,10 @@ function buildContext(env) {
     notifier,
     searchClient,
     ingestSecret: env.INGEST_SECRET,
+    opsStore,
+    opsToken: env.OPS_TOKEN,
+    self: env.SELF,
+    crons: CRONS,
   };
 }
 
@@ -129,6 +147,7 @@ export default {
       ctx.waitUntil(
         (async () => {
           const context = buildContext(env);
+          const t0 = Date.now();
           const watches = await context.watchStore.list({ activeOnly: true });
           if (!watches.length) return;
           const dispatchBatch = createWatchCheckDispatcher({
@@ -150,6 +169,18 @@ export default {
               alerted: report.alerted,
             }),
           );
+          // Ops Console audit + scheduler heartbeat (best-effort).
+          await context.opsStore
+            .record({
+              ts: report.startedAt,
+              action: 'cron:watches',
+              origin: 'cron',
+              ok: report.failed === 0,
+              elapsed_ms: Date.now() - t0,
+              error: report.lines?.find((l) => !l.ok)?.error || null,
+              detail: { watches: report.watches, batches: report.batches, alerted: report.alerted },
+            })
+            .catch(() => {});
         })(),
       );
       return;
@@ -157,6 +188,7 @@ export default {
 
     ctx.waitUntil(
       (async () => {
+        const t0 = Date.now();
         const dispatchStore = createServiceBindingDispatcher({
           self: env.SELF,
           ingestSecret: env.INGEST_SECRET,
@@ -186,6 +218,22 @@ export default {
             errors: pruneReport.errors.length,
           }),
         );
+
+        // Ops Console audit + scheduler heartbeat: the coordinator's summary
+        // row (each store's child wrote its own row via /ingest). Best-effort.
+        await ctx.opsStore
+          .record({
+            ts: report.startedAt,
+            action: 'cron:fanout',
+            origin: 'cron',
+            stores: report.dispatched,
+            ok: report.failed === 0,
+            failed: report.failed,
+            elapsed_ms: Date.now() - t0,
+            error: report.stores?.find((s) => !s.ok)?.error || null,
+            detail: { pruned: pruneReport.pruned, offersPruned: pruneReport.offersPruned },
+          })
+          .catch(() => {});
       })(),
     );
   },

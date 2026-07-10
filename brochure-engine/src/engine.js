@@ -445,15 +445,52 @@ export async function handleRequest(request, ctx) {
   // secret header; the cron's fan-out children hit this same route. Brochures
   // first (offers link to the freshly-committed editions), then that store's
   // structured offers — both fit one child's Free-plan subrequest budget.
+  // `mode=offers|brochures` runs only that half (the Ops Console's partial
+  // fan-outs); default runs both, exactly as before.
   if (path === '/ingest' && request.method === 'POST') {
     if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
       return json({ error: 'Forbidden' }, 403);
     }
     const store = (url.searchParams.get('store') || '').trim() || undefined;
     if (store && !ctx.registry[store]) return json({ error: `Unknown store '${store}'.` }, 404);
-    const report = await ingestAll(ctx, { store });
-    if (ctx.offerStore && ctx.offersSource && url.searchParams.get('offers') !== '0') {
+    const mode = (url.searchParams.get('mode') || '').trim();
+    if (mode && mode !== 'offers' && mode !== 'brochures') {
+      return json({ error: `Unknown mode '${mode}'.` }, 400);
+    }
+    const t0 = Date.now();
+    const report =
+      mode === 'offers'
+        ? { startedAt: new Date().toISOString(), targets: [], totals: { detected: 0, new: 0, deduped: 0, failed: 0 } }
+        : await ingestAll(ctx, { store });
+    if (mode !== 'brochures' && ctx.offerStore && ctx.offersSource && url.searchParams.get('offers') !== '0') {
       report.offers = await ingestOffers(ctx, { store });
+    }
+    // Audit (Ops Console timeline): every ingest run — cron child or manual —
+    // records one row. Best-effort: a failed write never fails the ingest.
+    if (ctx.opsStore) {
+      const bt = report.totals;
+      const ot = report.offers?.totals;
+      const errors = [
+        ...report.targets.flatMap((t) => t.errors || []),
+        ...(report.offers?.targets || []).flatMap((t) => t.errors || []),
+      ];
+      await ctx.opsStore
+        .record({
+          ts: report.startedAt,
+          action: 'ingest' + (mode ? ':' + mode : ''),
+          origin: request.headers.get('X-Ops-Origin') === 'ops' ? 'ops' : 'cron',
+          store: store || null,
+          stores: store ? 1 : Object.keys(ctx.registry).length,
+          ok: bt.failed === 0 && !(ot && ot.failed > 0),
+          detected: bt.detected,
+          new: bt.new,
+          deduped: bt.deduped,
+          failed: bt.failed,
+          offers: ot ? ot.stored : null,
+          elapsed_ms: Date.now() - t0,
+          error: errors[0] || null,
+        })
+        .catch(() => {});
     }
     return json(report);
   }
