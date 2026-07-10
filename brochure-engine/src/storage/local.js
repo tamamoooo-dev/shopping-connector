@@ -119,6 +119,11 @@ export function createMemoryOfferStore() {
         .sort((a, b) => a.price - b.price)
         .slice(0, Math.max(1, Math.min(Number(limit) || 60, 300)));
     },
+    async byFlyer(store, region, flyerRef) {
+      return [...rows.values()]
+        .filter((r) => r.store === store && r.region === region && String(r.flyer_ref) === String(flyerRef))
+        .slice(0, 2000);
+    },
     async listAll({ store = '' } = {}) {
       return [...rows.values()].filter((r) => !store || r.store === store);
     },
