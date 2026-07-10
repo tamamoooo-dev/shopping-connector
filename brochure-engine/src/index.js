@@ -15,6 +15,7 @@
 // is invisible to everything above it.
 
 import { handleRequest } from './engine.js';
+import { handleOps } from './ops/console.js';
 import {
   runFanOut,
   createServiceBindingDispatcher,
@@ -119,8 +120,11 @@ function buildContext(env) {
 }
 
 export default {
-  fetch(request, env) {
-    return handleRequest(request, buildContext(env));
+  async fetch(request, env) {
+    const ctx = buildContext(env);
+    // The Operations Console — a hidden, OPS_TOKEN-guarded admin subsystem
+    // mounted at /__ops (ops/console.js). Returns null for any other path.
+    return (await handleOps(request, ctx)) ?? handleRequest(request, ctx);
   },
 
   // Cron trigger (§6.3) — Architecture C: Self Service-Binding Fan-out.

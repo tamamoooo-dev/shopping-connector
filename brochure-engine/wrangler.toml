@@ -72,3 +72,10 @@ id = "38b0639256a34d1ebd7d96dcb55d0a9b"
 
 # INGEST_SECRET (guards POST /ingest) is a secret, not committed:
 #   npx wrangler secret put INGEST_SECRET
+
+# OPS_TOKEN (guards the /__ops Operations Console — src/ops/) is a SEPARATE
+# secret for HUMAN operators; INGEST_SECRET stays machine-only. Make it long
+# and random. Until it is set, /__ops answers 503 (console locked):
+#   npx wrangler secret put OPS_TOKEN
+# After deploying, apply the audit-table migration once:
+#   npx wrangler d1 execute brochure-engine --remote --file=./migrate-2026-07-ops.sql

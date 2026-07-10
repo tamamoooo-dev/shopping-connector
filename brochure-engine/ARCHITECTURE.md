@@ -365,6 +365,40 @@ optional PDF→page-image rendering; begin Pillar 3 price extraction.
 
 ---
 
+---
+
+## 13. Operations Console (`src/ops/`, added 2026-07)
+
+A hidden, admin-only maintenance & diagnostics subsystem mounted at **`/__ops`**
+inside the same Worker — mobile-first, built to run the engine from a phone
+without the Cloudflare Dashboard.
+
+- **Native, zero duplication:** reads go through `ops/status.js`, pure
+  orchestration over the engine's own interfaces (registry, metadataStore,
+  offerStore, historyStore, watchStore, objectStore); writes only trigger the
+  engine's production pipelines. The provider registry IS the store list —
+  adding a provider appears in the console automatically.
+- **Production execution path:** multi-store operations reuse the cron's
+  Architecture-C SELF fan-out (`runFanOut` + `createServiceBindingDispatcher`),
+  so manual runs and scheduled runs execute identical code with identical
+  per-child subrequest budgets. `POST /ingest` gained an optional
+  `mode=offers|brochures` for partial fan-outs.
+- **Surface:** System Confidence score (weighted freshness / hotspot coverage /
+  offers / scheduler heartbeat / subsystem health), per-store coverage table
+  (hotspots, clickable, offers, coverage % = clickable/total spots), store
+  inspector, manual operations (Run All / Selected / Retry Failed /
+  **Repair Unhealthy** / Offers Only / Brochures Only / Verify), Emergency Heal
+  (typed `HEAL` confirmation), self test, diagnostics, audit timeline.
+- **Audit:** the console's ONLY table is `ops_runs` (schema.sql) — every ingest
+  child, cron coordinator summary and manual operation records one row; the
+  newest cron-origin row doubles as the scheduler heartbeat.
+- **Auth:** dedicated `OPS_TOKEN` secret (human operators; `INGEST_SECRET`
+  stays machine-only), digest comparison, HMAC-signed
+  HttpOnly/Secure/SameSite=Strict session cookie scoped to `/__ops`, Bearer
+  fallback, per-IP login rate limiting, no CORS, strict CSP, `noindex`.
+
+---
+
 _End of architecture design. Awaiting approval to proceed to Phase 3
 (implementation), which per Discovery §10.E starts at **M1: `PdfIndexCollector`
 for Othaim + Farm**._

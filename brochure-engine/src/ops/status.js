@@ -39,8 +39,9 @@ const pct = (num, den) => (den > 0 ? Math.round((num / den) * 1000) / 10 : null)
 // --- per-store operational snapshot ------------------------------------------
 // One row per registered provider: current flyers (edition, flyer id, validity),
 // hotspot/clickable/offers counts, coverage %, last ingest outcomes (from the
-// ops_runs audit), and a single STATUS the UI can color by.
-export async function computeStoreRows(ctx, { now = new Date() } = {}) {
+// ops_runs audit), and a single STATUS the UI can color by. `stores` narrows
+// the sweep (the Store Inspector and post-operation verification).
+export async function computeStoreRows(ctx, { now = new Date(), stores = null } = {}) {
   const today = todayISO(now);
   const current = await ctx.metadataStore.listCurrent();
   const offersByStore =
@@ -58,8 +59,10 @@ export async function computeStoreRows(ctx, { now = new Date() } = {}) {
     lastRun.set(r.store, slot);
   }
 
+  const wanted = stores ? new Set(stores) : null;
   const rows = [];
   for (const provider of Object.values(ctx.registry)) {
+    if (wanted && !wanted.has(provider.id)) continue;
     const cur = current.filter((r) => r.store === provider.id);
     const flyers = [];
     let hotspots = 0;

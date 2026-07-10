@@ -14,6 +14,7 @@
 import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { handleRequest, ingestAll } from './src/engine.js';
+import { handleOps } from './src/ops/console.js';
 import { createPipeline } from './src/pipeline.js';
 import { createAggregatorCollector } from './src/collectors/aggregator.js';
 import { createOfficialLinkCollector } from './src/collectors/officialLink.js';
@@ -23,6 +24,7 @@ import {
   createMemoryHistoryStore,
   createMemoryOfferStore,
   createMemoryWatchStore,
+  createMemoryOpsStore,
 } from './src/storage/local.js';
 import { deriveIdentity, recordOfferHistory, getQueryPricesDoc } from './src/priceHistory.js';
 import { createHttpSearchClient } from './src/searchClient.js';
@@ -101,6 +103,13 @@ function buildContext() {
     notifier: null,
     searchClient,
     ingestSecret: 'dev',
+    // Ops Console locally: http://localhost:8787/__ops (token 'dev-ops' unless
+    // OPS_TOKEN is set). No SELF binding here, so multi-store operations use
+    // the console's in-process dev fallback.
+    opsStore: createMemoryOpsStore(),
+    opsToken: process.env.OPS_TOKEN || 'dev-ops',
+    self: undefined,
+    crons: { pipeline: '0 6 * * 2,3,5', watches: '45 5 * * *' },
   };
 }
 
@@ -850,7 +859,7 @@ if (process.argv[2] === 'selftest') {
         body: body.length ? body : undefined,
       });
       try {
-        const response = await handleRequest(request, ctx);
+        const response = (await handleOps(request, ctx)) ?? (await handleRequest(request, ctx));
         const body = Buffer.from(await response.arrayBuffer());
         res.writeHead(response.status, Object.fromEntries(response.headers));
         res.end(body);
