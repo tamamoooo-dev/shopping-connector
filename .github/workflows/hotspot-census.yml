@@ -42,13 +42,14 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
-      - name: Unit tests (parser + Phase-1 offers ingest)
+          node-version: 22
+      - name: Unit tests (parser + offers atomicity + real D1 SQL)
         run: |
           node src/hotspots.test.mjs
           node src/reingest.test.mjs
-          node src/offers-ingest.test.mjs
-      - name: Verify Phase 1 — local end-to-end ingest -> API coverage
+          node src/offers-atomic.test.mjs
+          node --experimental-sqlite src/offers-d1-sql.test.mjs
+      - name: Verify — local end-to-end ingest -> API coverage (normal path)
         run: node debug/hotspot-api-census.mjs --store almadina --page 6
       - name: Hotspot census
         env:

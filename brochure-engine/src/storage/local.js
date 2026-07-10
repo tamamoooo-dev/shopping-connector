@@ -101,6 +101,9 @@ export function createMemoryMetadataStore() {
 // --- OfferStore: an in-memory table with the same semantics as the D1 impl ----
 export function createMemoryOfferStore() {
   const rows = new Map(); // id -> row (snake_case, like D1)
+  const stage = new Map(); // id -> staged row (invisible to readers until promote)
+  const srsMatch = (r, store, region, source) =>
+    r.store === store && r.region === region && r.source === source;
   return {
     async upsertMany(newRows) {
       for (const r of newRows) {
@@ -110,6 +113,41 @@ export function createMemoryOfferStore() {
         rows.set(r.id, { ...r, edition: r.edition ?? prior?.edition ?? null });
       }
       return { stored: newRows.length };
+    },
+
+    // --- Phase 2: atomic offers write (mirrors the D1 stage -> promote contract) -
+    async clearStage(store, region, source) {
+      for (const [id, r] of stage) if (srsMatch(r, store, region, source)) stage.delete(id);
+    },
+    // Batched like D1 so a wrapping fake can interrupt after N batches; a partial
+    // staging is invisible (readers never see `stage`).
+    async stageMany(newRows, { batchSize = 40 } = {}) {
+      for (let i = 0; i < newRows.length; i += batchSize) {
+        for (const r of newRows.slice(i, i + batchSize)) stage.set(r.id, { ...r });
+      }
+      return { staged: newRows.length };
+    },
+    async stagedCount(store, region, source) {
+      let n = 0;
+      for (const r of stage.values()) if (srsMatch(r, store, region, source)) n += 1;
+      return n;
+    },
+    // Atomic promote: build the full set of changes FIRST, then apply them in one
+    // pass — so even the in-memory mirror cannot leave a partial state. Same
+    // COALESCE(edition) + preserve-detected_at semantics as the D1 INSERT…SELECT.
+    async promoteStaged(store, region, source) {
+      const changes = [];
+      for (const r of stage.values()) {
+        if (!srsMatch(r, store, region, source)) continue;
+        const prior = rows.get(r.id);
+        changes.push([r.id, {
+          ...r,
+          edition: r.edition ?? prior?.edition ?? null,
+          detected_at: prior ? prior.detected_at : r.detected_at, // first-seen preserved
+        }]);
+      }
+      for (const [id, row] of changes) rows.set(id, row);
+      return changes.length;
     },
     async search({ q = '', store = '', region = '', currentOn = null, limit = 60 } = {}) {
       const tokens = queryTokens(q);

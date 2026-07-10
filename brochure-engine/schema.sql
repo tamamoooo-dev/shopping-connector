@@ -125,6 +125,40 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_offer ON offers(store, region, source, offe
 CREATE INDEX IF NOT EXISTS ix_offers_store_valid ON offers(store, region, valid_to);
 CREATE INDEX IF NOT EXISTS ix_offers_valid ON offers(valid_to);
 
+-- Offers STAGING table (Phase 2 — atomic visibility). An offers ingest writes a
+-- store's whole freshly-fetched set here FIRST (many batches — a partial staging
+-- is INVISIBLE to every reader, which only ever read `offers`), validates the
+-- staging is complete, then promotes it into `offers` in ONE atomic
+-- INSERT…SELECT…ON CONFLICT statement (SQLite runs a single statement as one
+-- implicit transaction). If anything before the promote fails — a batch error,
+-- subrequest/CPU/time exhaustion, a Worker restart — the promote never runs, so
+-- the visible `offers` table stays exactly the previous complete dataset. Same
+-- columns as `offers`; rows are cleared per (store, region, source) each run.
+CREATE TABLE IF NOT EXISTS offer_stage (
+  id          TEXT PRIMARY KEY,
+  store       TEXT NOT NULL,
+  region      TEXT NOT NULL,
+  source      TEXT NOT NULL,
+  offer_id    TEXT NOT NULL,
+  flyer_ref   TEXT,
+  page_ref    TEXT,
+  edition     TEXT,
+  name        TEXT,
+  name_ar     TEXT,
+  price       REAL NOT NULL,
+  old_price   REAL,
+  currency    TEXT NOT NULL DEFAULT 'SAR',
+  category_id TEXT,
+  category    TEXT,
+  image_url   TEXT,
+  source_url  TEXT,
+  valid_from  TEXT,
+  valid_to    TEXT,
+  detected_at TEXT NOT NULL,
+  search_text TEXT
+);
+CREATE INDEX IF NOT EXISTS ix_offer_stage_srs ON offer_stage(store, region, source);
+
 -- ---------------------------------------------------------------------------
 -- Price Monitoring (the Keepa-inspired Personal Alerts feature — monitor.js).
 -- A watch is a user-set target price on either a specific identifiable product

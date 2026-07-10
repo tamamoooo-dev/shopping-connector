@@ -39,6 +39,36 @@ export function createD1OfferStore(db) {
       r.valid_to, r.detected_at, r.search_text,
     );
 
+  // --- Phase 2: atomic offers write (stage -> validate -> promote) -------------
+  const STAGE_COLS =
+    'id, store, region, source, offer_id, flyer_ref, page_ref, edition, ' +
+    'name, name_ar, price, old_price, currency, category_id, category, ' +
+    'image_url, source_url, valid_from, valid_to, detected_at, search_text';
+  const stageInsertStmt = `INSERT OR REPLACE INTO offer_stage (${STAGE_COLS}) VALUES (${'?, '.repeat(20)}?)`;
+  const bindStageRow = (r) =>
+    db.prepare(stageInsertStmt).bind(
+      r.id, r.store, r.region, r.source, r.offer_id, r.flyer_ref, r.page_ref,
+      r.edition, r.name, r.name_ar, r.price, r.old_price, r.currency,
+      r.category_id, r.category, r.image_url, r.source_url, r.valid_from,
+      r.valid_to, r.detected_at, r.search_text,
+    );
+  // The promote is a SINGLE INSERT…SELECT…ON CONFLICT statement: one subrequest,
+  // one implicit transaction (SQLite/D1), and NO per-row bound parameters (values
+  // come from the staged rows via SELECT), so it is atomic and size-independent
+  // regardless of how many offers a company has. detected_at is deliberately NOT
+  // in the DO UPDATE set, preserving each row's first-seen timestamp.
+  const promoteStmt = `INSERT INTO offers (${STAGE_COLS})
+      SELECT ${STAGE_COLS} FROM offer_stage WHERE store = ? AND region = ? AND source = ?
+      ON CONFLICT(id) DO UPDATE SET
+        flyer_ref=excluded.flyer_ref, page_ref=excluded.page_ref,
+        edition=COALESCE(excluded.edition, offers.edition),
+        name=excluded.name, name_ar=excluded.name_ar,
+        price=excluded.price, old_price=excluded.old_price,
+        currency=excluded.currency, category_id=excluded.category_id,
+        category=excluded.category, image_url=excluded.image_url,
+        source_url=excluded.source_url, valid_from=excluded.valid_from,
+        valid_to=excluded.valid_to, search_text=excluded.search_text`;
+
   return {
     async upsertMany(rows) {
       // D1 batch in chunks — one bound statement per row keeps us far under the
@@ -48,6 +78,41 @@ export function createD1OfferStore(db) {
         await db.batch(rows.slice(i, i + 40).map(bindRow));
       }
       return { stored: rows.length };
+    },
+
+    // Remove any rows a prior run left staged for this (store, region, source).
+    async clearStage(store, region, source) {
+      await db
+        .prepare('DELETE FROM offer_stage WHERE store = ? AND region = ? AND source = ?')
+        .bind(store, region, source)
+        .run();
+    },
+
+    // Stage rows in batches (each batch one D1 subrequest). A failure here — the
+    // exact "budget exhausted / batch error mid-write" fault — rejects; staged
+    // rows are invisible to readers, and the caller refuses to promote.
+    async stageMany(rows, { batchSize = 40 } = {}) {
+      for (let i = 0; i < rows.length; i += batchSize) {
+        await db.batch(rows.slice(i, i + batchSize).map(bindStageRow));
+      }
+      return { staged: rows.length };
+    },
+
+    // How many rows are currently staged for this (store, region, source) — the
+    // validation compares this against what was built before promoting.
+    async stagedCount(store, region, source) {
+      const row = await db
+        .prepare('SELECT COUNT(*) AS n FROM offer_stage WHERE store = ? AND region = ? AND source = ?')
+        .bind(store, region, source)
+        .first();
+      return row?.n || 0;
+    },
+
+    // Atomically promote the staged set into `offers`. One statement, all-or-
+    // nothing; returns the number of rows affected.
+    async promoteStaged(store, region, source) {
+      const res = await db.prepare(promoteStmt).bind(store, region, source).run();
+      return res?.meta?.changes || 0;
     },
 
     async search({ q = '', store = '', region = '', currentOn = null, limit = 60 } = {}) {

@@ -43,16 +43,28 @@ function flyerIdFromSourceUrl(sourceUrl) {
   return m ? m[1] : null;
 }
 
-// Ingest one provider/region's offers. Returns a report line.
+// The minimum fraction of the FETCHED offers that must survive to `stored` for a
+// promote to be allowed. Normal buildOffer drops (unpriced records, dedupe) are
+// a few percent; a run that would promote far less than the source advertised
+// (a source returning mostly-unpriced records) is refused so the previous
+// healthy dataset stays visible. Tunable per call.
+const DEFAULT_COVERAGE_MIN = 0.5;
+
+// Ingest one provider/region's offers — with ATOMIC VISIBILITY. Returns a line.
 //
-// PHASE 1 (root-cause fix): brochure ingest and offers ingest now run in
-// SEPARATE Worker invocations (see engine.js /ingest?mode=offers and the
-// scheduler dispatcher), so a new edition's page-image downloads can no longer
-// consume the subrequest budget the offers write needs — the write completes.
-// A batch failure is NO LONGER swallowed: it propagates out of upsertMany, is
-// logged, and is surfaced on the line so the ingest FAILS upstream (the route
-// returns non-2xx and the cron records the store as failed).
-export async function ingestOffersForTarget(ctx, provider, region) {
+// PHASE 1 (production incident fix, unchanged): brochure ingest and offers
+// ingest run in SEPARATE Worker invocations (engine.js /ingest?mode=offers +
+// the scheduler dispatcher), so page-image downloads can't starve the offers
+// write, and a batch failure is never swallowed.
+//
+// PHASE 2 (this function): the write is all-or-nothing. Fetch -> STAGE the whole
+// set (invisible) -> VALIDATE (complete + covers the source) -> atomic PROMOTE
+// (one INSERT…SELECT…ON CONFLICT) -> CLEANUP. If ANY step before the promote
+// fails — batch error, subrequest/CPU/time exhaustion, a Worker restart — the
+// promote never runs and the visible `offers` table stays the previous complete
+// dataset. Nothing is swallowed: a failure is logged, surfaced on the line, and
+// fails the ingest upstream.
+export async function ingestOffersForTarget(ctx, provider, region, { coverageMin = DEFAULT_COVERAGE_MIN } = {}) {
   const line = { store: provider.id, region, fetched: 0, stored: 0, dropped: 0, linked: 0, ok: false, skipped: false, errors: [] };
   const regionConfig = provider.regions[region];
   const cfg = offersConfigFor(regionConfig);
@@ -63,6 +75,10 @@ export async function ingestOffersForTarget(ctx, provider, region) {
   const source = ctx.offersSource.name;
 
   try {
+    if (typeof ctx.offerStore.stageMany !== 'function' || typeof ctx.offerStore.promoteStaged !== 'function') {
+      throw new Error('offerStore lacks atomic staging (stageMany/stagedCount/promoteStaged)');
+    }
+
     const raws = await ctx.offersSource.listOffers(cfg.company, {
       city: cfg.city,
       storePageSlug: cfg.storePageSlug,
@@ -95,28 +111,54 @@ export async function ingestOffersForTarget(ctx, provider, region) {
       offers.push(offer);
       rows.push(offerToRow(offer));
     }
+    const built = rows.length;
 
-    // Write. A failing batch REJECTS here (upsertMany awaits each D1 batch) and
-    // the rejection propagates to the catch below — the ingest fails loudly.
-    if (rows.length) await ctx.offerStore.upsertMany(rows);
-    line.stored = rows.length;
+    if (built) {
+      // STAGE — clean slate, then write the whole set (invisible to readers).
+      // A batch failure REJECTS here and jumps to the catch: no promote.
+      await ctx.offerStore.clearStage(provider.id, region, source);
+      await ctx.offerStore.stageMany(rows);
+      const staged = await ctx.offerStore.stagedCount(provider.id, region, source);
+
+      // VALIDATE (before promote):
+      //  - successful write completion / no batch failures -> staged === built
+      if (staged !== built) {
+        throw new Error(`offers staging incomplete for ${provider.id}/${region}: staged ${staged} of ${built} — write interrupted; NOT promoted, previous offers preserved`);
+      }
+      //  - no unexpected coverage loss vs what the source advertised
+      const floor = Math.floor(line.fetched * coverageMin);
+      if (line.fetched > 0 && staged < floor) {
+        throw new Error(`offers coverage too low for ${provider.id}/${region}: ${staged}/${line.fetched} (< ${Math.round(coverageMin * 100)}%) — NOT promoted, previous offers preserved`);
+      }
+
+      // PROMOTE — one atomic statement: previous -> full, never partial. If it
+      // fails, SQLite rolls the statement back and the catch runs; the visible
+      // table is unchanged.
+      await ctx.offerStore.promoteStaged(provider.id, region, source);
+      line.stored = staged;
+
+      // CLEANUP — best-effort; the promote already committed, so a cleanup
+      // failure never affects visibility (next run's clearStage handles it).
+      try { await ctx.offerStore.clearStage(provider.id, region, source); } catch { /* non-fatal */ }
+    }
     line.ok = true;
 
-    // Price History (Pillar 3): every offer is a price observation. Derive
-    // identities and record first-sighting/price-change points — D1-only work,
-    // idempotent on re-ingest (see priceHistory.js).
+    // Price History (Pillar 3): every offer is a price observation. Runs after a
+    // successful promote (the offers are now the visible truth). Idempotent on
+    // re-ingest (see priceHistory.js).
     if (ctx.historyStore && offers.length) {
       const h = await recordOfferHistory(ctx.historyStore, offers, { observedAt: detectedAt });
       line.history = { identities: h.identities, points: h.points, skipped: h.skipped };
     }
   } catch (err) {
-    // Requirement 4: NEVER swallow. Log it and surface it on the line — a
-    // non-empty errors[] makes the ingest FAIL upstream (route -> 500 ->
-    // dispatcher -> cron log). (Phase 1 does not undo rows already committed by
-    // earlier batches; whether that partial can still occur is measured next.)
+    // Requirement 4: NEVER swallow. Log it, surface it on the line (a non-empty
+    // errors[] fails the ingest upstream: route -> 500 -> cron log), and — since
+    // we never promoted — leave the previous complete offers untouched. Drop our
+    // staged rows so a failed run can never leak into a later promote.
     console.error('brochure-engine offers ingest FAILED', JSON.stringify({ store: provider.id, region, error: err.message }));
     line.errors.push(err.message);
     line.ok = false;
+    try { await ctx.offerStore.clearStage(provider.id, region, source); } catch { /* ignore */ }
   }
   return line;
 }

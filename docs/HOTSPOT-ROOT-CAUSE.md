@@ -198,3 +198,94 @@ the `hotspot-census` workflow after the next successful ingest of this store
 should show the offers count for `742356` climb toward 462 and page 6 recover to
 20 interactive; if it does not, capture the `/ingest` report's `offers` line
 (it will carry the swallowed error message) to name the exact limit.
+
+---
+
+## The fix (Phase 1 + Phase 2)
+
+The fix landed in two clearly separated commits: Phase 1 repairs the production
+incident; Phase 2 is a reliability improvement that makes a partial offers table
+impossible under *any* failure.
+
+### Phase 1 — the production incident fix (`offers/ingest.js`, `engine.js`, `scheduler.js`)
+
+Two changes, both aimed squarely at the measured cause:
+
+1. **Separate invocations.** Brochure ingest and offers ingest no longer share a
+   Worker invocation. The cron dispatcher calls `POST /ingest?store=X` (brochures
+   only), then `POST /ingest?store=X&mode=offers` (offers only) as a *second*
+   SELF sub-invocation with its own fresh 50-subrequest budget. Page-image
+   downloads can no longer consume the budget the offers write needs — the write
+   now completes (the offers ingest needs ~22 of 50 subrequests for the largest
+   current store).
+2. **No swallowed error.** A failing batch propagates out of the write, is
+   logged, and is surfaced on the report line; the offers route returns 500 and
+   the cron records the store as failed.
+
+*Why this fixed the incident:* the root cause was budget exhaustion in the
+shared invocation truncating the write after 2 batches (80/722). A dedicated
+budget removes that cause; the local end-to-end census confirms the write now
+stores 722/722 → flyer 742356 serves 462/462 clickable, page 6 20/20.
+
+*What Phase 1 did NOT guarantee:* a plain multi-batch `upsert` is not atomic.
+Measured directly — a forced mid-write batch failure still left a **partial**
+visible table (80/722). For the current workload this now requires an abnormal
+event (a company ~3× larger than any today, or a transient D1 error), but it
+remained *possible*.
+
+### Phase 2 — the atomic-visibility guarantee (`offer_stage` + `offers/ingest.js`)
+
+The offers write is now all-or-nothing. Flow:
+
+```
+fetch offers → STAGE (offer_stage, many batches, invisible)
+             → VALIDATE (staged == built; coverage ≥ 50% of fetched)
+             → PROMOTE (one atomic INSERT…SELECT…ON CONFLICT into offers)
+             → CLEANUP (best-effort)
+```
+
+- **Staging is invisible.** Every reader (`byFlyer`, `search`, `counts`) reads
+  only `offers`. A partial or interrupted staging is never seen.
+- **The promote is atomic and size-independent.** It is a *single* statement —
+  `INSERT INTO offers (…) SELECT … FROM offer_stage WHERE … ON CONFLICT(id) DO
+  UPDATE …` — which SQLite/D1 runs as one implicit transaction. It carries no
+  per-row bound parameters (values flow from the staged rows via SELECT), so it
+  never grows with company size and can't itself be truncated. `detected_at`
+  stays out of the `DO UPDATE` set, preserving each row's first-seen timestamp.
+- **Validation gates the promote.** If staging is short (`staged != built`) or
+  coverage is suspiciously low (`staged < 50%` of fetched), the ingest throws
+  *before* promoting — the previous complete dataset stays visible.
+- **Nothing is swallowed.** Any failure is logged, surfaced on the line, fails
+  the ingest upstream, and drops the staged rows so a failed run can't leak into
+  a later promote.
+
+*Cost:* the normal path adds ~3 subrequests (clear + count + promote) over
+Phase 1's write, all inside the dedicated offers invocation — no regression to
+Phase 1's separation, comfortably within budget.
+
+### Guarantees that now exist (and previously did not)
+
+| Failure | Before | After Phase 2 |
+|---|---|---|
+| Subrequest / CPU / time exhaustion mid-write | partial visible table (the incident) | staging incomplete → not promoted → previous dataset intact |
+| A single batch errors | partial (Phase 1: surfaced but still partial) | not promoted → previous intact |
+| Source returns mostly-unpriced | thin set promoted | coverage gate refuses → previous intact |
+| Promote itself fails / Worker restarts | n/a | atomic statement rolls back → previous intact |
+| Retry after any failure | — | next run promotes the full set cleanly |
+
+The visible `offers` table is now always either the complete previous dataset or
+the complete new one — never an intermediate state.
+
+### Verification (both proven)
+
+- **Normal path** (`debug/hotspot-api-census.mjs`, live D4D → local stores →
+  real `/brochures/hotspots`): offers ingest `722/722`; flyer 742356 → **462
+  offers, 462/462 clickable**; **page 6 → 20 hotspots, 20 clickable**.
+- **Failure paths** (`src/offers-atomic.test.mjs`): success, interrupted after an
+  arbitrary batch, failed validation, promote failure, and retry — each asserts
+  the visible table is never partial. The shipped D1 SQL is validated against a
+  real SQLite engine in `src/offers-d1-sql.test.mjs`.
+
+*Production note:* these numbers require a deploy (`wrangler deploy` + apply
+`migrate-2026-07-offer-stage.sql`) and one ingest run; until then production
+still reflects the pre-fix state.
