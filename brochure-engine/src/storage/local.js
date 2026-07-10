@@ -255,7 +255,7 @@ export function createMemoryOpsStore() {
 // --- HistoryStore: in-memory tables with the same semantics as the D1 impl ----
 export function createMemoryHistoryStore() {
   const identities = new Map(); // id -> identity row (snake_case, like D1)
-  const points = new Map(); // `${identity} ${week}` -> point row
+  const points = new Map(); // `${identity} ${week}` -> point row
   return {
     async getByIds(ids) {
       return ids.map((id) => identities.get(id)).filter(Boolean);
@@ -269,7 +269,7 @@ export function createMemoryHistoryStore() {
       return { stored: rows.length };
     },
     async insertPoints(newPoints) {
-      for (const p of newPoints) points.set(`${p.identity} ${p.week}`, { ...p });
+      for (const p of newPoints) points.set(`${p.identity} ${p.week}`, { ...p });
       return { stored: newPoints.length };
     },
     async searchIdentities({ q = '', limit = 250 } = {}) {
