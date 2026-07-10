@@ -43,10 +43,13 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-      - name: Unit tests (parser must be intact before we trust the census)
+      - name: Unit tests (parser + Phase-1 offers ingest)
         run: |
           node src/hotspots.test.mjs
           node src/reingest.test.mjs
+          node src/offers-ingest.test.mjs
+      - name: Verify Phase 1 — local end-to-end ingest -> API coverage
+        run: node debug/hotspot-api-census.mjs --store almadina --page 6
       - name: Hotspot census
         env:
           STORE: ${{ inputs.store || 'al-madina-hypermarket-212' }}

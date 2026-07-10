@@ -64,18 +64,31 @@ export function createServiceBindingDispatcher({ self, ingestSecret, origin = 'h
   if (!self || typeof self.fetch !== 'function') {
     throw new Error('scheduler: a SELF service binding (env.SELF) is required for the fan-out dispatcher');
   }
+  // Each store is refreshed in TWO separate child invocations, each with its own
+  // fresh 50-subrequest budget (root-cause fix): brochures first (their image
+  // downloads are the heavy part), then offers in a SEPARATE invocation so the
+  // atomic offers write can never be starved of subrequests by those downloads.
+  // A non-2xx from either child (e.g. the offers ingest failing loudly on an
+  // incomplete write) rejects dispatchStore, so runFanOut records the store as
+  // failed — the fault surfaces in the cron log instead of being swallowed.
   return async function dispatchStore(store) {
-    const res = await self.fetch(`${origin}/ingest?store=${encodeURIComponent(store)}`, {
-      method: 'POST',
-      headers: { 'X-Ingest-Secret': ingestSecret || '' },
-    });
-    const body = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      const err = new Error(`ingest ${store} -> HTTP ${res.status}`);
-      err.body = body;
-      throw err;
-    }
-    return body.totals || body;
+    const call = async (qs, label) => {
+      const res = await self.fetch(`${origin}/ingest?${qs}`, {
+        method: 'POST',
+        headers: { 'X-Ingest-Secret': ingestSecret || '' },
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        const err = new Error(`${label} ${store} -> HTTP ${res.status}`);
+        err.body = body;
+        throw err;
+      }
+      return body;
+    };
+    const q = `store=${encodeURIComponent(store)}`;
+    const brochure = await call(q, 'ingest'); // brochures only (default mode)
+    const offers = await call(`${q}&mode=offers`, 'offers'); // fresh invocation
+    return { brochure: brochure.totals || brochure, offers: offers.offers?.totals };
   };
 }
 

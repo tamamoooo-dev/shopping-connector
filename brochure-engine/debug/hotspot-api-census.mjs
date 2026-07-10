@@ -77,9 +77,16 @@ async function main() {
     await new Promise((res) => setTimeout(res, 2500));
   }
 
-  // 2. offers ingest (one company-wide pull, like production).
+  // 2. offers ingest (one company-wide pull, like production) — now ATOMIC
+  //    (stage -> validate -> promote). With no subrequest limit locally it
+  //    completes and promotes the whole set; a partial write could never become
+  //    visible (see src/offers-atomic.test.mjs).
   const offRep = await ingestOffers(ctx, { store: storeId });
   console.log(`offers ingest: ${JSON.stringify(offRep.totals)}`);
+  if (offRep.totals.failed) {
+    console.error('offers ingest reported a failure — aborting verification');
+    process.exit(1);
+  }
 
   // 3. every held images brochure -> real GET /brochures/hotspots
   const held = await metadataStore.getCurrent(storeId, region);

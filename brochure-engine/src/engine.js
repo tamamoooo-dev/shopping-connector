@@ -441,19 +441,37 @@ export async function handleRequest(request, ctx) {
     return json(await checkWatches(ctx, { ids }));
   }
 
-  // Guarded manual ingest (§8) — for testing/backfill without the cron. Shared
-  // secret header; the cron's fan-out children hit this same route. Brochures
-  // first (offers link to the freshly-committed editions), then that store's
-  // structured offers — both fit one child's Free-plan subrequest budget.
+  // Guarded ingest (§8). Shared secret header; the cron's fan-out children hit
+  // this same route. Brochure ingest and offers ingest run in SEPARATE
+  // invocations now (root-cause fix): a new edition's page-image downloads can
+  // no longer consume the subrequest budget the atomic offers write needs.
+  //   POST /ingest?store=<id>              -> brochures only (default)
+  //   POST /ingest?store=<id>&mode=offers  -> offers only, fresh budget, ATOMIC
+  //   POST /ingest?store=<id>&mode=all     -> both in one invocation (manual
+  //                                           backfill for small stores only;
+  //                                           the cron never uses this)
   if (path === '/ingest' && request.method === 'POST') {
     if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
       return json({ error: 'Forbidden' }, 403);
     }
     const store = (url.searchParams.get('store') || '').trim() || undefined;
     if (store && !ctx.registry[store]) return json({ error: `Unknown store '${store}'.` }, 404);
+    const mode = (url.searchParams.get('mode') || '').trim();
+
+    // Offers-only invocation: its own fresh 50-subrequest budget, so the atomic
+    // stage->promote can complete. Fail LOUD (non-2xx) if any target errored —
+    // the dispatcher/coordinator surfaces it; nothing is swallowed.
+    if (mode === 'offers') {
+      if (!ctx.offerStore || !ctx.offersSource) return json({ error: 'Offers ingest unavailable.' }, 503);
+      const offers = await ingestOffers(ctx, { store });
+      const failed = !!(offers.totals && offers.totals.failed > 0);
+      return json({ offers }, failed ? 500 : 200);
+    }
+
     const report = await ingestAll(ctx, { store });
-    if (ctx.offerStore && ctx.offersSource && url.searchParams.get('offers') !== '0') {
+    if (mode === 'all' && ctx.offerStore && ctx.offersSource) {
       report.offers = await ingestOffers(ctx, { store });
+      if (report.offers.totals && report.offers.totals.failed > 0) return json(report, 500);
     }
     return json(report);
   }
