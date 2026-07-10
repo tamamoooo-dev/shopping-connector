@@ -109,6 +109,31 @@ async function main() {
   const missingPricedNow = flyerRaws.filter((r) => !survSet.has(String(r.offerId)) && Number(r.price) > 0).length;
   const pt = prefixTest(survivorIds, d4dIdsSorted);
 
+  // --- POSITIONAL test: are ALL stored offers (company-wide) the FIRST N rows
+  // in D4D's API order? upsertMany writes rows in raws order, 40 per D1 batch.
+  // If the write was truncated after K batches, survivors == the first K*40
+  // raws. Collect ALL production-stored offer_ids across flyers and find each
+  // one's index in the current raws (API) order.
+  const rawIndexById = new Map(raws.map((r, i) => [String(r.offerId), i]));
+  const allStoredIds = new Set([
+    ...survivorIds,
+    ...prodOffers.map((o) => String(o.offerId)),
+  ]);
+  const storedIndices = [...allStoredIds]
+    .map((id) => rawIndexById.get(id))
+    .filter((i) => i != null)
+    .sort((a, b) => a - b);
+  const storedTotal = allStoredIds.size;
+  const maxIdx = storedIndices[storedIndices.length - 1];
+  const contiguousFromZero = storedIndices.every((v, i) => v === i);
+  // how many of the first `storedTotal` raws are stored (contiguity strength)
+  const firstNstored = raws.slice(0, storedTotal).filter((r) => allStoredIds.has(String(r.offerId))).length;
+  console.log(`\n=== POSITIONAL test (all ${storedTotal} company offers stored vs D4D API order) ===`);
+  console.log(`  stored offers' index range in current raws: ${storedIndices[0]} .. ${maxIdx}  (of ${raws.length})`);
+  console.log(`  stored offers that fall within the FIRST ${storedTotal} raws: ${firstNstored} of ${storedTotal}`);
+  console.log(`  perfectly contiguous prefix [0..${storedTotal - 1}]? ${contiguousFromZero ? 'YES' : 'NO'}`);
+  console.log(`  batch-boundary: ${storedTotal} stored == ${storedTotal / 40} x 40-row upsert batches (${Number.isInteger(storedTotal / 40) ? 'EXACT batch boundary' : 'not a batch boundary'}).`);
+
   console.log(`\n=== CROSS-REFERENCE flyer ${FLYER} ===`);
   console.log(`  D4D ids now: ${d4dIds.length} · production stored: ${survivors.length} · missing from prod: ${missing.length}`);
   console.log(`  are survivors a CONTIGUOUS low-id prefix of D4D's sorted ids?  ${pt.isPrefix ? 'YES' : 'NO'} (leading run of survivors = ${pt.prefixLen} of ${survivors.length})`);
