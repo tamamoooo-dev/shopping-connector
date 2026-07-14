@@ -21,6 +21,8 @@
 // provider file + its own `resolve` — no collector code changes (§10.D.1).
 
 import { createPdfIndexCollector } from '../collectors/pdfIndex.js';
+import { createAggregatorCollector } from '../collectors/aggregator.js';
+import { d4dAdapter } from '../collectors/adapters/d4d.js';
 
 const INDEX_URL = 'https://othaimmarkets.com/offers';
 
@@ -66,24 +68,38 @@ function resolveOthaim({ indexHtml, region, regionConfig }) {
   };
 }
 
-const collector = createPdfIndexCollector({
+const pdf = createPdfIndexCollector({
   name: 'pdfIndex',
   indexUrl: INDEX_URL,
   resolve: resolveOthaim,
 });
 
+// Same D4D adapter the other stores use — Othaim's Riyadh flyer is on D4D as a
+// browsable image leaflet WITH per-product tap geometry (store 'othaim-markets-72',
+// company 72 — the same source the structured OFFERS already read). Preferring it
+// gives Othaim the smooth viewer everyone else has (swipe/zoom pages, tap a
+// product -> sheet -> add to cart) instead of a flat PDF with no hotspots.
+const d4d = createAggregatorCollector({ name: 'd4d', adapter: d4dAdapter });
+
 export const othaimProvider = {
   id: 'othaim',
   label: 'Othaim Markets',
   // Canonical region key -> Othaim addressing (§5.3). Central == Riyadh here.
-  // The BROCHURE stays the official PDF (best source); structured OFFERS come
-  // from D4D's per-product records for Othaim's Riyadh flyer (company 72) —
-  // the `offers` config is read only by the offers ingest, never by collectors.
   regions: {
     central: {
+      // D4D image leaflet (aggregator collector reads `store` + `city`): the
+      // smooth, hotspot-rich flyer. Same slug the OFFERS ingest uses.
+      store: 'othaim-markets-72',
+      city: 'riyadh',
+      // Official-PDF fallback resolver key (used only if D4D yields nothing).
       slug: 'central-region-offers-corner',
+      // Structured OFFERS from D4D's per-product records (read only by the
+      // offers ingest, never by collectors).
       offers: { company: 72, city: 'riyadh', storePageSlug: 'othaim-markets-72' },
     },
   },
-  strategies: [collector], // best-first; M1 = official PDF only
+  // Best-first: D4D current flyer (page images + hotspots) -> else the official
+  // weekly PDF (viewable, but no tap targets). This is the only difference from
+  // the previous PDF-only config; the offers pipeline is unchanged.
+  strategies: [d4d, pdf],
 };
