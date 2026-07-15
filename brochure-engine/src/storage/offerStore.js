@@ -19,8 +19,9 @@ export function createD1OfferStore(db) {
     INSERT INTO offers
       (id, store, region, source, offer_id, flyer_ref, page_ref, edition,
        name, name_ar, price, old_price, currency, category_id, category,
-       image_url, source_url, valid_from, valid_to, detected_at, search_text)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+       image_url, source_url, valid_from, valid_to, detected_at, search_text,
+       identity, brand_slug)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
       flyer_ref=excluded.flyer_ref, page_ref=excluded.page_ref,
       edition=COALESCE(excluded.edition, offers.edition),
@@ -29,14 +30,16 @@ export function createD1OfferStore(db) {
       currency=excluded.currency, category_id=excluded.category_id,
       category=excluded.category, image_url=excluded.image_url,
       source_url=excluded.source_url, valid_from=excluded.valid_from,
-      valid_to=excluded.valid_to, search_text=excluded.search_text`;
+      valid_to=excluded.valid_to, search_text=excluded.search_text,
+      identity=excluded.identity, brand_slug=excluded.brand_slug`;
 
   const bindRow = (r) =>
     db.prepare(upsertStmt).bind(
       r.id, r.store, r.region, r.source, r.offer_id, r.flyer_ref, r.page_ref,
       r.edition, r.name, r.name_ar, r.price, r.old_price, r.currency,
       r.category_id, r.category, r.image_url, r.source_url, r.valid_from,
-      r.valid_to, r.detected_at, r.search_text,
+      r.valid_to, r.detected_at, r.search_text, r.identity ?? null,
+      r.brand_slug ?? null,
     );
 
   return {
@@ -127,11 +130,29 @@ export function createD1OfferStore(db) {
     async listAll({ store = '' } = {}) {
       const sql = `SELECT id, store, region, source, offer_id, flyer_ref, page_ref,
           edition, name, name_ar, price, old_price, currency, category_id,
-          category, image_url, source_url, valid_from, valid_to, detected_at
+          category, image_url, source_url, valid_from, valid_to, detected_at,
+          identity, brand_slug
         FROM offers ${store ? 'WHERE store = ?' : ''} LIMIT 20000`;
       const stmt = store ? db.prepare(sql).bind(store) : db.prepare(sql);
       const { results } = await stmt.all();
       return results || [];
+    },
+
+    // Backfill: stamp the ingest-derived columns (identity, brand) onto rows
+    // ingested before they existed (engine.js /prices/backfill). Idempotent.
+    async updateDerived(rows) {
+      for (let i = 0; i < rows.length; i += 80) {
+        await db.batch(
+          rows
+            .slice(i, i + 80)
+            .map((r) =>
+              db
+                .prepare('UPDATE offers SET identity = ?, brand_slug = ? WHERE id = ?')
+                .bind(r.identity ?? null, r.brand_slug ?? null, r.id),
+            ),
+        );
+      }
+      return { updated: rows.length };
     },
 
     async counts(currentOn) {

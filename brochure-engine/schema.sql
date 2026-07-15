@@ -115,7 +115,11 @@ CREATE TABLE IF NOT EXISTS offers (
   valid_from  TEXT,
   valid_to    TEXT,
   detected_at TEXT NOT NULL,
-  search_text TEXT                -- normalized OCR text + category (matching)
+  search_text TEXT,               -- normalized OCR text + category (matching)
+  identity    TEXT,               -- derived cross-week identity (nullable) ->
+                                  -- price_identities.id; Browse's history join
+                                  -- (see migrate-2026-07-browse.sql)
+  brand_slug  TEXT                -- canonical brand (browse/brands.js), nullable
 );
 
 -- Idempotent ingest: one row per source product id per store+region.
@@ -124,6 +128,11 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_offer ON offers(store, region, source, offe
 -- "Current offers for a store" and global currency filters.
 CREATE INDEX IF NOT EXISTS ix_offers_store_valid ON offers(store, region, valid_to);
 CREATE INDEX IF NOT EXISTS ix_offers_valid ON offers(valid_to);
+
+-- Browse (BROWSE-DESIGN.md): the history join + canonical-aisle prefilters.
+CREATE INDEX IF NOT EXISTS ix_offers_identity ON offers(identity);
+CREATE INDEX IF NOT EXISTS ix_offers_category ON offers(category, valid_to);
+CREATE INDEX IF NOT EXISTS ix_offers_brand ON offers(brand_slug, valid_to);
 
 -- ---------------------------------------------------------------------------
 -- Price Monitoring (the Keepa-inspired Personal Alerts feature — monitor.js).

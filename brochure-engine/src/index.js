@@ -26,6 +26,7 @@ import { createD1MetadataStore } from './storage/metadataStore.js';
 import { createR2ObjectStore, createKvObjectStore } from './storage/objectStore.js';
 import { createD1HistoryStore } from './storage/historyStore.js';
 import { createD1OfferStore } from './storage/offerStore.js';
+import { createD1BrowseStore } from './storage/browseStore.js';
 import { createD1WatchStore } from './storage/watchStore.js';
 import { createD1OpsStore } from './storage/opsStore.js';
 import { createNtfyNotifier, CHECK_BATCH } from './monitor.js';
@@ -88,6 +89,9 @@ function buildContext(env) {
   // Structured offers (the price-comparison substrate) share the same D1.
   const offerStore = createD1OfferStore(env.DB);
   const offersSource = createD4dOffersSource();
+  // Browse (product discovery, BROWSE-DESIGN.md): a read-only VIEW over the
+  // offers + price-history tables — no tables of its own.
+  const browseStore = createD1BrowseStore(env.DB);
   // Price Monitoring (watches + alerts) shares the same D1 too. Push delivery
   // is optional: set the NTFY_TOPIC secret to a private ntfy.sh topic and the
   // monitor pushes each alert to the user's phone; absent, alerts are in-app.
@@ -108,6 +112,7 @@ function buildContext(env) {
     historyStore,
     offerStore,
     offersSource,
+    browseStore,
     watchStore,
     notifier,
     searchClient,

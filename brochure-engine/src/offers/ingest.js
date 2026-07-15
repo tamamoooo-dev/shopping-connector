@@ -9,7 +9,8 @@
 // Free-plan 50-subrequest budget.
 
 import { buildOffer, offerToRow } from './contract.js';
-import { recordOfferHistory } from '../priceHistory.js';
+import { deriveIdentity, recordOfferHistory } from '../priceHistory.js';
+import { detectBrand } from '../browse/brands.js';
 
 // The provider's offers addressing:
 //   regionConfig.offers = { company: <id> }   (explicit — e.g. a PDF-collector
@@ -88,6 +89,15 @@ export async function ingestOffersForTarget(ctx, provider, region) {
         offer.edition = edition;
         line.linked += 1;
       }
+      // Stamp the derived cross-week identity (the SAME derivation the price
+      // history harvest uses) so Browse can join an offer to its history with
+      // one indexed lookup. Null when the OCR name is too weak — by design.
+      const ident = deriveIdentity(offer);
+      offer.identity = ident ? ident.id : null;
+      // Stamp the canonical brand (Browse's brand entry point). The weekly
+      // upsert refreshes it, so a brand-knowledge addition reaches every
+      // CURRENT offer on the next ingest with no backfill.
+      offer.brandSlug = detectBrand(offer);
       offers.push(offer);
       rows.push(offerToRow(offer));
     }

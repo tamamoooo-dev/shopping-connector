@@ -160,6 +160,14 @@ export function buildOffer(raw, { store, region, source, detectedAt }) {
     validTo: isoDate(raw.validTo),
     detectedAt: detectedAt || new Date().toISOString(),
     searchText,
+    // The derived cross-week product identity (priceHistory.deriveIdentity),
+    // stamped by the offers ingest — it joins an offer to its price history
+    // (Browse badges: lowest ever, weeks seen). Null when the OCR name is too
+    // weak to trust; nothing downstream requires it.
+    identity: null,
+    // The canonical brand (browse/brands.js detectBrand), stamped by the
+    // ingest. Null when no known brand appears — by design, never a guess.
+    brandSlug: null,
   };
 }
 
@@ -193,6 +201,8 @@ export function offerToRow(o) {
     valid_to: o.validTo,
     detected_at: o.detectedAt,
     search_text: o.searchText,
+    identity: o.identity ?? null,
+    brand_slug: o.brandSlug ?? null,
   };
 }
 
@@ -218,6 +228,8 @@ export function rowToOffer(r) {
     validFrom: r.valid_from,
     validTo: r.valid_to,
     detectedAt: r.detected_at,
+    identity: r.identity ?? null,
+    brandSlug: r.brand_slug ?? null,
     // searchText is intentionally NOT exposed on the read API (raw OCR noise);
     // it exists to be matched against, not displayed.
   };

@@ -14,13 +14,15 @@
 //     strategies: [ { name, collect(ctx) -> Promise<Candidate[]> } ] }
 
 import { rowToDoc } from './contract.js';
-import { getQueryPricesDoc, getLowestDoc, recordOfferHistory } from './priceHistory.js';
+import { getQueryPricesDoc, getLowestDoc, recordOfferHistory, deriveIdentity } from './priceHistory.js';
 import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offers/contract.js';
 import { queryFamily, offerFamily, productType, freshProduceIntent, isProcessedProduce, producePresence, matchStage } from './matching.js';
 import { pruneStoredBytes } from './retention.js';
 import { buildWatch, checkWatches, MAX_WATCHES } from './monitor.js';
 import { getHotspotsDoc } from './hotspots.js';
+import { getBrowseSummaryDoc, getBrowseOffersDoc } from './browse/api.js';
+import { detectBrand } from './browse/brands.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
 // extracts prices from flyer images; the flyer prevails on any mismatch).
@@ -195,6 +197,49 @@ export async function handleRequest(request, ctx) {
     });
   }
 
+  // --- Browse (the product-discovery pillar; BROWSE-DESIGN.md) ---------------
+  // Read-only views over the offers/price-history substrate, speaking ONLY
+  // canonical taxonomy ids (browse/taxonomy.js). /browse is the market floor
+  // (departments + rails, one payload); /browse/offers the universal listing.
+  // The summary is edge-cached: the substrate changes 3×/week, so an hour of
+  // staleness is invisible — and a cold build costs a few D1 queries anyway.
+  if (path === '/browse' && request.method === 'GET') {
+    if (!ctx.browseStore) return json({ error: 'Browse unavailable.' }, 503);
+    const cache = globalThis.caches ? globalThis.caches.default : null;
+    if (cache) {
+      const hit = await cache.match(request.url);
+      if (hit) return hit;
+    }
+    const doc = await getBrowseSummaryDoc(ctx, todayISO());
+    doc.note = OFFERS_NOTE;
+    const resp = json(doc, 200, { 'Cache-Control': 'public, max-age=3600' });
+    if (cache) await cache.put(request.url, resp.clone());
+    return resp;
+  }
+
+  if (path === '/browse/offers' && request.method === 'GET') {
+    if (!ctx.browseStore) return json({ error: 'Browse unavailable.' }, 503);
+    const store = (url.searchParams.get('store') || '').trim();
+    if (store && !ctx.registry[store]) return json({ error: `Unknown store '${store}'.` }, 404);
+    const doc = await getBrowseOffersDoc(
+      ctx,
+      {
+        dept: (url.searchParams.get('dept') || '').trim() || null,
+        aisle: (url.searchParams.get('aisle') || '').trim() || null,
+        rail: (url.searchParams.get('rail') || '').trim() || null,
+        brand: (url.searchParams.get('brand') || '').trim() || null,
+        store: store || null,
+        sort: (url.searchParams.get('sort') || '').trim() || undefined,
+        limit: url.searchParams.get('limit'),
+        offset: url.searchParams.get('offset'),
+      },
+      todayISO(),
+    );
+    if (doc.error) return json(doc, 400);
+    doc.note = OFFERS_NOTE;
+    return json(doc, 200, { 'Cache-Control': 'public, max-age=600' });
+  }
+
   // Structured flyer offers — the price-comparison substrate (§8). Current by
   // default (validity contains today); `q` is a normalized token-AND search
   // over the offer's OCR text, ranked by the Search Roadmap stage first.
@@ -361,7 +406,22 @@ export async function handleRequest(request, ctx) {
       const h = await recordOfferHistory(ctx.historyStore, offers, {
         observedAt: rows[0]?.detected_at,
       });
-      report.targets.push({ store: s, ...h });
+      // Browse: stamp the ingest-derived columns (identity + brand) onto rows
+      // that predate them (ingest writes both for new rows; this heals the
+      // back catalog once). Idempotent: already-derived rows are skipped.
+      let stamped = 0;
+      if (ctx.offerStore.updateDerived) {
+        const updates = [];
+        for (let i = 0; i < rows.length; i++) {
+          const ident = rows[i].identity || deriveIdentity(offers[i])?.id || null;
+          const brand = rows[i].brand_slug || detectBrand(offers[i]);
+          if (ident === rows[i].identity && brand === rows[i].brand_slug) continue;
+          updates.push({ id: rows[i].id, identity: ident, brand_slug: brand });
+        }
+        if (updates.length) await ctx.offerStore.updateDerived(updates);
+        stamped = updates.length;
+      }
+      report.targets.push({ store: s, ...h, offersStamped: stamped });
     }
     report.finishedAt = new Date().toISOString();
     return json(report);
