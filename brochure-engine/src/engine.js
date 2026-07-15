@@ -42,6 +42,20 @@ function json(body, status = 200, extra = {}) {
   });
 }
 
+// Drop the edge-cached /browse summary after a write that reshapes it (offers
+// ingest, backfill) so the market floor reflects fresh data immediately
+// instead of waiting out the 1h TTL. Cache API deletes are per-colo — which
+// covers the single-user reality; other colos simply age out. Best-effort:
+// no caches binding (local dev harness) is fine.
+async function purgeBrowseCache(url) {
+  try {
+    const cache = globalThis.caches ? globalThis.caches.default : null;
+    if (cache) await cache.delete(new URL('/browse', url.origin).toString());
+  } catch {
+    /* best-effort */
+  }
+}
+
 // --- write path: run a provider's collectors best-first (mirrors runProvider) -
 // The first collector that yields candidates wins; failures are collected and
 // non-fatal, so a later fallback collector (e.g. aggregator, a future milestone)
@@ -424,6 +438,7 @@ export async function handleRequest(request, ctx) {
       report.targets.push({ store: s, ...h, offersStamped: stamped });
     }
     report.finishedAt = new Date().toISOString();
+    await purgeBrowseCache(url); // identities/brands just changed shape
     return json(report);
   }
 
@@ -524,6 +539,7 @@ export async function handleRequest(request, ctx) {
         : await ingestAll(ctx, { store });
     if (mode !== 'brochures' && ctx.offerStore && ctx.offersSource && url.searchParams.get('offers') !== '0') {
       report.offers = await ingestOffers(ctx, { store });
+      await purgeBrowseCache(url); // fresh offers reshape the market floor
     }
     // Audit (Ops Console timeline): every ingest run — cron child or manual —
     // records one row. Best-effort: a failed write never fails the ingest.
