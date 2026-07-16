@@ -655,6 +655,16 @@ async function selftestMatching() {
   if (productFamily('صابون فراولة') !== 'care') fail('strawberry soap did not classify as care');
   if (productFamily('مشابك شعر موز') !== 'care') fail('banana hair clips did not classify as care');
   if (productFamily('سلسلة مفاتيح لطيفة بتصميم موز') !== 'toy') fail('banana keychain did not classify as toy');
+  // housewares: the vessel/appliance is the product, the drink word its purpose
+  if (productFamily('جهاز طهي بالبخار مع خزان ماء 1.5 لتر') !== 'houseware') fail('food steamer did not classify as houseware');
+  if (productFamily('تيفال غلاية ماء 1.7 لتر') !== 'houseware') fail('kettle did not classify as houseware');
+  if (productFamily('زجاجة مياه من اروى') !== 'water') fail('bottled water sold as زجاجة lost the water family');
+  if (productFamily('Kettle Chips Sea Salt 150g') !== 'chips') fail('Kettle Chips wrongly classified as houseware');
+  // multi-word known-different-family cap (the "ماء أروى 1.5 steamer" case)
+  if (matchStage({ name: 'جهاز طهي الطعام بالبخار متعدد الوظائف من ارويك مع خزان ماء 1.5 لتر', brand: '' }, 'ماء أروى 1.5') !== 1)
+    fail('steamer not capped to stage 1 under multi-word water query');
+  if (matchStage({ name: 'مياه شرب معبأة من أروى، 6 قطع× 1.5 لتر', brand: '' }, 'ماء أروى 1.5') < 4)
+    fail('genuine Arwa water lost its full-coverage stage to the family cap');
   if (productFamily('Cherry Tomatoes 250g') !== 'tomato') fail('cherry tomatoes did not stay tomato');
   if (queryFamily('طماطم') !== 'tomato') fail('طماطم query did not get the tomato family');
   if (nameRelevance('Fresh Tomatoes 1kg', 'طماطم') <= 0) fail('طماطم missed EN tomatoes (produce synonym bridge)');

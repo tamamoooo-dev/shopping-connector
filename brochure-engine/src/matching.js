@@ -219,6 +219,17 @@ const DERIVED_FAMILIES = {
   // ("مشابك شعر موز" banana hair clips, found live 2026-07-16) must never
   // rank in a produce band.
   care: ['shampoo', 'soap', 'lotion', 'conditioner', 'detergent', 'dishwashing', 'شامبو', 'صابون', 'لوشن', 'بلسم', 'معطر', 'منظف', 'مطهر', 'غسول', 'ملمع', 'مشبك', 'مشابك'],
+  // housewares/appliances: vessels and machines are the PRODUCT; the food or
+  // drink word next to them names their PURPOSE ("ابريق ماء" is a jug,
+  // "غلاية ماء" a kettle, "جهاز طهي بالبخار مع خزان ماء" a food steamer —
+  // found live 2026-07-16 ranking in the water family band for "ماء أروى").
+  // Derived tier so the head noun beats the base ماء/شاي/قهوة keyword.
+  // Curated to words that never name a consumable. Deliberately EXCLUDED:
+  // زجاجه/كوب/bottle (genuine bottled water is sold as "زجاجة مياه من اروى"),
+  // kettle ("Kettle Chips" the crisps brand), فلتر/filter ("قهوة فلتر"),
+  // mixer (cocktail mixers), microwave (microwave popcorn), ترمس (lupin
+  // beans) — for these the derived tier would wrongly EXCLUDE consumables.
+  houseware: ['steamer', 'blender', 'thermos', 'flask', 'jug', 'pitcher', 'teapot', 'غلايه', 'قلايه', 'ابريق', 'اباريق', 'قربه', 'جهاز', 'اجهزه', 'ماكينه', 'مكواه', 'سخان', 'قدر', 'مقلاه', 'طنجره'],
 };
 // Fresh fruit & vegetables — the LOWEST family tier (see the tier note above).
 // Curated to common Saudi grocery produce with unambiguous words; ambiguous
@@ -772,6 +783,17 @@ function rawMatchStage(item, qTokens, query) {
   }
   const n = qTokens.length;
   if (matched < n) return matched >= n - 1 ? 1 : 0;
+  // KNOWN-DIFFERENT-FAMILY cap — the multi-word twin of the single-word rule
+  // above. Full token coverage can be accidental: "ماء أروى 1.5" fully
+  // matches a food steamer ("… ارويك … خزان ماء … 1.5 لتر" — brand prefix +
+  // purpose word + capacity digits), yet the product is a KNOWN different
+  // family (houseware vs water) — it may never outrank genuine matches.
+  // Unknown family never demotes (failure mode stays "not demoted").
+  const qFam = queryFamily(query);
+  if (qFam) {
+    const fam = productFamily(item.name || '');
+    if (fam && fam !== qFam) return 1;
+  }
   if (phraseInName(qTokens, nameWords)) return 5;
   if (whole === n) return 4;
   if (strong === n) return 3;
