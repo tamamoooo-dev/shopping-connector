@@ -593,6 +593,29 @@ async function selftestMatching() {
   if (parseSizeM('حليب 2 لیتر').total !== 2000) fail('Farsi-yeh لیتر (OCR) did not parse');
   if (!sizeComparableM(two, parseSizeM('Nadec Milk 1.9 LTR'))) fail('1.9 L not comparable to 2 L');
   if (sizeComparableM(two, parseSizeM('Milk 200 ml'))) fail('200 ml wrongly comparable to 2 L');
+  // Packaging Intelligence (mirrors frontend match.test.mjs): bonus packs
+  // ("10+2" = 12 units) and packaging count words (rolls/علب/قرص/…) must give
+  // BOTH notations of the same package ONE interpretation, engine-side too —
+  // the price-history identity sizeKey and /prices variant buckets depend on it.
+  {
+    const a = parseSizeM('Uno Kitchen Towels 10+2 Free');
+    const b = parseSizeM('Uno Kitchen Towels 12 Rolls');
+    if (a.unit !== 'pcs' || a.total !== 12) fail(`bonus 10+2 did not parse to 12 pcs (got ${a.unit}:${a.total})`);
+    if (b.unit !== 'pcs' || b.total !== 12) fail(`12 Rolls did not parse to 12 pcs (got ${b.unit}:${b.total})`);
+    if (!sizeComparableM(a, b)) fail('10+2 and 12 Rolls not comparable');
+  }
+  if (parseSizeM('فاين مناديل سوبر 8+2 مجاناً 10 قطع', '10 حبة').total !== 10) fail('bonus 8+2 did not total 10');
+  if (parseSizeM('أونو مناديل 12×28 عبوة 10+2 مجانًا 12 قطعة', '12 حبة').total !== 12) fail('bonus did not beat OCR count debris');
+  { const s = parseSizeM('عصير برتقال 9+3', '1 لتر'); if (s.unit !== 'ml' || s.pack !== 12 || s.total !== 12000) fail('bonus 9+3 × 1L did not parse as 12 L'); }
+  { const s = parseSizeM('عصير 9+3 × 200 مل'); if (s.pack !== 12 || s.total !== 2400) fail('adjacent bonus×size 9+3 × 200 مل misparsed'); }
+  { const s = parseSizeM('Omega 3+6+9 Fish Oil'); if (s.total === 9 || s.total === 15) fail('Omega 3+6+9 wrongly read as a pack'); }
+  if (parseSizeM('مناديل فاين 40 ورقة (8 رول +2 مجانا)').total !== 10) fail('8 رول +2 did not total 10');
+  if (parseSizeM('أونو مناديل مطبخ ١٢ رول').total !== 12) fail('١٢ رول did not parse as a count');
+  if (parseSizeM('شاي ليبتون 100 ظرف').total !== 100) fail('100 ظرف did not parse as a count');
+  if (parseSizeM('فيري بلاتينم 50 قرص').total !== 50) fail('50 قرص did not parse as a count');
+  { const s = parseSizeM('Pepsi 6 cans x 330ml'); if (s.unit !== 'ml' || s.total !== 1980) fail('6 cans x 330ml did not multiply'); }
+  if (parseSizeM('شاي 10 أكياس').total !== 10) fail('hamza count word أكياس did not fold');
+  if (parseSizeM('مناديل ورقية 500 منديل').unit !== null) fail('inner sheet count wrongly parsed as a package count');
   // Offer relevance tiers: name matches rank above text-only matches.
   const t = queryTokens('milk');
   const nameHit = offerRelevance({ name: 'nadec milk 2l', nameAr: null }, t, 'nadec milk 2l fresh');

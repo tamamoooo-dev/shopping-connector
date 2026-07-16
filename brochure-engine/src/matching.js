@@ -754,32 +754,71 @@ const UNIT_TO_BASE = [
   { re: new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(g|gm|gr|grm|gram|grams|جم|جرام|غرام|غ)${B}`, 'u'), base: 'g', factor: 1 },
 ];
 const UNITS = 'l|lt|ltr|liter|litre|ml|kg|g|gm|gr|gram|لتر|مل|كجم|جم|جرام';
-const COUNT_WORDS = 'pcs|pc|pieces|piece|قطعه|قطعة|قطع|حبه|حبة|حبات|عبوات|عبوه|عبوة|اكياس|كيس';
+// Packaging count words: a number followed by one of these IS the unit count of
+// the package ("12 rolls", "30 pcs", "50 قرص"). Curated to container/count
+// nouns that name the WHOLE sellable unit; per-sheet/inner counts (ورقة،
+// منديل, sheets, wipes) stay out — two stores count those differently, and a
+// wrong count is worse than no parse. Longest-first within a shared prefix so
+// the regex alternation never truncates a word (علبه before علب).
+const COUNT_WORDS = 'pcs|pc|pieces|piece|rolls|roll|bags|bag|cans|bottles|tablets|tabs|capsules|sachets|sachet|diapers'
+  + '|قطعه|قطعة|قطع|حبه|حبة|حبات|عبوات|عبوه|عبوة|اكياس|كيس'
+  + '|رولات|رول|لفات|لفه|علبه|علب|قوارير|قاروره|اقراص|قرص|كبسولات|كبسوله|اظرف|ظرف|حفاضات|حفاضه|حفاض';
 const PACK_RE = [
   // "6 x 200 ml" and "24 قطعة × 125مل" (an optional count word between the
   // pack number and the ×) — pack first, size second.
   new RegExp(`(\\d+)\\s*(?:${COUNT_WORDS})?\\s*[x×*]\\s*(\\d+(?:[.,]\\d+)?)\\s*(${UNITS})${B}`, 'u'),
   new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(${UNITS})${B}\\s*[x×*]\\s*(\\d+)`, 'u'), // 200 ml x 6
 ];
-const COUNT_RE = new RegExp(`(\\d+)\\s*(pcs|pc|pieces|piece|ct|count|s|x|حبه|حبة|حبات|قطعه|قطعة|عبوات|عبوه|عبوة|اكياس|كيس)${B}`, 'u');
+// Bonus pack WITH a per-item size ("9+3 × 200 مل" = 12 × 200 ml). Must be
+// tried before PACK_RE, which would otherwise read only the free part
+// ("3 × 200 مل"). Same plausibility rule as bonusPack below.
+const PACK_BONUS_RE = new RegExp(
+  `(\\d+)\\s*(?:(?:${COUNT_WORDS})\\s*)?\\+\\s*(\\d+)\\s*(?:${COUNT_WORDS})?\\s*[x×*]\\s*(\\d+(?:[.,]\\d+)?)\\s*(${UNITS})${B}`,
+  'u',
+);
+const COUNT_RE = new RegExp(`(\\d+)\\s*(${COUNT_WORDS}|ct|count|s|x)${B}`, 'u');
 
 const num = (x) => parseFloat(String(x).replace(',', '.'));
 
 // Size-specific normalization: unlike normalizeText it PRESERVES the decimal
 // point inside numbers ("2.85L" must not become 85 L) and pack separators.
-const AR_INDIC_MAP = { '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4', '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9' };
+const AR_INDIC_MAP = { '٠': '0', '١': '1', '٢': '2', '٣': '3', '٤': '4', '٥': '5', '٦': '6', '٧': '7', '٨': '8', '٩': '9', '۰': '0', '۱': '1', '۲': '2', '۳': '3', '۴': '4', '۵': '5', '۶': '6', '۷': '7', '۸': '8', '۹': '9' };
 function normSize(s) {
   return String(s || '')
     .toLowerCase()
-    .replace(/[٠-٩]/g, (d) => AR_INDIC_MAP[d] || d)
+    .replace(/[٠-٩۰-۹]/g, (d) => AR_INDIC_MAP[d] || d)
     .replace(AR_DIACRITICS, '')
     .replace(/٫/g, '.')
     // Farsi yeh/kaf from flyer OCR — unit/count words (كيلو، كيس، ليتر…) must match
     .replace(/ی/g, 'ي')
     .replace(/ک/g, 'ك')
-    .replace(/[^\p{L}\p{N}\s.,x×*]/gu, ' ')
+    // hamza/taa-marbuta fold so count words match all spellings ("أكياس" ->
+    // "اكياس", "قطعة" -> "قطعه") — no unit token contains either letter
+    .replace(/[أإآٱ]/g, 'ا')
+    .replace(/ة/g, 'ه')
+    // Keep '+' too: grocery packs use bonus notation ("10+2", "8+2" = buy 10
+    // get 2 free), whose TRUE unit count is the sum. parseSize reads it below.
+    .replace(/[^\p{L}\p{N}\s.,x×*+]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
+}
+
+// Bonus-pack notation "a+b" (buy a, get b free) — the TRUE quantity is a+b, and
+// per-unit pricing must divide by that total, never by `a` alone or by a stray
+// OCR count elsewhere in the name ("…10+2 مجانًا 12 قطعة" is 12, not 28). Only
+// accept a plausible bonus (the free part never exceeds the paid part, small
+// integers), so product-name digits like "Omega 3+6+9" are left untouched.
+// The paid and free counts may sit adjacent ("10+2") or be separated by one
+// packaging word ("8 رول +2 مجانا" = 8 rolls + 2 free). One interposed word
+// only, so distant numbers ("40 ورقة (8 رول +2…") can't pair by accident.
+const BONUS_RE = /(\d+)\s*(?:[\p{L}]+\s*)?\+\s*(\d+)/u;
+function bonusPack(hay) {
+  const m = BONUS_RE.exec(hay);
+  if (!m) return null;
+  const a = parseInt(m[1], 10);
+  const b = parseInt(m[2], 10);
+  if (!(a >= 1 && b >= 1 && b <= a && a + b <= 99)) return null;
+  return a + b;
 }
 
 function unitFor(tok) {
@@ -793,6 +832,21 @@ function unitFor(tok) {
 
 export function parseSize(name, sizeField) {
   const hay = normSize(`${name || ''} ${sizeField || ''}`);
+  const bonus = bonusPack(hay); // total units of a "buy a get b free" pack, or null
+
+  // Bonus pack with an explicit per-item size ("9+3 × 200 مل" = 12 × 200 ml)
+  // — before the plain pack forms, which would only see "3 × 200 مل".
+  const bm = PACK_BONUS_RE.exec(hay);
+  if (bm) {
+    const base = unitFor(bm[4]);
+    const a = parseInt(bm[1], 10);
+    const b = parseInt(bm[2], 10);
+    if (base && a >= 1 && b >= 1 && b <= a && a + b <= 99) {
+      const each = num(bm[3]) * base.factor;
+      return { unit: base.unit, each, pack: a + b, total: each * (a + b) };
+    }
+  }
+
   const forms = [
     { re: PACK_RE[0], pack: 1, size: 2, unit: 3 },
     { re: PACK_RE[1], pack: 3, size: 1, unit: 2 },
@@ -814,13 +868,19 @@ export function parseSize(name, sizeField) {
       const each = num(m[1]) * u.factor;
       // A trailing "x6" pack multiplier — but never the size's own "× 125ml"
       // digits (a unit right after the number means the × introduced the SIZE).
+      // A bonus pack ("9+3" beside "1 لتر" = 12 × 1 L) wins over both.
       const pm =
         new RegExp(`[x×*]\\s*(\\d+)(?!\\s*(?:${UNITS}))${B}`, 'u').exec(hay) ||
         /\b(\d+)\s*(?:pcs|pc|pack|s)\b/.exec(hay);
-      const pack = pm ? Math.max(1, parseInt(pm[1], 10)) : 1;
+      const pack = bonus || (pm ? Math.max(1, parseInt(pm[1], 10)) : 1);
       return { unit: u.base, each, pack, total: each * pack };
     }
   }
+
+  // A unitless bonus pack ("3+1 مجانًا 4 قطع") is a piece count of a+b — the
+  // true total, ahead of any stray count word ("28 عبوة") the OCR left behind.
+  if (bonus) return { unit: 'pcs', each: 1, pack: bonus, total: bonus };
+
   const cm = COUNT_RE.exec(hay);
   if (cm) {
     const n = parseInt(cm[1], 10);
