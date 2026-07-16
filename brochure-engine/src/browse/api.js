@@ -11,11 +11,18 @@
 // caller attaches the machine-extraction disclaimer.
 
 import { DEPARTMENTS, AISLES, AISLE_BY_ID, OTHER_AISLE } from './taxonomy.js';
-import { canonicalAisle, providerCategoriesFor, mappedCategories, PROVIDER_AISLES } from './mapping.js';
-import { offerBadges, exceptionalDeal, compareDeals } from './deals.js';
+import {
+  canonicalAisle, refineAisle, FRESH_TO_FROZEN, mappedCategories, PROVIDER_AISLES,
+} from './mapping.js';
+import { offerBadges } from './deals.js';
 import { BRAND_BY_SLUG } from './brands.js';
 
-const RAIL_IDS = ['exceptional', 'drops', 'lowest-ever', 'ending-soon', 'new-this-week'];
+// Browse V1.1 (2026-07-16): the homepage keeps only the rails that earn their
+// place with real data — Biggest Drops and Lowest Ever. Exceptional Deals /
+// Ending Soon / New This Week were removed as a product decision (trust over
+// feature count); deals.js keeps the scoring pure & tested for when the
+// substrate is deep enough to bring Exceptional Deals back.
+const RAIL_IDS = ['drops', 'lowest-ever'];
 const RAIL_SIZE = 12;
 
 // --- cards ---------------------------------------------------------------------
@@ -23,7 +30,7 @@ const RAIL_SIZE = 12;
 // and derived badges. Mirrors rowToOffer's field naming so the frontend treats
 // Browse cards and /offers cards identically.
 function cardDoc(row, today) {
-  const aisleId = canonicalAisle(row.source, row.category);
+  const aisleId = refineAisle(canonicalAisle(row.source, row.category), row);
   const aisle = AISLE_BY_ID.get(aisleId);
   const brand = row.brand_slug ? BRAND_BY_SLUG.get(row.brand_slug) : null;
   return {
@@ -70,6 +77,13 @@ function dedupeRows(rows) {
 // --- canonical filter -> store prefilter -----------------------------------------
 // Resolve dept/aisle params into the browse store's include/excludeMapped
 // shape. Returns null for "no category narrowing".
+//
+// The fresh->frozen refinement is folded into the include groups so the SQL
+// prefilter, the cards, and the tile counts all classify identically:
+//   • a requested FRESH aisle with a frozen counterpart excludes rows whose
+//     name says frozen (they belong to the counterpart);
+//   • a requested FROZEN aisle additionally pulls the frozen-marked rows out
+//     of its fresh counterpart categories.
 function categoryFilter({ dept, aisle }) {
   let aisleIds = null;
   if (aisle) aisleIds = [aisle];
@@ -84,64 +98,50 @@ function categoryFilter({ dept, aisle }) {
       })),
     };
   }
-  return { include: providerCategoriesFor(aisleIds) };
+  const wanted = new Set(aisleIds);
+  const include = [];
+  for (const [source, map] of Object.entries(PROVIDER_AISLES)) {
+    const buckets = { plain: [], exclude: [], only: [] };
+    for (const [cat, aisleId] of Object.entries(map)) {
+      const frozen = FRESH_TO_FROZEN[aisleId];
+      if (wanted.has(aisleId)) {
+        if (frozen && !wanted.has(frozen)) buckets.exclude.push(cat);
+        else buckets.plain.push(cat);
+      } else if (frozen && wanted.has(frozen)) {
+        buckets.only.push(cat);
+      }
+    }
+    if (buckets.plain.length) include.push({ source, categories: buckets.plain });
+    if (buckets.exclude.length) include.push({ source, categories: buckets.exclude, frozen: 'exclude' });
+    if (buckets.only.length) include.push({ source, categories: buckets.only, frozen: 'only' });
+  }
+  return { include };
 }
 
 // --- rails ------------------------------------------------------------------------
-// The history-backed rails share ONE candidates fetch; the SQL-sortable rails
-// are cheap direct queries. Every rail is deduped and finite.
-function isoWeekStart(todayISO) {
-  const d = new Date(`${todayISO}T00:00:00Z`);
-  const day = (d.getUTCDay() + 6) % 7; // Monday = 0
-  d.setUTCDate(d.getUTCDate() - day);
-  return d.toISOString().slice(0, 10);
-}
-
-function scoreCandidates(rows, today) {
-  const scored = [];
-  for (const row of rows) {
-    const deal = exceptionalDeal(row, today);
-    if (deal) scored.push({ row, deal });
-  }
-  scored.sort(compareDeals);
-  return scored;
-}
-
+// Two rails, both data-backed: Biggest Drops (SQL-sorted advertised cuts) and
+// Lowest Ever (history-verified lows from the candidates pool). Every rail is
+// deduped and finite.
 const dropPct = (r) =>
   r.old_price > r.price ? (r.old_price - r.price) / r.old_price : 0;
 
+const byDropThenPrice = (a, b) => dropPct(b) - dropPct(a) || a.price - b.price;
+
+function lowestEverRows(pool, today) {
+  return pool.filter((r) => offerBadges(r, today).lowestEver).sort(byDropThenPrice);
+}
+
 async function buildRails(ctx, today) {
   const store = ctx.browseStore;
-  const plusDays = (n) => {
-    const d = new Date(`${today}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + n);
-    return d.toISOString().slice(0, 10);
-  };
-
-  const [candidates, drops, ending] = await Promise.all([
+  const [candidates, drops] = await Promise.all([
     store.candidates(today),
     store.list({ hasDrop: true, sort: 'discount', limit: 40, currentOn: today }),
-    store.list({ maxValidTo: plusDays(2), sort: 'ending', limit: 40, currentOn: today }),
   ]);
-
-  const pool = dedupeRows(candidates);
-  const exceptional = scoreCandidates(pool, today);
-
-  const weekStart = isoWeekStart(today);
-  const lowestEver = pool
-    .filter((r) => offerBadges(r, today).lowestEver)
-    .sort((a, b) => dropPct(b) - dropPct(a) || a.price - b.price);
-  const newThisWeek = pool
-    .filter((r) => r.first_seen && r.first_seen >= weekStart)
-    .sort((a, b) => dropPct(b) - dropPct(a) || a.price - b.price);
 
   const take = (rows) => rows.slice(0, RAIL_SIZE).map((r) => cardDoc(r, today));
   return [
-    { id: 'exceptional', items: take(exceptional.map((s) => s.row)) },
     { id: 'drops', items: take(dedupeRows(drops)) },
-    { id: 'lowest-ever', items: take(lowestEver) },
-    { id: 'ending-soon', items: take(dedupeRows(ending)) },
-    { id: 'new-this-week', items: take(newThisWeek) },
+    { id: 'lowest-ever', items: take(lowestEverRows(dedupeRows(candidates), today)) },
   ].filter((rail) => rail.items.length);
 }
 
@@ -164,10 +164,12 @@ export async function getBrowseSummaryDoc(ctx, today) {
   }
 
   // Fold provider-category counts through the canonical mapping (read time —
-  // a mapping fix reshapes the tiles on the very next request).
+  // a mapping fix reshapes the tiles on the very next request). Frozen-marked
+  // rows in a fresh category count toward the frozen counterpart aisle.
   const byAisle = new Map();
   for (const c of counts) {
-    const aisle = canonicalAisle(c.source, c.category);
+    let aisle = canonicalAisle(c.source, c.category);
+    if (c.frozen_marked && FRESH_TO_FROZEN[aisle]) aisle = FRESH_TO_FROZEN[aisle];
     byAisle.set(aisle, (byAisle.get(aisle) || 0) + c.n);
   }
   const departments = DEPARTMENTS.map((dept) => {
@@ -216,32 +218,12 @@ export async function getBrowseOffersDoc(ctx, params, today) {
           hasDrop: true, sort: 'discount', store, brand, limit: 120, offset, currentOn: today,
         }),
       );
-    } else if (rail === 'ending-soon') {
-      const d = new Date(`${today}T00:00:00Z`);
-      d.setUTCDate(d.getUTCDate() + 2);
-      rows = dedupeRows(
-        await ctx.browseStore.list({
-          maxValidTo: d.toISOString().slice(0, 10), sort: 'ending', store, brand,
-          limit: 120, offset, currentOn: today,
-        }),
-      );
     } else {
+      // lowest-ever: history-verified lows from the candidates pool.
       const pool = dedupeRows(await ctx.browseStore.candidates(today)).filter(
         (r) => (!store || r.store === store) && (!brand || r.brand_slug === brand),
       );
-      if (rail === 'exceptional') {
-        rows = scoreCandidates(pool, today).map((s) => s.row);
-      } else if (rail === 'lowest-ever') {
-        rows = pool
-          .filter((r) => offerBadges(r, today).lowestEver)
-          .sort((a, b) => dropPct(b) - dropPct(a) || a.price - b.price);
-      } else {
-        const weekStart = isoWeekStart(today);
-        rows = pool
-          .filter((r) => r.first_seen && r.first_seen >= weekStart)
-          .sort((a, b) => dropPct(b) - dropPct(a) || a.price - b.price);
-      }
-      rows = rows.slice(offset, offset + limit);
+      rows = lowestEverRows(pool, today).slice(offset, offset + limit);
     }
     return { count: rows.length, offers: rows.slice(0, limit).map((r) => cardDoc(r, today)) };
   }
@@ -257,5 +239,27 @@ export async function getBrowseOffersDoc(ctx, params, today) {
     currentOn: today,
   });
   const cards = dedupeRows(rows).map((r) => cardDoc(r, today));
-  return { count: cards.length, offers: cards };
+  const doc = { count: cards.length, offers: cards };
+
+  // Brand pages get their identity + product families on the first page: the
+  // brand's live offers folded per canonical aisle (same fold as the market
+  // floor), so the page can present the brand's structure, not just a list.
+  if (brand && offset === 0 && ctx.browseStore.brandFacets) {
+    const b = BRAND_BY_SLUG.get(brand);
+    doc.brand = { slug: b.slug, en: b.en, ar: b.ar };
+    const facetRows = await ctx.browseStore.brandFacets(brand, today);
+    const byAisle = new Map();
+    for (const f of facetRows) {
+      let aisleId = canonicalAisle(f.source, f.category);
+      if (f.frozen_marked && FRESH_TO_FROZEN[aisleId]) aisleId = FRESH_TO_FROZEN[aisleId];
+      byAisle.set(aisleId, (byAisle.get(aisleId) || 0) + f.n);
+    }
+    doc.families = [...byAisle]
+      .sort((x, y) => y[1] - x[1])
+      .map(([id, offers]) => {
+        const a = AISLE_BY_ID.get(id);
+        return { id, en: a.en, ar: a.ar, dept: a.dept, offers };
+      });
+  }
+  return doc;
 }

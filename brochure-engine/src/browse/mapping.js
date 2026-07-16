@@ -159,6 +159,38 @@ export function mappedCategories(source) {
   return Object.keys(PROVIDER_AISLES[source] || {});
 }
 
+/* --- fresh -> frozen refinement (read-time, name-based) -----------------------
+   D4D routinely files frozen products under the FRESH categories (production
+   audit 2026-07-16: 49 current rows, 48 of them frozen chicken in
+   `fresh-chicken-poultry`). The category can't be trusted alone, but the OCR
+   name can: a fresh-aisle product whose name says frozen (مجمد/frozen) belongs
+   in the frozen counterpart aisle. Applied at READ time everywhere the aisle
+   is derived — cards, tile counts, and the dept/aisle SQL prefilters (via the
+   include-group `frozen` mode) — so all three views always agree.
+   The reverse direction is deliberately NOT applied: "fresh"/"طازج" inside a
+   frozen category is marketing language ("freshly frozen"), not a category. */
+
+export const FRESH_TO_FROZEN = {
+  'chicken-poultry': 'frozen-poultry',
+  meat: 'frozen-meat',
+  fish: 'frozen-fish',
+  fruits: 'frozen-fruits-veg',
+  vegetables: 'frozen-fruits-veg',
+};
+
+const FROZEN_MARK_RE = /مجمد|frozen/i; // مجمد also prefixes مجمدة/مجمده
+
+export function isFrozenMarked(name, nameAr) {
+  return FROZEN_MARK_RE.test(`${name || ''} ${nameAr || ''}`);
+}
+
+// The final aisle of one offer row: canonical mapping, then the frozen
+// refinement when the name contradicts a fresh category.
+export function refineAisle(aisleId, row) {
+  const frozen = FRESH_TO_FROZEN[aisleId];
+  return frozen && isFrozenMarked(row.name, row.name_ar) ? frozen : aisleId;
+}
+
 // Startup sanity: a mapping that points at a non-existent aisle is a
 // programming error, not data drift — fail loudly at module load (tests catch
 // it long before deploy).
@@ -167,5 +199,10 @@ for (const [source, map] of Object.entries(PROVIDER_AISLES)) {
     if (!AISLE_BY_ID.has(aisle)) {
       throw new Error(`browse mapping: ${source}:${cat} -> unknown aisle '${aisle}'`);
     }
+  }
+}
+for (const [freshAisle, frozenAisle] of Object.entries(FRESH_TO_FROZEN)) {
+  if (!AISLE_BY_ID.has(freshAisle) || !AISLE_BY_ID.has(frozenAisle)) {
+    throw new Error(`browse mapping: frozen refinement ${freshAisle} -> ${frozenAisle} names an unknown aisle`);
   }
 }

@@ -17,6 +17,9 @@ import {
   canonicalAisle,
   providerCategoriesFor,
   mappedCategories,
+  FRESH_TO_FROZEN,
+  isFrozenMarked,
+  refineAisle,
 } from './mapping.js';
 import {
   dealSignals,
@@ -111,6 +114,31 @@ test('providerCategoriesFor inverts the mapping', () => {
 
 test('providerCategoriesFor of an unfed aisle is empty', () => {
   assert.deepEqual(providerCategoriesFor(['no-such-aisle']), []);
+});
+
+/* --- fresh -> frozen refinement ------------------------------------------------- */
+
+test('frozen refinement pairs name real aisles on both sides', () => {
+  for (const [freshA, frozenA] of Object.entries(FRESH_TO_FROZEN)) {
+    assert.equal(AISLE_BY_ID.get(freshA).dept, 'fresh');
+    assert.equal(AISLE_BY_ID.get(frozenA).dept, 'frozen');
+  }
+});
+
+test('isFrozenMarked: مجمد (any form) and frozen, either language field', () => {
+  assert.ok(isFrozenMarked('Frozen Chicken 1kg', null));
+  assert.ok(isFrozenMarked(null, 'دجاج مجمد ١١٠٠ جرام'));
+  assert.ok(isFrozenMarked(null, 'قطع دجاج مجمدة'));
+  assert.ok(!isFrozenMarked('Fresh Chicken 1kg', 'دجاج طازج'));
+});
+
+test('refineAisle: frozen-marked fresh rows move to the counterpart, others stay', () => {
+  const frozenRow = { name: 'Doux French Griller frozen chicken', name_ar: null };
+  assert.equal(refineAisle('chicken-poultry', frozenRow), 'frozen-poultry');
+  assert.equal(refineAisle('fish', { name: null, name_ar: 'روبيان مجمد' }), 'frozen-fish');
+  assert.equal(refineAisle('chicken-poultry', { name: 'Fresh chicken', name_ar: null }), 'chicken-poultry');
+  // No pair -> never moves, even with the marker (frozen yogurt stays dairy).
+  assert.equal(refineAisle('yogurt-labneh', frozenRow), 'yogurt-labneh');
 });
 
 test('mappedCategories covers every production d4d slug (2026-07-15 snapshot)', () => {
@@ -240,22 +268,70 @@ test('detectBrand: canonical hits in both scripts', () => {
   assert.equal(detectBrand({ name: 'NADEC Labneh', nameAr: null }), 'nadec');
 });
 
-test('detectBrand: OCR repairs — doubled letters, trailing junk, ligature fold', () => {
+test('detectBrand: OCR repairs — doubled letters and ligature fold survive', () => {
   assert.equal(matchBrandToken('sadiaa'), 'sadia');
-  assert.equal(matchBrandToken('ساديات'), 'sadia');
   assert.equal(matchBrandToken('Ülker'), 'ulker');
+});
+
+test('detectBrand: the fuzzy trailing-junk layer is GONE (net harmful in production)', () => {
+  assert.equal(matchBrandToken('ساديات'), null); // sadia+junk — omit, don\'t guess
+  assert.equal(matchBrandToken('فيريرو'), null); // Ferrero, NOT Fairy
+  assert.equal(matchBrandToken('comforter'), null); // bedding, NOT Comfort
+  assert.equal(matchBrandToken('برينس'), null); // Royal Prince, NOT Berain
+  assert.equal(matchBrandToken('اوريون'), null); // Orion, NOT Oreo
 });
 
 test('detectBrand: ambiguous ordinary words never tag ("fine tissue" ≠ brand until unambiguous)', () => {
   assert.equal(matchBrandToken('fine'), null);
   assert.equal(matchBrandToken('الكبير'), null);
-  assert.equal(matchBrandToken('هنا'), null); // "here" — Hana only via English
   assert.equal(detectBrand({ name: 'Fresh Chicken 1kg', nameAr: 'دجاج طازج' }), null);
+});
+
+test('detectBrand: 2-char fragments of split brand names never index (LED ≠ KDD, 7up ≠ Closeup)', () => {
+  assert.equal(matchBrandToken('دي'), null);
+  assert.equal(matchBrandToken('كي'), null);
+  assert.equal(matchBrandToken('اب'), null);
+  assert.equal(detectBrand({ name: null, nameAr: 'شاشه ال اي دي سمارت', source: 'd4d', category: 'tv' }), null);
+  assert.equal(detectBrand({ name: null, nameAr: 'بيبسي سفن اب ميرندا', source: 'd4d', category: 'soft-drinks' }), 'pepsi');
+  assert.equal(matchBrandToken('kdd'), 'kdd'); // the English form still tags
 });
 
 test('detectBrand: generic sub-words of multi-word brands never tag alone', () => {
   assert.equal(matchBrandToken('garden'), null);
+  assert.equal(matchBrandToken('واي'), null); // "بيست واي" split must not tag wifi
   assert.equal(matchBrandToken('california'), 'california-garden');
+});
+
+test('detectBrand: department guards — the same word is a brand only in its home context', () => {
+  // Galaxy chocolate vs Samsung Galaxy vs Galaxy rice.
+  assert.equal(detectBrand({ name: 'Galaxy Jewels 650g', source: 'd4d', category: 'chocolates-candies' }), 'galaxy');
+  assert.equal(detectBrand({ name: 'Samsung Galaxy S26 Ultra', source: 'd4d', category: 'mobiles' }), 'samsung');
+  assert.equal(detectBrand({ name: 'Galaxy Super Sella Basmati Rice', source: 'd4d', category: 'rice' }), null);
+  // بوك is "book" outside the dairy/pantry context.
+  assert.equal(detectBrand({ name: null, nameAr: 'بوك جبنه كريم', source: 'd4d', category: 'cheese-creame' }), 'puck');
+  assert.equal(detectBrand({ name: null, nameAr: 'ماك بوك لابتوب', source: 'd4d', category: 'computer-laptop' }), null);
+  // A dept-guarded brand with NO category context stays silent (omit > guess).
+  assert.equal(detectBrand({ name: 'MacBook نوت بوك' }), null);
+});
+
+test('detectBrand: neighbor-word vetoes — net weight and Kerrygold', () => {
+  assert.equal(detectBrand({ name: null, nameAr: 'ارز بسمتي الوزن الصافي ٥ كجم', source: 'd4d', category: 'rice' }), null);
+  assert.equal(detectBrand({ name: null, nameAr: 'حليب الصافي كامل الدسم', source: 'd4d', category: 'milk-laban' }), 'alsafi');
+  assert.equal(detectBrand({ name: null, nameAr: 'كيري جولد شرايح شيدر', source: 'd4d', category: 'cheese-creame' }), null);
+  assert.equal(detectBrand({ name: null, nameAr: 'كيري جبنه مثلثات', source: 'd4d', category: 'cheese-creame' }), 'kiri');
+});
+
+test('detectBrand: noStrip — bare صافي/ربيع are ordinary words, the articled form tags', () => {
+  assert.equal(matchBrandToken('صافي'), null);
+  assert.equal(matchBrandToken('ربيع'), null);
+  assert.equal(detectBrand({ name: null, nameAr: 'عصير الربيع ١ لتر', source: 'd4d', category: 'juices-drinks' }), 'alrabie');
+  assert.equal(detectBrand({ name: null, nameAr: 'مطهر برايحه زهور الربيع', source: 'd4d', category: 'cleaning' }), null);
+});
+
+test('detectBrand: Hanaa (canned foods) replaced Hana — the water brand entry only mis-tagged', () => {
+  assert.ok(!BRAND_BY_SLUG.has('hana'));
+  assert.equal(detectBrand({ name: 'Hanaa Light Tuna 185g', source: 'd4d', category: 'canned-packeted' }), 'hanaa');
+  assert.equal(detectBrand({ name: null, nameAr: 'طماطم هناء مقشره', source: 'd4d', category: 'canned-packeted' }), 'hanaa');
 });
 
 test('BRAND_BY_SLUG resolves display names for the API', () => {
@@ -284,27 +360,56 @@ function row(over = {}) {
 }
 
 function stubCtx({ rows = [], candidates = [], brands = [] } = {}) {
+  // The JS twin of browseStore's FROZEN_MARK_SQL, for the stub's filtering.
+  const frozenMarked = (r) => isFrozenMarked(r.name, r.name_ar);
+  const foldCounts = (pool) => {
+    const m = new Map();
+    for (const r of pool) {
+      const key = [r.source, r.category, frozenMarked(r) ? 1 : 0].join(' ');
+      m.set(key, (m.get(key) || 0) + 1);
+    }
+    return [...m].map(([k, n]) => {
+      const [source, category, frz] = k.split(' ');
+      return { source, category: category === 'null' ? null : category, frozen_marked: Number(frz), n };
+    });
+  };
   return {
     registry: { lulu: {}, danube: {} },
     browseStore: {
       async brandCounts() {
         return brands;
       },
-      async categoryCounts() {
-        const m = new Map();
-        for (const r of rows) {
-          const key = `${r.source} ${r.category}`;
-          m.set(key, (m.get(key) || 0) + 1);
-        }
-        return [...m].map(([k, n]) => {
-          const [source, category] = k.split(' ');
-          return { source, category: category === 'null' ? null : category, n };
-        });
+      async brandFacets(slug) {
+        return foldCounts(rows.filter((r) => r.brand_slug === slug));
       },
-      async list({ hasDrop, store, limit = 60, offset = 0 }) {
+      async categoryCounts() {
+        return foldCounts(rows);
+      },
+      // Mirrors the D1 store's include-group semantics (incl. the frozen
+      // modes) so the API tests exercise the real categoryFilter shapes.
+      async list({ include, excludeMapped, hasDrop, store, brand, limit = 60, offset = 0 }) {
         let out = rows;
+        if (include) {
+          out = out.filter((r) =>
+            include.some(
+              ({ source, categories, frozen }) =>
+                r.source === source &&
+                categories.includes(r.category) &&
+                (frozen === 'exclude' ? !frozenMarked(r) : frozen === 'only' ? frozenMarked(r) : true),
+            ),
+          );
+        }
+        if (excludeMapped) {
+          out = out.filter((r) =>
+            excludeMapped.every(
+              ({ source, categories }) =>
+                r.source !== source || r.category == null || !categories.includes(r.category),
+            ),
+          );
+        }
         if (hasDrop) out = out.filter((r) => r.old_price > r.price);
         if (store) out = out.filter((r) => r.store === store);
+        if (brand) out = out.filter((r) => r.brand_slug === brand);
         return out.slice(offset, offset + limit);
       },
       async candidates() {
@@ -354,10 +459,14 @@ await (async () => {
     assert.equal(more.aisles[0].offers, 1);
   });
 
-  test('summary: rails include the flagship with the qualifying deal', () => {
-    const exceptional = doc.rails.find((r) => r.id === 'exceptional');
-    assert.ok(exceptional && exceptional.items.length === 1);
-    const card = exceptional.items[0];
+  test('summary: exactly the two kept rails, nothing else (V1.1 simplification)', () => {
+    assert.deepEqual(doc.rails.map((r) => r.id).sort(), ['drops', 'lowest-ever']);
+  });
+
+  test('summary: lowest-ever carries the history-verified deal with its badge', () => {
+    const lowest = doc.rails.find((r) => r.id === 'lowest-ever');
+    assert.ok(lowest && lowest.items.length === 1);
+    const card = lowest.items[0];
     assert.ok(card.badges.lowestEver, 'lowest-ever badge rides the card');
     assert.equal(card.aisle, 'cheese-cream');
     assert.equal(card.dept, 'dairy-eggs');
@@ -376,14 +485,17 @@ await (async () => {
     assert.ok((await getBrowseOffersDoc(ctx, { brand: 'nope' }, TODAY)).error);
   });
 
-  test('listing: unknown canonical ids error explicitly', async () => {
+  test('listing: unknown canonical ids error explicitly (incl. the RETIRED rails)', async () => {
     assert.ok((await getBrowseOffersDoc(ctx, { dept: 'nope' }, TODAY)).error);
     assert.ok((await getBrowseOffersDoc(ctx, { aisle: 'nope' }, TODAY)).error);
     assert.ok((await getBrowseOffersDoc(ctx, { rail: 'nope' }, TODAY)).error);
+    assert.ok((await getBrowseOffersDoc(ctx, { rail: 'exceptional' }, TODAY)).error);
+    assert.ok((await getBrowseOffersDoc(ctx, { rail: 'ending-soon' }, TODAY)).error);
+    assert.ok((await getBrowseOffersDoc(ctx, { rail: 'new-this-week' }, TODAY)).error);
   });
 
-  test('listing: rail=exceptional pages the scored pool', async () => {
-    const d = await getBrowseOffersDoc(ctx, { rail: 'exceptional' }, TODAY);
+  test('listing: rail=lowest-ever pages the history-verified pool', async () => {
+    const d = await getBrowseOffersDoc(ctx, { rail: 'lowest-ever' }, TODAY);
     assert.equal(d.count, 1);
     assert.equal(d.offers[0].badges.drop, 43);
   });
@@ -391,7 +503,7 @@ await (async () => {
   test('listing: dedupe collapses same-identity same-store variants', async () => {
     const twin = { ...lowRow(), id: 'lulu:central:d4d:twin', identity: candidates[0].identity, price: candidates[0].price };
     const ctx2 = stubCtx({ rows, candidates: [candidates[0], twin] });
-    const d = await getBrowseOffersDoc(ctx2, { rail: 'exceptional' }, TODAY);
+    const d = await getBrowseOffersDoc(ctx2, { rail: 'lowest-ever' }, TODAY);
     assert.equal(d.count, 1);
   });
 
@@ -414,6 +526,65 @@ await (async () => {
   test('route: /browse degrades to 503 without a browse store (dev harness)', async () => {
     const resp = await handleRequest(new Request('https://engine.test/browse'), { registry: {} });
     assert.equal(resp.status, 503);
+  });
+})();
+
+/* --- fresh->frozen refinement + brand facets, end to end -------------------------- */
+
+await (async () => {
+  const rows = [
+    row({ category: 'fresh-chicken-poultry', name: 'Tanmiah Fresh Chicken 1000g', name_ar: 'دجاج طازج' }),
+    row({ category: 'fresh-chicken-poultry', name: 'Doux French Griller', name_ar: 'دجاج فرنسي مجمد' }),
+    row({ category: 'frozen-chicken-poultry', name: 'Sadia Chicken Burger', name_ar: 'برجر دجاج' }),
+    row({ category: 'cheese-creame', name: 'Kiri Cream Cheese 200g', name_ar: 'كيري جبنه', brand_slug: 'kiri' }),
+    row({ category: 'yogurt-labneh', name: 'Kiri Labneh 400g', name_ar: 'كيري لبنه', brand_slug: 'kiri' }),
+    row({ category: 'cheese-creame', name: 'Kiri Squares 108g', name_ar: 'كيري مربعات', brand_slug: 'kiri' }),
+  ];
+  const ctx = stubCtx({ rows });
+  const doc = await getBrowseSummaryDoc(ctx, TODAY);
+
+  test('summary counts: the frozen-marked fresh-category row counts as Frozen', () => {
+    const fresh = doc.departments.find((d) => d.id === 'fresh');
+    const frozen = doc.departments.find((d) => d.id === 'frozen');
+    assert.equal(fresh.aisles.find((a) => a.id === 'chicken-poultry').offers, 1);
+    assert.equal(frozen.aisles.find((a) => a.id === 'frozen-poultry').offers, 2);
+  });
+
+  test('listing: dept=fresh excludes the frozen-marked row; dept=frozen includes it', async () => {
+    const fresh = await getBrowseOffersDoc(ctx, { dept: 'fresh' }, TODAY);
+    assert.deepEqual(fresh.offers.map((o) => o.name), ['Tanmiah Fresh Chicken 1000g']);
+    const frozen = await getBrowseOffersDoc(ctx, { dept: 'frozen' }, TODAY);
+    assert.deepEqual(frozen.offers.map((o) => o.name).sort(),
+      ['Doux French Griller', 'Sadia Chicken Burger']);
+    // Cards agree with the filter: the moved row presents as frozen-poultry.
+    const moved = frozen.offers.find((o) => o.name === 'Doux French Griller');
+    assert.equal(moved.aisle, 'frozen-poultry');
+    assert.equal(moved.dept, 'frozen');
+  });
+
+  test('listing: aisle=frozen-poultry pulls the mis-categorized row too', async () => {
+    const d = await getBrowseOffersDoc(ctx, { aisle: 'frozen-poultry' }, TODAY);
+    assert.equal(d.offers.length, 2);
+  });
+
+  test('brand listing: first page carries identity + product families (aisle fold)', async () => {
+    const d = await getBrowseOffersDoc(ctx, { brand: 'kiri' }, TODAY);
+    assert.deepEqual(d.brand, { slug: 'kiri', en: 'Kiri', ar: 'كيري' });
+    assert.deepEqual(d.families, [
+      { id: 'cheese-cream', en: 'Cheese & Cream', ar: 'أجبان وقشطة', dept: 'dairy-eggs', offers: 2 },
+      { id: 'yogurt-labneh', en: 'Yogurt & Labneh', ar: 'زبادي ولبنة', dept: 'dairy-eggs', offers: 1 },
+    ]);
+  });
+
+  test('brand listing: later pages skip the facet work', async () => {
+    const d = await getBrowseOffersDoc(ctx, { brand: 'kiri', offset: 24 }, TODAY);
+    assert.ok(!d.families && !d.brand);
+  });
+
+  test('brand + aisle narrows the grid but keeps brand-wide families', async () => {
+    const d = await getBrowseOffersDoc(ctx, { brand: 'kiri', aisle: 'yogurt-labneh' }, TODAY);
+    assert.equal(d.offers.length, 1);
+    assert.equal(d.families.length, 2);
   });
 })();
 

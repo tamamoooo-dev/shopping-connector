@@ -28,6 +28,13 @@ const HISTORY_JOIN = `
                     COUNT(*) AS points
                FROM price_history GROUP BY identity) h ON h.identity = o.identity`;
 
+// The SQL twin of mapping.isFrozenMarked (LIKE '%مجمد%' also catches مجمدة/
+// مجمده; ASCII LIKE is case-insensitive, covering Frozen/FROZEN). Used to
+// refine fresh-category rows whose OCR name says frozen — the JS regex and
+// this expression MUST classify identically or tiles and listings drift.
+const FROZEN_MARK_SQL = `(o.name LIKE '%frozen%' OR o.name_ar LIKE '%frozen%'
+  OR o.name LIKE '%مجمد%' OR o.name_ar LIKE '%مجمد%')`;
+
 const SORTS = {
   discount: `(CASE WHEN o.old_price > o.price
                THEN (o.old_price - o.price) * 1.0 / o.old_price ELSE 0 END) DESC,
@@ -42,11 +49,16 @@ export function createD1BrowseStore(db) {
     // Live-offer counts per (source, provider category) — the market floor's
     // department/aisle tiles fold these through the canonical mapping in JS
     // (read-time canonicalization: mapping fixes apply retroactively).
+    // The extra frozen_marked split lets the read-time fresh->frozen
+    // refinement (mapping.FRESH_TO_FROZEN) fold counts onto the right aisle.
     async categoryCounts(currentOn) {
       const { results } = await db
         .prepare(
-          `SELECT source, category, COUNT(*) AS n
-             FROM offers WHERE valid_to >= ? GROUP BY source, category`,
+          `SELECT o.source, o.category,
+                  (CASE WHEN ${FROZEN_MARK_SQL} THEN 1 ELSE 0 END) AS frozen_marked,
+                  COUNT(*) AS n
+             FROM offers o WHERE o.valid_to >= ?
+            GROUP BY o.source, o.category, frozen_marked`,
         )
         .bind(currentOn)
         .all();
@@ -72,6 +84,23 @@ export function createD1BrowseStore(db) {
       return results || [];
     },
 
+    // One brand's live offers per (source, category, frozen_marked) — the
+    // brand page's product-families facet folds these through the canonical
+    // mapping exactly like categoryCounts.
+    async brandFacets(brandSlug, currentOn) {
+      const { results } = await db
+        .prepare(
+          `SELECT o.source, o.category,
+                  (CASE WHEN ${FROZEN_MARK_SQL} THEN 1 ELSE 0 END) AS frozen_marked,
+                  COUNT(*) AS n
+             FROM offers o WHERE o.valid_to >= ? AND o.brand_slug = ?
+            GROUP BY o.source, o.category, frozen_marked`,
+        )
+        .bind(currentOn, brandSlug)
+        .all();
+      return results || [];
+    },
+
     async list({
       include = null,
       excludeMapped = null,
@@ -88,9 +117,15 @@ export function createD1BrowseStore(db) {
       const binds = [currentOn];
       if (include) {
         if (!include.length) return []; // no source feeds these aisles
-        const parts = include.map(({ source, categories }) => {
+        // A group's optional `frozen` mode ('exclude' | 'only') applies the
+        // fresh->frozen name refinement inside SQL, so pagination and counts
+        // stay exact (browse/api.js categoryFilter builds the groups).
+        const parts = include.map(({ source, categories, frozen }) => {
           binds.push(source, ...categories);
-          return `(o.source = ? AND o.category IN (${categories.map(() => '?').join(',')}))`;
+          let p = `(o.source = ? AND o.category IN (${categories.map(() => '?').join(',')})`;
+          if (frozen === 'exclude') p += ` AND NOT ${FROZEN_MARK_SQL}`;
+          else if (frozen === 'only') p += ` AND ${FROZEN_MARK_SQL}`;
+          return `${p})`;
         });
         where.push(`(${parts.join(' OR ')})`);
       }
