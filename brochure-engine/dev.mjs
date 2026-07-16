@@ -653,6 +653,8 @@ async function selftestMatching() {
   if (!isProcessedProduce('داری فراولة 1 كجم')) fail('Farsi-yeh داری (OCR) not detected as frozen brand');
   if (productFamily('بنكهة الفراولة') !== null) fail('flavour marker wrongly classified as produce');
   if (productFamily('صابون فراولة') !== 'care') fail('strawberry soap did not classify as care');
+  if (productFamily('مشابك شعر موز') !== 'care') fail('banana hair clips did not classify as care');
+  if (productFamily('سلسلة مفاتيح لطيفة بتصميم موز') !== 'toy') fail('banana keychain did not classify as toy');
   if (productFamily('Cherry Tomatoes 250g') !== 'tomato') fail('cherry tomatoes did not stay tomato');
   if (queryFamily('طماطم') !== 'tomato') fail('طماطم query did not get the tomato family');
   if (nameRelevance('Fresh Tomatoes 1kg', 'طماطم') <= 0) fail('طماطم missed EN tomatoes (produce synonym bridge)');

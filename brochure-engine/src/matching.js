@@ -210,10 +210,15 @@ const DERIVED_FAMILIES = {
   soda: ['soda', 'cola', 'pepsi', 'fanta', 'mirinda', 'sprite', '7up', 'cocacola', 'صودا', 'كولا', 'بيبسي', 'فانتا', 'ميرندا', 'سبرايت', 'سفن', 'كوكاكولا', 'غازي', 'غازيه', 'malt', 'شعير', 'هولستن', 'holsten', 'بربيكان', 'barbican', 'موسي', 'moussy'],
   pickle: ['pickle', 'pickles', 'مخلل', 'مخللات', 'طرشي'],
   // produce-shaped non-food ("لعبة على شكل فراولة" squeeze toys from Amazon)
-  toy: ['toy', 'toys', 'لعبه', 'العاب'],
+  // keychains — "سلسلة مفاتيح … موز", found live 2026-07-16 — مفاتيح/keychain
+  // are unambiguous in a grocery catalogue
+  toy: ['toy', 'toys', 'لعبه', 'العاب', 'keychain', 'keyring', 'مفاتيح', 'ميداليه'],
   // personal/household care: strawberry SOAP and lemon DISHWASHING liquid are
   // care products, not produce (scented look-alikes under produce queries).
-  care: ['shampoo', 'soap', 'lotion', 'conditioner', 'detergent', 'dishwashing', 'شامبو', 'صابون', 'لوشن', 'بلسم', 'معطر', 'منظف', 'مطهر', 'غسول', 'ملمع'],
+  // مشابك/مشبك: hair clips and clothes pins — produce-shaped accessory names
+  // ("مشابك شعر موز" banana hair clips, found live 2026-07-16) must never
+  // rank in a produce band.
+  care: ['shampoo', 'soap', 'lotion', 'conditioner', 'detergent', 'dishwashing', 'شامبو', 'صابون', 'لوشن', 'بلسم', 'معطر', 'منظف', 'مطهر', 'غسول', 'ملمع', 'مشبك', 'مشابك'],
 };
 // Fresh fruit & vegetables — the LOWEST family tier (see the tier note above).
 // Curated to common Saudi grocery produce with unambiguous words; ambiguous
