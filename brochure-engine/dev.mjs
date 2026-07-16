@@ -56,6 +56,7 @@ import {
   producePresence,
   matchStage,
   queryTokenPresence,
+  resolveJourneyPool,
 } from './src/matching.js';
 import { buildWatch, checkWatch, MAX_WATCHES } from './src/monitor.js';
 import { pruneStoredBytes } from './src/retention.js';
@@ -707,7 +708,85 @@ async function selftestMatching() {
   if (queryTokenPresence('فراولة طازجة 250 جم', 'فراولة') !== 'primary') fail('standalone word not primary');
   if (queryTokenPresence('مصاصات بالفراولة', 'فراولة') !== 'secondary') fail('بال-attached not secondary');
   if (queryTokenPresence('حليب المراعي 2 لتر', 'فراولة') !== null) fail('absent token not null');
-  console.log('✅ Matching verified: boundaries, synonyms, compound gate, size gate, tiering, families, category signal, forms, roadmap stages.\n');
+  // The SHARED gate ladder + the declared JOURNEY_POLICY table (HISTORY §34).
+  // Mirrors the frontend match.test.mjs ladder block — keep in sync (rule 2).
+  const cand = (name, stage, extra = {}) => ({
+    name,
+    stage,
+    family: extra.family !== undefined ? extra.family : productFamily(name),
+    type: extra.type !== undefined ? extra.type : productType(name),
+    text: name,
+    ...extra,
+  });
+  {
+    const lemons = [cand('ليمون اصفر', 5), cand('كلوروكس ليمون', 4)];
+    const sum = resolveJourneyPool(lemons, 'ليمون', 'summary');
+    if (sum.kept.length !== 1 || sum.kept[0].name !== 'ليمون اصفر') fail('ladder: summary single-word exact stage broken');
+    const hist = resolveJourneyPool(lemons, 'ليمون', 'history');
+    if (hist.kept.length !== 2) fail('ladder: history did not band stages 5+4 together');
+    const withFlavour = [...lemons, cand('حليب بنكهة الليمون', 1, { family: 'milk' })];
+    if (resolveJourneyPool(withFlavour, 'ليمون', 'history').kept.length !== 2) fail('ladder: history kept a secondary stage');
+  }
+  {
+    const pool = [cand('حليب المراعي 2 لتر', 4), cand('زبادي نادك', 4), cand('منتج بدون عائلة', 4, { family: null })];
+    for (const tier of ['summary', 'alert', 'history']) {
+      const r = resolveJourneyPool(pool, 'حليب', tier);
+      if (r.kept.length !== 2 || r.familyExcluded !== 1 || !r.kept.some((c) => c.family === null)) {
+        fail(`ladder: ${tier} family gate broken (drop yogurt, keep family-less)`);
+      }
+    }
+    const allWrong = [cand('زبادي نادك', 4)];
+    if (resolveJourneyPool(allWrong, 'حليب', 'summary').kept.length !== 1) fail('ladder: summary emptied (neverEmpty broken)');
+    if (resolveJourneyPool(allWrong, 'حليب', 'history').kept.length !== 1) fail('ladder: history emptied (neverEmpty broken)');
+    if (resolveJourneyPool(allWrong, 'حليب', 'alert').kept.length !== 0) fail('ladder: alert did not prefer silence');
+  }
+  {
+    const pool = [
+      cand('كيري جبنة مربعات', 3, { family: 'cheese' }),
+      cand('كيري جبنة قابلة للدهن', 3, { family: 'cheese' }),
+      cand('كيري بسكويت', 3, { family: 'biscuit' }),
+    ];
+    if (resolveJourneyPool(pool, 'كيري', 'summary').targetFamily !== 'cheese') fail('ladder: summary dominant-family fallback broken');
+    if (resolveJourneyPool(pool, 'كيري', 'alert').targetFamily !== 'cheese') fail('ladder: alert dominant-family fallback broken (subset invariant)');
+    if (resolveJourneyPool(pool, 'كيري', 'history').targetFamily !== null) fail('ladder: history inferred an unnamed family');
+  }
+  {
+    const pool = [cand('Herfy Chicken Nuggets 750g', 2), cand('Herfy Chicken Roll', 2), cand('Chicken Pieces', 2, { type: null })];
+    for (const tier of ['summary', 'alert', 'history']) {
+      const r = resolveJourneyPool(pool, 'chicken nuggets', tier);
+      if (r.kept.length !== 2 || r.typeExcluded !== 1) fail(`ladder: ${tier} type gate broken`);
+    }
+  }
+  {
+    const pool = [
+      cand('فراولة طازجة 250 جم', 5),
+      cand('مونتانا فراولة مجمدة 1 كجم', 5),
+      cand('مصاصات بالفراولة', 5, { family: null }),
+    ];
+    for (const tier of ['summary', 'alert', 'history']) {
+      const r = resolveJourneyPool(pool, 'فراولة', tier);
+      if (r.kept.length !== 1 || r.kept[0].name !== 'فراولة طازجة 250 جم') fail(`ladder: ${tier} fresh gate broken`);
+    }
+    if (resolveJourneyPool(pool.slice(0, 2), 'فراولة مجمدة', 'summary').freshExcluded !== 0) fail('ladder: naming the processing did not disable the fresh gate');
+  }
+  {
+    // THE SUBSET INVARIANT: for the same candidates, alert kept ⊆ summary kept.
+    const pools = [
+      [cand('ليمون اصفر', 5), cand('كلوروكس ليمون', 4), cand('عصير ليمون', 1, { family: 'juice' })],
+      [cand('حليب المراعي 2 لتر', 4), cand('زبادي نادك', 4)],
+      [cand('زبادي نادك', 4)],
+      [cand('فراولة طازجة', 5), cand('مونتانا فراولة', 5)],
+      [cand('كيري جبنة مربعات', 3, { family: 'cheese' }), cand('كيري بسكويت', 3, { family: 'biscuit' })],
+    ];
+    const queries = ['ليمون', 'حليب', 'حليب', 'فراولة', 'كيري'];
+    pools.forEach((p, i) => {
+      const s = new Set(resolveJourneyPool(p, queries[i], 'summary').kept);
+      for (const c of resolveJourneyPool(p, queries[i], 'alert').kept) {
+        if (!s.has(c)) fail('ladder: alert pool is NOT a subset of the summary pool');
+      }
+    });
+  }
+  console.log('✅ Matching verified: boundaries, synonyms, compound gate, size gate, tiering, families, category signal, forms, roadmap stages, journey ladder + policy table.\n');
 }
 
 // Price Monitoring — OFFLINE + deterministic. Proves validation, the relevance
@@ -797,6 +876,43 @@ async function selftestWatches() {
   alerts = await watchStore.listAlerts({});
   if (alerts.length !== 2) fail(`expected 2 alerts total, got ${alerts.length}`);
   console.log('grocery watch: gates + cross-source best + crossing semantics ✅');
+
+  // (b2) the SHARED-LADDER gates the monitor gained in HISTORY §34 — the two
+  // accidental gaps this milestone closed. Stage gate: "كلوروكس ليمون" (a
+  // trailing-token primary, stage 4) must never drive a ليمون watch while a
+  // true lemon (stage 5) is present — the alert must fire on the lemon's 6,
+  // not Clorox's 3. Fresh gate: a bare-produce watch is a FRESH watch — a
+  // frozen-brand bag alone yields SILENCE (no-data), never a cheap wrong alert.
+  {
+    const ladderClient = {
+      async search(provider, query) {
+        if (provider !== 'panda') return [];
+        if (/ليمون/.test(query)) {
+          return [
+            { id: 'l1', name: 'ليمون اصفر طازج', price: 6, currency: 'SAR' },
+            { id: 'l2', name: 'كلوروكس ليمون', price: 3, currency: 'SAR' },
+          ];
+        }
+        if (/فراولة/.test(query)) {
+          return [{ id: 's1', name: 'مونتانا فراولة 1 كجم', price: 4, currency: 'SAR' }];
+        }
+        return [];
+      },
+    };
+    const lctx = { watchStore: createMemoryWatchStore(), offerStore: createMemoryOfferStore(), searchClient: ladderClient, notifier: null };
+    const lemon = buildWatch({ kind: 'grocery', query: 'ليمون', targetPrice: 7 }).watch;
+    await lctx.watchStore.create(lemon);
+    const cl = await checkWatch(lctx, lemon);
+    if (cl.price !== 6) fail(`stage gate: ليمون watch read ${cl.price}, expected 6 (Clorox must not drive it)`);
+    if (!cl.alerted) fail('stage gate: genuine lemon at 6 under target 7 did not alert');
+    const alertRows = await lctx.watchStore.listAlerts({});
+    if (alertRows[0].name !== 'ليمون اصفر طازج') fail('stage gate: alert names the wrong product');
+    const straw = buildWatch({ kind: 'grocery', query: 'فراولة', targetPrice: 5 }).watch;
+    await lctx.watchStore.create(straw);
+    const cs = await checkWatch(lctx, straw);
+    if (cs.status !== 'no-data' || cs.alerted) fail(`fresh gate: frozen strawberry drove a فراولة watch (${cs.status}, price ${cs.price})`);
+    console.log('shared-ladder watch gates: stage + fresh (silence over a wrong product) ✅');
+  }
 
   // (c) product watch: the EXACT product by stable id, not the cheaper noise.
   const p = buildWatch({ kind: 'product', query: 'echo dot', targetPrice: 200, provider: 'amazon', productId: 'B0TARGET', label: 'Echo Dot 5' });

@@ -898,3 +898,143 @@ export function sizeComparable(a, b, tolerance = 0.25) {
   const lo = Math.min(a.total, b.total);
   return hi > 0 && (hi - lo) / hi <= tolerance;
 }
+
+// --- THE JOURNEY POLICY TABLE — one interpretation, declared per-feature policy
+// (HISTORY §34). Every comparison-shaped feature (the frontend Shopping
+// Summary, the price alerts in monitor.js, the price-history statistics in
+// priceHistory.js) answers the same interpretive question — "which of these
+// candidates ARE the queried product?" — through ONE shared gate ladder:
+// stage band → family → type → fresh-produce. Features may differ in PURPOSE,
+// and only in what this table declares; any other behavioral difference
+// between them is accidental divergence — fix it, never fork it.
+//
+//   singleWordBand 'exact'   — single-word queries gate on the exact best
+//                              stage present (5 beats 4: a ليمون comparison
+//                              is never driven by "كلوروكس ليمون" while true
+//                              lemons exist).
+//                  'primary' — stages 5 and 4 are ONE band. For statistics,
+//                              word position ("حليب المراعي" vs "المراعي
+//                              حليب") is the same product and must never
+//                              split a price series.
+//   familyFallback 'dominant' — a family-less (brand-only) query infers the
+//                              target family from the pool's dominant one.
+//                  'none'    — only a query-NAMED family gates: statistics
+//                              never infer a family the user didn't name (a
+//                              300-identity historical pool is far weaker
+//                              evidence than today's grid).
+//   neverEmpty     true      — a gate that would empty the pool un-applies
+//                              (a comparison must compare something).
+//                  false     — an emptied pool IS the answer: an unattended
+//                              alert prefers silence over a wrong product.
+//
+// The alert tier matches the summary tier everywhere except neverEmpty — a
+// watch may only ever act on a SUBSET of what the Summary would recommend
+// from the same candidates (its extra strictness — relevance floor 50,
+// reference-size ±25%, flyer NAME-tier only — is declared in monitor.js and
+// only ever narrows). Mirrors the frontend match.js — keep in sync (HANDOFF
+// rule 2).
+export const JOURNEY_POLICY = {
+  summary: { singleWordBand: 'exact', familyFallback: 'dominant', neverEmpty: true },
+  alert: { singleWordBand: 'exact', familyFallback: 'dominant', neverEmpty: false },
+  history: { singleWordBand: 'primary', familyFallback: 'none', neverEmpty: true },
+};
+
+// Collapse a raw match stage into a tier's comparison band. Multi-word queries
+// treat all full-coverage stages (5..2 — phrase/whole-word/strong/substring
+// are layout refinements of "every term matched") as ONE band in every tier,
+// so word order never hides a cheaper genuine product; single-word banding is
+// the tier's declared policy.
+export function stageBand(stage, multiWord, singleWordBand) {
+  if (multiWord) return stage >= 2 ? 2 : stage;
+  if (singleWordBand === 'primary') return stage >= 4 ? 4 : stage;
+  return stage;
+}
+
+// resolveJourneyPool — the shared gate ladder. Each candidate carries the
+// interpretation of one listing over the SAME text that admitted it to the
+// pool: { stage, family, type, text } (plus whatever the caller needs back —
+// candidates pass through untouched). Returns { kept, targetFamily,
+// stageExcluded, familyExcluded, typeExcluded, freshExcluded }: excluded
+// candidates are COUNTED, never silently dropped (honesty rule 6 — callers
+// surface the counts).
+export function resolveJourneyPool(candidates, query, tierName) {
+  const policy = JOURNEY_POLICY[tierName] || JOURNEY_POLICY.summary;
+  const multiWord = queryTokens(query).length > 1;
+  const out = {
+    kept: candidates.slice(),
+    targetFamily: null,
+    stageExcluded: 0,
+    familyExcluded: 0,
+    typeExcluded: 0,
+    freshExcluded: 0,
+  };
+  if (!out.kept.length) return out;
+
+  // STAGE GATE (Search Roadmap, HANDOFF rule 9) — only candidates in the
+  // pool's BEST match band may compete or be recommended.
+  const band = (c) => stageBand(c.stage || 0, multiWord, policy.singleWordBand);
+  const maxBand = out.kept.reduce((m, c) => Math.max(m, band(c)), 0);
+  const staged = out.kept.filter((c) => band(c) === maxBand);
+  out.stageExcluded = out.kept.length - staged.length;
+  out.kept = staged;
+
+  // FAMILY GATE — candidates of a KNOWN different family never compete
+  // ("نادك منزوع الدسم" must never offer yogurt as the cheaper milk).
+  // Family-less candidates stay: we refuse to guess a mismatch.
+  let targetFamily = queryFamily(query);
+  if (!targetFamily && policy.familyFallback === 'dominant') {
+    const counts = new Map();
+    let familied = 0;
+    for (const c of out.kept) {
+      if (!c.family) continue;
+      familied += 1;
+      counts.set(c.family, (counts.get(c.family) || 0) + 1);
+    }
+    let top = null;
+    for (const [f, n] of counts) if (!top || n > top.n) top = { f, n };
+    targetFamily = top && top.n >= 2 && top.n / familied > 0.5 ? top.f : null;
+  }
+  out.targetFamily = targetFamily;
+  if (targetFamily) {
+    const famKept = out.kept.filter((c) => !c.family || c.family === targetFamily);
+    if (famKept.length || !policy.neverEmpty) {
+      out.familyExcluded = out.kept.length - famKept.length;
+      out.kept = famKept;
+    }
+  }
+  if (!out.kept.length) return out;
+
+  // TYPE GATE (the FORM attribute) — a query-named form ("chicken nuggets")
+  // excludes KNOWN different forms ("chicken roll"); form-less candidates stay.
+  const targetType = queryType(query);
+  if (targetType) {
+    const typed = out.kept.filter((c) => {
+      const t = c.type !== undefined ? c.type : productType(c.text || '');
+      return !t || t === targetType;
+    });
+    if (typed.length || !policy.neverEmpty) {
+      out.typeExcluded = out.kept.length - typed.length;
+      out.kept = typed;
+    }
+  }
+  if (!out.kept.length) return out;
+
+  // FRESH-PRODUCE GATE — a bare produce query ("فراولة") names the FRESH
+  // product: candidates that carry a FORM word, a processing marker
+  // (frozen/canned/…), or that mention the produce only as a flavour must not
+  // compete. Naming the form/processing in the query disables the gate.
+  const freshFam = freshProduceIntent(query);
+  if (freshFam && (!targetFamily || targetFamily === freshFam)) {
+    const fresh = out.kept.filter((c) => {
+      const text = c.text || '';
+      const t = c.type !== undefined ? c.type : productType(text);
+      if (t || isProcessedProduce(text)) return false;
+      return producePresence(text, freshFam) !== 'flavored';
+    });
+    if (fresh.length || !policy.neverEmpty) {
+      out.freshExcluded = out.kept.length - fresh.length;
+      out.kept = fresh;
+    }
+  }
+  return out;
+}

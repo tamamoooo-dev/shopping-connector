@@ -26,12 +26,9 @@ import {
   normalizeText,
   parseSize,
   matchStage,
-  queryFamily,
   offerFamily,
   productType,
-  freshProduceIntent,
-  isProcessedProduce,
-  producePresence,
+  resolveJourneyPool,
 } from './matching.js';
 import { queryTokens, offerRelevance, relevanceScore } from './offers/contract.js';
 import { isoWeek } from './contract.js';
@@ -176,27 +173,22 @@ const pointDoc = (p, ident) => ({
   link: ident.source_url || null,
 });
 
-// Rank an identity for the query the way /offers ranks an offer: Search-
-// Roadmap stage first (rule 9), then the query's own product family, with the
-// fresh-produce demotions mirrored — the honesty layer that keeps a "lemon"
-// history from absorbing "Clorox lemon" prices.
-function rankIdentity(row, q, tokens, qFamily, freshFam) {
+// Interpret an identity row for the query — the same candidate shape the
+// shared gate ladder (matching.js resolveJourneyPool) consumes everywhere:
+// { stage, family, type, text }. Relevance admission (offerRelevance > 0)
+// stays the read API's own prefilter; the ladder owns everything after it.
+function interpretIdentity(row, q, tokens) {
   const pseudo = { name: row.name, nameAr: row.name_ar, category: row.category };
   const rel = offerRelevance(pseudo, tokens, row.match_text || '');
-  const score = relevanceScore(rel);
-  if (score <= 0) return null;
+  if (relevanceScore(rel) <= 0) return null;
   const names = `${row.name || ''} ${row.name_ar || ''}`;
-  const fam = qFamily ? offerFamily(pseudo) : null;
-  let famRank = !qFamily ? 1 : fam === qFamily ? 2 : fam ? 0 : 1;
-  if (freshFam) {
-    if (famRank === 2) {
-      if (productType(names)) famRank = 0;
-      else if (isProcessedProduce(names)) famRank = 1;
-    } else if (famRank === 1 && producePresence(names, freshFam) === 'flavored') {
-      famRank = 0;
-    }
-  }
-  return { stage: matchStage({ name: names }, q), famRank, score };
+  return {
+    row,
+    stage: matchStage({ name: names }, q),
+    family: offerFamily(pseudo),
+    type: productType(names),
+    text: names,
+  };
 }
 
 // The full price picture for a QUERY — any query, the whole catalog. Matched
@@ -221,30 +213,24 @@ export async function getQueryPricesDoc(historyStore, q, { today } = {}) {
   if (!tokens.length || !historyStore) return empty;
 
   const rows = await historyStore.searchIdentities({ q: query, limit: 300 });
-  const qFamily = queryFamily(query);
-  const freshFam = freshProduceIntent(query);
   const ranked = [];
   for (const row of rows) {
-    const rank = rankIdentity(row, query, tokens, qFamily, freshFam);
-    if (rank) ranked.push({ row, ...rank });
+    const cand = interpretIdentity(row, query, tokens);
+    if (cand) ranked.push(cand);
   }
   if (!ranked.length) return empty;
 
-  // The stage gate (rule 9): statistics only reason over the pool's best
-  // match band — a flavour/ingredient look-alike is never averaged with the
-  // product itself. Unlike the GRID (which sorts stage 5 above 4), history
-  // statistics treat all PRIMARY stages as one band: stage 5 vs 4 is only
-  // word position ("حليب المراعي" vs "المراعي حليب" are the same product),
-  // and the famRank gate below already excludes the other-product-with-scent
-  // class ("كلوروكس ليمون") that shares stage 4. Multi-word queries treat all
-  // full-coverage stages (≥2) as one band, same as the Shopping Summary.
-  const bestStage = Math.max(...ranked.map((r) => r.stage));
-  const band = tokens.length > 1 ? 2 : 4;
-  const inStage = ranked.filter((r) =>
-    bestStage >= band ? r.stage >= band : r.stage === bestStage,
-  );
-  const bestFam = Math.max(...inStage.map((r) => r.famRank));
-  const kept = inStage.filter((r) => r.famRank === bestFam).map((r) => r.row);
+  // THE SHARED GATE LADDER (matching.js resolveJourneyPool, HISTORY §34) at
+  // the 'history' tier: stage band → family → type → fresh-produce — the SAME
+  // interpretation the Shopping Summary reasons over, so a store's history is
+  // never built from a product its comparison would exclude. History's
+  // declared policy differences (JOURNEY_POLICY.history): single-word stages
+  // 5 and 4 are ONE band (word position — "حليب المراعي" vs "المراعي حليب" —
+  // must never split a series), and a family is never inferred for a
+  // family-less query (statistics don't guess). Family-less identities STAY
+  // in the statistics, exactly as they stay in the Summary — dropping them
+  // was the "store visible in the Summary, missing from Price History" bug.
+  const kept = resolveJourneyPool(ranked, query, 'history').kept.map((r) => r.row);
 
   const identById = new Map(kept.map((r) => [r.id, r]));
   const points = await historyStore.pointsForIdentities([...identById.keys()]);

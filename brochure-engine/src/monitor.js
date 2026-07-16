@@ -24,6 +24,13 @@
 //      target (above → at/below), not on every check while it stays below —
 //      one drop, one alert. When the price rises back above target the watch
 //      re-arms automatically.
+//   5. The SHARED gate ladder (matching.js resolveJourneyPool, 'alert' tier):
+//      stage band → family → type → fresh-produce, the SAME interpretation the
+//      frontend Shopping Summary reasons over — a watch never alerts on a
+//      product the Summary would refuse to recommend from the same pool
+//      ("كلوروكس ليمون" under a ليمون watch, a frozen strawberry under a
+//      فراولة watch). Rules 1–3 are the alert tier's DECLARED extras; they
+//      only ever narrow that shared pool.
 //
 // The monitor runs on a DAILY cron (index.js), fanned out through the same
 // SELF service-binding mechanism as the weekly ingest so each batch of watches
@@ -31,15 +38,14 @@
 // are config below; everything else reasons over ids.
 
 import {
-  nameRelevance,
   isRelevantName,
   parseSize,
   sizeComparable,
   productFamily,
-  queryFamily,
   offerFamily,
   productType,
-  queryType,
+  matchStage,
+  resolveJourneyPool,
 } from './matching.js';
 import {
   rowToOffer,
@@ -142,65 +148,46 @@ function refSize(watch) {
     : null;
 }
 
-// Family gate (trust rule): when the watched query names a product family, a
-// candidate of a KNOWN different family never counts — a milk watch must not
-// alert on a yogurt, an eggs watch must not alert on an egg-pastry, however
-// well the name tokens match. Family-less candidates pass (relevance + size
-// gates still apply); we only act on a provable mismatch.
-function familyMismatch(watchFamily, candidateName) {
-  if (!watchFamily) return false;
-  const fam = productFamily(candidateName);
-  return fam != null && fam !== watchFamily;
-}
-
-// Type gate (trust rule, the FORM attribute): when the watched query names a
-// product form ("chicken nuggets" -> nuggets), a candidate of a KNOWN different
-// form ("chicken roll" -> roll) never counts, even at the same brand+family.
-// Form-less candidates pass — we only act on a provable mismatch.
-function typeMismatch(watchType, candidateName) {
-  if (!watchType) return false;
-  const ty = productType(candidateName);
-  return ty != null && ty !== watchType;
-}
-
-// Same gate for a flyer offer, but the family may come from the offer's
-// aggregator category when its OCR name yields none (offerFamily is name-first).
-function offerFamilyMismatch(watchFamily, offer) {
-  if (!watchFamily) return false;
-  const fam = offerFamily(offer);
-  return fam != null && fam !== watchFamily;
-}
-
-// kind 'grocery': sweep every online store + the current flyer offers.
+// kind 'grocery': sweep every online store + the current flyer offers, then
+// resolve the pool through the SHARED gate ladder (matching.js
+// resolveJourneyPool, HISTORY §34) at the 'alert' tier — the same stage →
+// family → type → fresh-produce interpretation the Shopping Summary reasons
+// over, so a watch can only ever act on a product the Summary would recommend
+// from the same candidates. What stays alert-ONLY (declared here, and it only
+// ever narrows): the stricter relevance floor (REL_FLOOR 50), the reference-
+// size ±25% comparability gate, flyer NAME-tier matches only, and an emptied
+// pool meaning silence (JOURNEY_POLICY.alert.neverEmpty = false).
 async function evaluateGrocery(ctx, watch, notes) {
   const candidates = [];
   const ref = refSize(watch);
-  const watchFamily = queryFamily(watch.query);
-  const watchType = queryType(watch.query);
 
   // Online stores (via the search connector). Per-store failures are noted,
-  // never fatal — monitoring degrades gracefully with flaky stores.
+  // never fatal — monitoring degrades gracefully with flaky stores. Every
+  // passing result joins the pool: the ladder needs the whole pool to know
+  // the best match band present.
   if (ctx.searchClient) {
     await Promise.all(
       MONITOR_PROVIDERS.map(async (provider) => {
         try {
           const results = await ctx.searchClient.search(provider, watch.query);
-          let best = null;
           for (const r of results || []) {
             const price = Number(r.price);
             if (!Number.isFinite(price) || price <= 0) continue;
             if (!isRelevantName(r.name, watch.query, REL_FLOOR)) continue;
-            if (familyMismatch(watchFamily, r.name)) continue; // wrong product family
-            if (typeMismatch(watchType, r.name)) continue; // wrong product form
             if (ref) {
               const sz = parseSize(r.name, r.size);
               if (!sizeComparable(ref, sz)) continue; // wrong/unknown size
             }
-            if (!best || price < best.price) {
-              best = { price, currency: r.currency || 'SAR', store: provider, source: 'online', name: r.name, link: r.link || null };
-            }
+            candidates.push({
+              price, currency: r.currency || 'SAR', store: provider, source: 'online', name: r.name, link: r.link || null,
+              // Interpretation for the ladder — same fields, same texts as the
+              // Summary's onlineListing (compare.js).
+              stage: matchStage({ name: r.name, brand: r.brand }, watch.query),
+              family: productFamily(r.name),
+              type: productType(r.name),
+              text: `${r.name || ''} ${r.brand || ''}`,
+            });
           }
-          if (best) candidates.push(best);
         } catch (err) {
           notes.push(`${provider}: ${err.message}`);
         }
@@ -220,33 +207,39 @@ async function evaluateGrocery(ctx, watch, notes) {
         limit: 100,
       });
       const tokens = queryTokens(watch.query);
-      let best = null;
       for (const row of rows) {
         const offer = rowToOffer(row);
         const rel = offerRelevance(offer, tokens, row.search_text || '');
         if (!isNameMatch(rel)) continue;
         const display = offer.name || offer.nameAr;
         if (!display || !isRelevantName(display, watch.query, REL_FLOOR)) continue;
-        if (offerFamilyMismatch(watchFamily, offer)) continue;
-        if (typeMismatch(watchType, `${offer.name || ''} ${offer.nameAr || ''}`)) continue;
         if (ref) {
           const sz = parseSize(`${offer.name || ''} ${offer.nameAr || ''}`, '');
           if (!sizeComparable(ref, sz)) continue;
         }
         const price = Number(offer.price);
         if (!Number.isFinite(price) || price <= 0) continue;
-        if (!best || price < best.price) {
-          best = { price, currency: offer.currency || 'SAR', store: offer.store, source: 'flyer', name: display, link: offer.sourceUrl || null };
-        }
+        const bilingual = `${offer.name || ''} ${offer.nameAr || ''}`;
+        candidates.push({
+          price, currency: offer.currency || 'SAR', store: offer.store, source: 'flyer', name: display, link: offer.sourceUrl || null,
+          // Interpretation over BOTH derived names, exactly as the Summary's
+          // flyerListing probes (the product word often lands in one language).
+          stage: matchStage({ name: bilingual }, watch.query),
+          family: offerFamily(offer),
+          type: productType(bilingual),
+          text: bilingual,
+        });
       }
-      if (best) candidates.push(best);
     } catch (err) {
       notes.push(`offers: ${err.message}`);
     }
   }
 
   if (!candidates.length) return null;
-  return candidates.reduce((a, b) => (b.price < a.price ? b : a));
+  const pool = resolveJourneyPool(candidates, watch.query, 'alert');
+  if (!pool.kept.length) return null; // silence over a wrong product
+  const best = pool.kept.reduce((a, b) => (b.price < a.price ? b : a));
+  return { price: best.price, currency: best.currency, store: best.store, source: best.source, name: best.name, link: best.link };
 }
 
 // kind 'product': re-find the EXACT product by its stable id in the store's
