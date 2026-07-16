@@ -57,6 +57,8 @@ import {
   matchStage,
   queryTokenPresence,
   resolveJourneyPool,
+  querySize,
+  sizeContradicts,
 } from './src/matching.js';
 import { buildWatch, checkWatch, MAX_WATCHES } from './src/monitor.js';
 import { pruneStoredBytes } from './src/retention.js';
@@ -779,6 +781,31 @@ async function selftestMatching() {
     }
     if (resolveJourneyPool(pool.slice(0, 2), 'فراولة مجمدة', 'summary').freshExcluded !== 0) fail('ladder: naming the processing did not disable the fresh gate');
   }
+  // Size-aware queries (Search Experience Refinement Task 1, mirrors frontend
+  // match.test.mjs): a query-named size is a STRUCTURED filter, never lexical
+  // tokens — "Water" finding history while "Arwa Water 1.5L" found none was
+  // the size fragments ("1", "5l") failing the AND-word gates in /prices,
+  // /offers and the SQL prefilters.
+  if (queryTokens('Arwa Water 1.5L').join(' ') !== 'arwa water') fail('queryTokens did not strip the size expression');
+  if (queryTokens('مياه اروى ١.٥ لتر').join(' ') !== 'مياه اروي') fail('queryTokens did not strip an Arabic-Indic size');
+  if (queryTokens('بيض 30 حبة').join(' ') !== 'بيض') fail('queryTokens did not strip a count expression');
+  if (queryTokens('حليب المراعي').join(' ') !== 'حليب المراعي') fail('size-less query tokens changed');
+  if (!queryTokens('1.5 لتر').length) fail('size-only query lost all tokens');
+  { const s = querySize('Arwa Water 1.5L'); if (!s || s.unit !== 'ml' || s.total !== 1500) fail('querySize did not read 1.5L'); }
+  if (querySize('حليب المراعي') !== null) fail('querySize invented a size');
+  if (!sizeContradicts(parseSizeM('Arwa Water 330ml'), querySize('Arwa Water 1.5L'))) fail('330ml did not contradict 1.5L');
+  if (sizeContradicts(parseSizeM('Arwa Water 1.5 Ltr'), querySize('Arwa Water 1.5L'))) fail('1.5 Ltr wrongly contradicted 1.5L');
+  if (sizeContradicts(parseSizeM('Arwa Water'), querySize('Arwa Water 1.5L'))) fail('unknown size wrongly contradicted');
+  if (matchStage({ name: 'Arwa Drinking Water 1.5 Ltr' }, 'Arwa Water 1.5L') < 4) fail('exact-size result lost its primary stage');
+  if (matchStage({ name: 'Arwa Water 330ml' }, 'Arwa Water 1.5L') !== 1) fail('contradicting size was not capped at stage 1');
+  if (matchStage({ name: 'Arwa Water' }, 'Arwa Water 1.5L') !== 5) fail('size-less result was wrongly demoted');
+  if (matchStage({ name: 'مياه اروي 1.5 لتر' }, 'Arwa Water 1.5L') < 4) fail('bilingual size query missed the Arabic name');
+  if (nameRelevance('Arwa Drinking Water 1.5 Ltr', 'Arwa Water 1.5L') <= 0) fail('size query killed nameRelevance');
+  // Per-piece trust ladder (Task 7): weak count suffixes parse for size
+  // comparability but are marked, so no per-piece price is advertised on them.
+  if (parseSizeM("Indomie Noodles 6's").src !== 'count-weak') fail("6's suffix not marked count-weak");
+  if (parseSizeM('بيض ابيض 30 حبة').src !== 'count') fail('count word not marked count');
+
   {
     // THE SUBSET INVARIANT: for the same candidates, alert kept ⊆ summary kept.
     const pools = [

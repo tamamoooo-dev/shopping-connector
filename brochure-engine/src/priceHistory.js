@@ -29,6 +29,8 @@ import {
   offerFamily,
   productType,
   resolveJourneyPool,
+  querySize,
+  sizeContradicts,
 } from './matching.js';
 import { queryTokens, offerRelevance, relevanceScore } from './offers/contract.js';
 import { isoWeek } from './contract.js';
@@ -230,7 +232,24 @@ export async function getQueryPricesDoc(historyStore, q, { today } = {}) {
   // family-less query (statistics don't guess). Family-less identities STAY
   // in the statistics, exactly as they stay in the Summary — dropping them
   // was the "store visible in the Summary, missing from Price History" bug.
-  const kept = resolveJourneyPool(ranked, query, 'history').kept.map((r) => r.row);
+  let kept = resolveJourneyPool(ranked, query, 'history').kept.map((r) => r.row);
+
+  // SIZE PRECISION — a query-named size ("Arwa Water 1.5L") makes the history
+  // MORE precise, never emptier: identities of a KNOWN different size are
+  // excluded from the statistics (their lows belong to a different package),
+  // size-less identities stay (refuse to guess). The stage cap in matchStage
+  // already demotes contradicting sizes; this filter closes the residual case
+  // where ONLY contradicting sizes matched — an honest "no history for this
+  // size yet" beats a wrong record.
+  const qSize = querySize(query);
+  if (qSize) {
+    kept = kept.filter(
+      (r) =>
+        !r.size_unit ||
+        !sizeContradicts({ unit: r.size_unit, total: r.size_total }, qSize),
+    );
+    if (!kept.length) return empty;
+  }
 
   const identById = new Map(kept.map((r) => [r.id, r]));
   const points = await historyStore.pointsForIdentities([...identById.keys()]);

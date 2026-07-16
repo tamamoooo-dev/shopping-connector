@@ -42,8 +42,18 @@ export function normalizeText(text) {
     .trim();
 }
 
+// The query's LEXICAL tokens. A query-named size ("Arwa Water 1.5L") is NOT a
+// lexical token — normalization shreds it ("1.5l" -> "1 5l") and every store/
+// OCR spells it differently, so treating its fragments as mandatory AND-words
+// silently killed /prices, /offers and watch matches for any size-carrying
+// query. The size expression is stripped before tokenizing (querySize() reads
+// it as a structured filter; matchStage() enforces it); a query that is ONLY a
+// size keeps its raw tokens. Mirrors frontend match.js — keep in sync (rule 2).
 export function queryTokens(q) {
-  return normalizeText(q).split(' ').filter(Boolean).slice(0, 6);
+  const raw = () => normalizeText(q).split(' ').filter(Boolean).slice(0, 6);
+  if (!querySize(q)) return raw();
+  const lex = normalizeText(stripSizeExpressions(normSize(q))).split(' ').filter(Boolean).slice(0, 6);
+  return lex.length ? lex : raw();
 }
 
 // --- bilingual synonym bridge --------------------------------------------------
@@ -80,6 +90,11 @@ const SYNONYMS = [
   ['cola', 'كولا'],
   ['tide', 'تايد'],
   ['nutella', 'نوتيلا'],
+  // water brands shoppers search in either script (found via "Arwa Water
+  // 1.5L" — the Arabic flyer names could never match the Latin brand token)
+  ['arwa', 'اروي', 'اروا'],
+  ['nova', 'نوفا'],
+  ['berain', 'بيرين'],
   // fresh produce (bilingual bridges so an Arabic produce query reaches
   // English-named catalogue items and flyer OCR, and vice versa). English
   // words that double as colours/scents ("orange") are deliberately left out.
@@ -689,6 +704,18 @@ function phraseInName(qTokens, nameWords) {
 export function matchStage(item, query) {
   const qTokens = queryTokens(query);
   if (!qTokens.length) return 0;
+  // SIZE CAP (mirrors frontend match.js): a query-named size ("Arwa Water
+  // 1.5L") is a mandatory term in structured form — a result whose parsed
+  // size CONTRADICTS it can never sit in a primary/full-coverage stage.
+  // Results with no parseable size are never demoted (refuse to guess).
+  const qSize = querySize(query);
+  if (qSize && sizeContradicts(parseSize(item.name, item.size || ''), qSize)) {
+    return rawMatchStage(item, qTokens, query) > 0 ? 1 : 0;
+  }
+  return rawMatchStage(item, qTokens, query);
+}
+
+function rawMatchStage(item, qTokens, query) {
   const name = normalizeText(item.name);
   const nameWords = name ? name.split(' ') : [];
   const nameSet = new Set(nameWords);
@@ -849,7 +876,7 @@ export function parseSize(name, sizeField) {
     const b = parseInt(bm[2], 10);
     if (base && a >= 1 && b >= 1 && b <= a && a + b <= 99) {
       const each = num(bm[3]) * base.factor;
-      return { unit: base.unit, each, pack: a + b, total: each * (a + b) };
+      return { unit: base.unit, each, pack: a + b, total: each * (a + b), src: 'measure' };
     }
   }
 
@@ -864,7 +891,7 @@ export function parseSize(name, sizeField) {
       if (base) {
         const each = num(m[f.size]) * base.factor;
         const pack = Math.max(1, Math.round(num(m[f.pack])) || 1);
-        return { unit: base.unit, each, pack, total: each * pack };
+        return { unit: base.unit, each, pack, total: each * pack, src: 'measure' };
       }
     }
   }
@@ -879,20 +906,62 @@ export function parseSize(name, sizeField) {
         new RegExp(`[x×*]\\s*(\\d+)(?!\\s*(?:${UNITS}))${B}`, 'u').exec(hay) ||
         /\b(\d+)\s*(?:pcs|pc|pack|s)\b/.exec(hay);
       const pack = bonus || (pm ? Math.max(1, parseInt(pm[1], 10)) : 1);
-      return { unit: u.base, each, pack, total: each * pack };
+      return { unit: u.base, each, pack, total: each * pack, src: 'measure' };
     }
   }
 
   // A unitless bonus pack ("3+1 مجانًا 4 قطع") is a piece count of a+b — the
   // true total, ahead of any stray count word ("28 عبوة") the OCR left behind.
-  if (bonus) return { unit: 'pcs', each: 1, pack: bonus, total: bonus };
+  if (bonus) return { unit: 'pcs', each: 1, pack: bonus, total: bonus, src: 'count' };
 
+  // `src` records count trustworthiness (mirrors frontend match.js): a real
+  // packaging count word is a package count; a bare "6's"/"12x"/"ct" suffix is
+  // enough for size comparability but never for advertising a per-piece price.
   const cm = COUNT_RE.exec(hay);
   if (cm) {
     const n = parseInt(cm[1], 10);
-    if (n > 0 && n <= 500) return { unit: 'pcs', each: 1, pack: n, total: n };
+    if (n > 0 && n <= 500) {
+      const weak = cm[2] === 's' || cm[2] === 'x' || cm[2] === 'ct' || cm[2] === 'count';
+      return { unit: 'pcs', each: 1, pack: n, total: n, src: weak ? 'count-weak' : 'count' };
+    }
   }
-  return { unit: null, each: null, pack: 1, total: null };
+  return { unit: null, each: null, pack: 1, total: null, src: null };
+}
+
+// --- query size intent ----------------------------------------------------------
+// The structured reading of a size-carrying query (see queryTokens above).
+// Mirrors frontend match.js — keep in sync (rule 2).
+const SIZE_STRIP_RES = [PACK_BONUS_RE, PACK_RE[0], PACK_RE[1], ...UNIT_TO_BASE.map((u) => u.re), COUNT_RE];
+
+function stripSizeExpressions(hay) {
+  let out = hay;
+  // A plausible bonus pack ("8+2", "8 رول +2") is a size expression too.
+  if (bonusPack(out)) {
+    const m = BONUS_RE.exec(out);
+    if (m) out = out.slice(0, m.index) + ' ' + out.slice(m.index + m[0].length);
+  }
+  for (const re of SIZE_STRIP_RES) {
+    let m;
+    while ((m = re.exec(out))) out = out.slice(0, m.index) + ' ' + out.slice(m.index + m[0].length);
+  }
+  return out.replace(/\s+/g, ' ').trim();
+}
+
+// The package size a query explicitly names, or null.
+export function querySize(query) {
+  const sz = parseSize(query, '');
+  return sz && sz.unit ? sz : null;
+}
+
+// Does a parsed size CONTRADICT the query's named size? Only a confident "no":
+// both parsed, and either a different unit family or totals >3% apart (the
+// same tolerance product equivalence uses). Unknown sizes never contradict.
+export function sizeContradicts(itemSize, qSize) {
+  if (!qSize || !qSize.unit || !itemSize || !itemSize.unit) return false;
+  if (itemSize.unit !== qSize.unit) return true;
+  if (itemSize.total == null || qSize.total == null) return false;
+  const hi = Math.max(itemSize.total, qSize.total);
+  return hi > 0 && (hi - Math.min(itemSize.total, qSize.total)) / hi > 0.03;
 }
 
 // Are two parsed sizes comparable enough for one to satisfy a watch on the
