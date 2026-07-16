@@ -227,9 +227,13 @@ const DERIVED_FAMILIES = {
   // Curated to words that never name a consumable. Deliberately EXCLUDED:
   // زجاجه/كوب/bottle (genuine bottled water is sold as "زجاجة مياه من اروى"),
   // kettle ("Kettle Chips" the crisps brand), فلتر/filter ("قهوة فلتر"),
-  // mixer (cocktail mixers), microwave (microwave popcorn), ترمس (lupin
-  // beans) — for these the derived tier would wrongly EXCLUDE consumables.
-  houseware: ['steamer', 'blender', 'thermos', 'flask', 'jug', 'pitcher', 'teapot', 'غلايه', 'قلايه', 'ابريق', 'اباريق', 'قربه', 'جهاز', 'اجهزه', 'ماكينه', 'مكواه', 'سخان', 'قدر', 'مقلاه', 'طنجره', 'مضخه', 'مضخات'],
+  // mixer (cocktail mixers), microwave (microwave popcorn) — for these the
+  // derived tier would wrongly EXCLUDE consumables. ترمس IS included despite
+  // also meaning lupin beans: water-thermos flyer offers pollute real water
+  // results (found live 2026-07-16), and the ambiguity is self-neutralizing —
+  // a lupin query containing ترمس classifies to the SAME family as the lupin
+  // products, and same-family never gates.
+  houseware: ['steamer', 'blender', 'thermos', 'flask', 'jug', 'pitcher', 'teapot', 'غلايه', 'قلايه', 'ابريق', 'اباريق', 'قربه', 'جهاز', 'اجهزه', 'ماكينه', 'مكواه', 'سخان', 'قدر', 'مقلاه', 'طنجره', 'مضخه', 'مضخات', 'ترمس'],
 };
 // Fresh fruit & vegetables — the LOWEST family tier (see the tier note above).
 // Curated to common Saudi grocery produce with unambiguous words; ambiguous
