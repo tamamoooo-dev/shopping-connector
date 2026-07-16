@@ -188,7 +188,10 @@ const DERIVED_FAMILIES = {
   // drowning fresh produce in the grid.
   soup: ['soup', 'شوربه', 'شوربات'],
   jam: ['jam', 'marmalade', 'مربي'],
-  syrup: ['syrup', 'nectar', 'cocktail', 'mojito', 'smoothie', 'shake', 'milkshake', 'سيرب', 'شراب', 'مشروب', 'مشروبات', 'نكتار', 'كوكتيل', 'موهيتو', 'سموذي', 'شيك', 'ميلكشيك', 'تانج', 'tang'],
+  // 'drink(s)' mirrors the Arabic مشروب already here: "Lemon Lime Drink" is a
+  // beverage, never fresh produce (found live 2026-07-16 — it was the lowest
+  // "lemon" in every feature at once).
+  syrup: ['syrup', 'nectar', 'cocktail', 'mojito', 'smoothie', 'shake', 'milkshake', 'drink', 'drinks', 'سيرب', 'شراب', 'مشروب', 'مشروبات', 'نكتار', 'كوكتيل', 'موهيتو', 'سموذي', 'شيك', 'ميلكشيك', 'تانج', 'tang'],
   soda: ['soda', 'cola', 'pepsi', 'fanta', 'mirinda', 'sprite', '7up', 'cocacola', 'صودا', 'كولا', 'بيبسي', 'فانتا', 'ميرندا', 'سبرايت', 'سفن', 'كوكاكولا', 'غازي', 'غازيه', 'malt', 'شعير', 'هولستن', 'holsten', 'بربيكان', 'barbican', 'موسي', 'moussy'],
   pickle: ['pickle', 'pickles', 'مخلل', 'مخللات', 'طرشي'],
   // produce-shaped non-food ("لعبة على شكل فراولة" squeeze toys from Amazon)
@@ -244,9 +247,12 @@ const PRODUCE_FAMILIES = {
 // A produce word right next to one of these names a FLAVOUR/SCENT, not the
 // produce itself ("حليب بنكهة الفراولة", "strawberry flavoured", "برائحة
 // الليمون") — such a hit must not classify the product as produce.
+// بديل/substitute: "بديل الليمون" / "lemon substitute" names what the product
+// REPLACES, not the produce itself (found live 2026-07-16 — a lemon-substitute
+// dressing was the recorded "lowest lemon").
 const FLAVOR_MARKERS = new Set(
-  ['بنكهه', 'نكهه', 'نكهات', 'بطعم', 'طعم', 'برائحه', 'رائحه',
-   'flavor', 'flavour', 'flavored', 'flavoured', 'flavors', 'flavours', 'scented'].map(normalizeText),
+  ['بنكهه', 'نكهه', 'نكهات', 'بطعم', 'طعم', 'برائحه', 'رائحه', 'بديل',
+   'flavor', 'flavour', 'flavored', 'flavoured', 'flavors', 'flavours', 'scented', 'substitute'].map(normalizeText),
 );
 const FAMILY_INDEX = (() => {
   const m = new Map(); // keyword -> { family, derived, produce }
@@ -598,10 +604,10 @@ export function isRelevantName(name, query, floor = 40) {
 // it ("strawberry flavoured milk" — strawberry is the flavour). A symmetric
 // check would wrongly demote the head noun of "حليب بنكهة الفراولة" for حليب.
 const FLAVOR_BEFORE = new Set(
-  ['بنكهه', 'نكهه', 'نكهات', 'بطعم', 'طعم', 'برائحه', 'رائحه'].map(normalizeText),
+  ['بنكهه', 'نكهه', 'نكهات', 'بطعم', 'طعم', 'برائحه', 'رائحه', 'بديل'].map(normalizeText),
 );
 const FLAVOR_AFTER = new Set(
-  ['flavor', 'flavour', 'flavored', 'flavoured', 'flavors', 'flavours', 'scented'].map(normalizeText),
+  ['flavor', 'flavour', 'flavored', 'flavoured', 'flavors', 'flavours', 'scented', 'substitute'].map(normalizeText),
 );
 
 // How ONE query token appears in a name: as the PRODUCT itself ('primary' — a

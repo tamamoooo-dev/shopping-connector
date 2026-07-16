@@ -708,6 +708,16 @@ async function selftestMatching() {
   if (queryTokenPresence('فراولة طازجة 250 جم', 'فراولة') !== 'primary') fail('standalone word not primary');
   if (queryTokenPresence('مصاصات بالفراولة', 'فراولة') !== 'secondary') fail('بال-attached not secondary');
   if (queryTokenPresence('حليب المراعي 2 لتر', 'فراولة') !== null) fail('absent token not null');
+  // Beverage + substitute look-alikes (found in production 2026-07-16):
+  // "Lemon Lime Drink" is a beverage (English mirror of مشروب), a "lemon
+  // substitute" names what it replaces — neither is fresh produce.
+  if (productFamily('Lemon Lime Drink') !== 'syrup') fail('lemon lime drink did not classify as beverage');
+  if (matchStage({ name: 'Lemon Carbonated Soft Drink Can' }, 'ليمون') !== 1) fail('lemon drink not secondary stage');
+  if (productFamily('Maqadir Lemon Substitute 1L') === 'lemon') fail('lemon substitute wrongly classified as produce');
+  if (matchStage({ name: 'Maqadir Lemon Substitute 1L' }, 'ليمون') !== 1) fail('lemon substitute not secondary stage');
+  if (productFamily('مقادير بديل الليمون 1 لتر') === 'lemon') fail('بديل الليمون wrongly classified as produce');
+  if (matchStage({ name: 'مقادير بديل الليمون 1 لتر' }, 'ليمون') !== 1) fail('بديل الليمون not secondary stage');
+
   // The SHARED gate ladder + the declared JOURNEY_POLICY table (HISTORY §34).
   // Mirrors the frontend match.test.mjs ladder block — keep in sync (rule 2).
   const cand = (name, stage, extra = {}) => ({
