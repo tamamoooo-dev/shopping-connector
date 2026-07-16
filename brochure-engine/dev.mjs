@@ -660,6 +660,7 @@ async function selftestMatching() {
   if (productFamily('تيفال غلاية ماء 1.7 لتر') !== 'houseware') fail('kettle did not classify as houseware');
   if (productFamily('زجاجة مياه من اروى') !== 'water') fail('bottled water sold as زجاجة lost the water family');
   if (productFamily('Kettle Chips Sea Salt 150g') !== 'chips') fail('Kettle Chips wrongly classified as houseware');
+  if (productFamily('رويال فورد مضخة ماء قابلة للشحن') !== 'houseware') fail('water pump did not classify as houseware');
   // multi-word known-different-family cap (the "ماء أروى 1.5 steamer" case)
   if (matchStage({ name: 'جهاز طهي الطعام بالبخار متعدد الوظائف من ارويك مع خزان ماء 1.5 لتر', brand: '' }, 'ماء أروى 1.5') !== 1)
     fail('steamer not capped to stage 1 under multi-word water query');

@@ -229,7 +229,7 @@ const DERIVED_FAMILIES = {
   // kettle ("Kettle Chips" the crisps brand), فلتر/filter ("قهوة فلتر"),
   // mixer (cocktail mixers), microwave (microwave popcorn), ترمس (lupin
   // beans) — for these the derived tier would wrongly EXCLUDE consumables.
-  houseware: ['steamer', 'blender', 'thermos', 'flask', 'jug', 'pitcher', 'teapot', 'غلايه', 'قلايه', 'ابريق', 'اباريق', 'قربه', 'جهاز', 'اجهزه', 'ماكينه', 'مكواه', 'سخان', 'قدر', 'مقلاه', 'طنجره'],
+  houseware: ['steamer', 'blender', 'thermos', 'flask', 'jug', 'pitcher', 'teapot', 'غلايه', 'قلايه', 'ابريق', 'اباريق', 'قربه', 'جهاز', 'اجهزه', 'ماكينه', 'مكواه', 'سخان', 'قدر', 'مقلاه', 'طنجره', 'مضخه', 'مضخات'],
 };
 // Fresh fruit & vegetables — the LOWEST family tier (see the tier note above).
 // Curated to common Saudi grocery produce with unambiguous words; ambiguous
