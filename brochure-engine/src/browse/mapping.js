@@ -163,10 +163,13 @@ export function mappedCategories(source) {
    D4D routinely files frozen products under the FRESH categories (production
    audit 2026-07-16: 49 current rows, 48 of them frozen chicken in
    `fresh-chicken-poultry`). The category can't be trusted alone, but the OCR
-   name can: a fresh-aisle product whose name says frozen (مجمد/frozen) belongs
-   in the frozen counterpart aisle. Applied at READ time everywhere the aisle
-   is derived — cards, tile counts, and the dept/aisle SQL prefilters (via the
-   include-group `frozen` mode) — so all three views always agree.
+   name can: a fresh-aisle product whose name says frozen (مجمد/frozen) OR is
+   an industrial processed form (nuggets/franks/strips/... — audit 2026-07-17:
+   these dominate `fresh-chicken-poultry` and their names almost never say
+   frozen) belongs in the frozen counterpart aisle. Applied at READ time
+   everywhere the aisle is derived — cards, tile counts, and the dept/aisle
+   SQL prefilters (via the include-group `frozen` mode) — so all three views
+   always agree.
    The reverse direction is deliberately NOT applied: "fresh"/"طازج" inside a
    frozen category is marketing language ("freshly frozen"), not a category. */
 
@@ -178,10 +181,46 @@ export const FRESH_TO_FROZEN = {
   vegetables: 'frozen-fruits-veg',
 };
 
-const FROZEN_MARK_RE = /مجمد|frozen/i; // مجمد also prefixes مجمدة/مجمده
+// The mark is defined as TERM LISTS (not a regex) so browseStore can generate
+// its SQL twin from the SAME data — the two classifiers cannot drift. Every
+// term is a plain substring of the space-joined "name nameAr" pair, matched
+// case-insensitively (ASCII LIKE is case-insensitive too).
+export const FROZEN_MARK_TERMS = ['frozen', 'مجمد']; // مجمد also prefixes مجمدة/مجمده
+
+// Industrial processed poultry/meat forms — frozen retail products in Saudi
+// flyers that D4D files under the FRESH categories with no مجمد/frozen in the
+// OCR name (production audit 2026-07-17). High-confidence terms only: forms a
+// fresh butcher counter does not sell under these names. Deliberately left
+// out as ambiguous with genuine fresh-counter items: فيليه/fillet, تندر/
+// tender, شرايح, مسحب, شيش طاووق, bare كباب, اسكالوب/escalope (a butcher's cut
+// name — production FP: fresh beef stroganoff escalope per kilo); and English
+// "zing" (substring of "amazing" — the Arabic spellings cover those products).
+export const PROCESSED_MARK_TERMS = [
+  'ناجت', 'ناجيت', 'nugget',
+  'نقانق', 'مقانق', 'فرانك', 'franks', 'هوت دوج', 'hotdog', 'hot dog',
+  'برجر', 'برغر', 'burger',
+  'ستربس', 'ستريبس', 'ستريس', 'strips',
+  'بوب كورن', 'بوبكورن', 'popcorn',
+  'بقسماط', 'breaded', 'تمبورا', 'tempura',
+  'زينج', 'زينغ', 'زنجز',
+  'بروست', 'broasted', 'كوردون', 'cordon',
+  'فرايز', 'fries', 'كرات لحم', 'كرات اللحم', 'meatball', 'meat ball',
+  'سيخ كباب',
+];
+
+// An explicit fresh-counter word outweighs a processed-form word (a butcher's
+// fresh burger patties stay fresh — production FP: Tamimi برجر دجاج بوتشر per
+// kilo). It does NOT override a literal مجمد/frozen mark.
+export const FRESH_GUARD_TERMS = ['طازج', 'بوتشر', 'butcher'];
+
+const toRe = (terms) => new RegExp(terms.join('|'), 'i'); // terms are plain words, no escaping needed
+const FROZEN_RE = toRe(FROZEN_MARK_TERMS);
+const PROCESSED_RE = toRe(PROCESSED_MARK_TERMS);
+const GUARD_RE = toRe(FRESH_GUARD_TERMS);
 
 export function isFrozenMarked(name, nameAr) {
-  return FROZEN_MARK_RE.test(`${name || ''} ${nameAr || ''}`);
+  const s = `${name || ''} ${nameAr || ''}`;
+  return FROZEN_RE.test(s) || (PROCESSED_RE.test(s) && !GUARD_RE.test(s));
 }
 
 // The final aisle of one offer row: canonical mapping, then the frozen

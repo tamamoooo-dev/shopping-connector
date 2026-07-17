@@ -13,6 +13,10 @@
 // browse/deals.js scores and badges. The join key is offers.identity, written
 // at ingest by the same derivation the price-history harvest uses.
 
+import {
+  FROZEN_MARK_TERMS, PROCESSED_MARK_TERMS, FRESH_GUARD_TERMS,
+} from '../browse/mapping.js';
+
 // Slim projection: everything a Browse card needs, nothing more (search_text
 // stays out — it is matching payload, ~600 chars/row of dead weight here).
 const CARD_COLS = `
@@ -28,12 +32,18 @@ const HISTORY_JOIN = `
                     COUNT(*) AS points
                FROM price_history GROUP BY identity) h ON h.identity = o.identity`;
 
-// The SQL twin of mapping.isFrozenMarked (LIKE '%مجمد%' also catches مجمدة/
-// مجمده; ASCII LIKE is case-insensitive, covering Frozen/FROZEN). Used to
-// refine fresh-category rows whose OCR name says frozen — the JS regex and
-// this expression MUST classify identically or tiles and listings drift.
-const FROZEN_MARK_SQL = `(o.name LIKE '%frozen%' OR o.name_ar LIKE '%frozen%'
-  OR o.name LIKE '%مجمد%' OR o.name_ar LIKE '%مجمد%')`;
+// The SQL twin of mapping.isFrozenMarked, GENERATED from the same term lists
+// so the two classifiers cannot drift (the JS regex and this expression MUST
+// classify identically or tiles and listings diverge). Both test the
+// space-joined "name nameAr" pair with NULLs coalesced to '' — a NULL column
+// must read as "no mark", never as SQL NULL: `NOT (name LIKE ...)` over a
+// NULL name is NULL, and three-valued logic silently dropped every NULL-named
+// row from the fresh listings (all produce; production bug found 2026-07-17).
+// ASCII LIKE is case-insensitive, matching the JS regex's /i.
+const MARK_NAMES = `(ifnull(o.name,'') || ' ' || ifnull(o.name_ar,''))`;
+const likeAny = (terms) => terms.map((t) => `${MARK_NAMES} LIKE '%${t}%'`).join(' OR ');
+const FROZEN_MARK_SQL = `((${likeAny(FROZEN_MARK_TERMS)})
+  OR ((${likeAny(PROCESSED_MARK_TERMS)}) AND NOT (${likeAny(FRESH_GUARD_TERMS)})))`;
 
 const SORTS = {
   discount: `(CASE WHEN o.old_price > o.price

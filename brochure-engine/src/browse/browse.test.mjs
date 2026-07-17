@@ -132,6 +132,47 @@ test('isFrozenMarked: مجمد (any form) and frozen, either language field', ()
   assert.ok(!isFrozenMarked('Fresh Chicken 1kg', 'دجاج طازج'));
 });
 
+test('isFrozenMarked: processed forms count as frozen even without مجمد/frozen', () => {
+  // Production audit 2026-07-17: these dominate D4D's fresh-chicken-poultry.
+  assert.ok(isFrozenMarked('sadia chicken nuggets', 'ساديا دجاج ناجت'));
+  assert.ok(isFrozenMarked(null, 'نقانق دجاج داري 340غ'));
+  assert.ok(isFrozenMarked('al kabeer zing chicken strips', null));
+  assert.ok(isFrozenMarked('chicken burger', 'برجر دجاج بالبقسماط غرام'));
+  assert.ok(isFrozenMarked(null, 'تشيل بيري بوب كورن دجاج جم'));
+  assert.ok(isFrozenMarked('sadia broasted', 'حبه pc'));
+  assert.ok(isFrozenMarked(null, 'اسكالوب دجاج بالبقسماط ساديا')); // via بقسماط
+  assert.ok(isFrozenMarked('seekh kebabs', 'الكبير سيخ كباب دجاج غرام'));
+  assert.ok(isFrozenMarked(null, 'زينج شرايح الدجاج الكبير')); // Arabic zing
+});
+
+test('isFrozenMarked: genuine fresh-counter items never match', () => {
+  assert.ok(!isFrozenMarked('tender chicken breast', 'صدور دجاج طريه'));
+  assert.ok(!isFrozenMarked('entaj fresh chicken gizzard liver', 'انتاج اجنحه كبده قوانص'));
+  assert.ok(!isFrozenMarked(null, 'الوطنيه دجاج كامل طازج 900جم'));
+  assert.ok(!isFrozenMarked('beef striploin', 'لحم بقري ستريبلوين')); // 'strips' ⊄ striploin
+  assert.ok(!isFrozenMarked('amazing offer chicken', null)); // English zing dropped
+  assert.ok(!isFrozenMarked('fresh cut chicken', 'مقطعه بدون عظم جرام'));
+  // Ambiguous forms deliberately left fresh: fillet / tender / مسحب / شرايح /
+  // اسكالوب (butcher's cut — production FP: fresh beef stroganoff per kilo).
+  assert.ok(!isFrozenMarked('chicken fillet', 'فيليه دجاج غرام'));
+  assert.ok(!isFrozenMarked(null, 'امريكانا مسحب دجاج عادي'));
+  assert.ok(!isFrozenMarked(null, 'ستروجانوف بقري برازيلي اسكالوب للكيلو'));
+});
+
+test('isFrozenMarked: fresh-counter words guard the processed mark, never the frozen word', () => {
+  // A butcher's fresh burger patties stay fresh…
+  assert.ok(!isFrozenMarked(null, 'برجر لحم طازج'));
+  assert.ok(!isFrozenMarked(null, 'برجر دجاج بوتشر او مشوي الكيلو'));
+  // …but a literal مجمد always wins.
+  assert.ok(isFrozenMarked(null, 'برجر دجاج طازج مجمد'));
+});
+
+test('isFrozenMarked: NULL/missing names are simply unmarked, never poison', () => {
+  assert.ok(!isFrozenMarked(null, null));
+  assert.ok(!isFrozenMarked(undefined, undefined));
+  assert.ok(!isFrozenMarked(null, 'تفاح امريكي')); // produce with one NULL side
+});
+
 test('refineAisle: frozen-marked fresh rows move to the counterpart, others stay', () => {
   const frozenRow = { name: 'Doux French Griller frozen chicken', name_ar: null };
   assert.equal(refineAisle('chicken-poultry', frozenRow), 'frozen-poultry');
@@ -585,6 +626,58 @@ await (async () => {
     const d = await getBrowseOffersDoc(ctx, { brand: 'kiri', aisle: 'yogurt-labneh' }, TODAY);
     assert.equal(d.offers.length, 1);
     assert.equal(d.families.length, 2);
+  });
+})();
+
+/* --- processed-frozen refinement + NULL-named produce, end to end ------------------ */
+// The 2026-07-17 Fresh Food bugs: (1) produce rows routinely have a NULL name
+// side and must still flow through the fresh listings; (2) nuggets/franks/…
+// filed under fresh-chicken-poultry never say مجمد/frozen yet belong Frozen.
+
+await (async () => {
+  const rows = [
+    row({ category: 'fresh-fruits', name: null, name_ar: 'تفاح امريكي احمر', price: 4 }),
+    row({ category: 'fresh-vegetables', name: 'Cucumber Local', name_ar: null, price: 3 }),
+    row({ category: 'fresh-chicken-poultry', name: 'Sadia Chicken Nuggets', name_ar: 'ساديا دجاج ناجت', price: 19 }),
+    row({ category: 'fresh-chicken-poultry', name: null, name_ar: 'نقانق دجاج داري', price: 9 }),
+    row({ category: 'fresh-chicken-poultry', name: 'Whole Chicken 1100g', name_ar: 'دجاج كامل طازج', price: 16 }),
+  ];
+  const ctx = stubCtx({ rows });
+  const doc = await getBrowseSummaryDoc(ctx, TODAY);
+
+  test('summary counts: produce stays fresh; processed poultry counts as Frozen', () => {
+    const fresh = doc.departments.find((d) => d.id === 'fresh');
+    const frozen = doc.departments.find((d) => d.id === 'frozen');
+    assert.equal(fresh.aisles.find((a) => a.id === 'fruits').offers, 1);
+    assert.equal(fresh.aisles.find((a) => a.id === 'vegetables').offers, 1);
+    assert.equal(fresh.aisles.find((a) => a.id === 'chicken-poultry').offers, 1);
+    assert.equal(frozen.aisles.find((a) => a.id === 'frozen-poultry').offers, 2);
+  });
+
+  test('listing: dept=fresh shows produce (NULL name side) and the whole chicken only', async () => {
+    const fresh = await getBrowseOffersDoc(ctx, { dept: 'fresh' }, TODAY);
+    assert.deepEqual(
+      fresh.offers.map((o) => o.name || o.nameAr).sort(),
+      ['Cucumber Local', 'Whole Chicken 1100g', 'تفاح امريكي احمر'],
+    );
+  });
+
+  test('listing: aisle=fruits carries the NULL-named produce row', async () => {
+    const d = await getBrowseOffersDoc(ctx, { aisle: 'fruits' }, TODAY);
+    assert.equal(d.offers.length, 1);
+    assert.equal(d.offers[0].aisle, 'fruits');
+  });
+
+  test('listing: the nuggets and franks surface under Frozen, as frozen-poultry cards', async () => {
+    const frozen = await getBrowseOffersDoc(ctx, { dept: 'frozen' }, TODAY);
+    assert.deepEqual(
+      frozen.offers.map((o) => o.name || o.nameAr).sort(),
+      ['Sadia Chicken Nuggets', 'نقانق دجاج داري'],
+    );
+    for (const o of frozen.offers) {
+      assert.equal(o.aisle, 'frozen-poultry');
+      assert.equal(o.dept, 'frozen');
+    }
   });
 })();
 
