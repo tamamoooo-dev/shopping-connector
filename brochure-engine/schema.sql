@@ -144,6 +144,11 @@ CREATE INDEX IF NOT EXISTS ix_offers_brand ON offers(brand_slug, valid_to);
 -- arming state so one drop produces one alert).
 CREATE TABLE IF NOT EXISTS watches (
   id           TEXT PRIMARY KEY,   -- w_<random>
+  profile_id   TEXT,               -- owning local profile (frontend profile.js
+                                  -- id) — the isolation boundary: every user-
+                                  -- facing read/write is scoped to it. NULL
+                                  -- only on pre-profile rows, claimed by the
+                                  -- first profile to list (adoptOrphans).
   kind         TEXT NOT NULL,      -- 'product' | 'grocery'
   label        TEXT,
   query        TEXT NOT NULL,      -- the search query that re-finds the product
@@ -182,6 +187,9 @@ CREATE TABLE IF NOT EXISTS alerts (
 
 CREATE INDEX IF NOT EXISTS ix_alerts_watch ON alerts(watch_id, observed_at);
 CREATE INDEX IF NOT EXISTS ix_alerts_seen ON alerts(seen);
+
+-- Profile-scoped reads and the per-profile cap gate (Local Profile milestone).
+CREATE INDEX IF NOT EXISTS ix_watches_profile ON watches(profile_id, active);
 
 -- ---------------------------------------------------------------------------
 -- Operations Console (ops/ subsystem) — the audit timeline. One row per

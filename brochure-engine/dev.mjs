@@ -847,12 +847,18 @@ async function selftestMatching() {
 async function selftestWatches() {
   console.log('=== Price Monitoring (watches + alerts) ===');
 
+  // Every user-facing watch operation is scoped to a local profile (the
+  // frontend's per-browser profile.js id) — see watches.test.mjs for the full
+  // isolation matrix; here one dev profile rides along.
+  const PROFILE = 'dev-profile-0001';
+
   // (a) validation.
-  if (!buildWatch({ kind: 'nope' }).error) fail('bad kind passed validation');
-  if (!buildWatch({ kind: 'grocery', query: 'x', targetPrice: 5 }).error) fail('1-char query passed');
-  if (!buildWatch({ kind: 'grocery', query: 'milk', targetPrice: -1 }).error) fail('negative target passed');
-  if (!buildWatch({ kind: 'product', query: 'iphone', targetPrice: 100 }).error) fail('product watch without provider/id passed');
-  const g = buildWatch({ kind: 'grocery', query: 'milk', targetPrice: 9, label: 'Almarai Milk 2 L', sizeText: 'Almarai Milk 2 L' });
+  if (!buildWatch({ kind: 'nope', profileId: PROFILE }).error) fail('bad kind passed validation');
+  if (!buildWatch({ kind: 'grocery', query: 'milk', targetPrice: 5 }).error) fail('missing profileId passed validation');
+  if (!buildWatch({ kind: 'grocery', query: 'x', targetPrice: 5, profileId: PROFILE }).error) fail('1-char query passed');
+  if (!buildWatch({ kind: 'grocery', query: 'milk', targetPrice: -1, profileId: PROFILE }).error) fail('negative target passed');
+  if (!buildWatch({ kind: 'product', query: 'iphone', targetPrice: 100, profileId: PROFILE }).error) fail('product watch without provider/id passed');
+  const g = buildWatch({ kind: 'grocery', query: 'milk', targetPrice: 9, label: 'Almarai Milk 2 L', sizeText: 'Almarai Milk 2 L', profileId: PROFILE });
   if (g.error) fail(`good grocery watch rejected: ${g.error}`);
   if (g.watch.sizeUnit !== 'ml' || g.watch.sizeTotal !== 2000) fail('reference size not captured');
   console.log('validation ✅');
@@ -951,14 +957,14 @@ async function selftestWatches() {
       },
     };
     const lctx = { watchStore: createMemoryWatchStore(), offerStore: createMemoryOfferStore(), searchClient: ladderClient, notifier: null };
-    const lemon = buildWatch({ kind: 'grocery', query: 'ليمون', targetPrice: 7 }).watch;
+    const lemon = buildWatch({ kind: 'grocery', query: 'ليمون', targetPrice: 7, profileId: PROFILE }).watch;
     await lctx.watchStore.create(lemon);
     const cl = await checkWatch(lctx, lemon);
     if (cl.price !== 6) fail(`stage gate: ليمون watch read ${cl.price}, expected 6 (Clorox must not drive it)`);
     if (!cl.alerted) fail('stage gate: genuine lemon at 6 under target 7 did not alert');
     const alertRows = await lctx.watchStore.listAlerts({});
     if (alertRows[0].name !== 'ليمون اصفر طازج') fail('stage gate: alert names the wrong product');
-    const straw = buildWatch({ kind: 'grocery', query: 'فراولة', targetPrice: 5 }).watch;
+    const straw = buildWatch({ kind: 'grocery', query: 'فراولة', targetPrice: 5, profileId: PROFILE }).watch;
     await lctx.watchStore.create(straw);
     const cs = await checkWatch(lctx, straw);
     if (cs.status !== 'no-data' || cs.alerted) fail(`fresh gate: frozen strawberry drove a فراولة watch (${cs.status}, price ${cs.price})`);
@@ -966,13 +972,13 @@ async function selftestWatches() {
   }
 
   // (c) product watch: the EXACT product by stable id, not the cheaper noise.
-  const p = buildWatch({ kind: 'product', query: 'echo dot', targetPrice: 200, provider: 'amazon', productId: 'B0TARGET', label: 'Echo Dot 5' });
+  const p = buildWatch({ kind: 'product', query: 'echo dot', targetPrice: 200, provider: 'amazon', productId: 'B0TARGET', label: 'Echo Dot 5', profileId: PROFILE });
   if (p.error) fail(`good product watch rejected: ${p.error}`);
   await watchStore.create(p.watch);
   const cp = await checkWatch(mctx, p.watch);
   if (cp.price !== 189 || !cp.alerted) fail(`product watch matched wrong item (price ${cp.price})`);
   // A vanished product -> no-data, arming state untouched.
-  const p2 = buildWatch({ kind: 'product', query: 'echo dot', targetPrice: 10, provider: 'amazon', productId: 'B0GONE' });
+  const p2 = buildWatch({ kind: 'product', query: 'echo dot', targetPrice: 10, provider: 'amazon', productId: 'B0GONE', profileId: PROFILE });
   await watchStore.create(p2.watch);
   const cg = await checkWatch(mctx, p2.watch);
   if (cg.status !== 'no-data' || cg.alerted) fail('vanished product mishandled');
@@ -982,24 +988,25 @@ async function selftestWatches() {
   // alerts -> seen -> delete), with the cap enforced.
   const rctx = { registry: {}, watchStore: createMemoryWatchStore(), offerStore, searchClient, notifier: null, ingestSecret: 'dev' };
   const mk = (body) => new Request('http://local/watches', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
-  const created = await (await handleRequest(mk({ kind: 'grocery', query: 'milk', targetPrice: 9, sizeText: '2 L' }), rctx)).json();
+  const created = await (await handleRequest(mk({ kind: 'grocery', query: 'milk', targetPrice: 9, sizeText: '2 L', profileId: PROFILE }), rctx)).json();
   if (!created.watch?.id) fail('POST /watches did not create');
-  const bad = await handleRequest(mk({ kind: 'grocery', query: 'm', targetPrice: 9 }), rctx);
+  const bad = await handleRequest(mk({ kind: 'grocery', query: 'm', targetPrice: 9, profileId: PROFILE }), rctx);
   if (bad.status !== 400) fail('invalid watch not rejected');
-  const listed = await readJson(rctx, '/watches');
+  if ((await handleRequest(new Request('http://local/watches'), rctx)).status !== 400) fail('GET /watches without profile not rejected');
+  const listed = await readJson(rctx, `/watches?profile=${PROFILE}`);
   if (listed.count !== 1 || listed.max !== MAX_WATCHES) fail('GET /watches wrong');
   const checkRes = await handleRequest(new Request('http://local/watches/check', { method: 'POST', headers: { 'X-Ingest-Secret': 'dev' } }), rctx);
   const checkBody = await checkRes.json();
   if (checkBody.checked !== 1 || checkBody.alerted !== 1) fail('POST /watches/check wrong');
   const unguarded = await handleRequest(new Request('http://local/watches/check', { method: 'POST' }), rctx);
   if (unguarded.status !== 403) fail('check runner not guarded');
-  const alertsRead = await readJson(rctx, '/alerts?unseen=1');
+  const alertsRead = await readJson(rctx, `/alerts?unseen=1&profile=${PROFILE}`);
   if (alertsRead.count !== 1 || alertsRead.unseen !== 1) fail('GET /alerts wrong');
-  await handleRequest(new Request('http://local/alerts/seen', { method: 'POST' }), rctx);
-  if ((await readJson(rctx, '/alerts?unseen=1')).count !== 0) fail('alerts/seen did not mark');
-  const del = await handleRequest(new Request(`http://local/watches?id=${created.watch.id}`, { method: 'DELETE' }), rctx);
+  await handleRequest(new Request(`http://local/alerts/seen?profile=${PROFILE}`, { method: 'POST' }), rctx);
+  if ((await readJson(rctx, `/alerts?unseen=1&profile=${PROFILE}`)).count !== 0) fail('alerts/seen did not mark');
+  const del = await handleRequest(new Request(`http://local/watches?id=${created.watch.id}&profile=${PROFILE}`, { method: 'DELETE' }), rctx);
   if (del.status !== 200) fail('DELETE /watches failed');
-  if ((await readJson(rctx, '/watches')).count !== 0) fail('watch not deleted');
+  if ((await readJson(rctx, `/watches?profile=${PROFILE}`)).count !== 0) fail('watch not deleted');
   console.log('watch API routes ✅');
   console.log('✅ Price Monitoring verified: validation, trust gates, cross-source, crossings, product-id, routes.\n');
 }

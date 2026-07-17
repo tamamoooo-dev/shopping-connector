@@ -60,10 +60,15 @@ import {
 export const MONITOR_PROVIDERS = ['panda', 'tamimi', 'danube', 'lulu', 'ninja', 'amazon', 'noon'];
 
 // Caps (production stability): the watch-list write API refuses beyond
-// MAX_WATCHES active watches, and the cron checks watches in batches of
-// CHECK_BATCH per child invocation (a grocery watch costs ~7 connector
-// subrequests, so 3 watches ≈ 21 of the 50-subrequest child budget).
+// MAX_WATCHES active watches PER PROFILE (each browser's local profile is an
+// independent user), and the cron checks watches in batches of CHECK_BATCH
+// per child invocation (a grocery watch costs ~7 connector subrequests, so
+// 3 watches ≈ 21 of the 50-subrequest child budget).
+// MAX_WATCHES_TOTAL is the global backstop that protects the daily cron's
+// Free-plan budget across ALL profiles: the fan-out spends 1 + ⌈total/3⌉ of
+// the 32-invocations-per-event cap, so 90 total keeps it at ≤31.
 export const MAX_WATCHES = 24;
+export const MAX_WATCHES_TOTAL = 90;
 export const CHECK_BATCH = 3;
 
 // The relevance floor for unattended alerting — stricter than display ranking:
@@ -79,6 +84,13 @@ const newId = (prefix) => `${prefix}_${crypto.randomUUID().replace(/-/g, '').sli
 // watch id and bookkeeping fields are always server-generated.
 export function buildWatch(body) {
   const b = body && typeof body === 'object' ? body : {};
+
+  // The owning local profile (the frontend's per-browser profile.js id) —
+  // the isolation boundary of the whole monitoring API. Every watch belongs
+  // to exactly one profile; browsers never see each other's watches.
+  const profileId = String(b.profileId || '').trim().slice(0, 64);
+  if (profileId.length < 8) return { error: 'profileId is required (8-64 characters)' };
+
   const kind = b.kind === 'product' ? 'product' : b.kind === 'grocery' ? 'grocery' : null;
   if (!kind) return { error: "kind must be 'product' or 'grocery'" };
 
@@ -120,6 +132,7 @@ export function buildWatch(body) {
   return {
     watch: {
       id: newId('w'),
+      profileId,
       kind,
       label: String(b.label || '').trim().slice(0, 120) || query,
       query,

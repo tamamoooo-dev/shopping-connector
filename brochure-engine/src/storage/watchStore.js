@@ -11,21 +11,32 @@
 //   alerts  — one row per target-price CROSSING (see monitor.js): the proof of
 //             "your price was reached", kept until its watch is deleted.
 //
+// PROFILE SCOPING (Local Profile milestone): every watch belongs to one
+// browser's local profile (profile_id). User-facing reads/writes pass a
+// profileId and see ONLY that profile's watches and alerts (alerts scope via
+// their watch — no duplicated column). The cron's check path omits profileId
+// and operates across all profiles. Watches created before profiles existed
+// (profile_id NULL) are claimed by the first profile to list — adoptOrphans.
+//
 // Interface:
-//   create(watch)                    -> watch (doc shape)
-//   list({ activeOnly })             -> watch docs, newest first
+//   create(watch)                    -> watch (doc shape; carries profileId)
+//   list({ activeOnly, profileId }) -> watch docs, newest first
 //   get(id)                          -> watch doc | null
-//   remove(id)                       -> boolean   (also deletes its alerts)
-//   count()                          -> number of active watches (the cap gate)
+//   remove(id, profileId?)           -> boolean   (also deletes its alerts;
+//                                       with profileId, only an owned watch)
+//   count(profileId?)                -> active watches (the per-profile cap gate)
+//   countActiveTotal()               -> active watches across ALL profiles
+//   adoptOrphans(profileId)          -> number of NULL-profile watches claimed
 //   updateState(id, fields)          -> void      (checked_at / last_* / is_below)
 //   insertAlert(alert)               -> void
-//   listAlerts({ limit, unseenOnly })-> alert docs, newest first
-//   markAlertsSeen()                 -> number marked
-//   countUnseen()                    -> number
+//   listAlerts({ limit, unseenOnly, profileId }) -> alert docs, newest first
+//   markAlertsSeen(profileId?)       -> number marked
+//   countUnseen(profileId?)          -> number
 
 export function watchToRow(w) {
   return {
     id: w.id,
+    profile_id: w.profileId ?? null,
     kind: w.kind,
     label: w.label ?? null,
     query: w.query,
@@ -53,6 +64,7 @@ export function rowToWatch(r) {
   if (!r) return null;
   return {
     id: r.id,
+    profileId: r.profile_id ?? null,
     kind: r.kind,
     label: r.label,
     query: r.query,
@@ -112,14 +124,14 @@ export function createD1WatchStore(db) {
       await db
         .prepare(
           `INSERT INTO watches
-             (id, kind, label, query, provider, product_id, link, image,
+             (id, profile_id, kind, label, query, provider, product_id, link, image,
               target_price, currency, size_unit, size_total, active, is_below,
               created_at, checked_at, last_price, last_store, last_source,
               last_name, last_link)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
         )
         .bind(
-          r.id, r.kind, r.label, r.query, r.provider, r.product_id, r.link,
+          r.id, r.profile_id, r.kind, r.label, r.query, r.provider, r.product_id, r.link,
           r.image, r.target_price, r.currency, r.size_unit, r.size_total,
           r.active, r.is_below, r.created_at, r.checked_at, r.last_price,
           r.last_store, r.last_source, r.last_name, r.last_link,
@@ -128,9 +140,16 @@ export function createD1WatchStore(db) {
       return watch;
     },
 
-    async list({ activeOnly = false } = {}) {
-      const sql = `SELECT * FROM watches ${activeOnly ? 'WHERE active = 1' : ''} ORDER BY created_at DESC`;
-      const { results } = await db.prepare(sql).all();
+    async list({ activeOnly = false, profileId = null } = {}) {
+      const where = [];
+      const binds = [];
+      if (activeOnly) where.push('active = 1');
+      if (profileId) {
+        where.push('profile_id = ?');
+        binds.push(profileId);
+      }
+      const sql = `SELECT * FROM watches ${where.length ? `WHERE ${where.join(' AND ')}` : ''} ORDER BY created_at DESC`;
+      const { results } = await db.prepare(sql).bind(...binds).all();
       return (results || []).map(rowToWatch);
     },
 
@@ -138,15 +157,35 @@ export function createD1WatchStore(db) {
       return rowToWatch(await db.prepare('SELECT * FROM watches WHERE id = ?').bind(id).first());
     },
 
-    async remove(id) {
+    async remove(id, profileId = null) {
+      // Ownership guard first: with a profileId, only that profile's watch
+      // dies. Watch first, then its alerts (no FK; order keeps the guard).
+      const res = profileId
+        ? await db.prepare('DELETE FROM watches WHERE id = ? AND profile_id = ?').bind(id, profileId).run()
+        : await db.prepare('DELETE FROM watches WHERE id = ?').bind(id).run();
+      if ((res?.meta?.changes || 0) === 0) return false;
       await db.prepare('DELETE FROM alerts WHERE watch_id = ?').bind(id).run();
-      const res = await db.prepare('DELETE FROM watches WHERE id = ?').bind(id).run();
-      return (res?.meta?.changes || 0) > 0;
+      return true;
     },
 
-    async count() {
+    async count(profileId = null) {
+      const row = profileId
+        ? await db.prepare('SELECT COUNT(*) AS n FROM watches WHERE active = 1 AND profile_id = ?').bind(profileId).first()
+        : await db.prepare('SELECT COUNT(*) AS n FROM watches WHERE active = 1').first();
+      return row?.n || 0;
+    },
+
+    async countActiveTotal() {
       const row = await db.prepare('SELECT COUNT(*) AS n FROM watches WHERE active = 1').first();
       return row?.n || 0;
+    },
+
+    async adoptOrphans(profileId) {
+      const res = await db
+        .prepare('UPDATE watches SET profile_id = ? WHERE profile_id IS NULL')
+        .bind(profileId)
+        .run();
+      return res?.meta?.changes || 0;
     },
 
     async updateState(id, fields) {
@@ -179,23 +218,42 @@ export function createD1WatchStore(db) {
         .run();
     },
 
-    async listAlerts({ limit = 50, unseenOnly = false } = {}) {
-      const sql = `SELECT * FROM alerts ${unseenOnly ? 'WHERE seen = 0' : ''}
+    // Alerts scope through their watch (watch_id -> watches.profile_id) — one
+    // ownership column, no denormalized copies to drift.
+    async listAlerts({ limit = 50, unseenOnly = false, profileId = null } = {}) {
+      const where = [];
+      const binds = [];
+      if (unseenOnly) where.push('seen = 0');
+      if (profileId) {
+        where.push('watch_id IN (SELECT id FROM watches WHERE profile_id = ?)');
+        binds.push(profileId);
+      }
+      const sql = `SELECT * FROM alerts ${where.length ? `WHERE ${where.join(' AND ')}` : ''}
         ORDER BY observed_at DESC LIMIT ?`;
       const { results } = await db
         .prepare(sql)
-        .bind(Math.max(1, Math.min(Number(limit) || 50, 200)))
+        .bind(...binds, Math.max(1, Math.min(Number(limit) || 50, 200)))
         .all();
       return (results || []).map(rowToAlert);
     },
 
-    async markAlertsSeen() {
-      const res = await db.prepare('UPDATE alerts SET seen = 1 WHERE seen = 0').run();
+    async markAlertsSeen(profileId = null) {
+      const res = profileId
+        ? await db
+            .prepare('UPDATE alerts SET seen = 1 WHERE seen = 0 AND watch_id IN (SELECT id FROM watches WHERE profile_id = ?)')
+            .bind(profileId)
+            .run()
+        : await db.prepare('UPDATE alerts SET seen = 1 WHERE seen = 0').run();
       return res?.meta?.changes || 0;
     },
 
-    async countUnseen() {
-      const row = await db.prepare('SELECT COUNT(*) AS n FROM alerts WHERE seen = 0').first();
+    async countUnseen(profileId = null) {
+      const row = profileId
+        ? await db
+            .prepare('SELECT COUNT(*) AS n FROM alerts WHERE seen = 0 AND watch_id IN (SELECT id FROM watches WHERE profile_id = ?)')
+            .bind(profileId)
+            .first()
+        : await db.prepare('SELECT COUNT(*) AS n FROM alerts WHERE seen = 0').first();
       return row?.n || 0;
     },
   };

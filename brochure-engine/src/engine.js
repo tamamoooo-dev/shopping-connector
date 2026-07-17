@@ -19,7 +19,7 @@ import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offers/contract.js';
 import { queryFamily, offerFamily, productType, freshProduceIntent, isProcessedProduce, producePresence, matchStage } from './matching.js';
 import { pruneStoredBytes } from './retention.js';
-import { buildWatch, checkWatches, MAX_WATCHES } from './monitor.js';
+import { buildWatch, checkWatches, MAX_WATCHES, MAX_WATCHES_TOTAL } from './monitor.js';
 import { getHotspotsDoc } from './hotspots.js';
 import { getBrowseSummaryDoc, getBrowseOffersDoc } from './browse/api.js';
 import { detectBrand } from './browse/brands.js';
@@ -443,25 +443,34 @@ export async function handleRequest(request, ctx) {
   }
 
   // --- Price Monitoring (Personal Alerts) -------------------------------------
-  // Watches + alerts (see monitor.js). Reads and user writes are open like the
-  // rest of the personal tool's API, but writes are strictly validated and
-  // capped (MAX_WATCHES); the check runner stays secret-guarded because it
-  // spends the subrequest budget.
+  // Watches + alerts (see monitor.js). Every user-facing route is scoped to a
+  // LOCAL PROFILE (the frontend's per-browser profile.js id): ?profile=<id> on
+  // reads/deletes, body.profileId on create — browsers never see each other's
+  // watches, and the MAX_WATCHES cap applies per profile (MAX_WATCHES_TOTAL is
+  // the global cron-budget backstop). Writes stay strictly validated; the
+  // check runner stays secret-guarded because it spends the subrequest budget.
+  const profileParam = (url.searchParams.get('profile') || '').trim();
 
-  // The watch list with its current state, plus the unseen-alert count (the
-  // frontend's badge). One call paints the whole Alerts page.
+  // The profile's watch list with its current state, plus its unseen-alert
+  // count (the frontend's badge). One call paints the whole Alerts page.
   if (path === '/watches' && request.method === 'GET') {
     if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
-    const watches = await ctx.watchStore.list();
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    // Legacy adoption: watches created before profiles existed (profile_id
+    // NULL) belong to this personal tool's single pre-profile user — the
+    // first profile to list watches claims them. Idempotent no-op after.
+    await ctx.watchStore.adoptOrphans(profileParam);
+    const watches = await ctx.watchStore.list({ profileId: profileParam });
     return json({
       count: watches.length,
       max: MAX_WATCHES,
-      unseenAlerts: await ctx.watchStore.countUnseen(),
+      unseenAlerts: await ctx.watchStore.countUnseen(profileParam),
       watches,
     });
   }
 
-  // Create a watch. Validation + the active-watch cap live in buildWatch/here.
+  // Create a watch. Validation (incl. required profileId) lives in buildWatch;
+  // the per-profile cap and the global backstop live here.
   if (path === '/watches' && request.method === 'POST') {
     if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
     let body;
@@ -472,35 +481,41 @@ export async function handleRequest(request, ctx) {
     }
     const { watch, error } = buildWatch(body);
     if (error) return json({ error }, 400);
-    if ((await ctx.watchStore.count()) >= MAX_WATCHES) {
+    if ((await ctx.watchStore.count(watch.profileId)) >= MAX_WATCHES) {
       return json({ error: `Watch limit reached (${MAX_WATCHES}). Delete one first.` }, 409);
+    }
+    if ((await ctx.watchStore.countActiveTotal()) >= MAX_WATCHES_TOTAL) {
+      return json({ error: 'Watch service is at capacity. Try again later.' }, 409);
     }
     await ctx.watchStore.create(watch);
     return json({ watch }, 201);
   }
 
-  // Delete a watch (and its alerts).
+  // Delete a watch (and its alerts) — only the owning profile's.
   if (path === '/watches' && request.method === 'DELETE') {
     if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
     const id = (url.searchParams.get('id') || '').trim();
     if (!id) return json({ error: "Missing required parameter 'id'." }, 400);
-    const removed = await ctx.watchStore.remove(id);
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    const removed = await ctx.watchStore.remove(id, profileParam);
     return removed ? json({ removed: id }) : json({ error: 'Watch not found.' }, 404);
   }
 
-  // Recent alerts (newest first). `unseen=1` narrows to unread ones.
+  // The profile's recent alerts (newest first). `unseen=1` narrows to unread.
   if (path === '/alerts' && request.method === 'GET') {
     if (!ctx.watchStore) return json({ error: 'Alerts unavailable.' }, 503);
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
     const unseenOnly = url.searchParams.get('unseen') === '1';
     const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 50, 200));
-    const alerts = await ctx.watchStore.listAlerts({ limit, unseenOnly });
-    return json({ count: alerts.length, unseen: await ctx.watchStore.countUnseen(), alerts });
+    const alerts = await ctx.watchStore.listAlerts({ limit, unseenOnly, profileId: profileParam });
+    return json({ count: alerts.length, unseen: await ctx.watchStore.countUnseen(profileParam), alerts });
   }
 
-  // Mark all alerts read (the Alerts page calls this when viewed).
+  // Mark the profile's alerts read (the Alerts page calls this when viewed).
   if (path === '/alerts/seen' && request.method === 'POST') {
     if (!ctx.watchStore) return json({ error: 'Alerts unavailable.' }, 503);
-    return json({ marked: await ctx.watchStore.markAlertsSeen() });
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    return json({ marked: await ctx.watchStore.markAlertsSeen(profileParam) });
   }
 
   // Guarded check runner — evaluates watches NOW. The daily cron fans out to

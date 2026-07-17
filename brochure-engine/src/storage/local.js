@@ -165,21 +165,38 @@ export function createMemoryWatchStore() {
       watches.set(watch.id, { ...watch });
       return watch;
     },
-    async list({ activeOnly = false } = {}) {
+    async list({ activeOnly = false, profileId = null } = {}) {
       return [...watches.values()]
         .filter((w) => !activeOnly || w.active)
+        .filter((w) => !profileId || w.profileId === profileId)
         .sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
     },
     async get(id) {
       const w = watches.get(id);
       return w ? { ...w } : null;
     },
-    async remove(id) {
+    async remove(id, profileId = null) {
+      const w = watches.get(id);
+      if (!w || (profileId && w.profileId !== profileId)) return false;
       for (const [aid, a] of alerts) if (a.watchId === id) alerts.delete(aid);
       return watches.delete(id);
     },
-    async count() {
+    async count(profileId = null) {
+      return [...watches.values()]
+        .filter((w) => w.active && (!profileId || w.profileId === profileId)).length;
+    },
+    async countActiveTotal() {
       return [...watches.values()].filter((w) => w.active).length;
+    },
+    async adoptOrphans(profileId) {
+      let n = 0;
+      for (const w of watches.values()) {
+        if (w.profileId == null) {
+          w.profileId = profileId;
+          n += 1;
+        }
+      }
+      return n;
     },
     async updateState(id, fields) {
       const w = watches.get(id);
@@ -191,24 +208,27 @@ export function createMemoryWatchStore() {
     async insertAlert(alert) {
       alerts.set(alert.id, { ...alert, seen: false });
     },
-    async listAlerts({ limit = 50, unseenOnly = false } = {}) {
+    // Alerts scope through their watch, exactly like the D1 impl.
+    async listAlerts({ limit = 50, unseenOnly = false, profileId = null } = {}) {
+      const owned = (a) => !profileId || watches.get(a.watchId)?.profileId === profileId;
       return [...alerts.values()]
-        .filter((a) => !unseenOnly || !a.seen)
+        .filter((a) => (!unseenOnly || !a.seen) && owned(a))
         .sort((a, b) => (b.observedAt || '').localeCompare(a.observedAt || ''))
         .slice(0, Math.max(1, Math.min(Number(limit) || 50, 200)));
     },
-    async markAlertsSeen() {
+    async markAlertsSeen(profileId = null) {
       let n = 0;
       for (const a of alerts.values()) {
-        if (!a.seen) {
+        if (!a.seen && (!profileId || watches.get(a.watchId)?.profileId === profileId)) {
           a.seen = true;
           n += 1;
         }
       }
       return n;
     },
-    async countUnseen() {
-      return [...alerts.values()].filter((a) => !a.seen).length;
+    async countUnseen(profileId = null) {
+      return [...alerts.values()]
+        .filter((a) => !a.seen && (!profileId || watches.get(a.watchId)?.profileId === profileId)).length;
     },
   };
 }
