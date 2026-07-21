@@ -141,3 +141,58 @@ export function createWatchCheckDispatcher({ self, ingestSecret, origin = 'https
     return body;
   };
 }
+
+// --- Vision-enrichment drain (the daily cron's third duty) ---------------------
+// Same Architecture-C mechanism, same shape as the watch fan-out — but the
+// children run SEQUENTIALLY, on purpose: each child makes ~batchSize paced
+// vision-API calls, and running children one at a time keeps the global call
+// rate flat under the free tier's per-minute cap (concurrency here would
+// recreate exactly the burst the drain exists to avoid). `pending` (a D1
+// count, no subrequest) sizes the run; maxBatches bounds a big backlog to a
+// few days of quiet drains rather than one hot one. A failed child aborts the
+// rest — its cause (rate cap, key trouble) would fail them too, and the
+// backlog simply carries to the next fire.
+export async function runEnrichDrain(dispatchBatch, { pending = 0, batchSize = 15, maxBatches = 4 } = {}) {
+  const startedAt = new Date().toISOString();
+  const target = Math.min(Number(maxBatches) || 0, Math.ceil((Number(pending) || 0) / batchSize));
+  const lines = [];
+  for (let i = 0; i < target; i++) {
+    try {
+      lines.push({ ok: true, result: await dispatchBatch(batchSize) });
+    } catch (err) {
+      lines.push({ ok: false, error: err?.message || String(err) });
+      break;
+    }
+  }
+  return {
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    pending,
+    batches: lines.length,
+    ok: lines.filter((l) => l.ok).length,
+    failed: lines.filter((l) => !l.ok).length,
+    enriched: lines.reduce((n, l) => n + (l.ok && l.result ? l.result.enriched || 0 : 0), 0),
+    lines,
+  };
+}
+
+export function createEnrichDispatcher({ self, ingestSecret, origin = 'https://brochure-engine.internal', tag } = {}) {
+  if (!self || typeof self.fetch !== 'function') {
+    throw new Error('scheduler: a SELF service binding (env.SELF) is required for the enrich dispatcher');
+  }
+  return async function dispatchBatch(limit) {
+    const res = await self.fetch(`${origin}/enrich?limit=${encodeURIComponent(limit)}`, {
+      method: 'POST',
+      // `tag: 'ops'` marks operator-triggered children so their audit rows
+      // say origin ops, not cron (engine.js /enrich reads X-Ops-Origin).
+      headers: { 'X-Ingest-Secret': ingestSecret || '', ...(tag ? { 'X-Ops-Origin': tag } : {}) },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(`enrich drain -> HTTP ${res.status}`);
+      err.body = body;
+      throw err;
+    }
+    return body;
+  };
+}

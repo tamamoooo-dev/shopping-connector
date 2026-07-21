@@ -8,6 +8,11 @@
 //                       supported source — all live online stores via the
 //                       search connector AND the current structured flyer
 //                       offers — and takes the best trustworthy price.
+//   • kind 'registry' — a Product Registry product (REGISTRY-DESIGN §7): the
+//                       watch binds a stable `pr_` id — "THIS product, any
+//                       store, price ≤ X" — and is evaluated with SIGHTING
+//                       precision (no name matching at all: identity IS the
+//                       gate). D1-only, zero subrequests per check.
 //
 // TRUST RULES (what keeps unattended alerts honest):
 //   1. Relevance gate: a candidate only counts when its NAME genuinely matches
@@ -53,6 +58,7 @@ import {
   isNameMatch,
   queryTokens,
 } from './offers/contract.js';
+import { applyEnrichment } from './offers/enrich.js';
 
 // The live search providers a grocery watch sweeps (search-connector ids),
 // most reliable first. Best-effort stores (amazon, noon) are included — a
@@ -91,8 +97,8 @@ export function buildWatch(body) {
   const profileId = String(b.profileId || '').trim().slice(0, 64);
   if (profileId.length < 8) return { error: 'profileId is required (8-64 characters)' };
 
-  const kind = b.kind === 'product' ? 'product' : b.kind === 'grocery' ? 'grocery' : null;
-  if (!kind) return { error: "kind must be 'product' or 'grocery'" };
+  const kind = ['product', 'grocery', 'registry'].includes(b.kind) ? b.kind : null;
+  if (!kind) return { error: "kind must be 'product', 'grocery' or 'registry'" };
 
   const query = String(b.query || '').trim().slice(0, 80);
   if (query.length < 2) return { error: 'query must be at least 2 characters' };
@@ -109,6 +115,9 @@ export function buildWatch(body) {
       return { error: `product watches need a provider (one of: ${MONITOR_PROVIDERS.join(', ')})` };
     }
     if (!productId) return { error: 'product watches need a productId' };
+  }
+  if (kind === 'registry' && !/^pr_[a-z0-9]+$/.test(productId || '')) {
+    return { error: 'registry watches need a registry productId (pr_…)' };
   }
 
   const url = (v) => {
@@ -137,7 +146,7 @@ export function buildWatch(body) {
       label: String(b.label || '').trim().slice(0, 120) || query,
       query,
       provider: kind === 'product' ? provider : null,
-      productId: kind === 'product' ? productId : null,
+      productId: kind === 'product' || kind === 'registry' ? productId : null,
       link: url(b.link),
       image: url(b.image),
       targetPrice: Math.round(targetPrice * 100) / 100,
@@ -222,7 +231,11 @@ async function evaluateGrocery(ctx, watch, notes) {
       const tokens = queryTokens(watch.query);
       for (const row of rows) {
         const offer = rowToOffer(row);
-        const rel = offerRelevance(offer, tokens, row.search_text || '');
+        // Vision-canonical overlay (offers/enrich.js) — the SAME servable gate
+        // Search uses; relevance runs over the canonical haystack the SQL
+        // retrieval matched. Watches see exactly what Search serves.
+        const matchHay = applyEnrichment(offer, row);
+        const rel = offerRelevance(offer, tokens, matchHay);
         if (!isNameMatch(rel)) continue;
         const display = offer.name || offer.nameAr;
         if (!display || !isRelevantName(display, watch.query, REL_FLOOR)) continue;
@@ -285,7 +298,45 @@ async function evaluateProduct(ctx, watch, notes) {
   return { price, currency: hit.currency || 'SAR', store: watch.provider, source: 'online', name: hit.name, link: hit.link || null };
 }
 
+// kind 'registry': sighting precision — the registry's identity assignment IS
+// the relevance gate (no name/size matching to get wrong unattended). The
+// cheapest CURRENT sighting of the product (tombstones followed single-hop,
+// merged losers' sightings included by the store read) is the price; no
+// current sighting means silence, exactly like an emptied grocery pool.
+// Flyer-sourced by construction, so the alert carries the flyer caveat.
+async function evaluateRegistry(ctx, watch, notes) {
+  if (!ctx.registryStore) {
+    notes.push('no registry store');
+    return null;
+  }
+  let id = watch.productId;
+  let [product] = await ctx.registryStore.getProducts([id]);
+  if (!product) {
+    notes.push('product not in registry');
+    return null;
+  }
+  if (product.status === 'merged' && product.merged_into) {
+    id = product.merged_into;
+    // The survivor carries the living display name.
+    product = (await ctx.registryStore.getProducts([id]))[0] || product;
+  }
+  const best = await ctx.registryStore.bestCurrentForProduct(
+    id,
+    new Date().toISOString().slice(0, 10),
+  );
+  if (!best) return null; // not on offer anywhere this week
+  return {
+    price: best.price,
+    currency: best.currency,
+    store: best.store,
+    source: 'flyer',
+    name: product.display_name || product.display_name_ar || watch.label,
+    link: best.link,
+  };
+}
+
 export async function evaluateWatch(ctx, watch, notes = []) {
+  if (watch.kind === 'registry') return evaluateRegistry(ctx, watch, notes);
   return watch.kind === 'product'
     ? evaluateProduct(ctx, watch, notes)
     : evaluateGrocery(ctx, watch, notes);

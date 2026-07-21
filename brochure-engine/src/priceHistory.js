@@ -151,8 +151,10 @@ export async function recordOfferHistory(historyStore, offers, { observedAt } = 
 }
 
 // --- read shaping ----------------------------------------------------------------
-// "n × 250 ml" / "1.5 L" — the human label for a variant bucket.
-function variantLabel(unit, total, pack) {
+// "n × 250 ml" / "1.5 L" — the human label for a variant bucket. Exported:
+// the registry-substrate history (registry/history.js) labels its variant
+// buckets identically, so the two pipelines' docs stay comparable in the A/B.
+export function variantLabel(unit, total, pack) {
   if (!unit || total == null) return null;
   if (unit === 'pcs') return `${Math.round(total)} pcs`;
   const p = pack || 1;

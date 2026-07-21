@@ -23,6 +23,7 @@ import {
   createMemoryMetadataStore,
   createMemoryHistoryStore,
   createMemoryOfferStore,
+  createMemoryEnrichStore,
   createMemoryWatchStore,
   createMemoryOpsStore,
 } from './src/storage/local.js';
@@ -100,7 +101,17 @@ function buildContext() {
     metadataStore,
     pipeline: createPipeline({ objectStore, metadataStore }),
     historyStore,
-    offerStore: createMemoryOfferStore(),
+    // Vision-canonical substrate locally: the memory enrich store backs the
+    // same servable gate the D1 path uses (empty until something enriches, so
+    // every offer serves its OCR extraction fallback — honest local behavior).
+    ...(() => {
+      let offerStoreRef;
+      const enrichStore = createMemoryEnrichStore({
+        listOffers: async () => offerStoreRef.listAll(),
+      });
+      offerStoreRef = createMemoryOfferStore({ enrichStore });
+      return { offerStore: offerStoreRef, enrichStore };
+    })(),
     offersSource: createD4dOffersSource(),
     watchStore: createMemoryWatchStore(),
     notifier: null,

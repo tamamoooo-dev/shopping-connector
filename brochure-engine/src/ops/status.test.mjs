@@ -14,6 +14,12 @@ import {
   unhealthyStores,
   failedStores,
   COVERAGE_THRESHOLD,
+  visionProgress,
+  enrichRate,
+  queueSnapshot,
+  cronMonitor,
+  pipelineHealth,
+  latencyStats,
 } from './status.js';
 import {
   createMemoryMetadataStore,
@@ -273,6 +279,92 @@ async function buildFixture() {
   const st2 = await selfTest(broken, { now: NOW });
   check('broken KV reads FAIL', st2.checks.find((c) => c.name === 'KV').status === 'FAIL');
   console.log('self test ✅');
+}
+
+// --- Operations Center: Vision Progress / Queue / Cron (§1,§4,§5) ---------------
+{
+  const OPS_ROWS = [
+    { action: 'cron:enrich', origin: 'cron', ts: '2026-07-10T11:50:00Z', ok: 1, elapsed_ms: 4200, detail: JSON.stringify({ enriched: 30, batches: 4 }) },
+    { action: 'cron:enrich', origin: 'cron', ts: '2026-07-10T11:20:00Z', ok: 1, elapsed_ms: 4000, detail: JSON.stringify({ enriched: 30 }) },
+    { action: 'ingest', origin: 'cron', ts: '2026-07-10T06:00:00Z', ok: 1, elapsed_ms: 9000 },
+  ];
+  const stubCtx = (over = {}) => ({
+    crons: { enrich: '10,30,50 * * * *', pipeline: '0 6 * * 2,3,5', watches: '45 5 * * *' },
+    opsStore: {
+      async list({ origin, limit } = {}) {
+        const rows = origin ? OPS_ROWS.filter((r) => r.origin === origin) : OPS_ROWS;
+        return rows.slice(0, limit || 50);
+      },
+    },
+    offerStore: { async counts() { return { total: 100, current: 60, stores: 4 }; } },
+    enrichStore: {
+      async coverage() { return { withCrop: 50, attempted: 40, enriched: 35, servable: 30, declined: 5, remaining: 10, coverage: 80 }; },
+      async countDebris() { return 10; },
+      async verdictCounts() { return { minted: 80, unresolved: 5, declined: 3, low_corroboration: 2, too_few_tokens: 1, or_deal: 0 }; },
+    },
+    registryStore: {
+      async productCount() { return 25; },
+      async sightingsCount() { return 120; },
+      async stats() { return { products: { active: 20, dormant: 3, merged: 2, flagged: 1, assortments: 0 }, bands: { auto: 50, review: 10, created: 20 } }; },
+    },
+    ...over,
+  });
+
+  const rate = await enrichRate(stubCtx(), { now: NOW });
+  check('enrichRate sums detail.enriched over window', rate.enriched === 60 && rate.perHour === 2.5, JSON.stringify(rate));
+
+  const prog = await visionProgress(stubCtx(), { now: NOW });
+  check('visionProgress passes coverage + registry counts', prog.coverage === 80 && prog.remaining === 10 && prog.registryProducts === 25 && prog.sightings === 120);
+  check('visionProgress ETA from rate', prog.rate === 2.5 && prog.etaHours === 4, `${prog.rate}/${prog.etaHours}`);
+  check('visionProgress next enrich cron computed', prog.nextCron === '2026-07-10T12:10:00.000Z', prog.nextCron);
+  check('visionProgress worker idle when last enrich is stale', prog.worker === 'idle', prog.worker);
+
+  const running = await visionProgress(
+    stubCtx({
+      opsStore: {
+        async list({ origin, limit } = {}) {
+          const rows = [{ action: 'cron:enrich', origin: 'cron', ts: '2026-07-10T11:59:30Z', ok: 1, elapsed_ms: 100, detail: '{}' }];
+          return (origin ? rows.filter((r) => r.origin === origin) : rows).slice(0, limit || 50);
+        },
+      },
+    }),
+    { now: NOW },
+  );
+  check('visionProgress worker running on a <2min enrich row', running.worker === 'running');
+
+  const q = await queueSnapshot(stubCtx(), { now: NOW });
+  check('queueSnapshot vision + resolution + deferred sum', q.vision.queued === 10 && q.resolution.minted === 80 && q.resolution.deferred === 6, JSON.stringify(q.resolution));
+
+  const cm = await cronMonitor(stubCtx(), { now: NOW });
+  check('cronMonitor covers every schedule with a parsed last detail', cm.crons.length === 3 && cm.crons.find((c) => c.name === 'enrich').last.detail.enriched === 30);
+  check('cronMonitor next fire for enrich', cm.crons.find((c) => c.name === 'enrich').nextRun === '2026-07-10T12:10:00.000Z');
+  console.log('vision progress + queue + cron ✅');
+}
+
+// --- Operations Center: Pipeline Health + Diagnostics (§6,§7) -------------------
+{
+  const ctx = await buildFixture();
+  ctx.crons = { ...ctx.crons, enrich: '10,30,50 * * * *' };
+  ctx.enrichStore = {
+    async coverage() { return { withCrop: 50, attempted: 40, enriched: 35, servable: 30, declined: 5, remaining: 10, coverage: 80 }; },
+    async verdictCounts() { return { minted: 80, unresolved: 5, declined: 3, low_corroboration: 2, too_few_tokens: 1, or_deal: 0 }; },
+    async countDebris() { return 10; },
+  };
+  ctx.registryStore = { async stats() { return { products: { active: 20, dormant: 3, merged: 2, flagged: 1, assortments: 0 }, bands: { auto: 50, review: 10, created: 20 } }; } };
+  ctx.offerStore.oldestUnenrichedAge = async () => '2026-07-10T09:00:00Z';
+  await ctx.opsStore.record({ ts: '2026-07-10T06:00:00Z', action: 'cron:fanout', origin: 'cron', ok: true, elapsed_ms: 9000 });
+  await ctx.opsStore.record({ ts: '2026-07-10T11:50:00Z', action: 'cron:enrich', origin: 'cron', ok: true, elapsed_ms: 4200 });
+
+  const ph = await pipelineHealth(ctx, { now: NOW });
+  check('pipelineHealth emits the 7 stages in order', ph.stages.map((s) => s.name).join(',') === 'OCR,Vision,Resolve,Registry,Sightings,Price History,Search', ph.stages.map((s) => s.name).join(','));
+  check('Vision stage reflects the backlog as warn', ph.stages.find((s) => s.name === 'Vision').status === 'warn');
+  check('Registry stage warns on a flagged product', ph.stages.find((s) => s.name === 'Registry').status === 'warn');
+
+  const ls = await latencyStats(ctx, { now: NOW });
+  // ingest group = delta's ok ingest (900) + the cron:fanout (9000) -> 4950.
+  check('latencyStats: D1 probe + ingest latency + queue age', typeof ls.probes.d1 === 'number' && ls.latency.ingest === 4950 && ls.queueAgeMs === 3 * 3600000, `${ls.latency.ingest}/${ls.queueAgeMs}`);
+  check('latencyStats names the 3 un-instrumented metrics', ls.notInstrumented.length === 3);
+  console.log('pipeline health + diagnostics ✅');
 }
 
 if (failures) {

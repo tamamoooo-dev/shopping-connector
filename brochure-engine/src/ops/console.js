@@ -24,9 +24,11 @@
 //     with a verification summary and an ops_runs audit row; read routes never
 //     write engine data.
 
-import { ingestAll } from '../engine.js';
+import { ingestAll, handleRequest } from '../engine.js';
 import { ingestOffers } from '../offers/ingest.js';
-import { runFanOut, createServiceBindingDispatcher } from '../scheduler.js';
+import {
+  runFanOut, createServiceBindingDispatcher, runEnrichDrain, createEnrichDispatcher,
+} from '../scheduler.js';
 import {
   computeStoreRows,
   subsystemChecks,
@@ -36,8 +38,19 @@ import {
   healthPct,
   unhealthyStores,
   failedStores,
+  visionProgress,
+  queueSnapshot,
+  cronMonitor,
+  pipelineHealth,
+  latencyStats,
 } from './status.js';
+import { drainResolution } from '../registry/drain.js';
+import { runMaintenance } from '../registry/lifecycle.js';
+import { deriveIdentity } from '../priceHistory.js';
+import { servable } from '../offers/enrich.js';
 import { CONSOLE_HTML } from './ui.js';
+
+const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export const OPS_PATH = '/__ops';
 
@@ -345,6 +358,113 @@ async function runOperation(ctx, body) {
   return report;
 }
 
+// Manual enrichment drain — a DEVELOPER convenience, not an operations duty:
+// normal coverage is fully autonomous via the `10,30,50 * * * *` cron; this
+// button exists for development, testing, and exceptional situations (e.g.
+// verifying a fresh deploy without waiting for the next fire). It executes
+// the EXACT cron path — runEnrichDrain over /enrich children (SELF fan-out,
+// per-child budgets, resolution post-step included) — so a manual run and a
+// scheduled run are indistinguishable except for the `ops` origin on their
+// audit rows. `batches` is clamped to the cron's own per-fire shape ×2.
+async function runEnrichOperation(ctx, body) {
+  if (!ctx.enrichStore || !ctx.mistralKey) {
+    throw new OpsError('Enrichment unavailable (MISTRAL_API_KEY not set).', 503);
+  }
+  const t0 = Date.now();
+  const today = new Date().toISOString().slice(0, 10);
+  const pending = await ctx.enrichStore.countDebris(today).catch(() => 0);
+  if (pending <= 0) {
+    const report = { action: 'ops:enrich', pending: 0, ok: true, nothingToDo: true, message: 'Enrichment queue is empty.', elapsedMs: Date.now() - t0 };
+    await auditOp(ctx, {
+      ts: new Date(t0).toISOString(), action: 'ops:enrich', ok: true,
+      elapsed_ms: report.elapsedMs, detail: { nothingToDo: true },
+    });
+    return report;
+  }
+  const batches = Math.max(1, Math.min(Number(body.batches) || 4, 8));
+  // Production path: SELF children. Local dev (no SELF): the same /enrich
+  // route in-process — identical code, in-process transport.
+  const dispatchBatch = ctx.self
+    ? createEnrichDispatcher({ self: ctx.self, ingestSecret: ctx.ingestSecret, tag: 'ops' })
+    : async (limit) => {
+        const res = await handleRequest(
+          new Request(`https://brochure-engine.internal/enrich?limit=${limit}`, {
+            method: 'POST',
+            headers: { 'X-Ingest-Secret': ctx.ingestSecret || '', 'X-Ops-Origin': 'ops' },
+          }),
+          ctx,
+        );
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(`enrich drain -> HTTP ${res.status}`);
+        return out;
+      };
+  const drain = await runEnrichDrain(dispatchBatch, { pending, batchSize: 15, maxBatches: batches });
+  const report = {
+    action: 'ops:enrich',
+    pending: drain.pending,
+    batches: drain.batches,
+    ok: drain.failed === 0,
+    failed: drain.failed,
+    enriched: drain.enriched,
+    remaining: await ctx.enrichStore.countDebris(today).catch(() => null),
+    elapsedMs: Date.now() - t0,
+  };
+  await auditOp(ctx, {
+    ts: new Date(t0).toISOString(),
+    action: 'ops:enrich',
+    ok: report.ok,
+    failed: drain.failed,
+    elapsed_ms: report.elapsedMs,
+    error: drain.lines?.find((l) => !l.ok)?.error || null,
+    detail: { pending: drain.pending, batches: drain.batches, enriched: drain.enriched, remaining: report.remaining },
+  });
+  return report;
+}
+
+// Background Manual Vision — start (Vision Milestone 2 §2; cron-driven redesign
+// 2026-07-20). Unlike the manual Vision Drain (a bounded burst inside ONE
+// request), this ARMS a durable job: the 1-minute `visionDrain` cron (index.js)
+// then drains it to EMPTY server-side, paced by Mistral, as the sole resolution
+// writer (lease-guarded). The operator can close the page and the run keeps
+// going. Primary use: historical backfills, maintenance, recovery. Starting the
+// job IS the whole action; the UI polls GET vision/job for progress.
+async function runVisionStart(ctx, body) {
+  if (!ctx.enrichStore || !ctx.mistralKey || !ctx.visionJobStore) {
+    throw new OpsError('Vision unavailable (MISTRAL_API_KEY not set).', 503);
+  }
+  const scope = body.scope === 'debris' ? 'debris' : 'all';
+  const today = todayISO();
+  const total = await ctx.enrichStore.countDebris(today, scope).catch(() => 0);
+  if (total <= 0) {
+    const job = await ctx.visionJobStore.get().catch(() => null);
+    return { action: 'ops:vision-start', nothingToDo: true, message: 'Vision queue is empty.', job };
+  }
+  // Refuse to launch a second job over a live one (single-writer chain).
+  const existing = await ctx.visionJobStore.get().catch(() => null);
+  if (existing && existing.status === 'running') {
+    return { action: 'ops:vision-start', alreadyRunning: true, message: 'A Vision job is already running.', job: existing };
+  }
+  const job = await ctx.visionJobStore.start({ scope, total, origin: 'ops' });
+  await auditOp(ctx, {
+    action: 'ops:vision-start', ok: true, elapsed_ms: 0,
+    detail: { scope, total },
+  });
+  // No chain to kick: the 1-minute `visionDrain` cron (index.js) picks up any
+  // running job within a minute and drains it to empty, paced by Mistral, as the
+  // sole resolution writer (lease-guarded). Starting the job IS the whole action.
+  return { action: 'ops:vision-start', ok: true, job };
+}
+
+// Background Manual Vision — stop. Flips the job to 'stopped'; the running chain
+// halts at its next hop's status check (it never clobbers a stop back to
+// running). D1-only, no vision calls — safe anytime.
+async function runVisionStop(ctx) {
+  if (!ctx.visionJobStore) throw new OpsError('Vision unavailable.', 503);
+  const job = await ctx.visionJobStore.stop();
+  await auditOp(ctx, { action: 'ops:vision-stop', ok: true, elapsed_ms: 0 });
+  return { action: 'ops:vision-stop', ok: true, job };
+}
+
 // Emergency Heal — the complete production repair pipeline, one button:
 // pre-heal verification -> full ingest fan-out (brochures then offers inside
 // each store's child, exactly like the cron) -> coverage validation ->
@@ -439,6 +559,149 @@ async function runHeal(ctx, body) {
   return report;
 }
 
+// --- Vision Inspector (§2): compose the full record for ONE offer from the
+// existing store reads — offer row + vision enrichment + registry sighting +
+// its product — plus the two derived identity keys (the price-history join
+// keys) so the UI can show what OCR read vs what Vision read, side by side.
+async function inspectOffer(ctx, id) {
+  if (!ctx.offerStore) throw new OpsError('Offers unavailable.', 503);
+  const offer = await ctx.offerStore.getById(id);
+  if (!offer) throw new OpsError(`Unknown offer '${id}'.`, 404);
+  const enr = ctx.enrichStore ? (await ctx.enrichStore.getForIds([id])).get(id) || null : null;
+  const sighting = ctx.registryStore ? await ctx.registryStore.getSighting(id) : null;
+  const product =
+    sighting && ctx.registryStore
+      ? (await ctx.registryStore.getProducts([sighting.product_id]))[0] || null
+      : null;
+  const identOf = (name, nameAr) => {
+    const d = deriveIdentity({ name, nameAr, store: offer.store, region: offer.region });
+    return d ? { id: d.id, matchText: d.matchText, sizeUnit: d.sizeUnit, sizeTotal: d.sizeTotal, sizePack: d.sizePack } : null;
+  };
+  return {
+    offer: {
+      id: offer.id, store: offer.store, region: offer.region, category: offer.category,
+      price: offer.price, oldPrice: offer.old_price, currency: offer.currency,
+      imageUrl: offer.image_url, sourceUrl: offer.source_url, validTo: offer.valid_to,
+      detectedAt: offer.detected_at, searchText: offer.search_text,
+    },
+    ocr: {
+      name: offer.name, nameAr: offer.name_ar,
+      identity: offer.name || offer.name_ar ? identOf(offer.name, offer.name_ar) : null,
+    },
+    vision: enr
+      ? {
+          name: enr.name, nameAr: enr.name_ar, brand: enr.brand, size: enr.size,
+          confidence: enr.confidence, corroboration: enr.corroboration, model: enr.model,
+          cropUrl: enr.crop_url, enrichedAt: enr.enriched_at, mintVerdict: enr.mint_verdict,
+          servable: servable(enr),
+          identity: enr.name || enr.name_ar ? identOf(enr.name, enr.name_ar) : null,
+        }
+      : null,
+    sighting: sighting
+      ? {
+          productId: sighting.product_id, matchBand: sighting.match_band,
+          matchScore: sighting.match_score, corroboration: sighting.corroboration,
+          week: sighting.week, price: sighting.price, resolvedAt: sighting.resolved_at,
+        }
+      : null,
+    product: product
+      ? {
+          id: product.id, status: product.status, kind: product.kind,
+          displayName: product.display_name, displayNameAr: product.display_name_ar,
+          brandText: product.brand_text, brandSlug: product.brand_slug,
+          family: product.family, category: product.category,
+          sizeUnit: product.size_unit, sizeTotal: product.size_total, sizePack: product.size_pack,
+          sightings: product.sightings, reviewFlag: product.review_flag,
+        }
+      : null,
+  };
+}
+
+// --- Registry Inspector (§3): a product with all its evidence — every
+// sighting (folding in any merged-loser products' sightings), each linked
+// offer, and the vision enrichment behind each sighting (the enrichment +
+// resolution/match history). Composed from existing store reads.
+async function productDetail(ctx, id) {
+  if (!ctx.registryStore) throw new OpsError('Registry unavailable.', 503);
+  const product = (await ctx.registryStore.getProducts([id]))[0];
+  if (!product) throw new OpsError(`Unknown product '${id}'.`, 404);
+  const losers = await ctx.registryStore.mergedLoserIds([id]);
+  const ids = [id, ...losers.keys()];
+  const sightings = await ctx.registryStore.sightingsForProducts(ids);
+  const offerIds = sightings.map((s) => s.offer_id);
+  const enrichMap =
+    ctx.enrichStore && offerIds.length
+      ? await ctx.enrichStore.getForIds(offerIds).catch(() => new Map())
+      : new Map();
+  sightings.sort((a, b) => String(b.resolved_at).localeCompare(String(a.resolved_at)));
+  return {
+    product,
+    mergedLosers: [...losers.keys()],
+    sightings: sightings.map((s) => {
+      const e = enrichMap.get(s.offer_id) || null;
+      return {
+        offerId: s.offer_id, productId: s.product_id, matchBand: s.match_band,
+        matchScore: s.match_score, corroboration: s.corroboration, store: s.store,
+        region: s.region, week: s.week, price: s.price, oldPrice: s.old_price,
+        resolvedAt: s.resolved_at, algoVersion: s.algo_version,
+        offerImageUrl: s.o_image_url, offerSourceUrl: s.o_source_url, offerValidTo: s.o_valid_to,
+        enrichment: e
+          ? { name: e.name, nameAr: e.name_ar, brand: e.brand, size: e.size,
+              corroboration: e.corroboration, mintVerdict: e.mint_verdict, servable: servable(e) }
+          : null,
+      };
+    }),
+  };
+}
+
+// --- Resolve Queue (§8): drain the resolution backlog (D1-only, no vision
+// calls) — the manual twin of the enrich cron's resolution post-step.
+async function runResolveOperation(ctx, body) {
+  if (!ctx.registryStore || !ctx.enrichStore) throw new OpsError('Registry unavailable.', 503);
+  const t0 = Date.now();
+  const limit = Math.max(1, Math.min(Number(body.limit) || 200, 500));
+  const report = await drainResolution(
+    { enrichStore: ctx.enrichStore, registryStore: ctx.registryStore },
+    { limit, currentOn: todayISO() },
+  );
+  const ok = report.errors.length === 0;
+  await auditOp(ctx, {
+    ts: new Date(t0).toISOString(), action: 'ops:resolve', ok, failed: report.errors.length,
+    elapsed_ms: Date.now() - t0, error: report.errors[0] || null,
+    detail: { scanned: report.scanned, attached: report.attached, reviewed: report.reviewed,
+      created: report.created, deferred: report.deferred, verdicts: report.verdicts },
+  });
+  return { action: 'ops:resolve', ...report, ok, elapsedMs: Date.now() - t0 };
+}
+
+// --- Repair Registry (§8): the §5.1 dormancy sweep, §5.4 consolidation, and
+// dangling-sighting healing — runMaintenance writes its own audit row.
+async function runMaintainOperation(ctx) {
+  if (!ctx.registryStore) throw new OpsError('Registry unavailable.', 503);
+  const report = await runMaintenance(ctx, { today: todayISO() });
+  return { action: 'ops:maintain', ...report, ok: !report.error };
+}
+
+// --- Re-open deferred (§4): un-stamp the resolution verdict on the SELECTED
+// offers so the drain re-resolves them, then resolve immediately.
+async function runReopenOperation(ctx, body) {
+  if (!ctx.enrichStore || !ctx.registryStore) throw new OpsError('Registry unavailable.', 503);
+  const ids = [...new Set((body.ids || []).map(String))].filter(Boolean);
+  if (!ids.length) throw new OpsError('no offers selected to re-open');
+  const t0 = Date.now();
+  await ctx.enrichStore.resetVerdicts(ids);
+  const resolution = await drainResolution(
+    { enrichStore: ctx.enrichStore, registryStore: ctx.registryStore },
+    { limit: Math.max(ids.length, 50), currentOn: todayISO() },
+  );
+  const ok = resolution.errors.length === 0;
+  await auditOp(ctx, {
+    ts: new Date(t0).toISOString(), action: 'ops:reopen', ok, elapsed_ms: Date.now() - t0,
+    error: resolution.errors[0] || null, detail: { reopened: ids.length },
+  });
+  return { action: 'ops:reopen', reopened: ids.length, resolution, ok, elapsedMs: Date.now() - t0 };
+}
+
 /* --- routes -------------------------------------------------------------------- */
 
 async function apiRoute(request, ctx, url, sub) {
@@ -526,6 +789,45 @@ async function apiRoute(request, ctx, url, sub) {
           elapsedMs: Date.now() - t0,
         });
       }
+
+      // --- Operations Center reads (Ops plan §1–§7) — all read-only ---------
+      case 'progress': // §1 Vision Progress (auto-polled)
+        return opsJson(await visionProgress(ctx));
+      case 'vision/job': // Background Manual Vision job snapshot (polled)
+        return opsJson({ job: ctx.visionJobStore ? await ctx.visionJobStore.get() : null });
+      case 'queue': // §4 Queue Monitor
+        return opsJson(await queueSnapshot(ctx));
+      case 'crons': // §5 Cron Monitor
+        return opsJson(await cronMonitor(ctx));
+      case 'pipeline': // §6 Pipeline Health
+        return opsJson(await pipelineHealth(ctx));
+      case 'diagnostics2': // §7 Diagnostics (latency + not-instrumented)
+        return opsJson(await latencyStats(ctx));
+      case 'inspector': { // §2 Vision Inspector list
+        const filter = (url.searchParams.get('filter') || 'all').trim();
+        const q = (url.searchParams.get('q') || '').trim();
+        const limit = Number(url.searchParams.get('limit')) || 40;
+        if (!ctx.offerStore) throw new OpsError('Offers unavailable.', 503);
+        const items = await ctx.offerStore.inspectorFeed({ q, filter, currentOn: todayISO(), limit });
+        return opsJson({ filter, q, count: items.length, items });
+      }
+      case 'inspect': { // §2 Vision Inspector single offer
+        const id = (url.searchParams.get('id') || '').trim();
+        if (!id) throw new OpsError("Missing required parameter 'id'.");
+        return opsJson(await inspectOffer(ctx, id));
+      }
+      case 'productsearch': { // §3 Registry Inspector search
+        if (!ctx.registryStore) throw new OpsError('Registry unavailable.', 503);
+        const q = (url.searchParams.get('q') || '').trim();
+        const limit = Number(url.searchParams.get('limit')) || 30;
+        const products = await ctx.registryStore.searchProducts({ q, limit });
+        return opsJson({ q, count: products.length, products });
+      }
+      case 'product': { // §3 Registry Inspector detail
+        const id = (url.searchParams.get('id') || '').trim();
+        if (!id) throw new OpsError("Missing required parameter 'id'.");
+        return opsJson(await productDetail(ctx, id));
+      }
     }
   }
 
@@ -538,6 +840,21 @@ async function apiRoute(request, ctx, url, sub) {
       case 'heal': {
         requireConfirm(body, 'HEAL');
         return opsJson(await runHeal(ctx, body));
+      }
+      case 'enrich': {
+        // Developer convenience only — steady state is the enrich cron.
+        requireConfirm(body, true);
+        return opsJson(await runEnrichOperation(ctx, body));
+      }
+      case 'vision/start': {
+        // Background Manual Vision (§2): arm a durable job + kick the
+        // self-continuing chain that drains to empty without the browser open.
+        requireConfirm(body, true);
+        return opsJson(await runVisionStart(ctx, body));
+      }
+      case 'vision/stop': {
+        // Halt the running Vision job (D1-only, no vision calls).
+        return opsJson(await runVisionStop(ctx));
       }
       case 'verify': {
         // Read-only: verification without any ingest (no confirmation needed).
@@ -565,6 +882,20 @@ async function apiRoute(request, ctx, url, sub) {
           error: result.checks.find((c) => c.status === 'FAIL')?.detail || null,
         });
         return opsJson(result);
+      }
+      case 'resolve': {
+        // Drain the resolution backlog (D1-only). Confirm-gated like every
+        // console mutation, even though it writes only the registry.
+        requireConfirm(body, true);
+        return opsJson(await runResolveOperation(ctx, body));
+      }
+      case 'maintain': {
+        requireConfirm(body, true);
+        return opsJson(await runMaintainOperation(ctx));
+      }
+      case 'reopen': {
+        requireConfirm(body, true);
+        return opsJson(await runReopenOperation(ctx, body));
       }
     }
   }
@@ -597,8 +928,12 @@ export async function handleOps(request, ctx) {
           'Cache-Control': 'no-store',
           'X-Robots-Tag': 'noindex, nofollow',
           'Referrer-Policy': 'no-referrer',
+          // img-src allows the Vision Inspector to render flyer crops: engine
+          // /asset images ('self') and the aggregator's external crop CDNs
+          // (https:) — an admin-only, noindex, single-operator console. Every
+          // other directive stays locked; connect-src is still 'self'.
           'Content-Security-Policy':
-            "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'",
+            "default-src 'none'; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data: https:",
         },
       });
     }

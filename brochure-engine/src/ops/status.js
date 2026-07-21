@@ -425,3 +425,313 @@ export async function selfTest(ctx, { now = new Date() } = {}) {
     elapsedMs: Date.now() - t0,
   };
 }
+
+// --- Operations Center reads (Ops plan §1,§4–§7) --------------------------------
+// The same discipline as everything above: pure orchestration over the store
+// interfaces, zero writes, zero external fetches. The audit-timeline `detail`
+// column comes back as a JSON string (opsStore serializes it); parse defensively.
+
+function parseDetail(row) {
+  if (!row || row.detail == null) return {};
+  if (typeof row.detail === 'object') return row.detail;
+  try {
+    return JSON.parse(row.detail) || {};
+  } catch {
+    return {};
+  }
+}
+
+// The audit actions that carry enrichment work, across every origin.
+const ENRICH_ACTIONS = new Set(['enrich', 'cron:enrich', 'ops:enrich']);
+
+// Average offers/hour vision has enriched over a trailing window, from the
+// audit rows' own `detail.enriched` counters. null when nothing ran in-window
+// (so ETA reads "n/a" rather than dividing by zero).
+export async function enrichRate(ctx, { now = new Date(), windowHours = 24 } = {}) {
+  if (!ctx.opsStore) return { perHour: null, enriched: 0, windowHours };
+  const rows = await ctx.opsStore.list({ limit: 200 }).catch(() => []);
+  const since = now.getTime() - windowHours * 3600 * 1000;
+  let enriched = 0;
+  for (const r of rows) {
+    if (!ENRICH_ACTIONS.has(r.action)) continue;
+    if (Date.parse(r.ts) < since) continue;
+    enriched += Number(parseDetail(r).enriched) || 0;
+  }
+  return {
+    perHour: enriched > 0 ? Math.round((enriched / windowHours) * 10) / 10 : null,
+    enriched,
+    windowHours,
+  };
+}
+
+// §1 Vision Progress: the live enrichment dashboard in one read.
+export async function visionProgress(ctx, { now = new Date() } = {}) {
+  const today = todayISO(now);
+  const [offers, cov, products, sightings, rate, cronRows] = await Promise.all([
+    ctx.offerStore ? ctx.offerStore.counts(today) : Promise.resolve({ total: 0, current: 0, stores: 0 }),
+    ctx.enrichStore ? ctx.enrichStore.coverage(today) : Promise.resolve(null),
+    ctx.registryStore ? ctx.registryStore.productCount() : Promise.resolve(0),
+    ctx.registryStore ? ctx.registryStore.sightingsCount() : Promise.resolve(0),
+    enrichRate(ctx, { now }),
+    ctx.opsStore ? ctx.opsStore.list({ origin: 'cron', limit: 30 }).catch(() => []) : Promise.resolve([]),
+  ]);
+  const lastCronEnrich = cronRows.find((r) => r.action === 'cron:enrich') || null;
+  const nextEnrich = cronNext(ctx.crons?.enrich, now);
+
+  // Worker status heuristic: an enrich audit row younger than 2 minutes means a
+  // drain is (or just was) in flight. The console's own client-driven drain
+  // sets its state locally; this catches the cron path too.
+  let recentEnrich = null;
+  let recentRows = [];
+  if (ctx.opsStore) {
+    recentRows = await ctx.opsStore.list({ limit: 30 }).catch(() => []);
+    recentEnrich = recentRows.find((r) => ENRICH_ACTIONS.has(r.action)) || null;
+  }
+  const running = recentEnrich && now.getTime() - Date.parse(recentEnrich.ts) < 120000;
+
+  // Provider rate-limit surface (Vision Milestone 2 §3). The free-tier quota is
+  // ACCOUNT-SPECIFIC and unpublished, so the only ground truth is what Mistral
+  // returned at runtime (a 429 + its headers). Surface the most recent one — the
+  // active job row first (freshest), else the newest enrich audit detail — with
+  // a computed resume time, so the console shows the real limit/remaining/reset
+  // and expected resume instead of a silent stall. The account's CONFIGURED
+  // quota lives in Mistral's Admin Console → Limits (a static note in the UI).
+  const job = ctx.visionJobStore ? await ctx.visionJobStore.get().catch(() => null) : null;
+  let providerLimit = job?.provider_limit || null;
+  if (!providerLimit) {
+    for (const r of recentRows) {
+      const d = parseDetail(r);
+      if (d && d.providerLimit) { providerLimit = d.providerLimit; break; }
+    }
+  }
+  let resumeAt = null;
+  if (providerLimit && providerLimit.retryAfter != null && providerLimit.observedAt) {
+    resumeAt = new Date(Date.parse(providerLimit.observedAt) + providerLimit.retryAfter * 1000).toISOString();
+  }
+
+  const remaining = cov ? cov.remaining : 0;
+  return {
+    offers: { current: offers.current, total: offers.total, stores: offers.stores },
+    withCrop: cov ? cov.withCrop : 0,
+    attempted: cov ? cov.attempted : 0,
+    enriched: cov ? cov.enriched : 0,
+    servable: cov ? cov.servable : 0,
+    declined: cov ? cov.declined : 0,
+    remaining,
+    coverage: cov ? cov.coverage : null,
+    registryProducts: products,
+    sightings,
+    queueDepth: remaining,
+    rate: rate.perHour,
+    etaHours: rate.perHour && remaining > 0 ? Math.round((remaining / rate.perHour) * 10) / 10 : null,
+    lastCron: lastCronEnrich
+      ? { ts: lastCronEnrich.ts, ok: !!lastCronEnrich.ok, elapsedMs: lastCronEnrich.elapsed_ms, detail: parseDetail(lastCronEnrich) }
+      : null,
+    nextCron: nextEnrich ? nextEnrich.toISOString() : null,
+    worker: running ? 'running' : 'idle',
+    // Background Manual Vision job snapshot (§2) + provider rate-limit surface (§3).
+    job: job || null,
+    providerLimit: providerLimit || null,
+    resumeAt,
+    generatedAt: now.toISOString(),
+  };
+}
+
+// §4 Queue Monitor: the vision backlog + the resolution verdict breakdown.
+export async function queueSnapshot(ctx, { now = new Date() } = {}) {
+  const today = todayISO(now);
+  const [debris, verdicts, rstats] = await Promise.all([
+    ctx.enrichStore ? ctx.enrichStore.countDebris(today) : Promise.resolve(0),
+    ctx.enrichStore ? ctx.enrichStore.verdictCounts().catch(() => ({})) : Promise.resolve({}),
+    ctx.registryStore ? ctx.registryStore.stats().catch(() => ({ bands: {} })) : Promise.resolve({ bands: {} }),
+  ]);
+  const v = (k) => Number(verdicts[k]) || 0;
+  const deferred = v('declined') + v('low_corroboration') + v('too_few_tokens') + v('or_deal');
+  return {
+    vision: { queued: debris },
+    resolution: {
+      unresolved: v('unresolved'),
+      minted: v('minted'),
+      declined: v('declined'),
+      low_corroboration: v('low_corroboration'),
+      too_few_tokens: v('too_few_tokens'),
+      or_deal: v('or_deal'),
+      deferred,
+    },
+    bands: rstats.bands || {},
+    generatedAt: now.toISOString(),
+  };
+}
+
+// §5 Cron Monitor: every scheduled task with its last run, next fire, and a
+// short execution log — all from the cron-origin audit rows + the cron specs.
+const CRON_ACTION = { pipeline: 'cron:fanout', watches: 'cron:watches', enrich: 'cron:enrich' };
+
+export async function cronMonitor(ctx, { now = new Date() } = {}) {
+  const rows = ctx.opsStore ? await ctx.opsStore.list({ origin: 'cron', limit: 200 }).catch(() => []) : [];
+  const crons = Object.entries(ctx.crons || {}).map(([name, expr]) => {
+    const action = CRON_ACTION[name] || `cron:${name}`;
+    const mine = rows.filter((r) => r.action === action);
+    const last = mine[0] || null;
+    const next = cronNext(expr, now);
+    return {
+      name,
+      cron: expr,
+      action,
+      nextRun: next ? next.toISOString() : null,
+      last: last
+        ? {
+            ts: last.ts,
+            ok: !!last.ok,
+            elapsedMs: last.elapsed_ms,
+            failed: last.failed,
+            error: last.error,
+            detail: parseDetail(last),
+          }
+        : null,
+      runs: mine.slice(0, 8).map((r) => ({
+        ts: r.ts,
+        ok: !!r.ok,
+        elapsedMs: r.elapsed_ms,
+        error: r.error,
+        detail: parseDetail(r),
+      })),
+    };
+  });
+  return { crons, generatedAt: now.toISOString() };
+}
+
+// Map a subsystem PASS/FAIL/UNCONFIGURED/UNKNOWN to a pipeline stage verdict.
+function stageStatus(check) {
+  if (!check) return 'warn';
+  if (check.status === 'PASS') return 'healthy';
+  if (check.status === 'FAIL') return 'fail';
+  return 'warn'; // UNCONFIGURED / UNKNOWN
+}
+
+// §6 Pipeline Health: the seven stages, each healthy|warn|fail with throughput
+// and last execution. Reuses the existing health grid rather than re-deriving.
+export async function pipelineHealth(ctx, { now = new Date() } = {}) {
+  const today = todayISO(now);
+  const storeRows = await computeStoreRows(ctx, { now });
+  const checks = await subsystemChecks(ctx, { storeRows, now });
+  const byName = (n) => checks.find((c) => c.name === n);
+  const [offers, cov, verdicts, rstats, hist, cronRows] = await Promise.all([
+    ctx.offerStore ? ctx.offerStore.counts(today) : Promise.resolve({ current: 0 }),
+    ctx.enrichStore ? ctx.enrichStore.coverage(today) : Promise.resolve(null),
+    ctx.enrichStore ? ctx.enrichStore.verdictCounts().catch(() => ({})) : Promise.resolve({}),
+    ctx.registryStore ? ctx.registryStore.stats().catch(() => null) : Promise.resolve(null),
+    ctx.historyStore ? ctx.historyStore.counts().catch(() => null) : Promise.resolve(null),
+    ctx.opsStore ? ctx.opsStore.list({ origin: 'cron', limit: 50 }).catch(() => []) : Promise.resolve([]),
+  ]);
+  const lastOf = (action) => {
+    const r = cronRows.find((x) => x.action === action);
+    return r ? r.ts : null;
+  };
+  const v = (k) => Number(verdicts[k]) || 0;
+  const totalSightings = rstats ? Object.values(rstats.bands || {}).reduce((s, n) => s + n, 0) : 0;
+
+  // Vision-stage verdict from coverage: fail if eligible offers exist but none
+  // attempted; warn while a backlog remains; healthy once caught up.
+  const visionStatus = !cov || cov.withCrop === 0
+    ? 'warn'
+    : cov.attempted === 0
+      ? 'fail'
+      : cov.remaining > 0
+        ? 'warn'
+        : 'healthy';
+
+  const stages = [
+    {
+      name: 'OCR',
+      status: stageStatus(byName('Offers Engine')),
+      throughput: `${offers.current} current offers`,
+      lastAt: lastOf('cron:fanout'),
+      detail: byName('Offers Engine')?.detail || '',
+    },
+    {
+      name: 'Vision',
+      status: visionStatus,
+      throughput: cov ? `${cov.attempted}/${cov.withCrop} read · ${cov.remaining} queued` : 'no eligible offers',
+      lastAt: lastOf('cron:enrich'),
+      detail: cov && cov.coverage != null ? `${cov.coverage}% coverage · ${cov.servable} servable` : '',
+    },
+    {
+      name: 'Resolve',
+      status: v('unresolved') > 0 ? 'warn' : 'healthy',
+      throughput: `${v('minted')} minted · ${v('unresolved')} unresolved`,
+      lastAt: lastOf('cron:enrich'),
+      detail: `deferred ${v('declined') + v('low_corroboration') + v('too_few_tokens') + v('or_deal')}`,
+    },
+    {
+      name: 'Registry',
+      status: rstats ? (rstats.products.flagged > 0 ? 'warn' : 'healthy') : 'warn',
+      throughput: rstats ? `${rstats.products.active} active products` : 'unavailable',
+      lastAt: lastOf('cron:enrich'),
+      detail: rstats ? `${rstats.products.dormant} dormant · ${rstats.products.flagged} flagged` : '',
+    },
+    {
+      name: 'Sightings',
+      status: rstats && (rstats.bands.review || 0) > (totalSightings * 0.25) ? 'warn' : 'healthy',
+      throughput: `${totalSightings} sightings`,
+      lastAt: lastOf('cron:enrich'),
+      detail: rstats
+        ? `auto ${rstats.bands.auto || 0} · review ${rstats.bands.review || 0} · created ${rstats.bands.created || 0}`
+        : '',
+    },
+    {
+      name: 'Price History',
+      status: stageStatus(byName('Price History')),
+      throughput: hist ? `${hist.identities} identities · ${hist.points} points` : 'unavailable',
+      lastAt: lastOf('cron:fanout'),
+      detail: byName('Price History')?.detail || '',
+    },
+    {
+      name: 'Search',
+      status: stageStatus(byName('Search')),
+      throughput: byName('Search')?.detail || '',
+      lastAt: null,
+      detail: byName('Search')?.detail || '',
+    },
+  ];
+  return { stages, generatedAt: now.toISOString() };
+}
+
+// §7 Diagnostics: the latencies a Worker CAN measure — probe round-trips + the
+// audit log's own elapsed_ms by stage + how long the oldest offer has waited in
+// the vision queue. Metrics with no Worker runtime API are named, not faked.
+const LATENCY_GROUPS = {
+  ingest: (a) => a === 'ingest' || a === 'ingest:offers' || a === 'ingest:brochures' || a === 'cron:fanout',
+  vision: (a) => ENRICH_ACTIONS.has(a),
+  resolve: (a) => a === 'resolve',
+  watches: (a) => a === 'cron:watches' || a === 'ops:watches',
+};
+
+export async function latencyStats(ctx, { now = new Date() } = {}) {
+  const today = todayISO(now);
+  const checks = await subsystemChecks(ctx, { now });
+  const rows = ctx.opsStore ? await ctx.opsStore.list({ limit: 200 }).catch(() => []) : [];
+  const avg = (pred) => {
+    const ms = rows.filter((r) => pred(r.action) && r.elapsed_ms != null).map((r) => r.elapsed_ms);
+    return ms.length ? Math.round(ms.reduce((s, x) => s + x, 0) / ms.length) : null;
+  };
+  const probe = (n) => byNameMs(checks, n);
+  const oldest = ctx.offerStore ? await ctx.offerStore.oldestUnenrichedAge(today).catch(() => null) : null;
+  return {
+    probes: { d1: probe('D1'), kv: probe('KV') },
+    latency: {
+      ingest: avg(LATENCY_GROUPS.ingest),
+      vision: avg(LATENCY_GROUPS.vision),
+      resolve: avg(LATENCY_GROUPS.resolve),
+      watches: avg(LATENCY_GROUPS.watches),
+    },
+    queueAgeMs: oldest ? Math.max(0, now.getTime() - Date.parse(oldest)) : null,
+    notInstrumented: ['Worker CPU usage', 'Cache hit rate', 'KV quota usage'],
+    generatedAt: now.toISOString(),
+  };
+}
+
+function byNameMs(checks, name) {
+  const c = checks.find((x) => x.name === name);
+  return c && typeof c.ms === 'number' ? c.ms : null;
+}

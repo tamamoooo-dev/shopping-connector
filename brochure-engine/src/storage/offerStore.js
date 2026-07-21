@@ -13,6 +13,8 @@
 
 import { queryTokens } from '../offers/contract.js';
 import { expandToken } from '../matching.js';
+import { CORROBORATION_FLOOR } from '../offers/enrich.js';
+import { ENRICH_JOIN, ENRICH_ROW_COLS, CANON_HAYSTACK_SQL } from './enrichStore.js';
 
 export function createD1OfferStore(db) {
   const upsertStmt = `
@@ -53,20 +55,29 @@ export function createD1OfferStore(db) {
       return { stored: rows.length };
     },
 
+    // Vision-canonical search (2026-07-21): every row is matched against its
+    // best-available substrate — the servable vision haystack (the ONE gate,
+    // storage/enrichStore.js SERVABLE_SQL) when present, else the OCR
+    // search_text (extraction fallback). Rows carry the aliased enrichment
+    // columns (ENRICH_ROW_COLS) so callers overlay display names with
+    // offers/enrich.js applyEnrichment() — one query, one gate, no second
+    // fetch.
     async search({ q = '', store = '', region = '', currentOn = null, limit = 60 } = {}) {
       const tokens = queryTokens(q);
+      const hay = CANON_HAYSTACK_SQL;
+      const col = (c) => `o.${c}`;
       const where = [];
       const binds = [];
       if (currentOn) {
-        where.push('valid_to >= ?');
+        where.push(`${col('valid_to')} >= ?`);
         binds.push(currentOn);
       }
       if (store) {
-        where.push('store = ?');
+        where.push(`${col('store')} = ?`);
         binds.push(store);
       }
       if (region) {
-        where.push('region = ?');
+        where.push(`${col('region')} = ?`);
         binds.push(region);
       }
       // Broad SQL prefilter only — final word-boundary relevance runs in JS
@@ -91,19 +102,19 @@ export function createD1OfferStore(db) {
       const boundaryBinds = [];
       for (const tok of tokens) {
         const variants = expandToken(tok);
-        where.push(`(${variants.map(() => "search_text LIKE ? ESCAPE '\\'").join(' OR ')})`);
+        where.push(`(${variants.map(() => `${hay} LIKE ? ESCAPE '\\'`).join(' OR ')})`);
         for (const v of variants) binds.push(`%${esc(v)}%`);
         boundaryParts.push(
-          `(CASE WHEN ${variants.map(() => "(' ' || search_text || ' ') LIKE ? ESCAPE '\\'").join(' OR ')} THEN 2 ` +
-            `WHEN ${variants.map(() => "(' ' || search_text) LIKE ? ESCAPE '\\'").join(' OR ')} THEN 1 ELSE 0 END)`,
+          `(CASE WHEN ${variants.map(() => `(' ' || ${hay} || ' ') LIKE ? ESCAPE '\\'`).join(' OR ')} THEN 2 ` +
+            `WHEN ${variants.map(() => `(' ' || ${hay}) LIKE ? ESCAPE '\\'`).join(' OR ')} THEN 1 ELSE 0 END)`,
         );
         for (const v of variants) boundaryBinds.push(`% ${esc(v)} %`);
         for (const v of variants) boundaryBinds.push(`% ${esc(v)}%`);
       }
       const orderBy = boundaryParts.length
-        ? `ORDER BY (${boundaryParts.join(' + ')}) DESC, price ASC`
-        : 'ORDER BY price ASC';
-      const sql = `SELECT * FROM offers
+        ? `ORDER BY (${boundaryParts.join(' + ')}) DESC, ${col('price')} ASC`
+        : `ORDER BY ${col('price')} ASC`;
+      const sql = `SELECT o.*, ${ENRICH_ROW_COLS} FROM offers o ${ENRICH_JOIN}
         ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
         ${orderBy} LIMIT ?`;
       binds.push(...boundaryBinds);
@@ -180,6 +191,82 @@ export function createD1OfferStore(db) {
         .bind(currentOn)
         .all();
       return Object.fromEntries((results || []).map((r) => [r.store, r.n]));
+    },
+
+    // Ops Vision Inspector: one offer row by full id (read-only drill-down).
+    async getById(id) {
+      return (await db.prepare('SELECT * FROM offers WHERE id = ?').bind(id).first()) || null;
+    },
+
+    // Ops Vision Inspector list: current offers LEFT-joined to their vision
+    // enrichment and registry sighting, filterable by pipeline state. Read-only
+    // — the console never writes offers. `filter` names one lens (see WHERE
+    // below); `q` is a plain substring over the OCR + vision names. The
+    // corroboration floor (CORROBORATION_FLOOR, a code constant) is inlined,
+    // exactly as search() inlines it — never user input.
+    async inspectorFeed({ q = '', filter = 'all', currentOn = null, limit = 40 } = {}) {
+      const F = CORROBORATION_FLOOR;
+      const servable = `((e.name IS NOT NULL OR e.name_ar IS NOT NULL) AND e.corroboration >= ${F})`;
+      const where = ['o.image_url IS NOT NULL'];
+      const binds = [];
+      if (currentOn) {
+        where.push('o.valid_to >= ?');
+        binds.push(currentOn);
+      }
+      const FILTERS = {
+        all: null,
+        unresolved: 'e.id IS NOT NULL AND e.mint_verdict IS NULL',
+        deferred: "e.mint_verdict IS NOT NULL AND e.mint_verdict != 'minted'",
+        reviewed: "s.match_band = 'review'",
+        'low-confidence': '(e.name IS NOT NULL OR e.name_ar IS NOT NULL) AND e.corroboration < ' + F,
+        'missing-product': 's.offer_id IS NULL',
+        'ocr-fallback': 'e.id IS NOT NULL AND NOT ' + servable,
+        'vision-enriched': servable,
+      };
+      const clause = FILTERS[filter];
+      if (clause) where.push('(' + clause + ')');
+      if (q) {
+        const esc = (v) => v.replace(/[%_\\]/g, (c) => '\\' + c);
+        const like = `%${esc(q)}%`;
+        where.push(
+          "(o.search_text LIKE ? ESCAPE '\\' OR o.name LIKE ? ESCAPE '\\' OR " +
+            "o.name_ar LIKE ? ESCAPE '\\' OR e.name LIKE ? ESCAPE '\\' OR e.name_ar LIKE ? ESCAPE '\\')",
+        );
+        binds.push(like, like, like, like, like);
+      }
+      const sql = `SELECT o.id, o.store, o.region, o.category, o.price, o.old_price,
+          o.currency, o.image_url, o.source_url, o.search_text, o.valid_to,
+          o.detected_at, o.name AS o_name, o.name_ar AS o_name_ar,
+          e.name AS e_name, e.name_ar AS e_name_ar, e.brand AS e_brand,
+          e.size AS e_size, e.confidence AS e_confidence,
+          e.corroboration AS e_corroboration, e.mint_verdict AS e_mint_verdict,
+          e.crop_url AS e_crop_url, e.enriched_at AS e_enriched_at,
+          ${servable} AS e_servable,
+          s.product_id AS s_product_id, s.match_band AS s_match_band,
+          s.match_score AS s_match_score, s.resolved_at AS s_resolved_at
+        FROM offers o
+        LEFT JOIN offer_enrichments e ON e.id = o.id
+        LEFT JOIN product_sightings s ON s.offer_id = o.id
+        ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
+        ORDER BY o.detected_at DESC LIMIT ?`;
+      binds.push(Math.max(1, Math.min(Number(limit) || 40, 200)));
+      const { results } = await db.prepare(sql).bind(...binds).all();
+      return results || [];
+    },
+
+    // Ops Diagnostics "queue latency": the detection time of the OLDEST current
+    // offer still awaiting vision (crop present, no enrichment row). null when
+    // the queue is empty. Age is computed by the caller against now().
+    async oldestUnenrichedAge(currentOn) {
+      const row = await db
+        .prepare(
+          `SELECT MIN(o.detected_at) AS oldest
+             FROM offers o LEFT JOIN offer_enrichments e ON e.id = o.id
+            WHERE e.id IS NULL AND o.image_url IS NOT NULL AND o.valid_to >= ?`,
+        )
+        .bind(currentOn)
+        .first();
+      return row?.oldest || null;
     },
 
     // Retention: drop offer rows whose validity ended before the cutoff. The

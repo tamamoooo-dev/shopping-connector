@@ -17,6 +17,11 @@ import { rowToDoc } from './contract.js';
 import { getQueryPricesDoc, getLowestDoc, recordOfferHistory, deriveIdentity } from './priceHistory.js';
 import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offers/contract.js';
+import { drainEnrichment, applyEnrichment } from './offers/enrich.js';
+import { drainResolution } from './registry/drain.js';
+import { runMaintenance } from './registry/lifecycle.js';
+import { applyReviewAction } from './registry/review.js';
+import { getRegistryPricesDoc } from './registry/history.js';
 import { queryFamily, offerFamily, productType, freshProduceIntent, isProcessedProduce, producePresence, matchStage } from './matching.js';
 import { pruneStoredBytes } from './retention.js';
 import { buildWatch, checkWatches, MAX_WATCHES, MAX_WATCHES_TOTAL } from './monitor.js';
@@ -265,6 +270,11 @@ export async function handleRequest(request, ctx) {
     const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 60, 200));
     if (store && !ctx.registry[store]) return json({ error: `Unknown store '${store}'.` }, 404);
 
+    // Vision-canonical search (2026-07-21): one path. Retrieval matched each
+    // row's canonical haystack in SQL (offerStore.search); here the SAME gate
+    // (offers/enrich.js applyEnrichment -> servable) overlays vision display
+    // names, with per-offer OCR extraction fallback. Rows carry their
+    // enrichment columns, so there is no second fetch.
     const rows = await ctx.offerStore.search({
       q,
       store,
@@ -281,7 +291,8 @@ export async function handleRequest(request, ctx) {
     const scored = rows
       .map((r) => {
         const offer = rowToOffer(r);
-        const rel = offerRelevance(offer, tokens, r.search_text || '');
+        const matchHay = applyEnrichment(offer, r);
+        const rel = offerRelevance(offer, tokens, matchHay);
         // Family tier: when the query names a product family ("بيض" -> eggs),
         // offers OF that family outrank derived look-alikes (an egg-pastry is
         // pastry, not eggs); family-less offers sit between. The offer's own
@@ -323,7 +334,31 @@ export async function handleRequest(request, ctx) {
         b.score - a.score ||
         a.offer.price - b.offer.price,
     );
-    const offers = scored.slice(0, limit).map((s) => s.offer);
+    // TEMPORARY (pipeline evaluation): ?diag=1 exposes the ranking keys the
+    // sort above actually used, so the comparison tool can explain WHY a row
+    // moved. Absent the param, both payloads keep their normal shape.
+    const diag = url.searchParams.get('diag') === '1';
+    const offers = scored.slice(0, limit).map((s) => {
+      if (diag) s.offer._diag = { stage: s.stage, famRank: s.famRank, score: Math.round(s.score) };
+      return s.offer;
+    });
+
+    // Registry annotation (REGISTRY-DESIGN §7 /offers) — the sighting's
+    // productId on every resolved result, enabling cross-store same-product
+    // grouping. Read-only decoration; ranking above is already final.
+    if (ctx.registryStore && offers.length) {
+      const sightings = await ctx.registryStore
+        .getSightingsForIds(offers.map((o) => o.id))
+        .catch(() => new Map());
+      for (const o of offers) {
+        const s = sightings.get(o.id);
+        if (s) {
+          o.productId = s.product_id;
+          o.matchBand = s.match_band;
+        }
+      }
+    }
+
     return json({ query: q || null, count: offers.length, note: OFFERS_NOTE, offers });
   }
 
@@ -380,10 +415,25 @@ export async function handleRequest(request, ctx) {
   const historyQuery = () =>
     (url.searchParams.get('q') || url.searchParams.get('product') || '').trim();
 
+  // Price History is REGISTRY-FIRST (vision-canonical, 2026-07-21): the
+  // registry doc (points = sightings, market-wide) answers whenever it has
+  // data for the query. The V1 OCR-identity doc serves only as fallback while
+  // registry depth accrues (sightings exist only since resolution went live).
+  // TODO: remove the V1 fallback once registry depth covers the catalog.
+  const registryPricesDoc = async (q) => {
+    if (!ctx.registryStore) return null;
+    const doc = await getRegistryPricesDoc(ctx.registryStore, q, { today: todayISO() })
+      .catch(() => null);
+    const empty = !doc || (!doc.lowest && !(doc.variants && doc.variants.length));
+    return empty ? null : doc;
+  };
+
   // Headline: lowest historical price + where (store) + when (week/observedAt).
   if (path === '/lowest' && request.method === 'GET') {
     const q = historyQuery();
     if (!q) return json({ error: "Missing required parameter 'q'." }, 400);
+    const doc = await registryPricesDoc(q);
+    if (doc) return json({ product: q, lowest: doc.lowest });
     if (!ctx.historyStore) return json({ error: 'Price history unavailable.' }, 503);
     return json({ product: q, lowest: await getLowestDoc(ctx.historyStore, q) });
   }
@@ -394,6 +444,11 @@ export async function handleRequest(request, ctx) {
   if (path === '/prices' && request.method === 'GET') {
     const q = historyQuery();
     if (!q) return json({ error: "Missing required parameter 'q'." }, 400);
+    const regDoc = await registryPricesDoc(q);
+    if (regDoc) {
+      regDoc.note = OFFERS_NOTE;
+      return json(regDoc);
+    }
     if (!ctx.historyStore) return json({ error: 'Price history unavailable.' }, 503);
     const doc = await getQueryPricesDoc(ctx.historyStore, q);
     doc.note = OFFERS_NOTE;
@@ -584,6 +639,171 @@ export async function handleRequest(request, ctx) {
         .catch(() => {});
     }
     return json(report);
+  }
+
+  // Guarded vision-enrichment drain (offers/enrich.js): one PACED batch of
+  // debris-offer name extraction. The daily cron dispatches a few of these
+  // children sequentially (scheduler.runEnrichDrain), each with its own fresh
+  // subrequest budget; callable manually for backfill. Names only — the price
+  // path is unreachable from here by construction.
+  if (path === '/enrich' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.enrichStore || !ctx.mistralKey) {
+      return json({ error: 'Enrichment unavailable (no store or MISTRAL_API_KEY).' }, 503);
+    }
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 15, 20));
+    // Scope (pipeline milestone): 'all' = every current offer with a crop
+    // (full-catalog vision coverage, the default per the evaluation plan);
+    // 'debris' = the original deriveNames-defeated subset only.
+    const scope = url.searchParams.get('scope') === 'debris' ? 'debris' : 'all';
+    const t0 = Date.now();
+    const report = await drainEnrichment(
+      { enrichStore: ctx.enrichStore, mistralKey: ctx.mistralKey, mistralKeyBackup: ctx.mistralKeyBackup },
+      { limit, currentOn: todayISO(), scope },
+    );
+    // ENRICHMENT ONLY (2026-07-20): resolution is DECOUPLED — it no longer rides
+    // this child (the combined enrichment + resolution CPU tripped the per-
+    // invocation limit under load). Each cron coordinator (index.js) now runs one
+    // drainResolution pass after its enrich children finish; standalone /resolve
+    // covers the backlog. Same drainResolution code, just a different caller.
+    if (ctx.opsStore) {
+      await ctx.opsStore
+        .record({
+          ts: report.startedAt,
+          action: 'enrich',
+          origin: request.headers.get('X-Ops-Origin') === 'ops' ? 'ops' : 'cron',
+          ok: report.failed === 0,
+          failed: report.failed,
+          elapsed_ms: Date.now() - t0,
+          error: report.errors[0] || null,
+          detail: {
+            scanned: report.scanned,
+            enriched: report.enriched,
+            declined: report.declined,
+            pruned: report.pruned,
+            resolved: report.resolution
+              ? {
+                  scanned: report.resolution.scanned,
+                  attached: report.resolution.attached,
+                  reviewed: report.resolution.reviewed,
+                  created: report.resolution.created,
+                  deferred: report.resolution.deferred,
+                }
+              : null,
+          },
+        })
+        .catch(() => {});
+    }
+    return json(report);
+  }
+
+  // Guarded registry-resolution drain (registry/drain.js): resolve the
+  // backlog of stored-but-unresolved enrichments WITHOUT any vision calls —
+  // D1-only, so large limits are safe. The backfill path after upload-shadow /
+  // backfill-enrich populate offer_enrichments.
+  if (path === '/resolve' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.registryStore || !ctx.enrichStore) {
+      return json({ error: 'Registry unavailable.' }, 503);
+    }
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 200, 500));
+    const t0 = Date.now();
+    const report = await drainResolution(
+      { enrichStore: ctx.enrichStore, registryStore: ctx.registryStore },
+      { limit, currentOn: todayISO() },
+    );
+    if (ctx.opsStore) {
+      await ctx.opsStore
+        .record({
+          ts: report.startedAt,
+          action: 'resolve',
+          origin: request.headers.get('X-Ops-Origin') === 'ops' ? 'ops' : 'cron',
+          ok: report.errors.length === 0,
+          failed: report.errors.length,
+          elapsed_ms: Date.now() - t0,
+          error: report.errors[0] || null,
+          detail: {
+            scanned: report.scanned,
+            attached: report.attached,
+            reviewed: report.reviewed,
+            created: report.created,
+            deferred: report.deferred,
+            verdicts: report.verdicts,
+          },
+        })
+        .catch(() => {});
+    }
+    return json(report);
+  }
+
+  // Registry §8 standing metrics — a dashboard read, never an investigation
+  // (IDENTITY-V2 §3.1 rationale). Public read-only aggregates.
+  if (path === '/registry/stats' && request.method === 'GET') {
+    if (!ctx.registryStore) return json({ error: 'Registry unavailable.' }, 503);
+    const stats = await ctx.registryStore.stats();
+    const verdicts = ctx.enrichStore
+      ? await ctx.enrichStore.verdictCounts().catch(() => ({}))
+      : {};
+    return json(
+      { ...stats, verdicts },
+      200,
+      { 'Cache-Control': 'public, max-age=60' },
+    );
+  }
+
+  // Guarded registry maintenance (registry/lifecycle.js): §5.1 dormancy sweep,
+  // §5.4 conservative consolidation, dangling-sighting healing — the manual
+  // twin of the weekly cron duty (index.js). D1-only.
+  if (path === '/registry/maintain' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.registryStore) return json({ error: 'Registry unavailable.' }, 503);
+    return json(await runMaintenance(ctx, { today: todayISO() }));
+  }
+
+  // The §5.4/§6 review surface — the human side of the split asymmetry (merge
+  // automated, split human-gated). GET lists what needs eyes: flagged products
+  // (size/brand conflicts, split suspicion) and a sample of review-band
+  // sightings with their flyer crops for adjudication. Guarded: operator data.
+  if (path === '/registry/review' && request.method === 'GET') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.registryStore) return json({ error: 'Registry unavailable.' }, 503);
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 50, 200));
+    const [flagged, sightings] = await Promise.all([
+      ctx.registryStore.listFlagged(limit),
+      ctx.registryStore.listReviewSightings(limit),
+    ]);
+    return json({ flagged, reviewSightings: sightings });
+  }
+
+  // Review actions (guarded): the bounded human loop the design accepts
+  // (REGISTRY-DESIGN §9 trade-off 3).
+  //   clear_flag — the suspicion was benign; the product resumes learning.
+  //   reassign   — move ONE sighting to the right product (band `review`:
+  //                attached, never teaching — a human fix must not poison a
+  //                profile either).
+  //   split      — the split repair: re-mint a NEW product from the sighting's
+  //                own enrichment read and move the sighting onto it.
+  if (path === '/registry/review' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.registryStore) return json({ error: 'Registry unavailable.' }, 503);
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'Body must be JSON.' }, 400);
+    }
+    const report = await applyReviewAction(ctx, body || {});
+    return json(report, report.error ? 400 : 200);
   }
 
   // Guarded retention run (see retention.js) — the cron coordinator calls

@@ -26,6 +26,24 @@ crons = [
   # to zero KV writes, offers upsert is D1-only.
   "0 6 * * 2,3,5", # brochure/offers pipeline (fan-out -> prices -> prune)
   "45 5 * * *",    # daily Price Monitoring: check every active watch (08:45 AST)
+  # Vision enrichment drain (steady-state autonomy, 2026-07-19): Vision is an
+  # INGESTION step — every new offer goes through it exactly once (user
+  # directive: no reuse gates in front of Vision) — so throughput must absorb
+  # the Tuesday-night burst without manual backfills. Each fire is its own
+  # budget (6 sequential children × 15 offers ≈ 90; §40 bump from 4), 3 fires/hour
+  # ⇒ up to ~6.5k offers/day; an empty queue costs one D1 count. Minutes 10/30/50
+  # keep clear of the 05:45 watch fire and the 06:00 ingest fan-out.
+  # Inert without the MISTRAL_API_KEY secret, exactly like the drain itself.
+  "10,30,50 * * * *", # steady-state vision drain (yields to a background job)
+  # Background Manual Vision — near-continuous drain (Vision Milestone 2 §2, cron
+  # redesign 2026-07-20). Fires EVERY MINUTE but is a single cheap D1 read unless
+  # an operator has a job running; then it drains a bounded chunk (VISION_DRAIN_BATCHES
+  # children/fire, paced by Mistral) as the SOLE resolution writer — a D1 lease
+  # prevents overlapping fires, and the 10/30/50 drain + Monday maintenance yield
+  # to a running job. Replaces the fragile self-continuing /enrich/step chain
+  # (a fetch-invocation waitUntil can't keep a 30s hop alive). Inert (one D1 read)
+  # without a running job or without MISTRAL_API_KEY.
+  "* * * * *", # Background Manual Vision continuous drain (no-op when idle)
 ]
 
 # --- SELF service binding: the cron fan-out mechanism (Architecture C) ---------

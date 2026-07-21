@@ -6,3 +6,10 @@ node_modules/
 .dev.vars
 .DS_Store
 Thumbs.db
+# Local secrets (never commit) — Mistral keys, ingest secret, calibration data
+.mistral.key
+.mistral.key.backup
+.ingest.secret
+*.key
+*.secret
+calibration/

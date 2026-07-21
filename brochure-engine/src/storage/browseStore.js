@@ -16,17 +16,23 @@
 import {
   FROZEN_MARK_TERMS, PROCESSED_MARK_TERMS, FRESH_GUARD_TERMS,
 } from '../browse/mapping.js';
+import { ENRICH_JOIN, CANON_NAME_SQL, CANON_NAME_AR_SQL } from './enrichStore.js';
 
 // Slim projection: everything a Browse card needs, nothing more (search_text
 // stays out — it is matching payload, ~600 chars/row of dead weight here).
+// Names are the CANONICAL identity (vision-canonical, 2026-07-21): the
+// servable vision reading via the one shared gate (enrichStore.js
+// SERVABLE_SQL), OCR as extraction fallback — same names Search serves.
 const CARD_COLS = `
   o.id, o.store, o.region, o.source, o.offer_id, o.flyer_ref, o.page_ref,
-  o.edition, o.name, o.name_ar, o.price, o.old_price, o.currency, o.category,
+  o.edition, ${CANON_NAME_SQL} AS name, ${CANON_NAME_AR_SQL} AS name_ar,
+  o.price, o.old_price, o.currency, o.category,
   o.image_url, o.source_url, o.valid_from, o.valid_to, o.detected_at,
   o.identity, o.brand_slug, pi.weeks_seen, pi.first_seen,
   h.min_price, h.max_price, h.points`;
 
 const HISTORY_JOIN = `
+  ${ENRICH_JOIN}
   LEFT JOIN price_identities pi ON pi.id = o.identity
   LEFT JOIN (SELECT identity, MIN(price) AS min_price, MAX(price) AS max_price,
                     COUNT(*) AS points
@@ -40,7 +46,9 @@ const HISTORY_JOIN = `
 // NULL name is NULL, and three-valued logic silently dropped every NULL-named
 // row from the fresh listings (all produce; production bug found 2026-07-17).
 // ASCII LIKE is case-insensitive, matching the JS regex's /i.
-const MARK_NAMES = `(ifnull(o.name,'') || ' ' || ifnull(o.name_ar,''))`;
+// Classify over the CANONICAL names (vision when servable, OCR fallback) so
+// fresh/frozen bucketing agrees with the names the cards actually show.
+const MARK_NAMES = `(ifnull(${CANON_NAME_SQL},'') || ' ' || ifnull(${CANON_NAME_AR_SQL},''))`;
 const likeAny = (terms) => terms.map((t) => `${MARK_NAMES} LIKE '%${t}%'`).join(' OR ');
 const FROZEN_MARK_SQL = `((${likeAny(FROZEN_MARK_TERMS)})
   OR ((${likeAny(PROCESSED_MARK_TERMS)}) AND NOT (${likeAny(FRESH_GUARD_TERMS)})))`;
@@ -67,7 +75,7 @@ export function createD1BrowseStore(db) {
           `SELECT o.source, o.category,
                   (CASE WHEN ${FROZEN_MARK_SQL} THEN 1 ELSE 0 END) AS frozen_marked,
                   COUNT(*) AS n
-             FROM offers o WHERE o.valid_to >= ?
+             FROM offers o ${ENRICH_JOIN} WHERE o.valid_to >= ?
             GROUP BY o.source, o.category, frozen_marked`,
         )
         .bind(currentOn)
@@ -103,7 +111,7 @@ export function createD1BrowseStore(db) {
           `SELECT o.source, o.category,
                   (CASE WHEN ${FROZEN_MARK_SQL} THEN 1 ELSE 0 END) AS frozen_marked,
                   COUNT(*) AS n
-             FROM offers o WHERE o.valid_to >= ? AND o.brand_slug = ?
+             FROM offers o ${ENRICH_JOIN} WHERE o.valid_to >= ? AND o.brand_slug = ?
             GROUP BY o.source, o.category, frozen_marked`,
         )
         .bind(currentOn, brandSlug)
@@ -175,6 +183,7 @@ export function createD1BrowseStore(db) {
     // identity-less offers can never qualify and are prefiltered out here).
     async candidates(currentOn) {
       const sql = `SELECT ${CARD_COLS} FROM offers o
+        ${ENRICH_JOIN}
         JOIN price_identities pi ON pi.id = o.identity
         LEFT JOIN (SELECT identity, MIN(price) AS min_price, MAX(price) AS max_price,
                           COUNT(*) AS points

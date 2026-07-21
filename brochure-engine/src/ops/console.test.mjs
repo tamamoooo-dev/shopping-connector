@@ -346,6 +346,167 @@ const post = (ctx, path, body, headers = {}) =>
   console.log('engine mode + dev fallback ✅');
 }
 
+// --- manual vision drain (developer tool, NOT normal operations) -------------------
+{
+  const auth = { Authorization: 'Bearer test-ops-token' };
+  const ctx = await buildCtx();
+
+  check('enrich requires confirmation', (await post(ctx, '/api/enrich', {}, auth)).status === 428);
+  check('enrich unavailable without MISTRAL_API_KEY -> 503',
+    (await post(ctx, '/api/enrich', { confirm: true }, auth)).status === 503);
+
+  // A drained queue is a result, not an error — and it is audited.
+  ctx.mistralKey = 'k';
+  ctx.enrichStore = {
+    countDebris: async () => 0,
+    listDebris: async () => [],
+    pruneOrphans: async () => 0,
+    upsertMany: async () => ({ stored: 0 }),
+  };
+  const idle = await (await post(ctx, '/api/enrich', { confirm: true }, auth)).json();
+  check('empty queue -> nothingToDo, audited',
+    idle.nothingToDo === true && (await ctx.opsStore.list({ limit: 50 })).some((r) => r.action === 'ops:enrich'));
+
+  // A pending queue dispatches /enrich children through SELF — the exact cron
+  // path — with the ops origin tag; the summary row lands in the audit.
+  ctx.enrichStore.countDebris = async () => 17; // ceil(17/15) = 2 children
+  ctx.selfCalls.length = 0;
+  const run = await (await post(ctx, '/api/enrich', { confirm: true }, auth)).json();
+  check('pending queue -> SELF /enrich children (cron-identical path)',
+    run.ok === true && run.batches === 2 && ctx.selfCalls.length === 2 &&
+    ctx.selfCalls.every((u) => u.includes('/enrich?limit=15')));
+  check('drain children audit as ops origin',
+    (await ctx.opsStore.list({ limit: 50 })).some((r) => r.action === 'enrich' && r.origin === 'ops'));
+  check('report carries queue depth + remaining', run.pending === 17 && 'remaining' in run);
+  console.log('manual vision drain ✅');
+}
+
+// --- Background Manual Vision job (§2, cron-driven redesign 2026-07-20):
+// vision/start just ARMS a running job — the 1-minute `visionDrain` cron (index.js
+// scheduled(), single-writer lease) drains it, so start no longer kicks any chain.
+// vision/stop halts it; vision/job reports it; a second start is refused.
+{
+  const auth = { Authorization: 'Bearer test-ops-token' };
+  const ctx = await buildCtx();
+  function memVisionJobStore() {
+    let row = null;
+    return {
+      async start({ scope = 'all', total = 0, origin = 'ops' } = {}) {
+        const now = new Date().toISOString();
+        row = { id: 'active', status: 'running', scope, total, processed: 0, enriched: 0, declined: 0, failed: 0, remaining: total, hops: 0, started_at: now, updated_at: now, finished_at: null, last_error: null, provider_limit: null, origin, lease_until: null };
+        return { ...row };
+      },
+      async get() { return row ? { ...row } : null; },
+      async update(patch = {}) { if (row) row = { ...row, ...patch, updated_at: new Date().toISOString() }; return row ? { ...row } : null; },
+      async stop() { if (row && row.status === 'running') { const now = new Date().toISOString(); row = { ...row, status: 'stopped', finished_at: now, updated_at: now }; } return row ? { ...row } : null; },
+    };
+  }
+
+  check('vision/start needs confirmation -> 428', (await post(ctx, '/api/vision/start', {}, auth)).status === 428);
+  check('vision/start unavailable without MISTRAL_API_KEY -> 503', (await post(ctx, '/api/vision/start', { confirm: true }, auth)).status === 503);
+
+  ctx.mistralKey = 'k';
+  ctx.visionJobStore = memVisionJobStore();
+  let n = 0;
+  ctx.enrichStore = { countDebris: async () => n };
+
+  const empty = await (await post(ctx, '/api/vision/start', { confirm: true }, auth)).json();
+  check('empty queue -> nothingToDo, no job armed', empty.nothingToDo === true && empty.job === null);
+
+  n = 42;
+  ctx.selfCalls.length = 0;
+  const started = await (await post(ctx, '/api/vision/start', { confirm: true }, auth)).json();
+  check('vision/start ARMS a running job (no chain kick — the cron drains it)',
+    started.ok === true && started.job.status === 'running' && started.job.total === 42 && ctx.selfCalls.length === 0);
+  check('vision/start audited', (await ctx.opsStore.list({ limit: 50 })).some((r) => r.action === 'ops:vision-start'));
+
+  const jobRead = (await (await req(ctx, '/api/vision/job', { headers: auth })).json()).job;
+  check('vision/job returns the running job', jobRead.status === 'running' && jobRead.total === 42);
+
+  const again = await (await post(ctx, '/api/vision/start', { confirm: true }, auth)).json();
+  check('vision/start refuses a second job while one is running', again.alreadyRunning === true);
+
+  const stopped = await (await post(ctx, '/api/vision/stop', {}, auth)).json();
+  check('vision/stop halts the running job', stopped.job.status === 'stopped');
+  console.log('background manual vision ✅');
+}
+
+// --- Operations Center routes (Ops plan §1–§8) --------------------------------
+{
+  const auth = { Authorization: 'Bearer test-ops-token' };
+  const ctx = await buildCtx();
+  ctx.crons = { pipeline: '0 6 * * 2,3,5', watches: '45 5 * * *', enrich: '10,30,50 * * * *' };
+  // The vision/registry stores the new panels read (memory twins in
+  // storage/local.js cover only the classic stores).
+  ctx.enrichStore = {
+    coverage: async () => ({ withCrop: 50, attempted: 40, enriched: 35, servable: 30, declined: 5, remaining: 10, coverage: 80 }),
+    countDebris: async () => 10,
+    verdictCounts: async () => ({ minted: 80, unresolved: 5, declined: 3, low_corroboration: 2, too_few_tokens: 1, or_deal: 0 }),
+    getForIds: async () => new Map(),
+    resetVerdicts: async () => {},
+  };
+  ctx.registryStore = {
+    productCount: async () => 25,
+    sightingsCount: async () => 120,
+    stats: async () => ({ products: { active: 20, dormant: 3, merged: 2, flagged: 1, assortments: 0 }, bands: { auto: 50, review: 10, created: 20 } }),
+    searchProducts: async ({ q }) => (q === 'milk' ? [{ id: 'pr_1', display_name: 'Milk', brand_slug: 'x', status: 'active', sightings: 4 }] : []),
+    getProducts: async (ids) => (ids.includes('pr_1') ? [{ id: 'pr_1', status: 'active', kind: 'product', display_name: 'Milk', size_unit: null, sightings: 4, first_seen: '2026-07-01', last_seen: '2026-07-10' }] : []),
+    getSighting: async () => null,
+    mergedLoserIds: async () => new Map(),
+    sightingsForProducts: async () => [],
+  };
+  ctx.offerStore.getById = async (id) =>
+    id === 'alpha:central:d4d:A'
+      ? { id, store: 'alpha', region: 'central', name: 'A', name_ar: null, price: 5, currency: 'SAR', image_url: null, source_url: null, valid_to: inWeek, detected_at: 'x', search_text: 'x', category: null, old_price: null }
+      : null;
+  ctx.offerStore.inspectorFeed = async () => [
+    { id: 'alpha:central:d4d:A', store: 'alpha', price: 5, currency: 'SAR', image_url: null, o_name: 'A', e_name: null, e_servable: 0, e_enriched_at: null, s_match_band: null, e_corroboration: null },
+  ];
+  ctx.offerStore.oldestUnenrichedAge = async () => new Date(Date.now() - 3600000).toISOString();
+
+  check('progress needs auth -> 401', (await req(ctx, '/api/progress')).status === 401);
+
+  const prog = await (await req(ctx, '/api/progress', { headers: auth })).json();
+  check('progress shape', prog.coverage === 80 && prog.registryProducts === 25 && prog.sightings === 120 && prog.remaining === 10 && prog.nextCron !== null);
+
+  const q = await (await req(ctx, '/api/queue', { headers: auth })).json();
+  check('queue snapshot buckets', q.vision.queued === 10 && q.resolution.minted === 80 && q.resolution.deferred === 6);
+
+  const cr = await (await req(ctx, '/api/crons', { headers: auth })).json();
+  check('cron monitor lists every schedule', cr.crons.length === 3 && cr.crons.every((c) => 'nextRun' in c));
+
+  const pipe = await (await req(ctx, '/api/pipeline', { headers: auth })).json();
+  check('pipeline health has the 7 stages', pipe.stages.length === 7 && pipe.stages[0].name === 'OCR' && pipe.stages[6].name === 'Search');
+
+  const diag = await (await req(ctx, '/api/diagnostics2', { headers: auth })).json();
+  check('diagnostics names the un-instrumented metrics', diag.notInstrumented.length === 3 && 'd1' in diag.probes && diag.queueAgeMs > 0);
+
+  const ins = await (await req(ctx, '/api/inspector?filter=all', { headers: auth })).json();
+  check('inspector feed returns items + echoes filter', ins.filter === 'all' && ins.items.length === 1);
+
+  const one = await (await req(ctx, '/api/inspect?id=alpha:central:d4d:A', { headers: auth })).json();
+  check('inspect composes offer + ocr + vision(none) + registry', one.offer.id === 'alpha:central:d4d:A' && one.ocr.name === 'A' && one.vision === null && one.product === null);
+  check('inspect unknown offer -> 404', (await req(ctx, '/api/inspect?id=zzz', { headers: auth })).status === 404);
+
+  const ps = await (await req(ctx, '/api/productsearch?q=milk', { headers: auth })).json();
+  check('product search returns matches', ps.products.length === 1 && ps.products[0].id === 'pr_1');
+
+  const pd = await (await req(ctx, '/api/product?id=pr_1', { headers: auth })).json();
+  check('product detail composes a sightings list', pd.product.id === 'pr_1' && Array.isArray(pd.sightings));
+  check('product unknown -> 404', (await req(ctx, '/api/product?id=nope', { headers: auth })).status === 404);
+
+  // The three new mutations keep the confirmation gate.
+  check('resolve needs confirm -> 428', (await post(ctx, '/api/resolve', {}, auth)).status === 428);
+  check('maintain needs confirm -> 428', (await post(ctx, '/api/maintain', {}, auth)).status === 428);
+  check('reopen needs confirm -> 428', (await post(ctx, '/api/reopen', { ids: ['x'] }, auth)).status === 428);
+  check('reopen with no ids -> 400', (await post(ctx, '/api/reopen', { confirm: true, ids: [] }, auth)).status === 400);
+
+  // CSP now permits Inspector images while connect-src stays same-origin.
+  const csp = (await req(ctx, '')).headers.get('Content-Security-Policy') || '';
+  check('CSP allows images, keeps connect-src self', csp.includes("img-src 'self' data: https:") && csp.includes("connect-src 'self'"));
+  console.log('operations center routes ✅');
+}
+
 if (failures) {
   console.error(`\n${failures} test(s) failed.`);
   process.exit(1);

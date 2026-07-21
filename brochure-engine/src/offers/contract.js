@@ -44,8 +44,10 @@ const ARABIC_RE = /[؀-ۿ]/;
 const LATIN_RE = /[a-z]/i;
 // Scripts we neither display nor search (store signage noise on some flyers).
 const OTHER_SCRIPT_RE = /[ഀ-ൿঀ-৿ऀ-ॿ஀-௿ఀ-౿一-鿿぀-ヿ가-힯]/;
-// Generic flyer-banner phrases that are never a product name.
-const BANNER_WORDS = new Set([
+// Generic flyer-banner phrases that are never a product name. Exported for the
+// registry resolver's token filter (IDENTITY-V2 §4.2 rule 4 — same list, one
+// definition of "banner noise").
+export const BANNER_WORDS = new Set([
   'offer', 'offers', 'deal', 'deals', 'amazing', 'exciting', 'rewards', 'endless',
   'surprises', 'save', 'free', 'price', 'prices', 'happiness', 'special', 'promo',
   'promotion', 'weekly', 'till', 'until', 'only', 'now', 'new',

@@ -145,5 +145,89 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
     (await (await get(ctx, `/watches?profile=${A}`)).json()).count === 2);
 }
 
+// --- registry product watches (REGISTRY-DESIGN §7) ---
+{
+  const { checkWatch } = await import('./monitor.js');
+  const { createMemRegistryStore } = await import('./registry/memstore.js');
+
+  ok('buildWatch rejects a registry watch without a pr_ id',
+    !!buildWatch({ kind: 'registry', query: 'halah oil', targetPrice: 20, profileId: A }).error &&
+    !!buildWatch({ kind: 'registry', query: 'halah oil', targetPrice: 20, profileId: A, productId: 'asin123' }).error);
+  const { watch, error } = buildWatch({
+    kind: 'registry', query: 'halah oil', label: 'Halah Sunflower Oil', targetPrice: 20,
+    profileId: A, productId: 'pr_abc123',
+  });
+  ok('buildWatch accepts a registry watch (no provider needed)',
+    !error && watch.kind === 'registry' && watch.productId === 'pr_abc123' && watch.provider === null);
+
+  // Evaluation: sighting precision over CURRENT offers, tombstones followed.
+  const registryStore = createMemRegistryStore({
+    offers: [
+      { id: 'o:cur', store: 'lulu', region: 'riyadh', price: 18.5, currency: 'SAR', valid_to: '2099-01-01', source_url: 'http://f/1' },
+      { id: 'o:old', store: 'othaim', region: 'riyadh', price: 15.0, currency: 'SAR', valid_to: '2000-01-01', source_url: 'http://f/2' },
+    ],
+  });
+  await registryStore.createProduct(
+    { id: 'pr_live', status: 'active', merged_into: null, kind: 'product', display_name: 'Halah Sunflower Oil 1.5L', display_name_ar: null, token_profile: '{}', sightings: 2, stores_seen: '[]', first_seen: '2026-07-01', last_seen: '2026-07-15', review_flag: null, algo_version: 1 },
+    [],
+  );
+  await registryStore.createProduct(
+    { id: 'pr_abc123', status: 'merged', merged_into: 'pr_live', kind: 'product', token_profile: '{}', sightings: 0, stores_seen: '[]', first_seen: '2026-07-01', last_seen: '2026-07-01', review_flag: null, algo_version: 1 },
+    [],
+  );
+  await registryStore.insertSighting({ offer_id: 'o:cur', product_id: 'pr_live', match_band: 'auto', store: 'lulu', region: 'riyadh', week: '2026-07-15', price: 18.5 });
+  await registryStore.insertSighting({ offer_id: 'o:old', product_id: 'pr_live', match_band: 'auto', store: 'othaim', region: 'riyadh', week: '2026-06-01', price: 15.0 });
+
+  const ctx = { watchStore: createMemoryWatchStore(), registryStore };
+  await ctx.watchStore.create(watch);
+  const line = await checkWatch(ctx, watch);
+  ok('registry watch: expired offers never count; cheapest CURRENT sighting wins',
+    line.price === 18.5 && line.status === 'below-target');
+  ok('registry watch: tombstone followed, alert carries the display name + flyer source',
+    line.alerted === true &&
+    (await ctx.watchStore.listAlerts({ limit: 5 })).some(
+      (a) => a.name === 'Halah Sunflower Oil 1.5L' && a.source === 'flyer' && a.store === 'lulu',
+    ));
+
+  // No current sighting -> silence (no-data), never a stale alert.
+  const { watch: ghost } = buildWatch({
+    kind: 'registry', query: 'gone thing', targetPrice: 99, profileId: A, productId: 'pr_ghost',
+  });
+  await ctx.watchStore.create(ghost);
+  const gLine = await checkWatch(ctx, ghost);
+  ok('registry watch on an unknown product stays silent', gLine.status === 'no-data' && !gLine.alerted);
+}
+
+// --- grocery watches see VISION names (vision-canonical, 2026-07-21) ---
+// A debris offer OCR can't name (or match) alerts through its servable vision
+// read — the same applyEnrichment gate Search serves with.
+{
+  const { checkWatch } = await import('./monitor.js');
+  const { createMemoryOfferStore, createMemoryEnrichStore } = await import('./storage/local.js');
+  let offerStoreRef;
+  const enrichStore = createMemoryEnrichStore({ listOffers: async () => offerStoreRef.listAll() });
+  offerStoreRef = createMemoryOfferStore({ enrichStore });
+  await offerStoreRef.upsertMany([{
+    id: 'lulu:riyadh:d4d:v1', store: 'lulu', region: 'riyadh', source: 'd4d',
+    offer_id: 'v1', flyer_ref: null, page_ref: null, edition: null,
+    name: null, name_ar: null, price: 8.5, old_price: null, currency: 'SAR',
+    category_id: null, category: null, image_url: 'http://c/i.jpg',
+    source_url: 'http://f/v1', valid_from: null, valid_to: '2099-01-01',
+    detected_at: 'now', search_text: 'tanzanian mutton smear zz', identity: null, brand_slug: null,
+  }]);
+  await enrichStore.upsertMany([{
+    id: 'lulu:riyadh:d4d:v1', name: 'Tanzanian Mutton', name_ar: null,
+    brand: null, size: null, confidence: 0.9, corroboration: 0.8,
+    model: 'test', crop_url: null, enriched_at: 'now',
+  }]);
+  const ctx = { watchStore: createMemoryWatchStore(), offerStore: offerStoreRef, searchClient: null };
+  const { watch } = buildWatch(watchBody(A, 'tanzanian mutton', 10));
+  await ctx.watchStore.create(watch);
+  const line = await checkWatch(ctx, watch);
+  ok('grocery watch matches via the vision read and alerts', line.alerted === true && line.price === 8.5);
+  ok('alert carries the VISION name',
+    (await ctx.watchStore.listAlerts({ limit: 5 })).some((a) => a.name === 'Tanzanian Mutton'));
+}
+
 console.log(`\nwatches.test: ${pass} passed, ${fail} failed`);
 if (fail) process.exit(1);

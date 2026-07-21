@@ -978,6 +978,14 @@ function stripSizeExpressions(hay) {
   return out.replace(/\s+/g, ' ').trim();
 }
 
+// A text with every size expression removed (size-aware normalization first,
+// so "1.5L x 2" and "٥٠٠ مل" vanish whole instead of shredding into digit
+// tokens). Used by the registry resolver to drop size-consumed tokens from
+// identity evidence (IDENTITY-V2 §4.2 rule 4) — same strip the query path uses.
+export function stripSizes(text) {
+  return stripSizeExpressions(normSize(text));
+}
+
 // The package size a query explicitly names, or null.
 export function querySize(query) {
   const sz = parseSize(query, '');
