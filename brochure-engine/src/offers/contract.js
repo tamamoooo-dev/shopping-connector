@@ -26,6 +26,7 @@
 // Re-exported here so offer consumers keep a single import site.
 import {
   normalizeText,
+  canonicalMatchText,
   queryTokens,
   bestVariantScore,
   compoundPenalty,
@@ -247,9 +248,9 @@ export function rowToOffer(r) {
 // and compound look-alikes ("milk chocolate") are demoted. Pure & unit-tested.
 export function offerRelevance(offer, tokens, searchText) {
   if (!tokens.length) return 1;
-  const name = normalizeText(`${offer.name || ''} ${offer.nameAr || ''}`);
+  const name = canonicalMatchText(`${offer.name || ''} ${offer.nameAr || ''}`);
   const nameWords = new Set(name ? name.split(' ') : []);
-  const hay = searchText || '';
+  const hay = canonicalMatchText(searchText || '');
   const hayWords = new Set(hay ? hay.split(' ') : []);
   let score = 0;
   let nameMisses = 0;

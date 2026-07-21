@@ -44,6 +44,7 @@ import {
 import {
   nameRelevance,
   isRelevantName,
+  canonicalMatchText,
   parseSize as parseSizeM,
   sizeComparable as sizeComparableM,
   productFamily,
@@ -583,6 +584,11 @@ async function selftestOffersLive(ctx, store = 'lulu') {
 // "بيض" (eggs) substring-matching "بيضاء" (white) under the old matcher).
 async function selftestMatching() {
   console.log('=== Matching (word boundaries, synonyms, size gate) ===');
+  if (canonicalMatchText('صدور الدجاج') !== 'صدور دجاج') fail('Arabic definite article was not canonicalized');
+  if (canonicalMatchText('صدور والدجاج') !== 'صدور دجاج') fail('Arabic conjunction+article was not canonicalized');
+  if (canonicalMatchText('فاصوليا بالدجاج') !== 'فاصوليا بالدجاج') fail('ingredient preposition was stripped');
+  if (nameRelevance('صدور دجاج طازجة', 'صدور الدجاج') < 90) fail('article query missed bare chicken token');
+  if (nameRelevance('صدور الدجاج طازجة', 'صدور دجاج') < 90) fail('bare query missed article chicken token');
   // Word-boundary honesty: eggs must NOT match "white" words.
   if (nameRelevance('بصل ابيض طازج', 'بيض') !== 0) fail('بيض matched ابيض (white) — substring bug is back');
   if (nameRelevance('بيض ابيض ٣٠ حبه', 'بيض') <= 0) fail('real eggs name not matched');
@@ -814,7 +820,7 @@ async function selftestMatching() {
   if (queryTokens('Arwa Water 1.5L').join(' ') !== 'arwa water') fail('queryTokens did not strip the size expression');
   if (queryTokens('مياه اروى ١.٥ لتر').join(' ') !== 'مياه اروي') fail('queryTokens did not strip an Arabic-Indic size');
   if (queryTokens('بيض 30 حبة').join(' ') !== 'بيض') fail('queryTokens did not strip a count expression');
-  if (queryTokens('حليب المراعي').join(' ') !== 'حليب المراعي') fail('size-less query tokens changed');
+  if (queryTokens('حليب المراعي').join(' ') !== 'حليب مراعي') fail('size-less query token canonicalization changed');
   if (!queryTokens('1.5 لتر').length) fail('size-only query lost all tokens');
   { const s = querySize('Arwa Water 1.5L'); if (!s || s.unit !== 'ml' || s.total !== 1500) fail('querySize did not read 1.5L'); }
   if (querySize('حليب المراعي') !== null) fail('querySize invented a size');

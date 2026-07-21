@@ -42,6 +42,24 @@ export function normalizeText(text) {
     .trim();
 }
 
+// Matching-only Arabic clitic canonicalization. The definite article carries
+// no product identity, so الدجاج / والدجاج and دجاج are one token. Attached
+// prepositions (بال / لل) remain intact because they signal ingredient/purpose.
+export function canonicalToken(token) {
+  const t = normalizeText(token);
+  if (!t || /\s/.test(t)) return t;
+  const bare = t.replace(/^(وال|ال)/, '');
+  return bare.length >= 2 ? bare : t;
+}
+
+export function canonicalMatchText(text) {
+  return normalizeText(text)
+    .split(' ')
+    .filter(Boolean)
+    .map(canonicalToken)
+    .join(' ');
+}
+
 // The query's LEXICAL tokens. A query-named size ("Arwa Water 1.5L") is NOT a
 // lexical token — normalization shreds it ("1.5l" -> "1 5l") and every store/
 // OCR spells it differently, so treating its fragments as mandatory AND-words
@@ -50,9 +68,9 @@ export function normalizeText(text) {
 // it as a structured filter; matchStage() enforces it); a query that is ONLY a
 // size keeps its raw tokens. Mirrors frontend match.js — keep in sync (rule 2).
 export function queryTokens(q) {
-  const raw = () => normalizeText(q).split(' ').filter(Boolean).slice(0, 6);
+  const raw = () => canonicalMatchText(q).split(' ').filter(Boolean).slice(0, 6);
   if (!querySize(q)) return raw();
-  const lex = normalizeText(stripSizeExpressions(normSize(q))).split(' ').filter(Boolean).slice(0, 6);
+  const lex = canonicalMatchText(stripSizeExpressions(normSize(q))).split(' ').filter(Boolean).slice(0, 6);
   return lex.length ? lex : raw();
 }
 
@@ -129,7 +147,7 @@ const SYNONYMS = [
 const SYN_INDEX = (() => {
   const m = new Map();
   for (const group of SYNONYMS) {
-    const norm = group.map(normalizeText);
+    const norm = [...new Set(group.map(canonicalToken))];
     for (const t of norm) m.set(t, norm);
   }
   return m;
@@ -137,7 +155,8 @@ const SYN_INDEX = (() => {
 
 // A query token plus its cross-language synonyms (all normalized).
 export function expandToken(tok) {
-  return SYN_INDEX.get(tok) || [tok];
+  const canonical = canonicalToken(tok);
+  return SYN_INDEX.get(canonical) || [canonical];
 }
 
 // --- product families ---------------------------------------------------------
@@ -586,7 +605,7 @@ export function compoundPenalty(nameNorm, qTokens) {
 export function nameRelevance(name, query) {
   const qTokens = queryTokens(query);
   if (!qTokens.length) return 0;
-  const text = normalizeText(name);
+  const text = canonicalMatchText(name);
   if (!text) return 0;
   const words = new Set(text.split(' '));
   let sum = 0;
@@ -653,8 +672,8 @@ const FLAVOR_AFTER = new Set(
 // anywhere wins over a secondary one. Conservative by design: when in doubt
 // the answer is 'primary' — the failure mode must stay "not demoted".
 export function queryTokenPresence(text, tok) {
-  const variants = new Set(expandToken(normalizeText(tok)));
-  const words = normalizeText(text).split(' ');
+  const variants = new Set(expandToken(canonicalToken(tok)));
+  const words = canonicalMatchText(text).split(' ');
   let secondary = false;
   for (let i = 0; i < words.length; i++) {
     const w = words[i];
@@ -736,10 +755,10 @@ export function matchStage(item, query) {
 }
 
 function rawMatchStage(item, qTokens, query) {
-  const name = normalizeText(item.name);
+  const name = canonicalMatchText(item.name);
   const nameWords = name ? name.split(' ') : [];
   const nameSet = new Set(nameWords);
-  const brand = normalizeText(item.brand);
+  const brand = canonicalMatchText(item.brand);
   const brandSet = new Set(brand ? brand.split(' ') : []);
   const tokTier = (qt) => {
     let best = 0;
