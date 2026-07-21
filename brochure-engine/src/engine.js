@@ -34,6 +34,16 @@ import { detectBrand } from './browse/brands.js';
 const OFFERS_NOTE =
   'Prices are machine-extracted from flyer images by the aggregator; the flyer itself prevails on any mismatch. Each offer links to its flyer page.';
 
+// Only identities that the Registry either created or attached automatically
+// are authoritative enough to bypass lexical admission. A review-band sighting
+// is deliberately uncertain: it can still serve when its own text matches the
+// query, but it must never pull unrelated siblings into another consumer.
+const TRUSTED_CANONICAL_BANDS = new Set(['auto', 'created']);
+
+function isTrustedCanonicalBand(band) {
+  return TRUSTED_CANONICAL_BANDS.has(band);
+}
+
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
@@ -371,14 +381,21 @@ export async function handleRequest(request, ctx) {
         typeof ctx.registryStore.sightingsForProducts === 'function' &&
         typeof ctx.offerStore.getByIds === 'function'
       ) {
-        const pids = [...new Set(offers.map((o) => o.productId).filter(Boolean))];
+        // Trust is required on BOTH sides of the identity edge. An uncertain
+        // lexical hit must not authorize expansion, and an uncertain sibling
+        // must not bypass the lexical/family gates merely because its brand is
+        // shared with the matched product.
+        const canonicalSeeds = offers.filter(
+          (o) => o.productId && isTrustedCanonicalBand(o.matchBand),
+        );
+        const pids = [...new Set(canonicalSeeds.map((o) => o.productId))];
         // BRAND GUARD: 'review'-band sightings can wrongly co-locate brands
         // under one productId (observed live: Al Safi rows on the Nadec UHT
         // product). A sibling is only served when its ingest-stamped brand
         // matches a brand the query actually matched for that product —
         // canonical identity expands reach, never brand.
         const brandsByPid = new Map();
-        for (const o of offers) {
+        for (const o of canonicalSeeds) {
           if (!o.productId || !o.brandSlug) continue;
           const set = brandsByPid.get(o.productId) || new Set();
           set.add(o.brandSlug);
@@ -389,6 +406,7 @@ export async function handleRequest(request, ctx) {
           const sibs = await ctx.registryStore.sightingsForProducts(pids).catch(() => []);
           const bandById = new Map();
           for (const s of sibs) {
+            if (!isTrustedCanonicalBand(s.match_band)) continue;
             if (!served.has(s.offer_id)) bandById.set(s.offer_id, s);
           }
           const wantIds = [...bandById.keys()].slice(0, 40);

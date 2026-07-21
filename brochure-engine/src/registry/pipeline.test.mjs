@@ -201,6 +201,12 @@ console.log('/offers canonical siblings:');
   const sibling = offerRow('o:othaim', {
     store: 'othaim', name: 'Milk', search_text: 'milk', price: 18.99, brand_slug: 'nadec',
   });
+  // Same brand/productId, but only review-band: it is not trusted enough to
+  // bypass lexical admission and must never enter /offers as a sibling.
+  const uncertainSibling = offerRow('o:review', {
+    store: 'almadina', name: 'Nadec Cut Green Beans', search_text: 'nadec cut green beans',
+    price: 5.95, brand_slug: 'nadec',
+  });
   // A polluted sighting: different brand under the same productId (the live
   // Al Safi-on-Nadec case) — the brand guard must refuse it.
   const impostor = offerRow('o:alsafi', {
@@ -208,9 +214,10 @@ console.log('/offers canonical siblings:');
     brand_slug: 'alsafi',
   });
   const registry = memRegistry();
-  registry._sightings.set('o:farm', { product_id: 'pr_m', match_band: 'review' });
-  registry._sightings.set('o:othaim', { product_id: 'pr_m', match_band: 'review' });
-  registry._sightings.set('o:alsafi', { product_id: 'pr_m', match_band: 'review' });
+  registry._sightings.set('o:farm', { product_id: 'pr_m', match_band: 'auto' });
+  registry._sightings.set('o:othaim', { product_id: 'pr_m', match_band: 'created' });
+  registry._sightings.set('o:review', { product_id: 'pr_m', match_band: 'review' });
+  registry._sightings.set('o:alsafi', { product_id: 'pr_m', match_band: 'auto' });
   registry.sightingsForProducts = async (pids) =>
     [...registry._sightings.entries()]
       .filter(([, s]) => pids.includes(s.product_id))
@@ -219,7 +226,7 @@ console.log('/offers canonical siblings:');
     registry: {},
     offerStore: {
       search: async () => [matched],
-      getByIds: async (ids) => [sibling, impostor].filter((r) => ids.includes(r.id)),
+      getByIds: async (ids) => [sibling, uncertainSibling, impostor].filter((r) => ids.includes(r.id)),
     },
     registryStore: registry,
   };
@@ -228,8 +235,55 @@ console.log('/offers canonical siblings:');
   check('sibling appended with its true price + productId', sib && sib.price === 18.99 && sib.productId === 'pr_m');
   check('sibling flagged as identity-reached', sib && sib.canonicalSibling === true);
   check('lexically-matched offer still ranks first', res.offers[0].id === 'o:farm');
+  check('review-band sibling cannot bypass lexical admission',
+    !res.offers.some((o) => o.id === 'o:review'));
   check('brand guard: a different-brand sighting on the same productId is refused',
     !res.offers.some((o) => o.id === 'o:alsafi'));
+}
+
+// The production failure shape: a lexically-correct chicken hit was itself
+// review-band, so it must not authorize even an otherwise trusted same-brand
+// sibling. This keeps an uncertain Registry edge from becoming authoritative.
+{
+  const offerRow = (id, over = {}) => ({
+    id, store: 's', region: 'central', source: 'd4d', offer_id: id,
+    flyer_ref: null, page_ref: null, edition: null, name: null, name_ar: null,
+    price: 9.99, old_price: null, currency: 'SAR', category_id: null,
+    category: null, image_url: 'http://c/i.jpg', source_url: null,
+    valid_from: null, valid_to: '2099-01-01', detected_at: 'now',
+    search_text: 'x', identity: null, brand_slug: null,
+    e_name: null, e_name_ar: null, e_match_text: null, e_corroboration: null,
+    ...over,
+  });
+  const chicken = offerRow('o:chicken', {
+    store: 'hyperpanda', name: 'Sadia Tender Chicken Breasts',
+    name_ar: 'صدور دجاج طري', search_text: 'sadia tender chicken breasts',
+    price: 11.99, brand_slug: 'sadia', category: 'fresh-chicken-poultry',
+  });
+  const beans = offerRow('o:beans', {
+    store: 'almadina', name: 'SADIA CUT GREEN BEAS 450GM',
+    name_ar: 'ساديا قطع فاصوليا خضراء ٤٥٠ جم',
+    search_text: 'sadia cut green beans 450gm', price: 5.95,
+    brand_slug: 'sadia', category: 'frozen-fruits-veg',
+  });
+  const registry = memRegistry();
+  registry._sightings.set('o:chicken', { product_id: 'pr_polluted', match_band: 'review' });
+  registry._sightings.set('o:beans', { product_id: 'pr_polluted', match_band: 'auto' });
+  registry.sightingsForProducts = async (pids) =>
+    [...registry._sightings.entries()]
+      .filter(([, s]) => pids.includes(s.product_id))
+      .map(([offer_id, s]) => ({ offer_id, ...s }));
+  const ctx = {
+    registry: {},
+    offerStore: {
+      search: async () => [chicken],
+      getByIds: async (ids) => [beans].filter((r) => ids.includes(r.id)),
+    },
+    registryStore: registry,
+  };
+  const res = await (await handleRequest(new Request('http://x/offers?q=chicken'), ctx)).json();
+  check('review-band lexical seed cannot authorize a trusted unrelated sibling',
+    res.offers.length === 1 && res.offers[0].id === 'o:chicken');
 }
 
 // --- /resolve + /registry/stats routes -------------------------------------------
