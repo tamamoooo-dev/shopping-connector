@@ -357,6 +357,62 @@ export async function handleRequest(request, ctx) {
           o.matchBand = s.match_band;
         }
       }
+
+      // CANONICAL SIBLING EXPANSION (2026-07-21): a query that matched one
+      // retailer's offer must surface the SAME canonical product at every
+      // retailer — even a sibling whose extracted name is generic ("Milk" on
+      // a tile whose brand lives only in the artwork) and therefore can never
+      // match the query lexically. The Registry already joined them; serve
+      // that knowledge. Additive only: ranking above stays final, siblings
+      // append after it, capped, current-and-filter-respecting.
+      if (
+        q &&
+        offers.length &&
+        typeof ctx.registryStore.sightingsForProducts === 'function' &&
+        typeof ctx.offerStore.getByIds === 'function'
+      ) {
+        const pids = [...new Set(offers.map((o) => o.productId).filter(Boolean))];
+        // BRAND GUARD: 'review'-band sightings can wrongly co-locate brands
+        // under one productId (observed live: Al Safi rows on the Nadec UHT
+        // product). A sibling is only served when its ingest-stamped brand
+        // matches a brand the query actually matched for that product —
+        // canonical identity expands reach, never brand.
+        const brandsByPid = new Map();
+        for (const o of offers) {
+          if (!o.productId || !o.brandSlug) continue;
+          const set = brandsByPid.get(o.productId) || new Set();
+          set.add(o.brandSlug);
+          brandsByPid.set(o.productId, set);
+        }
+        if (pids.length) {
+          const served = new Set(offers.map((o) => o.id));
+          const sibs = await ctx.registryStore.sightingsForProducts(pids).catch(() => []);
+          const bandById = new Map();
+          for (const s of sibs) {
+            if (!served.has(s.offer_id)) bandById.set(s.offer_id, s);
+          }
+          const wantIds = [...bandById.keys()].slice(0, 40);
+          if (wantIds.length) {
+            const rows = await ctx.offerStore
+              .getByIds(wantIds, { currentOn: todayISO(), store, region })
+              .catch(() => []);
+            let added = 0;
+            for (const r of rows) {
+              if (added >= 20) break;
+              const offer = rowToOffer(r);
+              const s = bandById.get(offer.id);
+              const okBrands = brandsByPid.get(s.product_id);
+              if (!okBrands || !offer.brandSlug || !okBrands.has(offer.brandSlug)) continue;
+              added += 1;
+              applyEnrichment(offer, r);
+              offer.productId = s.product_id;
+              offer.matchBand = s.match_band;
+              offer.canonicalSibling = true; // reached via Registry identity, not the query text
+              offers.push(offer);
+            }
+          }
+        }
+      }
     }
 
     return json({ query: q || null, count: offers.length, note: OFFERS_NOTE, offers });

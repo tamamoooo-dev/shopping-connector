@@ -23,6 +23,7 @@
 
 import { readFromOffer } from './read.js';
 import { decodeProfile, MATCH_BAND } from './model.js';
+import { matchBrandToken } from '../browse/brands.js';
 
 // CALIBRATION PRIORS, not fixed design (§4.2: "priors for review, not
 // constants to defend"). One object so the Phase 4 replay harness can sweep
@@ -67,14 +68,31 @@ export function sizeConflicts(a, b, tuning = TUNING) {
   return hi > 0 && (hi - Math.min(ta, tb)) / hi > tuning.sizeTolerance;
 }
 
-// Brand relation (§4.2, P2): evidence, never a requirement. Compatible when
-// either normalized text contains the other ("sebamed" vs "sebamed baby" —
-// granularity wobble is not a conflict); a true conflict scores NEGATIVE but
-// never vetoes (requiring brand agreement measured −4.4 points, §7.3 L4).
+// Brand relation (§4.2, P2 revised 2026-07-21): evidence, never a
+// REQUIREMENT — a missing brand on either side stays neutral (that is the
+// −4.4-point trap §7.3 L4 measured). But an outright CONFLICT (both sides
+// determinable, neither contains the other) is now a veto, not a −0.1 nudge:
+// production showed "NADEC UHT MILK FULL FAT" attaching to the Al Safi UHT
+// product at 0.674 purely on generic-token containment (milk/uht/full/fat),
+// polluting sightings cross-brand. Create-on-doubt (P1) makes the veto safe:
+// a real same-product brand misread heals by merge; a forced cross-brand
+// attach pollutes invisibly. Compatible when either normalized text contains
+// the other ("sebamed" vs "sebamed baby" — granularity wobble).
+// Canonical compare form: per-token brand-repair (cross-script المراعي ≡
+// almarai) then space-stripped ("al safi" ≡ "alsafi") — applied to BOTH sides
+// at compare time so stored brand_text and fresh reads meet on equal footing
+// whatever normalization era wrote them.
+function canonBrand(text) {
+  return text.split(' ').map((t) => matchBrandToken(t) || t).join('');
+}
+
 export function brandRelation(readBrand, productBrand) {
   if (!readBrand || !productBrand) return null; // undeterminable
-  if (readBrand === productBrand) return 1;
-  if (readBrand.includes(productBrand) || productBrand.includes(readBrand)) return 1;
+  const a = canonBrand(readBrand);
+  const b = canonBrand(productBrand);
+  if (!a || !b) return null;
+  if (a === b) return 1;
+  if (a.includes(b) || b.includes(a)) return 1;
   return -1;
 }
 
@@ -90,6 +108,12 @@ export function scoreCandidate(read, product, { incumbentId = null, tuning = TUN
     ? { unit: product.size_unit, each: product.size_total, pack: product.size_pack || 1 }
     : null;
   if (sizeConflicts(read.size, productSize, tuning)) return { score: 0, vetoed: true };
+
+  // Brand conflict veto (P2 revised — see brandRelation): both sides read a
+  // brand and they disagree -> this candidate can never attach, whatever the
+  // token overlap says. Missing brand on either side stays neutral below.
+  const brand = brandRelation(read.brandText, product.brand_text || null);
+  if (brand === -1) return { score: 0, vetoed: true };
 
   // P4: token containment of the read in the ACCUMULATED profile — the
   // workhorse (+22.5 points, 0% false matches at ≥ 0.6).
@@ -107,9 +131,8 @@ export function scoreCandidate(read, product, { incumbentId = null, tuning = TUN
     num += W.size;
     den += W.size;
   }
-  const brand = brandRelation(read.brandText, product.brand_text || null);
   if (brand != null) {
-    num += W.brand * brand; // -1 on conflict: negative, never veto (P2)
+    num += W.brand * brand; // conflicts vetoed above; here brand is 1
     den += W.brand;
   }
   if (read.family && product.family) {
@@ -211,6 +234,21 @@ export async function resolveRead(read, ctx, store, { tuning = TUNING, productCo
     return { outcome: 'create', verdict: 'minted', band: MATCH_BAND.CREATED, read, considered };
   }
   if (best.score >= tuning.tAttach) {
+    // Size-unknown demotion (2026-07-21): auto-attach demands the size
+    // relation be CONFIRMED — both sides sized and equal (conflicts already
+    // vetoed) or both nosize (no size evidence exists anywhere). When exactly
+    // one side carries a size, the tile may be a different pack of the same
+    // line (4×1L vs 12×1L collapsed through an unparsable/dual-size string):
+    // attach for serving, but in the review band — no teaching, sampled
+    // review heals it. Both-nosize stays auto or nosize categories freeze.
+    const p = best.product;
+    const productSized = p.size_unit != null && p.size_total != null;
+    if (!!read.size !== productSized) {
+      return {
+        outcome: 'review', verdict: 'minted', band: MATCH_BAND.REVIEW,
+        productId: best.productId, product: best.product, score: best.score, read, considered,
+      };
+    }
     return {
       outcome: 'attach', verdict: 'minted', band: MATCH_BAND.AUTO,
       productId: best.productId, product: best.product, score: best.score, read, considered,

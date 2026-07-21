@@ -123,6 +123,40 @@ export function createD1OfferStore(db) {
       return results || [];
     },
 
+    // Canonical sibling fetch (/offers expansion): specific rows by id, same
+    // enrichment-column shape as search() so applyEnrichment overlays vision
+    // names identically. `currentOn` keeps expired flyers out; store/region
+    // mirror the search filters so the expansion never widens them.
+    async getByIds(ids, { currentOn = null, store = '', region = '' } = {}) {
+      const out = [];
+      for (let i = 0; i < ids.length; i += 40) {
+        const chunk = ids.slice(i, i + 40);
+        const where = [`o.id IN (${chunk.map(() => '?').join(',')})`];
+        const binds = [...chunk];
+        if (currentOn) {
+          where.push('o.valid_to >= ?');
+          binds.push(currentOn);
+        }
+        if (store) {
+          where.push('o.store = ?');
+          binds.push(store);
+        }
+        if (region) {
+          where.push('o.region = ?');
+          binds.push(region);
+        }
+        const { results } = await db
+          .prepare(
+            `SELECT o.*, ${ENRICH_ROW_COLS} FROM offers o ${ENRICH_JOIN}
+              WHERE ${where.join(' AND ')}`,
+          )
+          .bind(...binds)
+          .all();
+        out.push(...(results || []));
+      }
+      return out;
+    },
+
     // Every offer of ONE flyer (the hotspots join): tap targets are keyed by
     // offer_id, so the whole flyer's products come back in a single query.
     async byFlyer(store, region, flyerRef) {

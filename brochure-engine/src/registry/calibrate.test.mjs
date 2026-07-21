@@ -84,12 +84,12 @@ console.log('replay:');
   ];
   const m = await replay(corpus, labels);
   check('wobble + berain pairs converge (attach hits)', m.attachHits === 2 && m.attachRate === 1);
-  // The harness's reason to exist: at the PRIORS, the brand-conflicting
-  // afia read (containment 0.67, size equal) lands in the REVIEW band on the
-  // halah product — a binding consumers would see, so the gate counts it as a
-  // false attach and fails. Calibration, not assertion (§4.2).
-  check('review-band cross-brand binding is SURFACED as a false attach',
-    m.falseAttaches === 1 && m.pass === false && m.falses[0].bId === 'o:afia');
+  // P2 revised (2026-07-21): the brand-conflicting afia read (containment
+  // 0.67, size equal) used to land in the REVIEW band on the halah product —
+  // the exact cross-brand pollution production showed (Nadec onto Al Safi).
+  // The brand-conflict veto now sends it to create-on-doubt at the priors.
+  check('cross-brand pair splits at the priors (brand-conflict veto)',
+    m.falseAttaches === 0 && m.pass === true);
   check('unresolvable pair excluded, counted', m.unresolvable === 1 && m.labeled.same === 2);
   check('gate constants are the §8 promise', GATE.attach === 0.95 && GATE.falseAttach === 0.005);
 
@@ -99,8 +99,17 @@ console.log('replay:');
   check('calibrated thresholds pass the ship gate (attaches kept, false split off)',
     calibrated.pass === true && calibrated.attachHits === 2 && calibrated.falseAttaches === 0);
 
-  // Reckless thresholds merge everything and fail loudly.
-  const loose = await replay(corpus, labels, {
+  // Reckless thresholds merge everything and fail loudly. The brand veto is
+  // threshold-independent, so the trap pair here is SAME-brand different
+  // products (Halah rice vs Halah oil) — thresholds are their only defence.
+  const looseCorpus = [
+    ...corpus,
+    row('o:h3', { seq: 7, e_name: 'Halah Basmati Rice', e_brand: 'Halah' }),
+  ];
+  const loose = await replay(looseCorpus, [
+    ...labels,
+    { aId: 'o:h1', bId: 'o:h3', label: 'different' },
+  ], {
     tuning: { ...TUNING, tAttach: 0.01, tReview: 0.005 },
   });
   check('reckless thresholds produce FALSE ATTACHES and fail the gate',
@@ -119,8 +128,11 @@ console.log('sweep:');
     tReviewGrid: [0.05, 0.45, 0.62],
   });
   check('grid skips tReview >= tAttach', results.every((r) => r.tuning.tReview < r.tuning.tAttach));
+  // With the brand-conflict veto the afia pair splits at EVERY grid point, so
+  // all configurations pass this corpus's gate; the sweep still ranks passing
+  // configs first (its contract).
   check('passing configurations rank first',
-    results[0].pass === true && results[0].tuning.tReview === 0.62);
+    results[0].pass === true && results.every((r) => r.falseAttaches === 0));
 }
 
 // --- measureVerdicts -------------------------------------------------------------

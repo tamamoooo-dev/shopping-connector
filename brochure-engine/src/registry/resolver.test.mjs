@@ -11,7 +11,9 @@
 //  • assortment tiles produce degraded assortment reads that never mix with
 //    specific products (kind gate, both directions),
 //  • scoring: containment is the workhorse; size conflict vetoes; nosize is
-//    compatible with sized; brand conflict penalizes but NEVER vetoes (P2);
+//    compatible with sized (but one-sided size caps the band at review);
+//    brand conflict vetoes (P2 revised 2026-07-21 — the Nadec/Al Safi
+//    cross-brand pollution); missing brand stays neutral;
 //    corroboration scales the whole score down,
 //  • the four outcomes fall out of the two thresholds (attach / review /
 //    create / defer), biased to create-on-doubt (P1),
@@ -165,6 +167,13 @@ console.log('read normalization:');
     evidenceTokens('Président Cheese').join(',') === 'president,cheese');
 
   check('range size -> nosize (7 to 9 kg)', readSize('7 to 9 kg', 'Tanzanian Mutton') === null);
+  check('dual-size alternation -> nosize (12 * 1LTR / 4 * 1LTR)',
+    readSize('12 * 1LTR / 4 * 1LTR', 'ALSAFI UHT MILK') === null);
+  check('dual-size alternation -> nosize (12 x 1L / 4 x 1L)',
+    readSize('12 x 1L / 4 x 1L', null) === null);
+  const dual = readSize(null, 'NADEC UHT Milk 1L x 12');
+  check('single size still parses beside slash-free text',
+    dual && dual.unit === 'ml' && dual.each === 1000 && dual.pack === 12);
   const packed = readSize('1.5L x 2', null);
   check('pack grammar: 1.5L x 2 -> ml/1500/2', packed && packed.unit === 'ml' && packed.each === 1500 && packed.pack === 2);
 }
@@ -212,7 +221,11 @@ console.log('scoring:');
   const s4 = scoreCandidate(read, product('pr_c', ['almarai', 'fresh', 'milk', 'full', 'fat'], {
     brand_text: 'nadec',
   }));
-  check('brand conflict -> negative signal, NEVER veto (P2)', !s4.vetoed && s4.score < s3.score && s4.score > 0.5);
+  check('brand conflict -> veto (P2 revised 2026-07-21)', s4.vetoed);
+  const s4b = scoreCandidate({ ...read, brandText: null }, product('pr_c2', ['almarai', 'fresh', 'milk', 'full', 'fat'], {
+    brand_text: 'nadec',
+  }));
+  check('missing read brand stays neutral, never vetoes', !s4b.vetoed && s4b.score > 0.5);
   check('brand granularity is compatible ("sebamed" vs "sebamed baby")', brandRelation('sebamed', 'sebamed baby') === 1);
 
   const s5 = scoreCandidate({ ...read, corroboration: 0.3 }, full);
@@ -260,6 +273,34 @@ console.log('outcomes:');
   check('middling match -> review (attaches to best, band review)',
     review.outcome === 'review' && review.band === 'review' && review.productId === 'pr_part');
   check('review score in [T_REVIEW, T_ATTACH)', review.score >= T_REVIEW && review.score < T_ATTACH);
+
+  // Cross-brand read over the same generic tokens -> create, never attach or
+  // review (the production Nadec-onto-AlSafi pollution, P2 revised).
+  const crossBrand = await resolveOffer(
+    offer({ category: 'milk-laban' }),
+    enr({ name: 'Nadec UHT Milk Full Fat', brand: 'Nadec', size: '12 x 1L' }),
+    twinStore({
+      products: [product('pr_safi', ['alsafi', 'milk', 'uht', 'full', 'fat'], {
+        brand_text: 'al safi', size_unit: 'ml', size_total: 1000, size_pack: 12,
+        family: 'milk', category: 'milk-laban',
+      })],
+    }),
+  );
+  check('cross-brand read -> create (brand conflict vetoes attachment)',
+    crossBrand.outcome === 'create');
+
+  // One-sided size (read nosize, product sized) -> attach demoted to review.
+  const sizedProduct = product('pr_sz', ['almarai', 'fresh', 'milk', 'full', 'fat'], {
+    brand_text: 'almarai', size_unit: 'ml', size_total: 2000, size_pack: 1,
+    family: 'milk', category: 'milk-laban',
+  });
+  const oneSided = await resolveOffer(
+    offer({ category: 'milk-laban' }),
+    enr({ name: 'Almarai Fresh Milk Full Fat', brand: 'Almarai' }), // no size
+    twinStore({ products: [sizedProduct] }),
+  );
+  check('size-unknown attach demoted to review band',
+    oneSided.outcome === 'review' && oneSided.band === 'review' && oneSided.productId === 'pr_sz');
 
   // Same registry, unrelated read -> create (create-on-doubt, P1).
   const unrelated = await resolveOffer(offer(), enr({ name: 'Tide Detergent Powder' }), twinStore({ products: [partial] }));

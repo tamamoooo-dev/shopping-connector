@@ -178,6 +178,60 @@ console.log('/offers vision-canonical:');
     JSON.stringify(p1) === JSON.stringify(res) && JSON.stringify(p2) === JSON.stringify(res));
 }
 
+// --- /offers canonical sibling expansion (2026-07-21) -----------------------------
+// A query that lexically matched one retailer's offer surfaces the SAME
+// canonical product at other retailers, even a sibling whose extracted name is
+// generic ("Milk") and can never match the query text.
+console.log('/offers canonical siblings:');
+{
+  const offerRow = (id, over = {}) => ({
+    id, store: 's', region: 'central', source: 'd4d', offer_id: id,
+    flyer_ref: null, page_ref: null, edition: null, name: null, name_ar: null,
+    price: 9.99, old_price: null, currency: 'SAR', category_id: null,
+    category: null, image_url: 'http://c/i.jpg', source_url: null,
+    valid_from: null, valid_to: '2099-01-01', detected_at: 'now',
+    search_text: 'x', identity: null, brand_slug: null,
+    e_name: null, e_name_ar: null, e_match_text: null, e_corroboration: null,
+    ...over,
+  });
+  const matched = offerRow('o:farm', {
+    store: 'farm', name: 'NADEC UHT Milk', search_text: 'nadec uht milk', price: 19.99,
+    brand_slug: 'nadec',
+  });
+  const sibling = offerRow('o:othaim', {
+    store: 'othaim', name: 'Milk', search_text: 'milk', price: 18.99, brand_slug: 'nadec',
+  });
+  // A polluted sighting: different brand under the same productId (the live
+  // Al Safi-on-Nadec case) — the brand guard must refuse it.
+  const impostor = offerRow('o:alsafi', {
+    store: 'nesto', name: 'Al Safi Milk', search_text: 'al safi milk', price: 52.99,
+    brand_slug: 'alsafi',
+  });
+  const registry = memRegistry();
+  registry._sightings.set('o:farm', { product_id: 'pr_m', match_band: 'review' });
+  registry._sightings.set('o:othaim', { product_id: 'pr_m', match_band: 'review' });
+  registry._sightings.set('o:alsafi', { product_id: 'pr_m', match_band: 'review' });
+  registry.sightingsForProducts = async (pids) =>
+    [...registry._sightings.entries()]
+      .filter(([, s]) => pids.includes(s.product_id))
+      .map(([offer_id, s]) => ({ offer_id, ...s }));
+  const ctx = {
+    registry: {},
+    offerStore: {
+      search: async () => [matched],
+      getByIds: async (ids) => [sibling, impostor].filter((r) => ids.includes(r.id)),
+    },
+    registryStore: registry,
+  };
+  const res = await (await handleRequest(new Request('http://x/offers?q=nadec'), ctx)).json();
+  const sib = res.offers.find((o) => o.id === 'o:othaim');
+  check('sibling appended with its true price + productId', sib && sib.price === 18.99 && sib.productId === 'pr_m');
+  check('sibling flagged as identity-reached', sib && sib.canonicalSibling === true);
+  check('lexically-matched offer still ranks first', res.offers[0].id === 'o:farm');
+  check('brand guard: a different-brand sighting on the same productId is refused',
+    !res.offers.some((o) => o.id === 'o:alsafi'));
+}
+
 // --- /resolve + /registry/stats routes -------------------------------------------
 console.log('routes:');
 {

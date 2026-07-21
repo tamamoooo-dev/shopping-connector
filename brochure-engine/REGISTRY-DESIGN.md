@@ -45,8 +45,14 @@ Design principles carried from the measurements:
   price history invisibly (wrong "lowest ever"); a false split only
   fragments, and fragments can be healed by a later merge. Every threshold
   below is biased accordingly.
-- **P2 — Brand is evidence, never a requirement** (requiring it cost −4.4
-  points; granularity wobbles: "Sebamed" vs "Sebamed Baby").
+- **P2 (revised 2026-07-21) — Brand is evidence, never a REQUIREMENT, but a
+  determinable conflict is a veto.** Requiring brand agreement (penalizing a
+  missing brand) cost −4.4 points, and granularity wobbles ("Sebamed" vs
+  "Sebamed Baby") stay compatible. But production showed cross-brand
+  review-band pollution (Nadec/AlRabie sightings on the Al Safi UHT product,
+  pr_b01c5a6e2f8f) riding generic-token containment (milk/uht/full/fat):
+  when BOTH sides read a brand and neither contains the other, the candidate
+  is vetoed — create-on-doubt (P1) makes this safe.
 - **P3 — Size is a strong veto but a weak confirmation** (90.1% stable when
   both read; frequently unread on one side — nosize must be compatible with
   sized, per L2→L3 gains).
@@ -172,8 +178,8 @@ are priors for review, not constants to defend:
 | signal | contribution | grounding |
 |---|---|---|
 | token containment (read vs profile) | dominant (~60%) | §7.3: +22.5pts, 0% FP |
-| size relation | equal: strong + / one nosize: neutral / conflict: **veto** | P3 |
-| brand relation | compatible: + / conflict (neither contains other): − (never veto) | P2 |
+| size relation | equal: strong + / one nosize: neutral score but caps band at review / conflict: **veto**; dual-size alternations ("12x1L / 4x1L") read as nosize | P3 revised 2026-07-21 |
+| brand relation | compatible: + / conflict (neither contains other): **veto** / missing: neutral | P2 revised |
 | family/category agreement | small + | lexicons are stable |
 | sticky incumbent | small + | anti-thrash |
 | corroboration of the read | scales the whole score down when near floor | P5 |

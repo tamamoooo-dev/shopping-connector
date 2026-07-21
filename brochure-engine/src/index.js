@@ -297,7 +297,20 @@ export default {
           const te = Date.now();
           const today = new Date().toISOString().slice(0, 10);
           const pending = await context.enrichStore.countDebris(today).catch(() => 0);
-          if (pending <= 0) return;
+          if (pending <= 0) {
+            // Empty vision queue does NOT mean an empty RESOLUTION queue: a
+            // data repair / re-opened verdicts can leave unresolved
+            // enrichments with nothing left to enrich (2026-07-21 — the
+            // brand-veto repair sat undrained because this fire returned
+            // here). One D1-only resolution pass, then out.
+            if (context.registryStore) {
+              await drainResolution(
+                { enrichStore: context.enrichStore, registryStore: context.registryStore },
+                { limit: RESOLVE_LIMIT, currentOn: today },
+              ).catch(() => {});
+            }
+            return;
+          }
           const drain = await runEnrichDrain(
             createEnrichDispatcher({ self: env.SELF, ingestSecret: env.INGEST_SECRET }),
             // Vision Milestone 2 §3 — modest steady-state throughput bump (4→6

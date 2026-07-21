@@ -76,11 +76,27 @@ export function foldToken(t) {
 // IDENTITY-V2 §4.3: a numeric range ("7 to 9 kg") is not a pack size — nosize.
 const RANGE_RE = /\d\s*(?:to|الي|إلى)\s*\d/i;
 
+// A dual-size alternation ("12 x 1L / 4 x 1L") is a tile offering two pack
+// options — parseSize would silently pick one and the read would attach 4-
+// packs to a 12-pack product (the observed pr_b01c5a6e2f8f pollution). Two
+// slash-separated segments that each parse to CONFLICTING sizes -> ambiguous.
+function sizeAmbiguous(src) {
+  const parts = String(src).split('/');
+  if (parts.length < 2) return false;
+  const sizes = parts
+    .map((p) => parseSize(p, ''))
+    .filter((s) => s && s.unit && s.total != null);
+  if (sizes.length < 2) return false;
+  return sizes.some((s) => s.unit !== sizes[0].unit
+    || Math.abs(s.total - sizes[0].total) / Math.max(s.total, sizes[0].total) > 0.03);
+}
+
 // Parse the read's size: the structured vision.size field first, else the
 // chosen name (IDENTITY-V2 §4.3). Returns {unit, each, pack} or null (nosize).
+// A numeric range or a dual-size alternation is not a size — nosize.
 export function readSize(sizeField, name) {
   for (const src of [sizeField, name]) {
-    if (!src || RANGE_RE.test(String(src))) continue;
+    if (!src || RANGE_RE.test(String(src)) || sizeAmbiguous(src)) continue;
     const s = parseSize(src, '');
     if (s && s.unit && s.total != null) return { unit: s.unit, each: s.each, pack: s.pack || 1 };
   }
