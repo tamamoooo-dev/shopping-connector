@@ -16,7 +16,7 @@
 // Resolver generation stamp (§1.1 `algo_version`, §6 "algo_version stamps
 // enable re-resolution of a poisoned window"). Bump on any resolver rule
 // change, exactly like IDENTITY-V2 §9 versioning.
-export const REGISTRY_ALGO_VERSION = 1;
+export const REGISTRY_ALGO_VERSION = 2;
 
 // §5.1 lifecycle: created → active ⇄ dormant → (merged).
 export const PRODUCT_STATUS = Object.freeze({

@@ -24,6 +24,12 @@
 import { readFromOffer } from './read.js';
 import { decodeProfile, MATCH_BAND } from './model.js';
 import { matchBrandToken } from '../browse/brands.js';
+import {
+  canonicalToken, expandToken, normalizeText, productFamily, productType,
+} from '../matching.js';
+import { BANNER_WORDS } from '../offers/contract.js';
+import { PROVIDER_AISLES } from '../browse/mapping.js';
+import { AISLE_BY_ID } from '../browse/taxonomy.js';
 
 // CALIBRATION PRIORS, not fixed design (§4.2: "priors for review, not
 // constants to defend"). One object so the Phase 4 replay harness can sweep
@@ -96,13 +102,313 @@ export function brandRelation(readBrand, productBrand) {
   return -1;
 }
 
+// --- lexical + semantic admission ---------------------------------------------
+// Scoring is deliberately NOT the first identity gate. Brand and equal package
+// size are useful corroboration after two observations have established that
+// they describe the same kind of product, but production proved they can push
+// unrelated same-brand/same-size rows over both decision thresholds (Sadia
+// corn/beans/chicken, Almarai butter/cake). Admission therefore operates on a
+// product-core view of the token sets before size or brand is consulted.
+
+const CORE_CONNECTORS = [
+  'and', 'or', 'with', 'without', 'for', 'from', 'of', 'in', 'on', 'at', 'by',
+  'to', 'per', 'plus', 'the', 'a', 'an',
+  'او', 'مع', 'بدون', 'من', 'في', 'على', 'الي', 'لكل', 'و',
+];
+const CORE_PACKAGING = [
+  'pack', 'packs', 'packet', 'packets', 'pkt', 'bag', 'bags', 'box', 'boxes',
+  'bottle', 'bottles', 'can', 'cans', 'tin', 'tins', 'jar', 'jars', 'piece',
+  'pieces', 'pcs', 'pc', 'count', 'ct', 'tray', 'rolls',
+  'عبوه', 'عبوات', 'كيس', 'اكياس', 'علبه', 'علب', 'زجاجه', 'زجاجات', 'حبه',
+  'حبات', 'قطعه', 'قطع', 'صحن', 'رول',
+];
+const CORE_PROMOTIONAL = [
+  'fresh', 'frozen', 'local', 'imported', 'selected', 'assorted', 'regular',
+  'spicy', 'hot', 'original', 'premium', 'classic', 'natural', 'jumbo', 'mini',
+  'large', 'small', 'medium', 'astd', 'mixed',
+  'طازج', 'مجمد', 'محلي', 'مستورد', 'مختار', 'مشكل', 'عادي', 'حار', 'اصلي',
+  'فاخر', 'كلاسيك', 'طبيعي', 'كبير', 'صغير', 'وسط',
+];
+const CORE_STOP = new Set(
+  [...BANNER_WORDS, ...CORE_CONNECTORS, ...CORE_PACKAGING, ...CORE_PROMOTIONAL]
+    .map((t) => canonicalToken(t))
+    .filter(Boolean),
+);
+const PACKAGE_TOKEN_RE = /^\d+(?:[.,]\d+)?(?:ml|ltr?|l|kg|kgs|g|gm|grm?|pcs?|pc|pack|pkt|ct|s)$/u;
+
+function normalizedTokens(text) {
+  return normalizeText(text).split(' ').map(canonicalToken).filter(Boolean);
+}
+
+function brandTokenSet(...texts) {
+  return new Set(texts.flatMap((t) => normalizedTokens(t || '')));
+}
+
+// Tokens used by the admission containment calculation. The stored profile is
+// left intact (presentation/learning compatibility); only the resolver's
+// identity lens removes non-product evidence.
+export function productCoreTokens(tokens, ...brandTexts) {
+  const brands = brandTokenSet(...brandTexts);
+  const out = new Set();
+  for (const raw of tokens || []) {
+    const t = canonicalToken(raw);
+    if (!t || CORE_STOP.has(t) || PACKAGE_TOKEN_RE.test(t) || /^\d+$/.test(t)) continue;
+    if (brands.has(t) || matchBrandToken(t)) continue;
+    out.add(t);
+  }
+  return [...out];
+}
+
+function coreHits(readCore, productCore) {
+  const p = new Set(productCore);
+  let hits = 0;
+  const matched = [];
+  for (const token of readCore) {
+    if (expandToken(token).some((v) => p.has(v))) {
+      hits += 1;
+      matched.push(token);
+    }
+  }
+  return { hits, matched };
+}
+
+// Product FORM is intentionally resolver-local and narrower than the Search
+// family ontology. Existing productType() supplies the common forms; the
+// additions below cover the observed registry collisions that family alone
+// cannot distinguish (breast/liver are both chicken, for example).
+const EXTRA_FORM_TERMS = Object.freeze({
+  corn: ['corn', 'sweetcorn', 'ذره'],
+  beans: ['bean', 'beans', 'فاصوليا', 'فاصولياء'],
+  butter: ['butter', 'زبده'],
+  cake: ['cake', 'cakes', 'muffin', 'muffins', 'كيك', 'كيكه', 'مافن'],
+  broasted: ['broast', 'broasted', 'بروست', 'بروستد'],
+  liver: ['liver', 'livers', 'كبد', 'كبده', 'اكباد'],
+  gizzard: ['gizzard', 'gizzards', 'قوانص', 'قانصه'],
+  drumstick: ['drumstick', 'drumsticks', 'ساق', 'سيقان'],
+  thigh: ['thigh', 'thighs', 'فخذ', 'افخاذ'],
+  whole: ['whole', 'griller', 'كامل', 'كامله', 'شوايه'],
+  popcorn: ['popcorn', 'بوبكورن'],
+  tender: ['tender', 'tenders', 'تندر', 'مسحب'],
+  sausage: ['frank', 'franks'],
+});
+const EXTRA_FORM_INDEX = new Map(
+  Object.entries(EXTRA_FORM_TERMS)
+    .flatMap(([form, terms]) => terms.map((t) => [canonicalToken(t), form])),
+);
+const PROTEIN_FAMILIES = new Set(['chicken', 'meat', 'fish']);
+
+function semanticForms(tokens, family) {
+  const out = new Set();
+  const type = productType((tokens || []).join(' '));
+  if (type) out.add(type);
+  for (const token of tokens || []) {
+    const t = canonicalToken(token);
+    const extra = EXTRA_FORM_INDEX.get(t);
+    if (extra && (extra !== 'whole' || PROTEIN_FAMILIES.has(family))) out.add(extra);
+  }
+  return out;
+}
+
+const FORM_COMPATIBLE = new Set([
+  'breast|fillet', 'fillet|breast',
+  'breast|tender', 'tender|breast',
+  'fillet|tender', 'tender|fillet',
+]);
+function formsCompatible(a, b) {
+  for (const x of a) for (const y of b) {
+    if (x !== y && !FORM_COMPATIBLE.has(`${x}|${y}`)) return false;
+  }
+  return true;
+}
+
+const SPECIES_TERMS = Object.freeze({
+  chicken: ['chicken', 'دجاج', 'فراخ'],
+  beef: ['beef', 'بقري', 'بقر'],
+  lamb: ['lamb', 'mutton', 'غنم', 'ضأن', 'خروف'],
+  camel: ['camel', 'hashi', 'حاشي', 'جمل'],
+  veal: ['veal', 'عجل'],
+  goat: ['goat', 'تيس', 'ماعز'],
+  fish: ['fish', 'سمك'],
+  shrimp: ['shrimp', 'shrimps', 'prawn', 'prawns', 'روبيان', 'جمبري'],
+  turkey: ['turkey', 'ديك', 'رومي'],
+});
+const SPECIES_INDEX = new Map(
+  Object.entries(SPECIES_TERMS)
+    .flatMap(([species, terms]) => terms.map((t) => [canonicalToken(t), species])),
+);
+function species(tokens) {
+  const out = new Set();
+  for (const token of tokens || []) {
+    const hit = SPECIES_INDEX.get(canonicalToken(token));
+    if (hit) out.add(hit);
+  }
+  return out;
+}
+
+const FAMILY_COMPATIBLE = new Set([
+  'cheese|cream', 'cream|cheese',
+  'milk|powder', 'powder|milk',
+]);
+
+// Provider mappings are the canonical category vocabulary already used by
+// Browse. Resolve a raw category only when every configured provider that
+// knows it maps it to the same aisle; ambiguity stays neutral, never a veto.
+const NON_VETO_AISLES = new Set(['other', 'frozen-food']);
+const CATEGORY_CLASSES = (() => {
+  const classes = new Map();
+  const ambiguous = new Set();
+  for (const map of Object.values(PROVIDER_AISLES)) {
+    for (const [category, aisle] of Object.entries(map)) {
+      const next = NON_VETO_AISLES.has(aisle) ? null : {
+        aisle,
+        department: AISLE_BY_ID.get(aisle)?.dept || null,
+      };
+      if (!next) continue;
+      if (
+        classes.has(category) &&
+        (classes.get(category).aisle !== next.aisle ||
+          classes.get(category).department !== next.department)
+      ) ambiguous.add(category);
+      else classes.set(category, next);
+    }
+  }
+  for (const category of ambiguous) classes.delete(category);
+  return classes;
+})();
+function categoryClass(category) {
+  if (!category) return null;
+  return CATEGORY_CLASSES.get(String(category).toLowerCase()) || null;
+}
+
+function admissionSide(tokens, family, category, ...brandTexts) {
+  return {
+    tokens: tokens || [],
+    core: productCoreTokens(tokens, ...brandTexts),
+    forms: semanticForms(tokens, family),
+    species: species(tokens),
+    family: family || null,
+    category: categoryClass(category),
+  };
+}
+
+function productAdmissionSide(product, cache) {
+  const signature = [
+    product.token_profile || '{}', product.brand_text || '', product.brand_slug || '',
+    product.family || '', product.category || '',
+  ].join('\u0000');
+  const cached = cache?.get(product.id);
+  if (cached?.signature === signature) return cached.side;
+  const profileTokens = Object.keys(decodeProfile(product.token_profile));
+  const side = admissionSide(
+    profileTokens,
+    product.family,
+    product.category,
+    product.brand_text,
+    product.brand_slug,
+  );
+  if (cache) cache.set(product.id, { signature, side });
+  return side;
+}
+
+function lexicalSideFamily(side) {
+  if (Object.prototype.hasOwnProperty.call(side, 'lexicalFamily')) {
+    return side.lexicalFamily;
+  }
+  side.lexicalFamily = productFamily(side.tokens.join(' ')) || null;
+  return side.lexicalFamily;
+}
+
+// Pure admission verdict, exported for focused tests and offline replay
+// diagnostics. `semanticOnly` means a trusted family/form relation admitted a
+// spelling-poor observation; resolveRead caps that edge at review so it cannot
+// teach until lexical evidence appears.
+export function candidateAdmission(read, product, preparedRead = null, productCache = null) {
+  const a = preparedRead || admissionSide(
+    read.tokens, read.family, read.category, read.brandText,
+  );
+  const b = productAdmissionSide(product, productCache);
+  const readCore = a.core;
+  const productCore = b.core;
+  const { hits, matched } = coreHits(readCore, productCore);
+  const formKnown = a.forms.size > 0 && b.forms.size > 0;
+  const formMatch = formKnown && formsCompatible(a.forms, b.forms);
+  if (formKnown && !formMatch) {
+    return { admitted: false, reason: 'form-conflict', readCore, productCore, hits };
+  }
+  if ((a.forms.size > 0) !== (b.forms.size > 0)) {
+    const specificHit = matched.some(
+      (token) => !expandToken(token).some((variant) => SPECIES_INDEX.has(variant)),
+    );
+    if (!specificHit) {
+      return { admitted: false, reason: 'form-specificity', readCore, productCore, hits };
+    }
+  }
+
+  if (a.species.size && b.species.size && ![...a.species].some((s) => b.species.has(s))) {
+    return { admitted: false, reason: 'species-conflict', readCore, productCore, hits };
+  }
+
+  let readFamily = a.family;
+  let productFamilyValue = b.family;
+  if (readFamily && productFamilyValue && readFamily !== productFamilyValue) {
+    // A secondary-language enrichment or category fallback can occasionally
+    // disagree with the actual identity tokens (for example exact English
+    // sunflower-oil names whose Arabic text contains the word "powder"). Only
+    // on a prospective hard conflict, prefer lexical family when determinable.
+    readFamily = lexicalSideFamily(a) || readFamily;
+    productFamilyValue = lexicalSideFamily(b) || productFamilyValue;
+  }
+  const familyMatch = !!readFamily && readFamily === productFamilyValue;
+  const familyCompatible = !!readFamily && !!productFamilyValue &&
+    FAMILY_COMPATIBLE.has(`${readFamily}|${productFamilyValue}`);
+  if (readFamily && productFamilyValue && !familyMatch && !familyCompatible) {
+    return { admitted: false, reason: 'family-conflict', readCore, productCore, hits };
+  }
+
+  if (
+    a.category && b.category &&
+    (a.category.department !== b.category.department || a.category.aisle !== b.category.aisle)
+  ) {
+    return { admitted: false, reason: 'category-conflict', readCore, productCore, hits };
+  }
+
+  const categoryMatch = !!a.category && !!b.category &&
+    a.category.department === b.category.department && a.category.aisle === b.category.aisle;
+  const semanticEvidence = formMatch || (familyMatch && categoryMatch);
+  if (hits === 0 && !semanticEvidence) {
+    return { admitted: false, reason: 'no-product-core', readCore, productCore, hits };
+  }
+  return {
+    admitted: true,
+    reason: hits > 0 ? 'shared-product-core' : 'semantic-evidence',
+    readCore,
+    productCore,
+    hits,
+    semanticOnly: hits === 0,
+    semanticEvidence,
+  };
+}
+
 // Score one candidate product against a read (§4.2). Pure. Returns
 // { score, vetoed } — vetoed candidates never attach regardless of score.
-export function scoreCandidate(read, product, { incumbentId = null, tuning = TUNING } = {}) {
+export function scoreCandidate(
+  read,
+  product,
+  {
+    incumbentId = null, tuning = TUNING, admissionRead = null,
+    admissionCache = null,
+  } = {},
+) {
   const W = tuning.weights;
   // Kind gate (§6): assortments match only assortments; a specific-flavor
   // read never attaches to one.
   if ((product.kind || 'product') !== read.kind) return { score: 0, vetoed: true };
+
+  // Identity admission precedes every corroborating signal. In particular,
+  // size and brand below can improve a score only after product-core or
+  // trusted semantic evidence has established eligibility.
+  const admission = candidateAdmission(read, product, admissionRead, admissionCache);
+  if (!admission.admitted) return { score: 0, vetoed: true, admission };
 
   const productSize = product.size_unit != null && product.size_total != null
     ? { unit: product.size_unit, each: product.size_total, pack: product.size_pack || 1 }
@@ -117,10 +423,9 @@ export function scoreCandidate(read, product, { incumbentId = null, tuning = TUN
 
   // P4: token containment of the read in the ACCUMULATED profile — the
   // workhorse (+22.5 points, 0% false matches at ≥ 0.6).
-  const profile = decodeProfile(product.token_profile);
-  let hit = 0;
-  for (const t of read.tokens) if (profile[t]) hit += 1;
-  const containment = read.tokens.length ? hit / read.tokens.length : 0;
+  const containment = admission.readCore.length
+    ? admission.hits / admission.readCore.length
+    : admission.semanticEvidence ? 0.6 : 0;
 
   // Weighted evidence over the DETERMINABLE signals only: missing evidence is
   // neutral (excluded from the denominator), never a penalty — P3's "nosize
@@ -150,7 +455,7 @@ export function scoreCandidate(read, product, { incumbentId = null, tuning = TUN
   }
   // Corroboration scaling last: it dampens ALL evidence of a shaky read.
   score *= Math.min(1, read.corroboration / tuning.corroborationFull);
-  return { score: Math.max(0, score), vetoed: false };
+  return { score: Math.max(0, score), vetoed: false, admission };
 }
 
 // The blocking token set (§4.1): read tokens whose registry frequency is under
@@ -177,7 +482,12 @@ export function distinctiveTokens(tokens, freqs, productCount, tuning = TUNING) 
 //
 // `store` is the registry store (storage/registryStore.js or a twin).
 // Returns { outcome, verdict, band?, productId?, score?, read?, considered? }.
-export async function resolveRead(read, ctx, store, { tuning = TUNING, productCount: pcHint } = {}) {
+export async function resolveRead(
+  read,
+  ctx,
+  store,
+  { tuning = TUNING, productCount: pcHint, admissionCache = null } = {},
+) {
   // BLOCK (§4.1): products sharing ≥1 distinctive token, UNION the sticky
   // incumbent (the observation's own prior counterpart's product).
   // `productCount` is a batch-invariant (it feeds only the distinctness ceiling,
@@ -197,6 +507,9 @@ export async function resolveRead(read, ctx, store, { tuning = TUNING, productCo
   const blockTokens = distinctiveTokens(read.tokens, freqs, productCount, tuning);
   const ids = new Set(blockTokens.length ? await store.candidateIds(blockTokens) : []);
   if (incumbentId) ids.add(incumbentId);
+  const admissionRead = admissionSide(
+    read.tokens, read.family, read.category, read.brandText,
+  );
 
   // SCORE (§4.2). Merged tombstones redirect single-hop to their survivor
   // (§5.1 guarantees the survivor is never itself merged).
@@ -219,13 +532,15 @@ export async function resolveRead(read, ctx, store, { tuning = TUNING, productCo
       }
     }
     for (const p of survivors.values()) {
-      const { score, vetoed } = scoreCandidate(read, p, { incumbentId, tuning });
+      const { score, vetoed, admission } = scoreCandidate(
+        read, p, { incumbentId, tuning, admissionRead, admissionCache },
+      );
       if (vetoed) continue;
       considered += 1;
       // Carry the winning ROW, not just its id: the attach path (apply.js) needs
       // the product to teach it and would otherwise re-fetch it (a second
       // getProducts per attach) — we already have it here.
-      if (!best || score > best.score) best = { productId: p.id, score, product: p };
+      if (!best || score > best.score) best = { productId: p.id, score, product: p, admission };
     }
   }
 
@@ -243,7 +558,7 @@ export async function resolveRead(read, ctx, store, { tuning = TUNING, productCo
     // review heals it. Both-nosize stays auto or nosize categories freeze.
     const p = best.product;
     const productSized = p.size_unit != null && p.size_total != null;
-    if (!!read.size !== productSized) {
+    if (!!read.size !== productSized || best.admission?.semanticOnly) {
       return {
         outcome: 'review', verdict: 'minted', band: MATCH_BAND.REVIEW,
         productId: best.productId, product: best.product, score: best.score, read, considered,

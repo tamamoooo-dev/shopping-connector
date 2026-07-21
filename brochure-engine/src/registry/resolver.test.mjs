@@ -23,7 +23,7 @@
 import { readFromOffer, evidenceTokens, readSize, READ_VERDICT } from './read.js';
 import {
   resolveOffer, scoreCandidate, distinctiveTokens, sizeConflicts, brandRelation,
-  TUNING,
+  candidateAdmission, productCoreTokens, TUNING,
 } from './resolver.js';
 
 const { tAttach: T_ATTACH, tReview: T_REVIEW } = TUNING;
@@ -240,6 +240,114 @@ console.log('scoring:');
     sizeConflicts({ unit: 'ml', each: 500, pack: 1 }, { unit: 'g', each: 500, pack: 1 }));
 }
 
+// --- candidate admission ------------------------------------------------------
+console.log('candidate admission:');
+{
+  check('core strips brand, package, promotion, connectors and sizes',
+    productCoreTokens(
+      ['sadia', 'fresh', 'chicken', 'with', 'bag', '450g', 'offer'],
+      'Sadia',
+    ).join(',') === 'chicken');
+
+  const sadiaBeans = product('pr_sadia_beans', ['sadia', 'green', 'beans'], {
+    brand_text: 'sadia', size_unit: 'g', size_total: 450, size_pack: 1,
+    family: null, category: 'frozen-fruits-veg',
+  });
+  const sadiaBreasts = {
+    tokens: ['sadia', 'chicken', 'breasts'],
+    size: { unit: 'g', each: 450, pack: 1 }, brandText: 'sadia',
+    family: 'chicken', category: 'frozen-chicken-poultry', kind: 'product',
+    corroboration: 0.9,
+  };
+  const beansAdmission = candidateAdmission(sadiaBreasts, sadiaBeans);
+  check('Sadia chicken breasts cannot enter beans scoring despite same brand/size',
+    !beansAdmission.admitted && beansAdmission.reason === 'form-conflict');
+
+  const sadiaCorn = product('pr_sadia_corn', ['sadia', 'sweet', 'corn'], {
+    brand_text: 'sadia', size_unit: 'g', size_total: 450, size_pack: 1,
+    family: 'corn', category: 'frozen-fruits-veg',
+  });
+  check('Sadia chicken breasts cannot enter sweet-corn scoring',
+    !candidateAdmission(sadiaBreasts, sadiaCorn).admitted);
+  const mixedVegetables = {
+    tokens: ['sadia', 'mixed', 'vegetables', 'corn', 'green', 'beans'],
+    size: { unit: 'g', each: 450, pack: 1 }, brandText: 'sadia',
+    family: 'corn', category: 'frozen-fruits-veg', kind: 'product',
+    corroboration: 0.9,
+  };
+  check('a multi-form corn/beans tile cannot attach to a corn-only identity',
+    candidateAdmission(mixedVegetables, sadiaCorn).reason === 'form-conflict');
+  const chickenBreast = product('pr_breast', ['sadia', 'chicken', 'breasts'], {
+    brand_text: 'sadia', size_unit: 'g', size_total: 450, size_pack: 1,
+    family: 'chicken', category: 'frozen-chicken-poultry',
+  });
+  const liverRead = {
+    ...sadiaBreasts, tokens: ['sadia', 'chicken', 'liver'],
+  };
+  check('same-family liver and breast forms are incompatible',
+    candidateAdmission(liverRead, chickenBreast).reason === 'form-conflict');
+
+  const genericChicken = product('pr_generic_chicken', ['sadia', 'chicken', 'seasoned'], {
+    brand_text: 'sadia', family: 'chicken', category: 'frozen-chicken-poultry',
+  });
+  check('a species-only overlap cannot admit a known form into a form-less hub',
+    candidateAdmission(liverRead, genericChicken).reason === 'form-specificity');
+
+  const searaNuggets = product('pr_nuggets', ['seara', 'chicken', 'nuggets', 'crispy'], {
+    brand_text: 'seara', size_unit: 'g', size_total: 750, size_pack: 1,
+    family: 'chicken', category: 'frozen-chicken-poultry',
+  });
+  const nuggetsRead = {
+    tokens: ['seara', 'nuggets', 'chicken'],
+    size: { unit: 'g', each: 750, pack: 1 }, brandText: 'seara',
+    family: 'chicken', category: 'frozen-chicken-poultry', kind: 'product',
+    corroboration: 0.9,
+  };
+  check('legitimate same-form Seara nuggets remain admissible',
+    candidateAdmission(nuggetsRead, searaNuggets).admitted);
+  check('Seara fillet cannot merge into Seara nuggets',
+    candidateAdmission({ ...nuggetsRead, tokens: ['seara', 'chicken', 'fillet'] }, searaNuggets).reason === 'form-conflict');
+  check('different known canonical departments/categories veto admission',
+    candidateAdmission(
+      { ...nuggetsRead, category: 'fresh-chicken-poultry' },
+      searaNuggets,
+    ).reason === 'category-conflict');
+
+  const almaraiButter = product('pr_butter', ['almarai', 'unsalted', 'butter'], {
+    brand_text: 'almarai', size_unit: 'g', size_total: 200, size_pack: 1,
+    family: 'butter', category: 'butter-margarine',
+  });
+  const cakeRead = {
+    tokens: ['almarai', 'cake', 'vanilla'],
+    size: { unit: 'g', each: 200, pack: 1 }, brandText: 'almarai',
+    family: 'cake', category: 'cakes-pastry', kind: 'product', corroboration: 0.9,
+  };
+  check('Almarai cake cannot enter Almarai butter scoring',
+    candidateAdmission(cakeRead, almaraiButter).reason === 'form-conflict');
+
+  const noisyFamilyOil = product('pr_oil', ['mr', 'chef', 'pure', 'sunflower', 'oil'], {
+    brand_text: 'mr chef', family: 'powder', category: 'oil-ghee',
+  });
+  const cleanOilRead = {
+    tokens: ['mr', 'chef', 'pure', 'sunflower', 'oil'], size: null,
+    brandText: 'mr chef', family: 'oil', category: 'oil-ghee', kind: 'product',
+    corroboration: 0.9,
+  };
+  check('lexical family overrides a noisy stored family for admission',
+    candidateAdmission(cleanOilRead, noisyFamilyOil).admitted);
+
+  const arabicChicken = product('pr_ar_chicken', ['دجاج', 'صدور'], {
+    family: 'chicken', category: 'frozen-chicken-poultry',
+  });
+  const englishChicken = {
+    tokens: ['chicken', 'breasts'], size: null, brandText: null,
+    family: 'chicken', category: 'frozen-chicken-poultry', kind: 'product',
+    corroboration: 0.9,
+  };
+  check('trusted bilingual product-core synonyms remain admissible',
+    candidateAdmission(englishChicken, arabicChicken).admitted);
+}
+
 // --- blocking -------------------------------------------------------------------
 console.log('blocking:');
 {
@@ -288,6 +396,21 @@ console.log('outcomes:');
   );
   check('cross-brand read -> create (brand conflict vetoes attachment)',
     crossBrand.outcome === 'create');
+
+  // Same brand and exact package cannot establish identity when the product
+  // cores/forms disagree. This is the resolver-level Sadia pollution path.
+  const sameBrandSizeWrongProduct = await resolveOffer(
+    offer({ category: 'frozen-chicken-poultry' }),
+    enr({ name: 'Sadia Chicken Breasts', brand: 'Sadia', size: '450g' }),
+    twinStore({
+      products: [product('pr_sadia_beans', ['sadia', 'green', 'beans'], {
+        brand_text: 'sadia', size_unit: 'g', size_total: 450, size_pack: 1,
+        category: 'frozen-fruits-veg',
+      })],
+    }),
+  );
+  check('admission failure creates a new identity despite equal brand/size',
+    sameBrandSizeWrongProduct.outcome === 'create');
 
   // One-sided size (read nosize, product sized) -> attach demoted to review.
   const sizedProduct = product('pr_sz', ['almarai', 'fresh', 'milk', 'full', 'fat'], {

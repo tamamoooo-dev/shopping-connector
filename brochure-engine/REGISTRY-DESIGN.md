@@ -137,7 +137,9 @@ the safety net for any duplicate creation that slips through.
 ```
 enrichment stored → mint gates (IDENTITY-V2 §3, unchanged)
   → normalize read (EN-preferred tokens, fold diacritics, size grammar)
-  → BLOCK: candidate products via token index + size compatibility
+  → BLOCK: candidate products via token index
+  → ADMIT: shared product-core token or trusted semantic family/type evidence;
+           incompatible forms, families and canonical categories are vetoes
   → SCORE each candidate (§4)
   → best score ≥ T_attach  → attach sighting (band=auto), update product (§5)
   → T_review ≤ score < T_attach → attach to best (band=review), queue for
@@ -170,7 +172,30 @@ before scoring. Trade-off: blocking recall vs cost; the escape hatch is that
 a miss creates a duplicate, which consolidation (§6) can later merge —
 degradation is P1-shaped, never a wrong merge.
 
-### 4.2 Score
+### 4.2 Admission gate
+
+Every blocked candidate must pass a product-identity admission gate before it
+may enter either review or auto scoring. The lexical overlap calculation uses
+a resolver-only product-core view: known brand tokens, package/size tokens,
+promotional/banner words and connector words are removed without changing the
+stored profile. At least one remaining core token must match (including the
+existing bilingual canonical-token expansion), unless trusted semantic
+evidence establishes the same known family and canonical category or the same
+known product form.
+
+Known incompatible forms (for example breast, burger, nuggets, strips, liver,
+corn, beans, butter and cake), high-confidence family conflicts, species
+conflicts, and incompatible canonical Browse categories veto admission. Brand
+and package size are deliberately unavailable to this gate: they may raise a
+candidate's score only after product identity has been admitted, and can never
+establish identity by themselves. A semantic-only admission is capped at the
+review band so it does not teach the profile. Failed admission follows P1 and
+creates a separate product identity.
+
+This gate is resolver-local and changes neither the registry schema nor token
+profiles. `algo_version` records the resolver generation for replay/audit.
+
+### 4.3 Score
 
 Weighted evidence, calibrated on the labeled pair set (§8) — weights below
 are priors for review, not constants to defend:
@@ -189,7 +214,7 @@ containment separation (match cases clustered ≥0.6; negatives at 0.00%
 false-match) and then CALIBRATED, not asserted: the human-labeled pair set
 is the calibration input and becomes the §10 regression corpus.
 
-### 4.3 Per-product confidence
+### 4.4 Per-product confidence
 
 Derived, not stored authority: sightings count, distinct stores, distinct
 weeks, profile concentration. Consumers may render low-confidence products

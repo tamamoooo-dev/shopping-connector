@@ -47,7 +47,15 @@ export async function drainResolution(
   // negligible) instead of re-running SELECT COUNT(*) inside resolveRead for
   // every offer — one fewer D1 subrequest per offer, the biggest cheap win.
   const productCount = await registryStore.productCount().catch(() => null);
-  const resolveOpts = { productCount, ...(tuning ? { tuning } : {}) };
+  // Candidate profiles repeat heavily inside a 50-row drain. Cache only their
+  // derived admission views for this invocation; the signature includes every
+  // learned field, so an auto-band profile update invalidates itself. This is
+  // ephemeral resolver work, not registry state.
+  const resolveOpts = {
+    productCount,
+    admissionCache: new Map(),
+    ...(tuning ? { tuning } : {}),
+  };
   const verdicts = [];
   for (const r of rows) {
     const offer = {

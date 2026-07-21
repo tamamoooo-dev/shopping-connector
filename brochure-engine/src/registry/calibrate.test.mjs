@@ -99,9 +99,10 @@ console.log('replay:');
   check('calibrated thresholds pass the ship gate (attaches kept, false split off)',
     calibrated.pass === true && calibrated.attachHits === 2 && calibrated.falseAttaches === 0);
 
-  // Reckless thresholds merge everything and fail loudly. The brand veto is
-  // threshold-independent, so the trap pair here is SAME-brand different
-  // products (Halah rice vs Halah oil) — thresholds are their only defence.
+  // Admission is threshold-independent, just like the brand veto. Even
+  // reckless thresholds cannot let a same-brand rice observation enter oil
+  // scoring: brand/size corroboration is unavailable until product-core or
+  // trusted semantic evidence admits the candidate.
   const looseCorpus = [
     ...corpus,
     row('o:h3', { seq: 7, e_name: 'Halah Basmati Rice', e_brand: 'Halah' }),
@@ -112,8 +113,8 @@ console.log('replay:');
   ], {
     tuning: { ...TUNING, tAttach: 0.01, tReview: 0.005 },
   });
-  check('reckless thresholds produce FALSE ATTACHES and fail the gate',
-    loose.falseAttaches >= 1 && loose.pass === false);
+  check('reckless thresholds cannot bypass product-core admission',
+    loose.falseAttaches === 0 && loose.pass === true);
 }
 
 // --- sweep -----------------------------------------------------------------------
