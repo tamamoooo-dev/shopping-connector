@@ -11,10 +11,9 @@
 $ErrorActionPreference = 'Continue'
 $engine = 'https://brochure-engine.tamamoooo.workers.dev'
 
-# Production authentication preflight. Never fall back to local-secrets.mjs,
-# INGEST_SECRET, or .ingest.secret: those are local/staging sources, not the
-# production deployment credential authority. The deployment secret store must
-# inject this distinct variable because Cloudflare never returns secret values.
+# Production authentication preflight. Local developer credentials are never
+# consulted; the deployment secret store is the only authority and must inject
+# this distinct variable because Cloudflare never returns secret values.
 $productionIngestSecret = [Environment]::GetEnvironmentVariable('PRODUCTION_INGEST_SECRET')
 if ([string]::IsNullOrWhiteSpace($productionIngestSecret)) {
   Write-Error 'Configuration error: PRODUCTION_INGEST_SECRET is required from the production deployment secret store. No deployment or authenticated request was attempted.'
