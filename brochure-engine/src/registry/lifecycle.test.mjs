@@ -26,7 +26,7 @@ import {
   LIFECYCLE_TUNING,
 } from './lifecycle.js';
 import { applyReviewAction } from './review.js';
-import { resolveOffer } from './resolver.js';
+import { resolveLegacyOffer as resolveOffer } from './legacyResolver.js';
 import { applyDecision } from './apply.js';
 import { observationFromOffer } from './read.js';
 import { decodeProfile } from './model.js';
@@ -190,11 +190,28 @@ console.log('maintenance + routes:');
 {
   const store = createMemRegistryStore();
   const recorded = [];
+  const pendingCandidate = JSON.stringify({
+    brand: 'Clorox', family: 'Detergent', cut: null, processing: 'Fresh',
+    variety: 'Lemon', package: { type: 'Bottle', expression: null },
+    size: { value: 950, unit: 'ml' }, count: 1,
+  });
+  const pending = new Map([
+    ['o:pending', { offer_id: 'o:pending', store: 's', region: 'r', source: 'd4d', week: '2026-07-15', price: 4, old_price: 5, identity_candidate: pendingCandidate, identity_candidate_version: 'identity-candidate-v1' }],
+    ['o:new', { offer_id: 'o:new', store: 's', region: 'r', source: 'd4d', week: '2026-07-15', price: 6, old_price: 8, identity_candidate: pendingCandidate, identity_candidate_version: 'identity-candidate-v1' }],
+  ]);
   const ctx = {
     registry: {},
     ingestSecret: 'sek',
     registryStore: store,
-    enrichStore: { resetVerdicts: async () => {}, getForIds: async () => new Map() },
+    enrichStore: {
+      resetVerdicts: async () => {},
+      listPendingReviews: async () => [...pending.values()].map((row) => ({
+        ...row, offer_id: row.offer_id, product_id: null, match_band: 'review',
+        review_state: 'pending', trusted: 0,
+      })),
+      getPendingReview: async (id) => pending.get(id) || null,
+      getForIds: async (ids) => new Map(ids.filter((id) => pending.has(id)).map((id) => [id, pending.get(id)])),
+    },
     opsStore: { record: async (row) => recorded.push(row) },
   };
   const rep = await runMaintenance(ctx, { today: '2026-07-18' });
@@ -222,7 +239,9 @@ console.log('maintenance + routes:');
     new Request('http://x/registry/review', { headers: { 'X-Ingest-Secret': 'sek' } }), ctx,
   )).json();
   check('review queue lists flagged products + review-band sightings',
-    list.flagged.some((p) => p.id === 'pr_f') && list.reviewSightings.some((s) => s.offer_id === 'o:rev'));
+    list.flagged.some((p) => p.id === 'pr_f') &&
+    list.reviewSightings.some((s) => s.offer_id === 'o:rev') &&
+    list.reviewSightings.some((s) => s.offer_id === 'o:pending' && s.trusted === 0));
 
   const act = (body) => handleRequest(
     new Request('http://x/registry/review', {
@@ -233,22 +252,58 @@ console.log('maintenance + routes:');
   check('reassign moves the sighting (band review, target profile untaught)',
     re.done && store._sightings.get('o:rev').product_id === 'pr_t' &&
     decodeProfile(store._products.get('pr_t').token_profile).clorox.count === 3);
+  const pendingReassign = await (await act({ action: 'reassign', offerId: 'o:pending', toProductId: 'pr_t' })).json();
+  check('pending Review becomes only an untrusted review-band sighting after human reassignment',
+    pendingReassign.done && store._sightings.get('o:pending')?.match_band === 'review' &&
+    store._sightings.get('o:pending')?.product_id === 'pr_t');
   const cf = await (await act({ action: 'clear_flag', productId: 'pr_f' })).json();
   check('clear_flag clears', cf.done && store._products.get('pr_f').review_flag === null);
   const bad = await act({ action: 'nope' });
   check('unknown action -> 400', bad.status === 400);
 
   // Split: needs the sighting's own enrichment.
-  ctx.enrichStore.getForIds = async (ids) =>
-    new Map(ids.filter((i) => i === 'o:rev').map((i) => [i, {
+  ctx.enrichStore.getForIds = async (ids) => new Map(ids.flatMap((i) => {
+    if (pending.has(i)) return [[i, pending.get(i)]];
+    if (i !== 'o:rev') return [];
+    return [[i, {
       id: i, name: 'Clorox Bleach Lemon 950ml', name_ar: null, brand: 'Clorox',
       size: '950ml', corroboration: 0.9,
-    }]));
+      identity_candidate: JSON.stringify({
+        brand: 'Clorox', family: 'Detergent', cut: null, processing: null,
+        variety: 'Lemon', package: { type: 'Bottle', expression: null },
+        size: { value: 950, unit: 'ml' }, count: 1,
+      }),
+      identity_candidate_version: 'identity-candidate-v1',
+    }]];
+  }));
   const sp = await (await act({ action: 'split', offerId: 'o:rev' })).json();
   check('split mints a new product from the sighting read and moves the sighting',
     sp.done && sp.productId?.startsWith('pr_') &&
     store._sightings.get('o:rev').product_id === sp.productId &&
     store._products.get(sp.productId).size_total === 950);
+  const pendingSplit = await (await act({ action: 'split', offerId: 'o:new' })).json();
+  check('pending Review can be promoted through existing split without an auto sighting',
+    pendingSplit.done && pendingSplit.productId?.startsWith('pr_') &&
+    store._sightings.get('o:new')?.match_band === 'review');
+}
+
+console.log('review isolation:');
+{
+  const offers = [
+    { id: 'trusted:offer', valid_to: '2026-07-31', price: 10, currency: 'SAR', source_url: 'trusted' },
+    { id: 'review:offer', valid_to: '2026-07-31', price: 1, currency: 'SAR', source_url: 'review' },
+  ];
+  const store = createMemRegistryStore({ offers });
+  const p = product('pr_isolated', ['sadia', 'chicken']);
+  await store.createProduct(p, ['sadia', 'chicken']);
+  await store.insertSighting({ offer_id: 'trusted:offer', product_id: p.id, match_band: 'auto', store: 's', region: 'r', week: '2026-07-15', price: 10 });
+  await store.insertSighting({ offer_id: 'review:offer', product_id: p.id, match_band: 'review', store: 's', region: 'r', week: '2026-07-15', price: 1 });
+  const historyRows = await store.sightingsForProducts([p.id]);
+  const best = await store.bestCurrentForProduct(p.id, '2026-07-18');
+  check('review-band sightings are excluded from Price History evidence',
+    historyRows.length === 1 && historyRows[0].offer_id === 'trusted:offer');
+  check('review-band sightings cannot trigger Watch prices',
+    best?.offerId === 'trusted:offer' && best.price === 10);
 }
 
 if (failures) {

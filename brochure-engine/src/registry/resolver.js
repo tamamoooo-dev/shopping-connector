@@ -3,33 +3,23 @@
 // decide one of the four outcomes:
 //
 //   attach — best candidate ≥ tAttach   (band `auto`: teaches the profile)
-//   review — tReview ≤ best < tAttach   (band `review`: attaches to best but
-//            does NOT teach; sampled human review heals mistakes — §3's
-//            containment between "usable now" and "cautious forever")
+//   review — tReview ≤ best < tAttach; persists no sighting until the guarded
+//            human workflow reassigns or splits it
 //   create — best < tReview or no candidates (P1 create-on-doubt: a false
 //            split heals by merge; a forced match would pollute invisibly)
-//   defer  — the observation failed a mint gate (read.js; verdict says which)
+//   defer  — candidate validation failed; verdict records the exact contract gate
 //
-// SOURCE-AGNOSTIC BY CONTRACT: resolveRead() knows nothing about vision, OCR
-// or flyers — it consumes a normalized read ({tokens, size, brandText, family,
-// category, kind, corroboration}) plus an opaque observation context. All
-// source-specific normalization and gating lives in read.js (the current
-// vision-enrichment normalizer); a future source only needs to produce reads.
-// `corroboration` is a generic observation-trust scalar in 0..1, defined by
-// the source (for vision reads: token overlap vs the tile's own OCR text).
+// SOURCE-AGNOSTIC BY CONTRACT: production resolution receives only the
+// Identity Builder candidate adapter's normalized read plus sighting context.
+// Registry compares those fields and never classifies raw wording.
 //
 // Phase 2 boundary: this module DECIDES and never writes — sighting storage
 // and profile learning are Phase 3.
 
-import { readFromOffer } from './read.js';
-import { decodeProfile, MATCH_BAND } from './model.js';
-import { matchBrandToken } from '../browse/brands.js';
 import {
-  canonicalToken, expandToken, normalizeText, productFamily, productType,
-} from '../matching.js';
-import { BANNER_WORDS } from '../offers/contract.js';
-import { PROVIDER_AISLES } from '../browse/mapping.js';
-import { AISLE_BY_ID } from '../browse/taxonomy.js';
+  CANDIDATE_VERDICT, candidateFingerprint, readFromIdentityCandidate,
+} from './candidate.js';
+import { decodeProfile, MATCH_BAND } from './model.js';
 
 // CALIBRATION PRIORS, not fixed design (§4.2: "priors for review, not
 // constants to defend"). One object so the Phase 4 replay harness can sweep
@@ -89,7 +79,7 @@ export function sizeConflicts(a, b, tuning = TUNING) {
 // at compare time so stored brand_text and fresh reads meet on equal footing
 // whatever normalization era wrote them.
 function canonBrand(text) {
-  return text.split(' ').map((t) => matchBrandToken(t) || t).join('');
+  return String(text).toLocaleLowerCase('en').replace(/\s+/gu, '');
 }
 
 export function brandRelation(readBrand, productBrand) {
@@ -110,34 +100,15 @@ export function brandRelation(readBrand, productBrand) {
 // corn/beans/chicken, Almarai butter/cake). Admission therefore operates on a
 // product-core view of the token sets before size or brand is consulted.
 
-const CORE_CONNECTORS = [
-  'and', 'or', 'with', 'without', 'for', 'from', 'of', 'in', 'on', 'at', 'by',
-  'to', 'per', 'plus', 'the', 'a', 'an',
-  'او', 'مع', 'بدون', 'من', 'في', 'على', 'الي', 'لكل', 'و',
-];
-const CORE_PACKAGING = [
-  'pack', 'packs', 'packet', 'packets', 'pkt', 'bag', 'bags', 'box', 'boxes',
-  'bottle', 'bottles', 'can', 'cans', 'tin', 'tins', 'jar', 'jars', 'piece',
-  'pieces', 'pcs', 'pc', 'count', 'ct', 'tray', 'rolls',
-  'عبوه', 'عبوات', 'كيس', 'اكياس', 'علبه', 'علب', 'زجاجه', 'زجاجات', 'حبه',
-  'حبات', 'قطعه', 'قطع', 'صحن', 'رول',
-];
-const CORE_PROMOTIONAL = [
-  'fresh', 'frozen', 'local', 'imported', 'selected', 'assorted', 'regular',
-  'spicy', 'hot', 'original', 'premium', 'classic', 'natural', 'jumbo', 'mini',
-  'large', 'small', 'medium', 'astd', 'mixed',
-  'طازج', 'مجمد', 'محلي', 'مستورد', 'مختار', 'مشكل', 'عادي', 'حار', 'اصلي',
-  'فاخر', 'كلاسيك', 'طبيعي', 'كبير', 'صغير', 'وسط',
-];
-const CORE_STOP = new Set(
-  [...BANNER_WORDS, ...CORE_CONNECTORS, ...CORE_PACKAGING, ...CORE_PROMOTIONAL]
-    .map((t) => canonicalToken(t))
-    .filter(Boolean),
-);
-const PACKAGE_TOKEN_RE = /^\d+(?:[.,]\d+)?(?:ml|ltr?|l|kg|kgs|g|gm|grm?|pcs?|pc|pack|pkt|ct|s)$/u;
+const IDENTITY_DIMENSIONS = ['family', 'cut', 'processing', 'variety', 'package'];
+const DIMENSION_PREFIXES = IDENTITY_DIMENSIONS.map((field) => `${field}:`);
+
+function structuralToken(value) {
+  return String(value || '').toLocaleLowerCase('en').trim();
+}
 
 function normalizedTokens(text) {
-  return normalizeText(text).split(' ').map(canonicalToken).filter(Boolean);
+  return String(text || '').split(/\s+/u).map(structuralToken).filter(Boolean);
 }
 
 function brandTokenSet(...texts) {
@@ -151,9 +122,14 @@ export function productCoreTokens(tokens, ...brandTexts) {
   const brands = brandTokenSet(...brandTexts);
   const out = new Set();
   for (const raw of tokens || []) {
-    const t = canonicalToken(raw);
-    if (!t || CORE_STOP.has(t) || PACKAGE_TOKEN_RE.test(t) || /^\d+$/.test(t)) continue;
-    if (brands.has(t) || matchBrandToken(t)) continue;
+    const text = String(raw || '');
+    // Dimension markers are exact veto/equality evidence, not extra lexical
+    // weight. Excluding them from containment keeps historical profiles (which
+    // predate markers) score-compatible.
+    if (DIMENSION_PREFIXES.some((prefix) => text.startsWith(prefix))) continue;
+    const t = structuralToken(text);
+    if (!t || /^\d+$/.test(t)) continue;
+    if (brands.has(t)) continue;
     out.add(t);
   }
   return [...out];
@@ -162,130 +138,38 @@ export function productCoreTokens(tokens, ...brandTexts) {
 function coreHits(readCore, productCore) {
   const p = new Set(productCore);
   let hits = 0;
-  const matched = [];
   for (const token of readCore) {
-    if (expandToken(token).some((v) => p.has(v))) {
+    if (p.has(token)) {
       hits += 1;
-      matched.push(token);
     }
   }
-  return { hits, matched };
+  return { hits };
 }
 
-// Product FORM is intentionally resolver-local and narrower than the Search
-// family ontology. Existing productType() supplies the common forms; the
-// additions below cover the observed registry collisions that family alone
-// cannot distinguish (breast/liver are both chicken, for example).
-const EXTRA_FORM_TERMS = Object.freeze({
-  corn: ['corn', 'sweetcorn', 'ذره'],
-  beans: ['bean', 'beans', 'فاصوليا', 'فاصولياء'],
-  butter: ['butter', 'زبده'],
-  cake: ['cake', 'cakes', 'muffin', 'muffins', 'كيك', 'كيكه', 'مافن'],
-  broasted: ['broast', 'broasted', 'بروست', 'بروستد'],
-  liver: ['liver', 'livers', 'كبد', 'كبده', 'اكباد'],
-  gizzard: ['gizzard', 'gizzards', 'قوانص', 'قانصه'],
-  drumstick: ['drumstick', 'drumsticks', 'ساق', 'سيقان'],
-  thigh: ['thigh', 'thighs', 'فخذ', 'افخاذ'],
-  whole: ['whole', 'griller', 'كامل', 'كامله', 'شوايه'],
-  popcorn: ['popcorn', 'بوبكورن'],
-  tender: ['tender', 'tenders', 'تندر', 'مسحب'],
-  sausage: ['frank', 'franks'],
-});
-const EXTRA_FORM_INDEX = new Map(
-  Object.entries(EXTRA_FORM_TERMS)
-    .flatMap(([form, terms]) => terms.map((t) => [canonicalToken(t), form])),
-);
-const PROTEIN_FAMILIES = new Set(['chicken', 'meat', 'fish']);
-
-function semanticForms(tokens, family) {
-  const out = new Set();
-  const type = productType((tokens || []).join(' '));
-  if (type) out.add(type);
-  for (const token of tokens || []) {
-    const t = canonicalToken(token);
-    const extra = EXTRA_FORM_INDEX.get(t);
-    if (extra && (extra !== 'whole' || PROTEIN_FAMILIES.has(family))) out.add(extra);
-  }
-  return out;
-}
-
-const FORM_COMPATIBLE = new Set([
-  'breast|fillet', 'fillet|breast',
-  'breast|tender', 'tender|breast',
-  'fillet|tender', 'tender|fillet',
-]);
-function formsCompatible(a, b) {
-  for (const x of a) for (const y of b) {
-    if (x !== y && !FORM_COMPATIBLE.has(`${x}|${y}`)) return false;
-  }
-  return true;
-}
-
-const SPECIES_TERMS = Object.freeze({
-  chicken: ['chicken', 'دجاج', 'فراخ'],
-  beef: ['beef', 'بقري', 'بقر'],
-  lamb: ['lamb', 'mutton', 'غنم', 'ضأن', 'خروف'],
-  camel: ['camel', 'hashi', 'حاشي', 'جمل'],
-  veal: ['veal', 'عجل'],
-  goat: ['goat', 'تيس', 'ماعز'],
-  fish: ['fish', 'سمك'],
-  shrimp: ['shrimp', 'shrimps', 'prawn', 'prawns', 'روبيان', 'جمبري'],
-  turkey: ['turkey', 'ديك', 'رومي'],
-});
-const SPECIES_INDEX = new Map(
-  Object.entries(SPECIES_TERMS)
-    .flatMap(([species, terms]) => terms.map((t) => [canonicalToken(t), species])),
-);
-function species(tokens) {
-  const out = new Set();
-  for (const token of tokens || []) {
-    const hit = SPECIES_INDEX.get(canonicalToken(token));
-    if (hit) out.add(hit);
-  }
-  return out;
-}
-
-const FAMILY_COMPATIBLE = new Set([
-  'cheese|cream', 'cream|cheese',
-  'milk|powder', 'powder|milk',
-]);
-
-// Provider mappings are the canonical category vocabulary already used by
-// Browse. Resolve a raw category only when every configured provider that
-// knows it maps it to the same aisle; ambiguity stays neutral, never a veto.
-const NON_VETO_AISLES = new Set(['other', 'frozen-food']);
-const CATEGORY_CLASSES = (() => {
-  const classes = new Map();
-  const ambiguous = new Set();
-  for (const map of Object.values(PROVIDER_AISLES)) {
-    for (const [category, aisle] of Object.entries(map)) {
-      const next = NON_VETO_AISLES.has(aisle) ? null : {
-        aisle,
-        department: AISLE_BY_ID.get(aisle)?.dept || null,
-      };
-      if (!next) continue;
-      if (
-        classes.has(category) &&
-        (classes.get(category).aisle !== next.aisle ||
-          classes.get(category).department !== next.department)
-      ) ambiguous.add(category);
-      else classes.set(category, next);
-    }
-  }
-  for (const category of ambiguous) classes.delete(category);
-  return classes;
-})();
 function categoryClass(category) {
-  if (!category) return null;
-  return CATEGORY_CLASSES.get(String(category).toLowerCase()) || null;
+  return category || null;
+}
+
+function identityDimensions(tokens, family = null) {
+  const fields = {};
+  for (const raw of tokens || []) {
+    const token = String(raw || '');
+    for (const field of IDENTITY_DIMENSIONS) {
+      const prefix = `${field}:`;
+      if (token.startsWith(prefix) && token.length > prefix.length) {
+        fields[field] = token.slice(prefix.length);
+      }
+    }
+  }
+  if (!fields.family && family) fields.family = normalizedTokens(family).join('_') || null;
+  return fields;
 }
 
 function admissionSide(tokens, family, category, ...brandTexts) {
   return {
     tokens: tokens || [],
     core: productCoreTokens(tokens, ...brandTexts),
-    forms: semanticForms(tokens, family),
-    species: species(tokens),
+    dimensions: identityDimensions(tokens, family),
     family: family || null,
     category: categoryClass(category),
   };
@@ -310,18 +194,8 @@ function productAdmissionSide(product, cache) {
   return side;
 }
 
-function lexicalSideFamily(side) {
-  if (Object.prototype.hasOwnProperty.call(side, 'lexicalFamily')) {
-    return side.lexicalFamily;
-  }
-  side.lexicalFamily = productFamily(side.tokens.join(' ')) || null;
-  return side.lexicalFamily;
-}
-
-// Pure admission verdict, exported for focused tests and offline replay
-// diagnostics. `semanticOnly` means a trusted family/form relation admitted a
-// spelling-poor observation; resolveRead caps that edge at review so it cannot
-// teach until lexical evidence appears.
+// Pure admission verdict. Semantic values are exact Identity Builder outputs
+// carried in namespaced profile tokens; Registry never reconstructs them.
 export function candidateAdmission(read, product, preparedRead = null, productCache = null) {
   const a = preparedRead || admissionSide(
     read.tokens, read.family, read.category, read.brandText,
@@ -329,63 +203,52 @@ export function candidateAdmission(read, product, preparedRead = null, productCa
   const b = productAdmissionSide(product, productCache);
   const readCore = a.core;
   const productCore = b.core;
-  const { hits, matched } = coreHits(readCore, productCore);
-  const formKnown = a.forms.size > 0 && b.forms.size > 0;
-  const formMatch = formKnown && formsCompatible(a.forms, b.forms);
-  if (formKnown && !formMatch) {
-    return { admitted: false, reason: 'form-conflict', readCore, productCore, hits };
+  const { hits } = coreHits(readCore, productCore);
+  for (const field of IDENTITY_DIMENSIONS) {
+    if (a.dimensions[field] && b.dimensions[field] &&
+        a.dimensions[field] !== b.dimensions[field]) {
+      return {
+        admitted: false, reason: `${field}-conflict`, readCore, productCore, hits,
+      };
+    }
   }
-  if ((a.forms.size > 0) !== (b.forms.size > 0)) {
-    const specificHit = matched.some(
-      (token) => !expandToken(token).some((variant) => SPECIES_INDEX.has(variant)),
-    );
-    if (!specificHit) {
-      return { admitted: false, reason: 'form-specificity', readCore, productCore, hits };
+  // Historical products may predate namespaced candidate markers. Compare an
+  // incoming canonical discriminator to their existing profile literally; do
+  // not classify that profile. Absence is a veto for identity-bearing fields,
+  // preventing brand/size/family from forcing a match across cuts or variants.
+  const historicalTokens = new Set((b.tokens || []).map(structuralToken));
+  for (const field of ['cut', 'processing', 'variety']) {
+    if (!a.dimensions[field] || b.dimensions[field]) continue;
+    const words = a.dimensions[field].split('_').filter(Boolean);
+    if (words.some((word) => !historicalTokens.has(word))) {
+      return {
+        admitted: false, reason: `${field}-not-evidenced`, readCore, productCore, hits,
+      };
     }
   }
 
-  if (a.species.size && b.species.size && ![...a.species].some((s) => b.species.has(s))) {
-    return { admitted: false, reason: 'species-conflict', readCore, productCore, hits };
-  }
-
-  let readFamily = a.family;
-  let productFamilyValue = b.family;
-  if (readFamily && productFamilyValue && readFamily !== productFamilyValue) {
-    // A secondary-language enrichment or category fallback can occasionally
-    // disagree with the actual identity tokens (for example exact English
-    // sunflower-oil names whose Arabic text contains the word "powder"). Only
-    // on a prospective hard conflict, prefer lexical family when determinable.
-    readFamily = lexicalSideFamily(a) || readFamily;
-    productFamilyValue = lexicalSideFamily(b) || productFamilyValue;
-  }
-  const familyMatch = !!readFamily && readFamily === productFamilyValue;
-  const familyCompatible = !!readFamily && !!productFamilyValue &&
-    FAMILY_COMPATIBLE.has(`${readFamily}|${productFamilyValue}`);
-  if (readFamily && productFamilyValue && !familyMatch && !familyCompatible) {
+  const readFamily = a.family;
+  const storedFamily = b.family;
+  const familyMatch = !!readFamily && readFamily === storedFamily;
+  if (readFamily && storedFamily && !familyMatch) {
     return { admitted: false, reason: 'family-conflict', readCore, productCore, hits };
   }
 
-  if (
-    a.category && b.category &&
-    (a.category.department !== b.category.department || a.category.aisle !== b.category.aisle)
-  ) {
+  if (a.category && b.category && a.category !== b.category) {
     return { admitted: false, reason: 'category-conflict', readCore, productCore, hits };
   }
 
-  const categoryMatch = !!a.category && !!b.category &&
-    a.category.department === b.category.department && a.category.aisle === b.category.aisle;
-  const semanticEvidence = formMatch || (familyMatch && categoryMatch);
-  if (hits === 0 && !semanticEvidence) {
+  if (hits === 0) {
     return { admitted: false, reason: 'no-product-core', readCore, productCore, hits };
   }
   return {
     admitted: true,
-    reason: hits > 0 ? 'shared-product-core' : 'semantic-evidence',
+    reason: 'shared-identity-evidence',
     readCore,
     productCore,
     hits,
-    semanticOnly: hits === 0,
-    semanticEvidence,
+    semanticOnly: false,
+    semanticEvidence: familyMatch,
   };
 }
 
@@ -486,7 +349,10 @@ export async function resolveRead(
   read,
   ctx,
   store,
-  { tuning = TUNING, productCount: pcHint, admissionCache = null } = {},
+  {
+    tuning = TUNING, productCount: pcHint, admissionCache = null,
+    includeDiagnostics = false,
+  } = {},
 ) {
   // BLOCK (§4.1): products sharing ≥1 distinctive token, UNION the sticky
   // incumbent (the observation's own prior counterpart's product).
@@ -515,6 +381,7 @@ export async function resolveRead(
   // (§5.1 guarantees the survivor is never itself merged).
   let best = null;
   let considered = 0;
+  const matchCandidates = [];
   if (ids.size) {
     const products = await store.getProducts([...ids]);
     const survivors = new Map(); // id -> row, after tombstone redirect
@@ -535,6 +402,14 @@ export async function resolveRead(
       const { score, vetoed, admission } = scoreCandidate(
         read, p, { incumbentId, tuning, admissionRead, admissionCache },
       );
+      if (includeDiagnostics) {
+        matchCandidates.push({
+          productId: p.id,
+          score,
+          vetoed,
+          admission: admission?.reason || null,
+        });
+      }
       if (vetoed) continue;
       considered += 1;
       // Carry the winning ROW, not just its id: the attach path (apply.js) needs
@@ -546,7 +421,13 @@ export async function resolveRead(
 
   // DECIDE (§3): create-on-doubt below tReview (P1).
   if (!best || best.score < tuning.tReview) {
-    return { outcome: 'create', verdict: 'minted', band: MATCH_BAND.CREATED, read, considered };
+    return {
+      outcome: 'create', verdict: 'minted', band: MATCH_BAND.CREATED, read, considered,
+      ...(includeDiagnostics ? {
+        matchCandidates,
+        decisionReason: best ? 'best_score_below_review_threshold' : 'no_admitted_registry_match',
+      } : {}),
+    };
   }
   if (best.score >= tuning.tAttach) {
     // Size-unknown demotion (2026-07-21): auto-attach demands the size
@@ -562,33 +443,84 @@ export async function resolveRead(
       return {
         outcome: 'review', verdict: 'minted', band: MATCH_BAND.REVIEW,
         productId: best.productId, product: best.product, score: best.score, read, considered,
+        ...(includeDiagnostics ? {
+          matchCandidates,
+          decisionReason: best.admission?.semanticOnly
+            ? 'semantic_only_match_requires_review'
+            : 'size_evidence_incomplete_requires_review',
+        } : {}),
       };
     }
     return {
       outcome: 'attach', verdict: 'minted', band: MATCH_BAND.AUTO,
       productId: best.productId, product: best.product, score: best.score, read, considered,
+      ...(includeDiagnostics ? {
+        matchCandidates,
+        decisionReason: 'score_at_or_above_known_product_threshold',
+      } : {}),
     };
   }
   return {
     outcome: 'review', verdict: 'minted', band: MATCH_BAND.REVIEW,
     productId: best.productId, product: best.product, score: best.score, read, considered,
+    ...(includeDiagnostics ? {
+      matchCandidates,
+      decisionReason: 'score_between_review_and_known_product_thresholds',
+    } : {}),
   };
 }
 
-// Convenience composition for the current source: vision-enriched flyer
-// offers. All vision/OCR specifics live in readFromOffer; the core above
-// stays source-agnostic.
-export async function resolveOffer(offer, enrichment, store, opts = {}) {
-  const r = readFromOffer(offer, enrichment);
-  if (!r.ok) return { outcome: 'defer', verdict: r.verdict };
-  return resolveRead(
-    r.read,
+// Production Identity Builder boundary. The candidate is the sole identity
+// input; `context` contains sighting persistence facts only. Invalid or
+// under-specified candidates become Review without assigning a trusted Product
+// ID. Raw extraction and OCR fields have no parameter and cannot enter here.
+export async function resolveIdentityCandidate(identityCandidate, context, store, opts = {}) {
+  const started = Date.now();
+  const parsed = readFromIdentityCandidate(identityCandidate, { version: opts.version });
+  if (!parsed.ok) {
+    return {
+      outcome: 'review',
+      verdict: CANDIDATE_VERDICT.REVIEW,
+      registryOutcome: 'Review',
+      productId: null,
+      score: null,
+      read: null,
+      candidate: parsed.candidate || null,
+      candidateVerdict: parsed.verdict,
+      decisionReason: parsed.verdict,
+      validationErrors: parsed.errors || [],
+      matchCandidates: [],
+      processingTimeMs: Date.now() - started,
+    };
+  }
+  const decision = await resolveRead(
+    parsed.read,
     {
-      offerId: offer.id,
-      store: offer.store,
-      region: offer.region,
-      textKey: offer.search_text || '',
+      offerId: context.offerId,
+      store: context.store,
+      region: context.region,
+      textKey: candidateFingerprint(parsed.candidate),
     },
+    store,
+    { ...opts, includeDiagnostics: opts.includeDiagnostics === true },
+  );
+  return {
+    ...decision,
+    candidate: parsed.candidate,
+    candidateVerdict: CANDIDATE_VERDICT.OK,
+    registryOutcome: decision.outcome === 'attach'
+      ? 'Known Product'
+      : decision.outcome === 'create' ? 'New Product' : 'Review',
+    processingTimeMs: Date.now() - started,
+  };
+}
+
+// Preserve the existing convenience API name while replacing its identity
+// input. The second argument is now exclusively an Identity Candidate.
+export async function resolveOffer(offer, identityCandidate, store, opts = {}) {
+  return resolveIdentityCandidate(
+    identityCandidate,
+    { offerId: offer.id, store: offer.store, region: offer.region },
     store,
     opts,
   );

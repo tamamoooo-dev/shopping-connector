@@ -4,8 +4,9 @@
 //
 // Guards the milestone's promises:
 //  • the gate admits only deriveNames-defeated offers that still have a crop,
-//  • the parser survives fenced/garbage replies and STRIPS price fragments,
-//  • corroboration separates readings from hallucinations (spike-calibrated),
+//  • the parser survives fenced/garbage replies and rejects contaminated fields
+//    without editing the model's literal observation,
+//  • request construction and acceptance contain only the prompt + crop,
 //  • servable() enforces the corroboration floor, never model confidence,
 //  • the drain stores every verdict (including declines), stops the batch on
 //    transport errors WITHOUT storing the failed offer, and prunes orphans,
@@ -15,12 +16,14 @@
 import {
   needsEnrichment,
   parseEnrichReply,
+  buildVisionRequest,
   corroboration,
   servable,
   drainEnrichment,
   enrichOffer,
   applyEnrichment,
   CORROBORATION_FLOOR,
+  VISION_PROMPT,
 } from './offers/enrich.js';
 import { handleRequest } from './engine.js';
 
@@ -42,16 +45,28 @@ check('no crop -> false', !needsEnrichment({ name: null, nameAr: null, imageUrl:
 
 // --- parser --------------------------------------------------------------------
 console.log('parser:');
-const good = parseEnrichReply('{"name_en":"Halah Sunflower Oil","name_ar":"زيت هالة","brand":"Halah","size":"1.5L","confidence":0.9}');
-check('plain JSON parses', good && good.name === 'Halah Sunflower Oil' && good.size === '1.5L');
+const good = parseEnrichReply('{"name_en":"Halah Sunflower Oil","name_ar":"زيت هالة","brand":"Halah","size":"1.5L","pack_count":"6×","confidence":0.9}');
+check('plain JSON parses', good && good.name === 'Halah Sunflower Oil' && good.size === '1.5L' && good.packCount === '6×');
 const fenced = parseEnrichReply('```json\n{"name_en":"Milk","name_ar":null,"brand":null,"size":null,"confidence":0.5}\n```');
 check('fenced JSON parses', fenced && fenced.name === 'Milk' && fenced.nameAr === null);
 check('garbage -> null', parseEnrichReply('sorry, I cannot') === null);
 check('both names null -> null', parseEnrichReply('{"name_en":null,"name_ar":null,"confidence":1}') === null);
 const priced = parseEnrichReply('{"name_en":"Rice 5kg SAR 19.99","name_ar":"ارز 19.99 ريال","brand":null,"size":"5kg","confidence":1}');
-check('price fragments stripped (en)', priced && !/19|sar/i.test(priced.name));
-check('price fragments stripped (ar)', priced && !/19|ريال/.test(priced.nameAr));
-check('confidence clamped', parseEnrichReply('{"name_en":"X y z","confidence":7}').confidence === 1);
+check('price-contaminated fields rejected instead of edited', priced === null);
+check('out-of-range confidence becomes null', parseEnrichReply('{"name_en":"X y z","confidence":7}').confidence === null);
+const literal = parseEnrichReply('{"name_en":"Brand  original   spelling","name_ar":null,"confidence":0.7}');
+check('internal literal spacing is preserved', literal?.name === 'Brand  original   spelling');
+
+// --- crop-only request contract ------------------------------------------------
+console.log('crop-only request:');
+{
+  const req = buildVisionRequest({ contentType: 'image/jpeg', base64: 'AQID' });
+  check('one user message, one image', req.messages.length === 1 && req.messages[0].content.filter((x) => x.type === 'image_url').length === 1);
+  check('complete observer prompt is present', req.messages[0].content[0].text === VISION_PROMPT && /ONLY source of truth/.test(VISION_PROMPT));
+  check('request has no metadata-bearing fields',
+    Object.keys(req).sort().join(',') === 'messages,model,response_format,temperature' &&
+    Object.keys(req.messages[0]).sort().join(',') === 'content,role');
+}
 
 // --- corroboration + servable --------------------------------------------------
 console.log('corroboration:');
@@ -78,6 +93,10 @@ function memEnrichStore(seed = []) {
     async listDebris({ limit = 15 } = {}) {
       return debris.filter((d) => !rows.has(d.id)).slice(0, limit);
     },
+    async listSelected({ ids } = {}) {
+      const selected = new Set(ids || []);
+      return debris.filter((d) => selected.has(d.id));
+    },
     async countDebris() {
       return debris.filter((d) => !rows.has(d.id)).length;
     },
@@ -96,8 +115,8 @@ function memEnrichStore(seed = []) {
   };
 }
 
-// A fake fetch: image URLs yield bytes; the Mistral URL yields the scripted
-// reply for the offer whose crop was fetched last (calls are sequential).
+// A fake fetch: image URLs yield bytes; Vision gets the scripted JSON reply and
+// OCR gets optional deterministic markdown for the same crop.
 function fakeFetch(replies) {
   let lastImg = null;
   const calls = { images: 0, api: 0 };
@@ -106,9 +125,14 @@ function fakeFetch(replies) {
       calls.api += 1;
       const r = replies[lastImg];
       if (r === 'TRANSPORT') return { ok: false, status: 429, text: async () => 'rate limited' };
+      if (String(url).endsWith('/ocr')) {
+        const markdown = r && typeof r === 'object' ? r.ocr || '' : '';
+        return { ok: true, json: async () => ({ pages: markdown ? [{ markdown }] : [] }) };
+      }
+      const vision = r && typeof r === 'object' ? r.vision : r;
       return {
         ok: true,
-        json: async () => ({ choices: [{ message: { content: r } }] }),
+        json: async () => ({ choices: [{ message: { content: vision } }] }),
       };
     }
     calls.images += 1;
@@ -128,8 +152,8 @@ console.log('drain:');
 {
   const store = memEnrichStore();
   store.setDebris([
-    { id: 'a:1', image_url: 'http://cdn/a.jpg', search_text: 'tanzanian mutton whole kg' },
-    { id: 'a:2', image_url: 'http://cdn/b.jpg', search_text: 'debris only' },
+    { id: 'a:1', image_url: 'http://cdn/a.jpg', search_text: 'D4D TEXT MUST BE IGNORED' },
+    { id: 'a:2', image_url: 'http://cdn/b.jpg', search_text: 'D4D TEXT MUST BE IGNORED' },
   ]);
   const replies = {
     'http://cdn/a.jpg': '{"name_en":"Tanzanian Mutton","name_ar":"خروف تنزاني","brand":null,"size":"7-9kg","confidence":0.98}',
@@ -143,10 +167,73 @@ console.log('drain:');
   );
   check('one enriched, one declined', report.enriched === 1 && report.declined === 1);
   check('both verdicts stored', store.rows.size === 2);
-  check('enriched row corroborated', store.rows.get('a:1').corroboration >= CORROBORATION_FLOOR);
+  check('drain reports extraction request diagnostics',
+    report.extraction.strategy === 'vision-first' &&
+    report.extraction.visionRequests === 2 && report.extraction.ocrRequests === 2 &&
+    report.extraction.averageRequestsPerOffer === 2);
+  check('drain persists the already-built candidate for the Registry invocation',
+    report.identityBuilder.mode === 'strict' && report.identityBuilder.built === 2
+      && store.rows.get('a:1').identity_candidate?.family === 'Lamb');
+  check('validated crop extraction clears the canonical serving gate', store.rows.get('a:1').corroboration === 1);
   check('declined row has null names', store.rows.get('a:2').name == null && store.rows.get('a:2').name_ar == null);
   const again = await drainEnrichment({ enrichStore: store, mistralKey: 'k' }, { currentOn: '2026-07-18' });
-  check('attempted offers never re-drain (incl. declines)', again.scanned === 0 && f.calls.api === 2);
+  check('attempted offers never re-drain (incl. declines)', again.scanned === 0 && f.calls.api === 4);
+}
+
+// Runtime strategy integration: the guarded production route can override the
+// environment policy without changing code, and the stored row contract stays
+// exactly the same.
+{
+  const store = memEnrichStore();
+  store.setDebris([{ id: 'strategy:1', image_url: 'http://cdn/strategy.jpg' }]);
+  globalThis.fetch = fakeFetch({
+    'http://cdn/strategy.jpg': {
+      vision: '{"name_en":"must not run","name_ar":null,"brand":null,"size":null}',
+      ocr: '# Sadia Chicken\n# دجاج ساديا\n900 g',
+    },
+  });
+  const response = await handleRequest(new Request('http://x/enrich?strategy=ocr-only&identityMode=relaxed', {
+    method: 'POST',
+    headers: { 'X-Ingest-Secret': 'secret' },
+  }), {
+    ingestSecret: 'secret',
+    enrichStore: store,
+    mistralKey: 'k',
+    extractionStrategy: 'vision-only',
+  });
+  const body = await response.json();
+  check('guarded /enrich accepts a runtime strategy override',
+    response.status === 200 && body.extraction.strategy === 'ocr-only' &&
+    body.extraction.visionRequests === 0 && body.extraction.ocrRequests === 1);
+  check('guarded /enrich accepts runtime Identity Builder mode',
+    body.identityBuilder.mode === 'relaxed' && body.identityBuilder.built === 1);
+  check('OCR-only route preserves legacy fields and adds the candidate contract',
+    store.rows.get('strategy:1')?.name === 'Sadia Chicken' &&
+    store.rows.get('strategy:1')?.brand === 'Sadia' &&
+    store.rows.get('strategy:1')?.identity_candidate?.family === 'Chicken');
+}
+{
+  const store = memEnrichStore();
+  store.setDebris([{ id: 'a:no-ocr', image_url: 'http://cdn/no-ocr.jpg', search_text: 'halah oil' }]);
+  globalThis.fetch = fakeFetch({
+    'http://cdn/no-ocr.jpg': '{"name_en":"Halah Oil","name_ar":null,"brand":"Halah","confidence":0.9}',
+  });
+  await drainEnrichment({ enrichStore: store, mistralKey: 'k' }, { currentOn: '2026-07-18' });
+  check('D4D OCR cannot influence validated serving eligibility',
+    store.rows.get('a:no-ocr').corroboration === 1);
+}
+{
+  const store = memEnrichStore([{ id: 'historical:1', name: 'Old Name', corroboration: 1 }]);
+  store.setDebris([{ id: 'historical:1', image_url: 'http://cdn/historical.jpg' }]);
+  globalThis.fetch = fakeFetch({
+    'http://cdn/historical.jpg': '{"name_en":"Sadia Chicken Breast","name_ar":"صدور دجاج ساديا","brand":"Sadia","size":"900 g","confidence":0.9}',
+  });
+  const report = await drainEnrichment(
+    { enrichStore: store, mistralKey: 'k' },
+    { currentOn: '2026-07-18', offerIds: ['historical:1'], strategy: 'vision-only' },
+  );
+  check('selective historical re-enrichment is explicit-ID only',
+    report.scanned === 1 && store.rows.get('historical:1').name === 'Sadia Chicken Breast');
 }
 {
   const store = memEnrichStore();
@@ -189,6 +276,21 @@ console.log('drain:');
 {
   const res = await enrichOffer({ id: 'x', name: 'Named', nameAr: null, imageUrl: 'http://c/i.jpg' }, { apiKey: 'k' });
   check('enrichOffer refuses non-debris offers', res === null);
+}
+{
+  const fetchImpl = fakeFetch({
+    'http://c/identity.jpg': '{"name_en":"Fresh Chicken Breast","name_ar":"صدور دجاج طازجة","brand":"Sadia","size":"900g","confidence":0.9}',
+  });
+  const res = await enrichOffer(
+    { id: 'identity', name: null, nameAr: null, imageUrl: 'http://c/identity.jpg' },
+    { apiKey: 'k', fetchImpl, identityNormalizationMode: 'strict' },
+  );
+  check('production enrichment returns an internal Identity Candidate',
+    res.identityCandidate.family === 'Chicken' && res.identityCandidate.cut === 'Breast' &&
+    res.identityCandidate.processing === 'Fresh' && res.identityCandidate.size.value === 900);
+  check('Identity Candidate is diagnostic-only beside the unchanged enrichment fields',
+    res.name === 'Fresh Chicken Breast' && res.nameAr === 'صدور دجاج طازجة' &&
+    res.identityDiagnostics.extractionInput.productName === 'Fresh Chicken Breast');
 }
 
 // --- applyEnrichment (the ONE shared overlay) -----------------------------------

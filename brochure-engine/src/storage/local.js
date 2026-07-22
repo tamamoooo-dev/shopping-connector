@@ -116,6 +116,14 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
         .slice(0, Math.max(1, Math.min(Number(limit) || 15, 50)))
         .map((o) => ({ id: o.id, image_url: o.image_url, search_text: o.search_text }));
     },
+    async listSelected({ ids, currentOn } = {}) {
+      const selected = new Set((ids || []).map(String));
+      return (await listOffers())
+        .filter((o) => selected.has(o.id) && o.image_url &&
+          (!currentOn || (o.valid_to && o.valid_to >= currentOn)))
+        .slice(0, 50)
+        .map((o) => ({ id: o.id, image_url: o.image_url }));
+    },
     async countDebris(currentOn, scope = 'all') {
       return (await this.listDebris({ currentOn, limit: 50, scope })).length;
     },
@@ -147,6 +155,11 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
           confidence: r.confidence ?? null, corroboration: r.corroboration ?? null,
           model: r.model ?? null, crop_url: r.crop_url ?? null,
           enriched_at: r.enriched_at, match_text: visionMatchText(r),
+          identity_candidate: r.identity_candidate == null
+            ? null
+            : JSON.stringify(r.identity_candidate),
+          identity_candidate_version: r.identity_candidate_version
+            ?? (r.identity_candidate == null ? null : 'identity-candidate-v1'),
           mint_verdict: null, // a re-enrichment is re-resolved, like D1
         });
       }
@@ -192,6 +205,82 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
         const e = rows.get(id);
         if (e) e.mint_verdict = verdict;
       }
+    },
+    async listPendingReviews(limit = 50) {
+      const byId = new Map((await listOffers()).map((o) => [o.id, o]));
+      const out = [];
+      for (const e of rows.values()) {
+        if (e.mint_verdict !== 'review') continue;
+        const o = byId.get(e.id);
+        if (!o) continue;
+        out.push({
+          offer_id: o.id, product_id: null, match_band: 'review',
+          match_score: null, corroboration: null,
+          store: o.store, region: o.region,
+          week: o.valid_from || String(o.detected_at || '').slice(0, 10),
+          price: o.price, old_price: o.old_price ?? null,
+          resolved_at: e.enriched_at,
+          o_image_url: o.image_url ?? null, o_source_url: o.source_url ?? null,
+          o_search_text: o.search_text ?? null,
+          p_display_name: null, p_display_name_ar: null,
+          identity_candidate: e.identity_candidate,
+          identity_candidate_version: e.identity_candidate_version,
+          review_state: 'pending', trusted: 0,
+        });
+        if (out.length >= limit) break;
+      }
+      return out;
+    },
+    async getPendingReview(offerId) {
+      const e = rows.get(offerId);
+      if (!e || e.mint_verdict !== 'review') return null;
+      const o = (await listOffers()).find((row) => row.id === offerId);
+      if (!o) return null;
+      return {
+        offer_id: o.id, store: o.store, region: o.region, source: o.source,
+        price: o.price, old_price: o.old_price ?? null,
+        week: o.valid_from || String(o.detected_at || '').slice(0, 10),
+        identity_candidate: e.identity_candidate,
+        identity_candidate_version: e.identity_candidate_version,
+      };
+    },
+    async historicalCandidateRows(ids) {
+      const selected = new Set((ids || []).map(String));
+      return [...rows.values()].filter((row) => selected.has(row.id)).map((row) => ({
+        ...row,
+        has_sighting: 0,
+      }));
+    },
+    async stageHistoricalCandidates(staged) {
+      for (const row of staged) {
+        const current = rows.get(row.id);
+        if (!current) continue;
+        current.identity_candidate = JSON.stringify(row.identity_candidate);
+        current.identity_candidate_version = row.identity_candidate_version || 'identity-candidate-v1';
+      }
+      return { staged: staged.length };
+    },
+    async activateHistoricalCandidates(ids) {
+      let activated = 0;
+      for (const id of ids || []) {
+        const row = rows.get(id);
+        if (!row || row.identity_candidate == null) continue;
+        row.mint_verdict = null;
+        activated += 1;
+      }
+      return { activated };
+    },
+    async rollbackHistoricalCandidates(snapshot) {
+      let restored = 0;
+      for (const prior of snapshot || []) {
+        const row = rows.get(prior.id);
+        if (!row) continue;
+        row.identity_candidate = prior.identity_candidate ?? null;
+        row.identity_candidate_version = prior.identity_candidate_version ?? null;
+        row.mint_verdict = prior.mint_verdict ?? null;
+        restored += 1;
+      }
+      return { restored };
     },
     async resetVerdicts(ids) {
       for (const id of ids) {

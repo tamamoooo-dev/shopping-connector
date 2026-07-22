@@ -52,7 +52,14 @@ const feedRow = (id, over = {}) => ({
   search_text: 'halah sunflower oil ocr', price: 21.9, old_price: null,
   valid_from: '2026-07-08', detected_at: '2026-07-08T06:00:00Z',
   e_name: 'Halah Pure Sunflower Oil', e_name_ar: null, e_brand: 'Halah',
-  e_size: '1.5L x 2', e_corroboration: 0.9, ...over,
+  e_size: '1.5L x 2', e_corroboration: 0.9,
+  identity_candidate: JSON.stringify({
+    brand: 'Halah', family: 'Oil', cut: null, processing: 'Refined', variety: null,
+    package: { type: 'Bottle', expression: '2x1.5 l' },
+    size: { value: 1.5, unit: 'l' }, count: 2,
+  }),
+  identity_candidate_version: 'identity-candidate-v1',
+  ...over,
 });
 
 // --- resolution drain -----------------------------------------------------------
@@ -65,17 +72,17 @@ console.log('drainResolution:');
       valid_from: '2026-07-15', search_text: 'sunflower oil halah ocr w2',
       e_name: 'Sunflower Oil Halah', price: 20.9,
     }),
-    feedRow('o:shaky', { e_corroboration: 0.1, e_name: 'Hallucinated Thing' }),
-    feedRow('o:decl', { e_name: null, e_name_ar: null }),
+    feedRow('o:shaky', { identity_candidate: '{bad json' }),
+    feedRow('o:decl', { identity_candidate: null, identity_candidate_version: null }),
   ]);
   const rep = await drainResolution({ enrichStore: feed, registryStore: registry }, { limit: 50, currentOn: '2026-07-18' });
   check('scanned all four', rep.scanned === 4);
   check('wobble pair converged: 1 created + 1 attached, ONE product',
     rep.created === 1 && rep.attached === 1 && registry._products.size === 1);
-  check('defer verdicts stamped, sightings only for resolved',
-    rep.deferred === 2 && registry._sightings.size === 2);
+  check('invalid/missing candidates go to Review without trusted sightings',
+    rep.reviewed === 2 && rep.deferred === 0 && registry._sightings.size === 2);
   check('verdict counters (§3.1)',
-    rep.verdicts.minted === 2 && rep.verdicts.low_corroboration === 1 && rep.verdicts.declined === 1);
+    rep.verdicts.minted === 2 && rep.verdicts.review === 2);
   check('every row stamped exactly once', feed._verdicts.size === 4);
 
   const rep2 = await drainResolution({ enrichStore: feed, registryStore: registry }, { limit: 50, currentOn: '2026-07-18' });
@@ -239,6 +246,13 @@ console.log('/offers canonical siblings:');
     !res.offers.some((o) => o.id === 'o:review'));
   check('brand guard: a different-brand sighting on the same productId is refused',
     !res.offers.some((o) => o.id === 'o:alsafi'));
+
+  ctx.offerStore.search = async () => [uncertainSibling];
+  const directReview = await (await handleRequest(
+    new Request('http://x/offers?q=green+beans'), ctx,
+  )).json();
+  check('direct review-band result never exposes a Known Product ID',
+    directReview.offers[0]?.matchBand === 'review' && directReview.offers[0]?.productId == null);
 }
 
 // The production failure shape: a lexically-correct chicken hit was itself

@@ -1,20 +1,20 @@
 // registry/drain.js — the RESOLUTION drain (REGISTRY-DESIGN.md §2): resolve
-// every unprocessed enrichment on a current offer into the registry. Runs as
+// every persisted Identity Candidate on a current offer into the registry. Runs as
 // the post-step of the /enrich drain child and standalone via POST /resolve
 // (the backlog/backfill path). D1-only — zero external fetches, zero new
 // scheduling machinery; the drain children already run sequentially, so the
 // resolver's single-writer assumption (§2) holds.
 //
-// Every enrichment row is processed EXACTLY ONCE: the drain feeds on
+// Every candidate row is processed EXACTLY ONCE: the drain feeds on
 // mint_verdict IS NULL and stamps a verdict on every row it touches
 // (IDENTITY-V2 §3.1 — every exclusion recorded, never silent). Servable reads
 // resolve through the four outcomes (attach/review/create/defer); non-servable
 // ones are stamped with their defer verdict and skipped forever. Re-runs are
 // no-ops end to end (verdict feed + the sighting PK).
 
-import { resolveOffer } from './resolver.js';
+import { resolveIdentityCandidate } from './resolver.js';
 import { applyDecision } from './apply.js';
-import { observationFromOffer } from './read.js';
+import { observationFromIdentityCandidate } from './candidate.js';
 
 export async function drainResolution(
   { enrichStore, registryStore },
@@ -58,23 +58,25 @@ export async function drainResolution(
   };
   const verdicts = [];
   for (const r of rows) {
-    const offer = {
-      id: r.id, store: r.store, region: r.region, source: r.source,
-      category: r.category, search_text: r.search_text,
-      price: r.price, old_price: r.old_price,
-      valid_from: r.valid_from, detected_at: r.detected_at,
-    };
-    const enrichment = {
-      name: r.e_name, name_ar: r.e_name_ar, brand: r.e_brand,
-      size: r.e_size, corroboration: r.e_corroboration,
+    const context = {
+      offerId: r.id,
+      store: r.store,
+      region: r.region,
+      source: r.source,
+      price: r.price,
+      oldPrice: r.old_price,
+      week: r.valid_from || String(r.detected_at || '').slice(0, 10),
     };
     try {
-      const decision = await resolveOffer(
-        offer, enrichment, registryStore, resolveOpts,
+      const decision = await resolveIdentityCandidate(
+        r.identity_candidate,
+        context,
+        registryStore,
+        { ...resolveOpts, version: r.identity_candidate_version },
       );
       const applied = await applyDecision(
         decision,
-        observationFromOffer(offer, enrichment),
+        observationFromIdentityCandidate(context, decision.candidate),
         registryStore,
       );
       if (applied.applied === 'attach') report.attached += 1;
@@ -82,8 +84,11 @@ export async function drainResolution(
       else if (applied.applied === 'create') report.created += 1;
       else if (applied.applied === 'defer') report.deferred += 1;
       else report.noop += 1;
-      verdicts.push({ id: r.id, verdict: decision.verdict });
-      report.verdicts[decision.verdict] = (report.verdicts[decision.verdict] || 0) + 1;
+      const verdict = decision.outcome === 'review'
+        ? 'review'
+        : decision.candidateVerdict === 'minted' ? decision.verdict : decision.candidateVerdict;
+      verdicts.push({ id: r.id, verdict });
+      report.verdicts[verdict] = (report.verdicts[verdict] || 0) + 1;
     } catch (err) {
       // A single bad row must not stall the feed forever: record the error,
       // leave the row unstamped (retried next drain), continue.

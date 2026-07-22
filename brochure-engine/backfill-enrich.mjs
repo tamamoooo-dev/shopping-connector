@@ -19,7 +19,7 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { enrichWithFailover, corroboration } from './src/offers/enrich.js';
+import { enrichWithFailover } from './src/offers/enrich.js';
 import { createKeyChain } from './src/offers/mistralKeys.js';
 import { visionMatchText } from './src/storage/enrichStore.js';
 import { loadMistralKeys } from './local-secrets.mjs';
@@ -68,7 +68,7 @@ const SCOPE = process.argv[2] === 'debris' ? 'debris' : 'all';
 const scopeWhere = SCOPE === 'debris' ? 'AND o.name IS NULL AND o.name_ar IS NULL' : '';
 console.log(`Reading current ${SCOPE === 'debris' ? 'debris ' : ''}offers (minus already-attempted)…`);
 const debris = d1(
-  `SELECT o.id, o.image_url, o.search_text
+  `SELECT o.id, o.image_url
      FROM offers o LEFT JOIN offer_enrichments e ON e.id = o.id
     WHERE e.id IS NULL ${scopeWhere}
       AND o.image_url IS NOT NULL AND o.valid_to >= '${today}'`,
@@ -106,12 +106,14 @@ for (const d of debris) {
       );
     } else {
       enriched += 1;
-      const cor = corroboration(rec, d.search_text);
+      // Crop-only isolation: no D4D or local OCR enters extraction/acceptance.
+      // The historical backfill remains disabled for this validation phase.
+      const cor = null;
       // match_text mirrors enrichStore.upsertMany — backfilled rows are
       // vision-searchable immediately, no reindex wait.
       const mt = visionMatchText({ name: rec.name, name_ar: rec.nameAr, brand: rec.brand });
       batch.push(
-        `INSERT OR REPLACE INTO offer_enrichments (id, name, name_ar, brand, size, confidence, corroboration, model, crop_url, enriched_at, match_text) VALUES (${sq(d.id)}, ${sq(rec.name)}, ${sq(rec.nameAr)}, ${sq(rec.brand)}, ${sq(rec.size)}, ${rec.confidence}, ${cor.toFixed(3)}, ${sq(rec.model)}, ${sq(rec.cropUrl)}, ${sq(rec.enrichedAt)}, ${sq(mt)});`,
+        `INSERT OR REPLACE INTO offer_enrichments (id, name, name_ar, brand, size, confidence, corroboration, model, crop_url, enriched_at, match_text, identity_candidate, identity_candidate_version) VALUES (${sq(d.id)}, ${sq(rec.name)}, ${sq(rec.nameAr)}, ${sq(rec.brand)}, ${sq(rec.size)}, ${rec.confidence ?? 'NULL'}, ${cor == null ? 'NULL' : cor.toFixed(3)}, ${sq(rec.model)}, ${sq(rec.cropUrl)}, ${sq(rec.enrichedAt)}, ${sq(mt)}, ${sq(JSON.stringify(rec.identityCandidate))}, 'identity-candidate-v1');`,
       );
     }
     console.log(`${n}/${debris.length}  ${d.id}  ${rec ? '-> ' + (rec.name || rec.nameAr) : '(declined)'}`);

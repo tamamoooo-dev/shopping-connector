@@ -1,0 +1,356 @@
+{
+  "generated_at": "2026-07-22T01:48:56.504Z",
+  "sample_count": 50,
+  "samples_with_failure_signals": 18,
+  "category_counts": {
+    "Vision field validation rejection": 10,
+    "Vision missing or invalid required field": 13,
+    "Image quality": 4,
+    "OCR did not complete triggered field": 2
+  },
+  "samples": [
+    {
+      "benchmark_index": 1,
+      "source_index": 651,
+      "id": "aljazera:central:d4d:93167838",
+      "categories": [
+        "Vision field validation rejection"
+      ],
+      "details": [
+        {
+          "category": "Vision field validation rejection",
+          "detail": "size: Candidate is not accepted by the production size parser"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 2,
+      "source_index": 753,
+      "id": "almadina:central:d4d:93545889",
+      "categories": [
+        "Vision missing or invalid required field",
+        "Vision field validation rejection",
+        "Image quality"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "brand_missing_or_invalid: brand"
+        },
+        {
+          "category": "Vision field validation rejection",
+          "detail": "size: Candidate is not accepted by the production size parser"
+        },
+        {
+          "category": "Image quality",
+          "detail": "Difficult image proxy required OCR fallback"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 3,
+      "source_index": 460,
+      "id": "alwafa:central:d4d:93172608",
+      "categories": [
+        "Vision missing or invalid required field"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "english_product_name_missing_or_invalid: name_en"
+        },
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "brand_missing_or_invalid: brand"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 5,
+      "source_index": 892,
+      "id": "carrefour:central:d4d:93218136",
+      "categories": [
+        "Vision missing or invalid required field",
+        "Vision field validation rejection"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "english_product_name_missing_or_invalid: name_en"
+        },
+        {
+          "category": "Vision field validation rejection",
+          "detail": "size: Candidate is not accepted by the production size parser"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 9,
+      "source_index": 868,
+      "id": "grandhyper:central:d4d:93225402",
+      "categories": [
+        "Vision field validation rejection"
+      ],
+      "details": [
+        {
+          "category": "Vision field validation rejection",
+          "detail": "pack_count: Candidate lacks a bounded visible package-count expression"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 11,
+      "source_index": 272,
+      "id": "lulu:central:d4d:93281295",
+      "categories": [
+        "Vision missing or invalid required field"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "english_product_name_missing_or_invalid: name_en"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 17,
+      "source_index": 101,
+      "id": "ramez:central:d4d:93579768",
+      "categories": [
+        "Vision missing or invalid required field",
+        "OCR did not complete triggered field"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "english_product_name_missing_or_invalid: name_en"
+        },
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "brand_missing_or_invalid: brand"
+        },
+        {
+          "category": "OCR did not complete triggered field",
+          "detail": "english_product_name_missing_or_invalid: name_en"
+        },
+        {
+          "category": "OCR did not complete triggered field",
+          "detail": "brand_missing_or_invalid: brand"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 19,
+      "source_index": 543,
+      "id": "nesto:central:d4d:93535815",
+      "categories": [
+        "Vision missing or invalid required field",
+        "Vision field validation rejection"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "english_product_name_missing_or_invalid: name_en"
+        },
+        {
+          "category": "Vision field validation rejection",
+          "detail": "pack_count: Candidate lacks a bounded visible package-count expression"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 21,
+      "source_index": 878,
+      "id": "alwafa:central:d4d:93173550",
+      "categories": [
+        "Vision field validation rejection"
+      ],
+      "details": [
+        {
+          "category": "Vision field validation rejection",
+          "detail": "size: Candidate is not accepted by the production size parser"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 23,
+      "source_index": 453,
+      "id": "alwafa:central:d4d:93172509",
+      "categories": [
+        "Vision missing or invalid required field",
+        "Vision field validation rejection"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "brand_missing_or_invalid: brand"
+        },
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "required_field_validation_failure: brand"
+        },
+        {
+          "category": "Vision field validation rejection",
+          "detail": "brand: Candidate is promotional, price-only, specification-only, or identifier noise"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 24,
+      "source_index": 845,
+      "id": "lulu:central:d4d:93281661",
+      "categories": [
+        "Vision field validation rejection"
+      ],
+      "details": [
+        {
+          "category": "Vision field validation rejection",
+          "detail": "size: Candidate is not accepted by the production size parser"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 25,
+      "source_index": 164,
+      "id": "lulu:central:d4d:93282216",
+      "categories": [
+        "Vision missing or invalid required field",
+        "Image quality"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "english_product_name_missing_or_invalid: name_en"
+        },
+        {
+          "category": "Image quality",
+          "detail": "Difficult image proxy required OCR fallback"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 28,
+      "source_index": 860,
+      "id": "lulu:central:d4d:92778480",
+      "categories": [
+        "Vision missing or invalid required field",
+        "Image quality"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "english_product_name_missing_or_invalid: name_en"
+        },
+        {
+          "category": "Image quality",
+          "detail": "Difficult image proxy required OCR fallback"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 36,
+      "source_index": 4,
+      "id": "danube:central:d4d:93266673",
+      "categories": [
+        "Vision field validation rejection"
+      ],
+      "details": [
+        {
+          "category": "Vision field validation rejection",
+          "detail": "size: Candidate is promotional, price-only, specification-only, or identifier noise; Candidate is not accepted by the production size parser"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 39,
+      "source_index": 857,
+      "id": "lulu:central:d4d:93282276",
+      "categories": [
+        "Vision missing or invalid required field",
+        "Vision field validation rejection"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "product_name_missing: name_en, name_ar"
+        },
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "english_product_name_missing_or_invalid: name_en"
+        },
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "arabic_product_name_missing_or_invalid: name_ar"
+        },
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "required_field_validation_failure: name_ar"
+        },
+        {
+          "category": "Vision field validation rejection",
+          "detail": "name_ar: Candidate lacks required Arabic script evidence"
+        },
+        {
+          "category": "Vision field validation rejection",
+          "detail": "size: Candidate is not accepted by the production size parser"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 46,
+      "source_index": 859,
+      "id": "nesto:central:d4d:93187185",
+      "categories": [
+        "Vision missing or invalid required field"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "brand_missing_or_invalid: brand"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 49,
+      "source_index": 927,
+      "id": "marksave:central:d4d:93191415",
+      "categories": [
+        "Vision missing or invalid required field"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "brand_missing_or_invalid: brand"
+        }
+      ]
+    },
+    {
+      "benchmark_index": 50,
+      "source_index": 943,
+      "id": "marksave:central:d4d:93539499",
+      "categories": [
+        "Vision missing or invalid required field",
+        "OCR did not complete triggered field",
+        "Image quality"
+      ],
+      "details": [
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "english_product_name_missing_or_invalid: name_en"
+        },
+        {
+          "category": "Vision missing or invalid required field",
+          "detail": "brand_missing_or_invalid: brand"
+        },
+        {
+          "category": "OCR did not complete triggered field",
+          "detail": "brand_missing_or_invalid: brand"
+        },
+        {
+          "category": "Image quality",
+          "detail": "Difficult image proxy required OCR fallback"
+        }
+      ]
+    }
+  ]
+}

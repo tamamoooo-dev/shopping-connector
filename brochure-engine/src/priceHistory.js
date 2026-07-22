@@ -50,6 +50,8 @@ function fnv64(str) {
 // Derive the conservative cross-week identity of an offer, or null when the
 // name is too weak to trust (rule: never risk mixing two products' histories —
 // a skipped offer just builds no history yet, which the UI communicates).
+// Transitional analytics boundary: the returned `ph_*` key is never a
+// Registry Product ID or Registry input. See IDENTITY-OWNERSHIP.md.
 export function deriveIdentity(offer) {
   const matchText = normalizeText(`${offer.name || ''} ${offer.nameAr || ''}`);
   const tokens = matchText ? matchText.split(' ').filter(Boolean) : [];

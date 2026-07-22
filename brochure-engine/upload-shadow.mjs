@@ -13,7 +13,6 @@ import { execSync } from 'node:child_process';
 import { readFileSync, writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { corroboration } from './src/offers/enrich.js';
 
 const [jsonlPath, offersPath] = process.argv.slice(2);
 if (!jsonlPath || !offersPath) {
@@ -35,10 +34,11 @@ for (const line of readFileSync(jsonlPath, 'utf8').split('\n')) {
       `INSERT OR REPLACE INTO offer_enrichments (id, model, crop_url, enriched_at) VALUES (${sq(r.id)}, 'mistral-small-latest', ${sq(o.image_url)}, ${sq(now)});`,
     );
   } else {
-    // cor was computed at run time; recompute defensively if absent.
-    const cor = r.cor ?? corroboration({ name: r.name, nameAr: r.nameAr, brand: r.brand }, o.search_text);
+    // Shadow uploads are crop-only observations. D4D OCR is report-only and
+    // cannot authorize extracted fields; no local OCR evidence exists here.
+    const cor = null;
     rows.push(
-      `INSERT OR REPLACE INTO offer_enrichments (id, name, name_ar, brand, size, confidence, corroboration, model, crop_url, enriched_at) VALUES (${sq(r.id)}, ${sq(r.name)}, ${sq(r.nameAr)}, ${sq(r.brand)}, ${sq(r.size)}, ${r.confidence ?? 'NULL'}, ${Number(cor).toFixed(3)}, 'mistral-small-latest', ${sq(o.image_url)}, ${sq(now)});`,
+      `INSERT OR REPLACE INTO offer_enrichments (id, name, name_ar, brand, size, confidence, corroboration, model, crop_url, enriched_at) VALUES (${sq(r.id)}, ${sq(r.name)}, ${sq(r.nameAr)}, ${sq(r.brand)}, ${sq(r.size)}, ${r.confidence ?? 'NULL'}, ${cor == null ? 'NULL' : Number(cor).toFixed(3)}, 'mistral-small-latest', ${sq(o.image_url)}, ${sq(now)});`,
     );
   }
 }

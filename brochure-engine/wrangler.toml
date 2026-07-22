@@ -8,6 +8,15 @@ name = "brochure-engine"
 main = "src/index.js"
 compatibility_date = "2025-06-01"
 
+# Optional runtime extraction policy. Leave unset for the validated default
+# (`vision-first`), or configure in the Worker environment as one of:
+# vision-first, ocr-first, vision-only, ocr-only.
+# EXTRACTION_STRATEGY is read per invocation; changing it needs no code change.
+
+# Optional Identity Builder normalization policy: `strict` (default) or
+# `relaxed`. Configure IDENTITY_NORMALIZATION_MODE in the Worker environment.
+# The development-only debug panel additionally requires ENVIRONMENT=development.
+
 # Ingest cron (§6.3) — Architecture C: Self Service-Binding Fan-out.
 # Fires on the Saudi publication days (Tue & Wed) at 06:00 UTC (= 09:00 AST).
 # Each fire refreshes ALL stores TOGETHER: scheduled() fans out to one child

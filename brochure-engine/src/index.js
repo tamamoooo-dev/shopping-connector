@@ -16,6 +16,8 @@
 
 import { handleRequest } from './engine.js';
 import { handleOps } from './ops/console.js';
+import { handleIdentityBuilderDebug } from './offers/identityDebug.js';
+import { handleRegistryCandidateDebug } from './registry/debug.js';
 import {
   runFanOut,
   createServiceBindingDispatcher,
@@ -170,6 +172,13 @@ function buildContext(env) {
     // fails over to it if the primary becomes unusable (auth/persistent quota).
     // Unset ⇒ single-key chain ⇒ today's exact behavior. Never parallel quota.
     mistralKeyBackup: env.MISTRAL_API_KEY_BACKUP,
+    // Runtime extraction policy; normalized inside offers/enrich.js. Unset or
+    // invalid values safely retain the validated Vision First default.
+    extractionStrategy: env.EXTRACTION_STRATEGY,
+    // Identity Builder policy is independent from extraction strategy. It is
+    // pure normalization and defaults to strict when this variable is absent.
+    identityNormalizationMode: env.IDENTITY_NORMALIZATION_MODE,
+    isDevelopment: env.ENVIRONMENT === 'development',
     registryStore,
     self: env.SELF,
     crons: CRONS,
@@ -181,7 +190,10 @@ export default {
     const ctx = buildContext(env);
     // The Operations Console — a hidden, OPS_TOKEN-guarded admin subsystem
     // mounted at /__ops (ops/console.js). Returns null for any other path.
-    return (await handleOps(request, ctx)) ?? handleRequest(request, ctx);
+    return (await handleIdentityBuilderDebug(request, ctx))
+      ?? (await handleRegistryCandidateDebug(request, ctx))
+      ?? (await handleOps(request, ctx))
+      ?? handleRequest(request, ctx);
   },
 
   // Cron trigger (§6.3) — Architecture C: Self Service-Binding Fan-out.

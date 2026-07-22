@@ -1,0 +1,73 @@
+{
+  "report": "Mistral Vision cost benchmark",
+  "generated_at": "2026-07-21T20:15:00.000Z",
+  "scope": "standalone cost measurement only",
+  "model": "mistral-small-latest",
+  "endpoint": "POST /v1/chat/completions",
+  "configuration": "Existing buildVisionRequest configuration and prompt, unchanged.",
+  "execution": {
+    "sample_count": 50,
+    "requests_sent": 50,
+    "requests_per_image": 1,
+    "retries": 0,
+    "fallback_calls": 0,
+    "parallelism": 1,
+    "phase_order": 2,
+    "phase_started_after_ocr_metrics_recorded": true,
+    "last_request_ended_at": "2026-07-21T20:11:14.141Z",
+    "estimated_api_execution_elapsed_ms": 59600,
+    "estimated_average_latency_ms": 1192,
+    "retained_40_request_average_latency_ms": 1166.725,
+    "confirmed_http_200_responses": 40,
+    "first_batch_status_telemetry_retained": false,
+    "first_batch_execution_note": "The first 10-call runner completed without a shell failure, but its stdout was not emitted by the orchestration wrapper; it was not rerun."
+  },
+  "response_reported_usage": {
+    "retained_request_count": 40,
+    "retained_prompt_tokens": 36997,
+    "retained_completion_tokens": 2450,
+    "retained_total_tokens": 39447,
+    "full_50_request_token_total": null,
+    "note": "Response-level token telemetry for the first 10 requests was not retained. Account-level counters had not incorporated the Vision phase by the final poll."
+  },
+  "account_usage": {
+    "billing_mode": "free mode; no payment method",
+    "credit_balance_before_usd": 0,
+    "credit_balance_after_usd": 0,
+    "completion_cost_before_usd": 0,
+    "completion_cost_after_usd": 0,
+    "measured_credit_consumption_usd": 0,
+    "quota_usage_percent_before": null,
+    "quota_usage_percent_after": null,
+    "quota_note": "No monthly spending limit or quota percentage was exposed by the Mistral Admin account.",
+    "dashboard_tokens_before_phase": 16395652,
+    "dashboard_tokens_at_final_poll": 16395652,
+    "dashboard_final_poll_at": "2026-07-21T20:14:39.696Z",
+    "dashboard_delta_at_cutoff": 0,
+    "dashboard_reporting_lag_observed": true
+  },
+  "sample_manifest": {
+    "seed": "mistral-cost-benchmark-50-2026-07-21-v1",
+    "source": "../../validation/ocr-first-production-validation-1000-2026-07-21/sample-manifest.json",
+    "ordered_set_sha256": "9eb9c73cbd6f7995dd335e05447c94cf7864a06fe81aae448a63308930f8b499",
+    "identical_to_ocr_sample": true,
+    "retailer_count": 18,
+    "category_count": 49,
+    "language_distribution": { "arabic-only": 29, "bilingual": 19, "unlabeled": 2 },
+    "difficulty_distribution": { "easy": 21, "medium": 22, "difficult": 7 },
+    "source_indices": [651, 753, 460, 723, 892, 682, 221, 650, 868, 807, 272, 98, 227, 179, 12, 742, 101, 795, 543, 570, 878, 382, 453, 845, 164, 917, 516, 860, 619, 124, 688, 331, 552, 461, 976, 4, 733, 84, 857, 864, 765, 609, 581, 515, 709, 859, 918, 345, 927, 943],
+    "offer_ids": [
+      "aljazera:central:d4d:93167838", "almadina:central:d4d:93545889", "alwafa:central:d4d:93172608", "amarket:central:d4d:93222996", "carrefour:central:d4d:93218136", "cityflower:central:d4d:93141654", "danube:central:d4d:93267501", "farm:central:d4d:93148542", "grandhyper:central:d4d:93225402", "hyperpanda:central:d4d:93239019",
+      "lulu:central:d4d:93281295", "makkah:central:d4d:93547806", "marksave:central:d4d:93203448", "nesto:central:d4d:93212985", "othaim:central:d4d:93235122", "prime:central:d4d:93144711", "ramez:central:d4d:93579768", "tamimi:central:d4d:93154902", "nesto:central:d4d:93535815", "nesto:central:d4d:93195933",
+      "alwafa:central:d4d:93173550", "lulu:central:d4d:93280728", "alwafa:central:d4d:93172509", "lulu:central:d4d:93281661", "lulu:central:d4d:93282216", "tamimi:central:d4d:93156045", "tamimi:central:d4d:93154563", "lulu:central:d4d:92778480", "danube:central:d4d:93265977", "alwafa:central:d4d:93193317",
+      "tamimi:central:d4d:93155889", "marksave:central:d4d:93379602", "aljazera:central:d4d:93167502", "alwafa:central:d4d:93173541", "marksave:central:d4d:93192234", "danube:central:d4d:93266673", "alwafa:central:d4d:93170925", "amarket:central:d4d:93222339", "lulu:central:d4d:93282276", "nesto:central:d4d:93535107",
+      "prime:central:d4d:93127428", "marksave:central:d4d:93539697", "grandhyper:central:d4d:93225558", "prime:central:d4d:93127215", "othaim:central:d4d:93234324", "nesto:central:d4d:93187185", "nesto:central:d4d:93535914", "farm:central:d4d:93149721", "marksave:central:d4d:93191415", "marksave:central:d4d:93539499"
+    ]
+  },
+  "measurement_uncertainty": [
+    "The organization charged no credits, so this phase measures zero actual monetary consumption under free mode.",
+    "The Admin dashboard had not posted the approximately 50-request Vision token delta by the final bounded poll.",
+    "Ten response-level records were not retained; those requests were not repeated to preserve the one-call constraint.",
+    "No extraction quality judgment was performed."
+  ]
+}

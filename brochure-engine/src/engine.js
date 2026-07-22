@@ -363,8 +363,11 @@ export async function handleRequest(request, ctx) {
       for (const o of offers) {
         const s = sightings.get(o.id);
         if (s) {
-          o.productId = s.product_id;
           o.matchBand = s.match_band;
+          // Review-band edges remain operator evidence, never a Known Product
+          // assertion. Keeping productId absent prevents Compare, Watch, and
+          // other consumers from treating an untrusted review as canonical.
+          if (isTrustedCanonicalBand(s.match_band)) o.productId = s.product_id;
         }
       }
 
@@ -727,15 +730,22 @@ export async function handleRequest(request, ctx) {
     if (!ctx.enrichStore || !ctx.mistralKey) {
       return json({ error: 'Enrichment unavailable (no store or MISTRAL_API_KEY).' }, 503);
     }
-    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 15, 20));
+    // One crop fetch + Vision + possible OCR = at most three subrequests per
+    // offer. Cap at 16 so even forced OCR First stays within the Worker budget.
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 15, 16));
     // Scope (pipeline milestone): 'all' = every current offer with a crop
     // (full-catalog vision coverage, the default per the evaluation plan);
     // 'debris' = the original deriveNames-defeated subset only.
     const scope = url.searchParams.get('scope') === 'debris' ? 'debris' : 'all';
+    // Runtime-only extraction switch. The default is Vision First; operators
+    // can set EXTRACTION_STRATEGY on the Worker or override one guarded drain
+    // with ?strategy=vision-first|ocr-first|vision-only|ocr-only.
+    const strategy = url.searchParams.get('strategy') || ctx.extractionStrategy;
+    const identityNormalizationMode = url.searchParams.get('identityMode') || ctx.identityNormalizationMode;
     const t0 = Date.now();
     const report = await drainEnrichment(
       { enrichStore: ctx.enrichStore, mistralKey: ctx.mistralKey, mistralKeyBackup: ctx.mistralKeyBackup },
-      { limit, currentOn: todayISO(), scope },
+      { limit, currentOn: todayISO(), scope, strategy, identityNormalizationMode },
     );
     // ENRICHMENT ONLY (2026-07-20): resolution is DECOUPLED — it no longer rides
     // this child (the combined enrichment + resolution CPU tripped the per-
@@ -850,11 +860,17 @@ export async function handleRequest(request, ctx) {
     }
     if (!ctx.registryStore) return json({ error: 'Registry unavailable.' }, 503);
     const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 50, 200));
-    const [flagged, sightings] = await Promise.all([
+    const [flagged, sightings, pending] = await Promise.all([
       ctx.registryStore.listFlagged(limit),
       ctx.registryStore.listReviewSightings(limit),
+      ctx.enrichStore?.listPendingReviews
+        ? ctx.enrichStore.listPendingReviews(limit)
+        : Promise.resolve([]),
     ]);
-    return json({ flagged, reviewSightings: sightings });
+    // Keep the public operator contract unchanged: pending decisions and
+    // historical review-band sightings share the existing reviewSightings
+    // collection. `review_state`/`trusted` are additive diagnostics.
+    return json({ flagged, reviewSightings: [...pending, ...sightings].slice(0, limit) });
   }
 
   // Review actions (guarded): the bounded human loop the design accepts

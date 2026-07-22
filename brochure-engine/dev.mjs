@@ -15,6 +15,7 @@ import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { handleRequest, ingestAll } from './src/engine.js';
 import { handleOps } from './src/ops/console.js';
+import { handleIdentityBuilderDebug } from './src/offers/identityDebug.js';
 import { createPipeline } from './src/pipeline.js';
 import { createAggregatorCollector } from './src/collectors/aggregator.js';
 import { createOfficialLinkCollector } from './src/collectors/officialLink.js';
@@ -123,6 +124,11 @@ function buildContext() {
     // the console's in-process dev fallback.
     opsStore: createMemoryOpsStore(),
     opsToken: process.env.OPS_TOKEN || 'dev-ops',
+    mistralKey: process.env.MISTRAL_API_KEY || null,
+    mistralKeyBackup: process.env.MISTRAL_API_KEY_BACKUP || null,
+    extractionStrategy: process.env.EXTRACTION_STRATEGY,
+    identityNormalizationMode: process.env.IDENTITY_NORMALIZATION_MODE,
+    isDevelopment: true,
     self: undefined,
     crons: { pipeline: '0 6 * * 2,3,5', watches: '45 5 * * *' },
   };
@@ -135,11 +141,11 @@ const fail = (msg) => {
 
 const readJson = async (ctx, path) => (await handleRequest(new Request('http://local' + path), ctx)).json();
 
-// M1: PdfIndexCollector (Othaim). Proves detect -> download -> dedupe -> store
-// -> index -> expose for a PDF source. Scoped to Othaim so it stays a stable
-// regression check independent of the M2 aggregator stores.
+// M1: Othaim's production-preferred collector. Othaim prefers its D4D image
+// leaflet (hotspots + page deep links) and keeps the official PDF as fallback,
+// so this live gate verifies the canonical image result.
 async function selftestM1(ctx) {
-  console.log('=== M1: PdfIndexCollector (Othaim) ===');
+  console.log('=== M1: Othaim preferred live collector ===');
   console.log('--- run 1: detect -> download -> store -> index ---');
   const r1 = await ingestAll(ctx, { store: 'othaim' });
   console.log(JSON.stringify(r1.totals));
@@ -154,19 +160,24 @@ async function selftestM1(ctx) {
   const doc = read.brochures?.[0];
   if (!doc) fail('no Othaim brochure returned by read API');
   if (doc.store !== 'othaim' || doc.region !== 'central') fail('wrong store/region');
-  if (doc.sourceType !== 'pdf') fail('Othaim sourceType is not pdf');
-  if (!doc.pdfUrl?.includes('/api/pdfOffers/')) fail('pdfUrl not resolved from index');
+  if (doc.sourceType !== 'images') fail(`Othaim sourceType is '${doc.sourceType}', not 'images'`);
   if (!doc.checksum?.startsWith('sha256:')) fail('missing checksum');
 
-  const assetRes = await handleRequest(
-    new Request('http://local/asset/brochures/' + doc.storageKey + '/original.pdf'),
+  const metaRes = await handleRequest(
+    new Request('http://local/asset/brochures/' + doc.storageKey + '/meta.json'),
     ctx,
   );
-  const buf = new Uint8Array(await assetRes.arrayBuffer());
-  const magic = new TextDecoder().decode(buf.slice(0, 5));
-  console.log('asset:', assetRes.status, assetRes.headers.get('content-type'), buf.length, 'bytes', JSON.stringify(magic));
-  if (assetRes.status !== 200 || magic !== '%PDF-') fail('stored Othaim asset is not a served PDF');
-  console.log('✅ M1 verified: detect, download, dedupe, store, index, expose (PDF).\n');
+  const meta = await metaRes.json();
+  if (metaRes.status !== 200 || !meta.pages?.length) fail('stored Othaim leaflet has no pages');
+
+  const pageRes = await handleRequest(new Request('http://local/asset/' + meta.pages[0].imageUrl), ctx);
+  const buf = new Uint8Array(await pageRes.arrayBuffer());
+  const contentType = pageRes.headers.get('content-type') || '';
+  console.log('asset:', pageRes.status, contentType, buf.length, 'bytes');
+  if (pageRes.status !== 200 || !contentType.startsWith('image/') || buf.length === 0) {
+    fail('stored Othaim page is not a served image');
+  }
+  console.log('✅ M1 verified: detect, download, dedupe, store, index, expose (preferred images).\n');
 }
 
 // M2: AggregatorCollector (D4D adapter) for one store. Proves the image-set path
@@ -1040,7 +1051,7 @@ async function selftest() {
   await selftestMatching();
   await selftestWatches();
   await selftestOffersLive(ctx, store || 'lulu');
-  console.log('✅ ALL VERIFIED — M1 (PDF), M2 (D4D images), fallback (officialLink), Price History (Pillar 3), Structured Offers (contract+ingest+live), Retention, Matching, Price Monitoring — end-to-end.');
+  console.log('✅ ALL VERIFIED — M1 (Othaim preferred images), M2 (D4D images), fallback (officialLink), Price History (Pillar 3), Structured Offers (contract+ingest+live), Retention, Matching, Price Monitoring — end-to-end.');
 }
 
 if (process.argv[2] === 'selftest') {
@@ -1073,7 +1084,9 @@ if (process.argv[2] === 'selftest') {
         body: body.length ? body : undefined,
       });
       try {
-        const response = (await handleOps(request, ctx)) ?? (await handleRequest(request, ctx));
+        const response = (await handleIdentityBuilderDebug(request, ctx))
+          ?? (await handleOps(request, ctx))
+          ?? (await handleRequest(request, ctx));
         const body = Buffer.from(await response.arrayBuffer());
         res.writeHead(response.status, Object.fromEntries(response.headers));
         res.end(body);

@@ -92,6 +92,8 @@ export async function ingestOffersForTarget(ctx, provider, region) {
       // Stamp the derived cross-week identity (the SAME derivation the price
       // history harvest uses) so Browse can join an offer to its history with
       // one indexed lookup. Null when the OCR name is too weak — by design.
+      // Transitional Browse/legacy-history analytics only. This `ph_*` key is
+      // isolated from Registry's authoritative `pr_*` Product IDs.
       const ident = deriveIdentity(offer);
       offer.identity = ident ? ident.id : null;
       // Stamp the canonical brand (Browse's brand entry point). The weekly

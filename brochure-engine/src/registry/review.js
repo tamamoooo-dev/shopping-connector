@@ -18,9 +18,10 @@
 // Every action writes one ops-audit row — the same reversibility trail as
 // merges (§5.4 "logged").
 
-import { readFromOffer } from './read.js';
-import { servable } from '../offers/enrich.js';
-import { newProductRow, profileTokens, decodeProfile } from './model.js';
+import { candidateDisplayName, readFromIdentityCandidate } from './candidate.js';
+import {
+  MATCH_BAND, newProductRow, newSightingRow, profileTokens, decodeProfile,
+} from './model.js';
 
 export async function applyReviewAction(ctx, { action, productId, offerId, toProductId }) {
   const store = ctx.registryStore;
@@ -32,7 +33,8 @@ export async function applyReviewAction(ctx, { action, productId, offerId, toPro
     report = done ? { action, productId, done: true } : { error: 'Product not found.' };
   } else if (action === 'reassign') {
     if (!offerId || !toProductId) return { error: "reassign needs 'offerId' and 'toProductId'." };
-    const done = await store.reassignSighting(offerId, toProductId);
+    let done = await store.reassignSighting(offerId, toProductId);
+    if (!done) done = await assignPendingReview(ctx, offerId, toProductId);
     report = done
       ? { action, offerId, toProductId, done: true }
       : { error: 'Sighting or target product not found.' };
@@ -57,34 +59,55 @@ export async function applyReviewAction(ctx, { action, productId, offerId, toPro
   return report;
 }
 
-// Re-derive the sighting's read from its own enrichment row and found a new
+// Promote an isolated pending decision into the existing human-review band.
+// This is deliberately NOT an auto/created sighting: downstream consumers do
+// not trust it and the target profile learns nothing from it.
+async function assignPendingReview(ctx, offerId, toProductId) {
+  if (!ctx.enrichStore?.getPendingReview) return false;
+  const pending = await ctx.enrichStore.getPendingReview(offerId);
+  if (!pending) return false;
+  const target = (await ctx.registryStore.getProducts([toProductId]))[0];
+  if (!target || target.status === 'merged') return false;
+  const result = await ctx.registryStore.insertSighting(newSightingRow({
+    offerId,
+    productId: toProductId,
+    band: MATCH_BAND.REVIEW,
+    store: pending.store,
+    region: pending.region,
+    week: pending.week,
+    price: pending.price,
+    oldPrice: pending.old_price,
+  }));
+  return result?.inserted === true;
+}
+
+// Build the split product only from its persisted Identity Candidate.
 // product with it — the §5.4 split primitive. The offer row may already be
-// pruned; everything the read needs (names, brand, size, corroboration) lives
-// on the enrichment, and the observation context (store/region/week/price)
+// pruned; all identity evidence lives in the candidate, while sighting context
 // lives on the sighting itself (§1.3 denormalization pays off here).
 async function splitSighting(ctx, offerId) {
   const store = ctx.registryStore;
   const sighting = await store.getSighting(offerId);
-  if (!sighting) return { error: 'Sighting not found.' };
   if (!ctx.enrichStore) return { error: 'Enrichment store unavailable.' };
-  const enr = (await ctx.enrichStore.getForIds([offerId])).get(offerId);
-  if (!enr || !servable(enr)) {
+  const pending = sighting ? null : await ctx.enrichStore.getPendingReview?.(offerId);
+  if (!sighting && !pending) return { error: 'Sighting or pending Review item not found.' };
+  const enr = (await ctx.enrichStore.getForIds([offerId])).get(offerId) || pending;
+  if (!enr) {
     return { error: 'Enrichment no longer available for this offer — use reassign instead.' };
   }
-  const r = readFromOffer(
-    { id: offerId, store: sighting.store, region: sighting.region, category: null, search_text: '' },
-    enr,
-  );
+  const r = readFromIdentityCandidate(enr.identity_candidate, {
+    version: enr.identity_candidate_version,
+  });
   if (!r.ok) return { error: `Read no longer mints (${r.verdict}) — use reassign instead.` };
 
   const product = newProductRow({
     tokens: r.read.tokens,
-    week: sighting.week,
-    date: sighting.week,
-    store: sighting.store,
+    week: sighting?.week || pending.week,
+    date: sighting?.week || pending.week,
+    store: sighting?.store || pending.store,
     kind: r.read.kind,
-    displayName: enr.name ?? null,
-    displayNameAr: enr.name_ar ?? null,
+    displayName: candidateDisplayName(r.candidate),
+    displayNameAr: null,
     displayCorroboration: r.read.corroboration,
     brandText: r.read.brandText,
     sizeUnit: r.read.size?.unit ?? null,
@@ -94,7 +117,18 @@ async function splitSighting(ctx, offerId) {
     category: r.read.category,
   });
   await store.createProduct(product, profileTokens(decodeProfile(product.token_profile)));
-  const moved = await store.reassignSighting(offerId, product.id);
-  if (!moved) return { error: 'Sighting vanished mid-split.' };
+  const moved = sighting
+    ? await store.reassignSighting(offerId, product.id)
+    : (await store.insertSighting(newSightingRow({
+        offerId,
+        productId: product.id,
+        band: MATCH_BAND.REVIEW,
+        store: pending.store,
+        region: pending.region,
+        week: pending.week,
+        price: pending.price,
+        oldPrice: pending.old_price,
+      })))?.inserted === true;
+  if (!moved) return { error: 'Review item vanished mid-split.' };
   return { action: 'split', offerId, productId: product.id, done: true };
 }

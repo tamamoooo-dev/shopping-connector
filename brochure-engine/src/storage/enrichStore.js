@@ -3,14 +3,17 @@
 // enrichments describe — see offers/enrich.js for the discipline).
 //
 // Interface:
-//   listDebris({ currentOn, limit, scope }) -> Promise<{id, image_url, search_text}[]>
+//   listDebris({ currentOn, limit, scope }) -> Promise<{id, image_url}[]>
+//   listSelected({ ids, currentOn }) -> Promise<{id, image_url}[]>
 //   countDebris(currentOn, scope)    -> Promise<number>
 //   upsertMany(rows)                 -> Promise<{ stored }>   (idempotent)
 //   getForIds(ids)                   -> Promise<Map<id, row>>
 //   pruneOrphans()                   -> Promise<number>
-//   listUnresolved({ currentOn, limit }) -> Promise<joined rows>  (registry drain)
+//   listUnresolved({ currentOn, limit }) -> Promise<candidate + context rows>
 //   setVerdicts(pairs)               -> Promise<void>  (mint_verdict stamps)
 //   resetVerdicts(ids)               -> Promise<void>  (re-enter the feed)
+//   listPendingReviews(limit)         -> Promise<unassigned review rows[]>
+//   getPendingReview(id)              -> Promise<candidate + offer context|null>
 //   reindexMatchText(limit)          -> Promise<number> (heal missing match_text)
 //
 // SCOPE (pipeline-flag milestone, 2026-07-18): 'debris' is the original gate —
@@ -25,6 +28,8 @@
 
 import { normalizeText } from '../matching.js';
 import { CORROBORATION_FLOOR } from '../offers/enrich.js';
+
+export const IDENTITY_CANDIDATE_STORAGE_VERSION = 'identity-candidate-v1';
 
 // --- the ONE canonical-identity gate, SQL side ---------------------------------
 // Vision-canonical directive (2026-07-21): every read path — Search, Browse,
@@ -61,14 +66,17 @@ export function createD1EnrichStore(db) {
   const upsertStmt = `
     INSERT INTO offer_enrichments
       (id, name, name_ar, brand, size, confidence, corroboration, model,
-       crop_url, enriched_at, match_text, mint_verdict)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,NULL)
+       crop_url, enriched_at, match_text, identity_candidate,
+       identity_candidate_version, mint_verdict)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)
     ON CONFLICT(id) DO UPDATE SET
       name=excluded.name, name_ar=excluded.name_ar, brand=excluded.brand,
       size=excluded.size, confidence=excluded.confidence,
       corroboration=excluded.corroboration, model=excluded.model,
       crop_url=excluded.crop_url, enriched_at=excluded.enriched_at,
       match_text=excluded.match_text,
+      identity_candidate=excluded.identity_candidate,
+      identity_candidate_version=excluded.identity_candidate_version,
       mint_verdict=NULL`; // a re-enrichment is re-resolved (idempotent: the
                           // sighting PK makes a re-resolve of a sighted offer
                           // a verdict re-stamp and nothing else)
@@ -77,13 +85,31 @@ export function createD1EnrichStore(db) {
     async listDebris({ currentOn, limit = 15, scope = 'all' } = {}) {
       const { results } = await db
         .prepare(
-          `SELECT o.id, o.image_url, o.search_text
+          `SELECT o.id, o.image_url
              FROM offers o LEFT JOIN offer_enrichments e ON e.id = o.id
             WHERE e.id IS NULL ${SCOPE_WHERE[scope] ?? SCOPE_WHERE.all}
               AND o.image_url IS NOT NULL AND o.valid_to >= ?
             ORDER BY o.detected_at DESC LIMIT ?`,
         )
         .bind(currentOn, Math.max(1, Math.min(Number(limit) || 15, 50)))
+        .all();
+      return results || [];
+    },
+
+    // Explicit allowlist used only by staged historical re-enrichment. Unlike
+    // listDebris it may return an already-enriched crop, but never widens past
+    // the supplied IDs and never mutates Registry state itself.
+    async listSelected({ ids, currentOn } = {}) {
+      const selected = [...new Set((ids || []).map(String).filter(Boolean))].slice(0, 50);
+      if (!selected.length) return [];
+      const { results } = await db
+        .prepare(
+          `SELECT id, image_url FROM offers
+            WHERE id IN (${selected.map(() => '?').join(',')})
+              AND image_url IS NOT NULL AND valid_to >= ?
+            ORDER BY detected_at DESC`,
+        )
+        .bind(...selected, currentOn)
         .all();
       return results || [];
     },
@@ -146,6 +172,10 @@ export function createD1EnrichStore(db) {
                 r.size ?? null, r.confidence ?? null, r.corroboration ?? null,
                 r.model ?? null, r.crop_url ?? null, r.enriched_at,
                 visionMatchText(r),
+                r.identity_candidate == null ? null : JSON.stringify(r.identity_candidate),
+                r.identity_candidate_version ?? (r.identity_candidate == null
+                  ? null
+                  : IDENTITY_CANDIDATE_STORAGE_VERSION),
               ),
           ),
         );
@@ -187,10 +217,9 @@ export function createD1EnrichStore(db) {
     async listUnresolved({ currentOn, limit = 50 } = {}) {
       const { results } = await db
         .prepare(
-          `SELECT o.id, o.store, o.region, o.source, o.category, o.search_text,
+          `SELECT o.id, o.store, o.region, o.source,
                   o.price, o.old_price, o.valid_from, o.detected_at,
-                  e.name AS e_name, e.name_ar AS e_name_ar, e.brand AS e_brand,
-                  e.size AS e_size, e.corroboration AS e_corroboration
+                  e.identity_candidate, e.identity_candidate_version
              FROM offer_enrichments e JOIN offers o ON o.id = e.id
             WHERE e.mint_verdict IS NULL AND o.valid_to >= ?
             ORDER BY o.detected_at DESC LIMIT ?`,
@@ -211,6 +240,131 @@ export function createD1EnrichStore(db) {
           ),
         );
       }
+    },
+
+    // Review decisions are persisted by the existing mint_verdict journal,
+    // not by manufacturing a product_sighting. This keeps them actionable in
+    // the operator queue while preserving the core invariant that every
+    // product_sighting already has a Registry Product ID.
+    async listPendingReviews(limit = 50) {
+      const { results } = await db
+        .prepare(
+          `SELECT o.id AS offer_id, NULL AS product_id, 'review' AS match_band,
+                  NULL AS match_score, NULL AS corroboration,
+                  o.store, o.region,
+                  COALESCE(o.valid_from, substr(o.detected_at, 1, 10)) AS week,
+                  o.price, o.old_price, e.enriched_at AS resolved_at,
+                  o.image_url AS o_image_url, o.source_url AS o_source_url,
+                  o.search_text AS o_search_text,
+                  NULL AS p_display_name, NULL AS p_display_name_ar,
+                  e.identity_candidate, e.identity_candidate_version,
+                  'pending' AS review_state, 0 AS trusted
+             FROM offer_enrichments e
+             JOIN offers o ON o.id = e.id
+             LEFT JOIN product_sightings s ON s.offer_id = e.id
+            WHERE e.mint_verdict = 'review' AND s.offer_id IS NULL
+            ORDER BY e.enriched_at DESC LIMIT ?`,
+        )
+        .bind(Math.max(1, Math.min(Number(limit) || 50, 200)))
+        .all();
+      return results || [];
+    },
+
+    async getPendingReview(offerId) {
+      return db
+        .prepare(
+          `SELECT o.id AS offer_id, o.store, o.region, o.source,
+                  o.price, o.old_price,
+                  COALESCE(o.valid_from, substr(o.detected_at, 1, 10)) AS week,
+                  e.identity_candidate, e.identity_candidate_version
+             FROM offer_enrichments e
+             JOIN offers o ON o.id = e.id
+             LEFT JOIN product_sightings s ON s.offer_id = e.id
+            WHERE e.id = ? AND e.mint_verdict = 'review'
+              AND s.offer_id IS NULL`,
+        )
+        .bind(offerId)
+        .first();
+    },
+
+    // Historical rollout primitives. Staging writes only the candidate
+    // contract and intentionally leaves mint_verdict untouched. Activation is
+    // guarded in SQL so an offer with any existing Registry sighting can never
+    // be re-resolved or have its trusted Product ID changed.
+    async historicalCandidateRows(ids) {
+      const selected = [...new Set((ids || []).map(String).filter(Boolean))].slice(0, 200);
+      if (!selected.length) return [];
+      const { results } = await db
+        .prepare(
+          `SELECT e.id, e.name, e.name_ar, e.brand, e.size, e.confidence,
+                  e.identity_candidate, e.identity_candidate_version,
+                  e.mint_verdict,
+                  CASE WHEN s.offer_id IS NULL THEN 0 ELSE 1 END AS has_sighting
+             FROM offer_enrichments e
+             LEFT JOIN product_sightings s ON s.offer_id = e.id
+            WHERE e.id IN (${selected.map(() => '?').join(',')})`,
+        )
+        .bind(...selected)
+        .all();
+      return results || [];
+    },
+
+    async stageHistoricalCandidates(rows) {
+      for (let i = 0; i < rows.length; i += 60) {
+        await db.batch(rows.slice(i, i + 60).map((row) => db
+          .prepare(
+            `UPDATE offer_enrichments
+                SET identity_candidate = ?, identity_candidate_version = ?
+              WHERE id = ?`,
+          )
+          .bind(
+            row.identity_candidate == null ? null : JSON.stringify(row.identity_candidate),
+            row.identity_candidate_version ?? IDENTITY_CANDIDATE_STORAGE_VERSION,
+            row.id,
+          )));
+      }
+      return { staged: rows.length };
+    },
+
+    async activateHistoricalCandidates(ids) {
+      let activated = 0;
+      for (const id of [...new Set((ids || []).map(String).filter(Boolean))].slice(0, 200)) {
+        const result = await db
+          .prepare(
+            `UPDATE offer_enrichments SET mint_verdict = NULL
+              WHERE id = ? AND identity_candidate IS NOT NULL
+                AND NOT EXISTS (
+                  SELECT 1 FROM product_sightings s WHERE s.offer_id = offer_enrichments.id
+                )`,
+          )
+          .bind(id)
+          .run();
+        activated += result?.meta?.changes || 0;
+      }
+      return { activated };
+    },
+
+    async rollbackHistoricalCandidates(snapshot) {
+      let restored = 0;
+      for (const row of snapshot || []) {
+        const result = await db
+          .prepare(
+            `UPDATE offer_enrichments
+                SET identity_candidate = ?, identity_candidate_version = ?, mint_verdict = ?
+              WHERE id = ? AND NOT EXISTS (
+                SELECT 1 FROM product_sightings s WHERE s.offer_id = offer_enrichments.id
+              )`,
+          )
+          .bind(
+            row.identity_candidate ?? null,
+            row.identity_candidate_version ?? null,
+            row.mint_verdict ?? null,
+            row.id,
+          )
+          .run();
+        restored += result?.meta?.changes || 0;
+      }
+      return { restored };
     },
 
     // Un-stamp verdicts (registry/lifecycle.js dangling-sighting healing): a

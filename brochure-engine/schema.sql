@@ -230,13 +230,16 @@ CREATE TABLE IF NOT EXISTS offer_enrichments (
   brand         TEXT,
   size          TEXT,
   confidence    REAL,               -- model self-report (kept for audit only)
-  corroboration REAL,               -- token overlap vs the offer's own OCR text
+  corroboration REAL,               -- legacy OCR-overlap audit field;
+                                    -- NULL for crop-only Vision observations
   model         TEXT,
   crop_url      TEXT,               -- the image the model read (auditability)
   enriched_at   TEXT NOT NULL,
   match_text    TEXT,               -- normalized vision haystack (name+name_ar+
                                     -- brand through normalizeText) — the vision
                                     -- pipeline's SQL-retrieval substrate
+  identity_candidate TEXT,          -- JSON Identity Builder output; Registry input
+  identity_candidate_version TEXT,  -- deterministic candidate contract version
   mint_verdict  TEXT                -- registry resolution verdict (IDENTITY-V2
                                     -- §3.1: minted | declined | low_corroboration
                                     -- | too_few_tokens). NULL = not yet resolved;

@@ -6,7 +6,8 @@
 //   defer  -> nothing (no sighting, no product — today's identity-null shape)
 //   create -> sighting (band created) + a new product founded by this read
 //   attach -> sighting (band auto) + the product LEARNS (§5.2–§5.3)
-//   review -> sighting (band review) ONLY — attaches but never teaches (§3)
+//   review -> no sighting; the enrichment verdict journal is the pending queue
+//             until guarded human reassign/split creates an untrusted review band
 //
 // IDEMPOTENCY (§1.3/§6): product_sightings' offer_id PK is the gate. The
 // sighting is always written FIRST with an insert-if-absent; when it reports
@@ -17,9 +18,8 @@
 // row is missing — the next §5.4 consolidation notices dangling sightings;
 // no path can double-create or double-teach.
 //
-// Source-agnostic like the resolver: `observation` carries the presentation
-// and context fields of the sighting's source (for vision-enriched offers,
-// observationFromOffer in read.js builds it).
+// Source-agnostic like the resolver: `observation` carries only presentation
+// and sighting context projected from the Identity Candidate.
 
 import {
   newProductRow, newSightingRow, MATCH_BAND, profileTokens, decodeProfile,
@@ -32,6 +32,16 @@ import { learnFromSighting, LEARN_TUNING } from './learn.js';
 export async function applyDecision(decision, observation, store, { tuning = LEARN_TUNING } = {}) {
   if (decision.outcome === 'defer') {
     return { applied: 'defer', verdict: decision.verdict, inserted: false };
+  }
+  // Review is deliberately non-assigning. A proposed match may be useful to a
+  // developer/operator, but it must never create a trusted offer -> Product ID
+  // edge or appear in downstream product history before confirmation.
+  if (decision.outcome === 'review') {
+    return {
+      applied: 'review',
+      proposedProductId: decision.productId ?? null,
+      inserted: false,
+    };
   }
   const read = decision.read;
 
@@ -60,7 +70,7 @@ export async function applyDecision(decision, observation, store, { tuning = LEA
     return { applied: 'create', productId: product.id, inserted: true };
   }
 
-  // attach / review: the sighting binds offer -> product either way.
+  // Known Product: bind the sighting to the trusted Registry product.
   const { inserted } = await store.insertSighting(
     sightingFor(decision, observation, decision.productId),
   );

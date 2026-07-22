@@ -11,7 +11,6 @@
 import {
   decodeProfile, encodeProfile, PROFILE_TOKEN_CAP, REGISTRY_ALGO_VERSION,
 } from './model.js';
-import { detectBrand } from '../browse/brands.js';
 
 // Learning priors — same calibration discipline as resolver TUNING: defaults
 // grounded in the design, overridable by the caller, never asserted as final.
@@ -104,18 +103,6 @@ export function adoptSize(product, readSize, { sizeTolerance = 0.03 } = {}) {
   return conflicting ? { flag: 'size-conflict' } : null;
 }
 
-// §5.3 brand_slug: re-run detectBrand over the product's (post-adoption)
-// display names — only ever set/upgraded; a conflicting detection never
-// overwrites, it flags review. `source`/`category` feed detectBrand's
-// department guards exactly as on live offers.
-export function adoptBrandSlug(product, { name, nameAr, source, category }) {
-  const slug = detectBrand({ name, nameAr, source, category });
-  if (!slug) return null;
-  if (product.brand_slug == null) return { fill: { brand_slug: slug } };
-  if (product.brand_slug !== slug) return { flag: 'brand-conflict' };
-  return null;
-}
-
 // The §5 composite: everything an auto-band sighting teaches its product.
 // `product` is the current row; `read` the resolver's normalized read;
 // `observation` the presentation/context fields the read's source supplies:
@@ -159,20 +146,9 @@ export function learnFromSighting(product, read, observation, tuning = LEARN_TUN
   const size = adoptSize(product, read.size);
   if (size?.fill) Object.assign(fields, size.fill);
 
-  const brand = adoptBrandSlug(
-    { ...product, ...fields },
-    {
-      name: display ? observation.name : product.display_name,
-      nameAr: display ? observation.nameAr : product.display_name_ar,
-      source: observation.source,
-      category: observation.category,
-    },
-  );
-  if (brand?.fill) Object.assign(fields, brand.fill);
-
   // Flags accumulate the FIRST suspicion (§6: review queue reads the reason);
   // an already-flagged product keeps its original reason until a human clears.
-  const flag = size?.flag || brand?.flag || null;
+  const flag = size?.flag || null;
   if (flag && !product.review_flag) fields.review_flag = flag;
 
   fields.algo_version = REGISTRY_ALGO_VERSION; // §1.1: version that last touched it

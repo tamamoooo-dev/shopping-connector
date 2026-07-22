@@ -39,12 +39,19 @@ const row = (id, over = {}) => ({
   e_name: null, e_name_ar: null, e_brand: null, e_size: null, e_corroboration: 0.9,
   ...over,
 });
+const candidate = (fields) => ({
+  identity_candidate: JSON.stringify({
+    brand: null, family: null, cut: null, processing: null, variety: null,
+    package: null, size: null, count: null, ...fields,
+  }),
+  identity_candidate_version: 'identity-candidate-v1',
+});
 const corpus = [
-  row('o:h1', { seq: 1, e_name: 'Halah Pure Sunflower Oil', e_brand: 'Halah', e_size: '1.5L' }),
-  row('o:h2', { seq: 2, e_name: 'Sunflower Oil Halah', e_brand: 'Halah', e_size: '1.5L', valid_from: '2026-07-15' }),
-  row('o:afia', { seq: 3, e_name: 'Afia Sunflower Oil', e_brand: 'Afia', e_size: '1.5L' }),
-  row('o:b1', { seq: 4, e_name: 'Berain Water Carton', e_brand: 'Berain', category: 'water' }),
-  row('o:b2', { seq: 5, e_name: 'Berain Water Cartons', e_brand: 'Berain', category: 'water', valid_from: '2026-07-15' }),
+  row('o:h1', { seq: 1, e_name: 'Halah Pure Sunflower Oil', e_brand: 'Halah', e_size: '1.5L', ...candidate({ brand: 'Halah', family: 'Oil', processing: 'Refined', size: { value: 1.5, unit: 'l' }, count: 1 }) }),
+  row('o:h2', { seq: 2, e_name: 'Sunflower Oil Halah', e_brand: 'Halah', e_size: '1.5L', valid_from: '2026-07-15', ...candidate({ brand: 'Halah', family: 'Oil', processing: 'Refined', size: { value: 1.5, unit: 'l' }, count: 1 }) }),
+  row('o:afia', { seq: 3, e_name: 'Afia Sunflower Oil', e_brand: 'Afia', e_size: '1.5L', ...candidate({ brand: 'Afia', family: 'Oil', processing: 'Refined', size: { value: 1.5, unit: 'l' }, count: 1 }) }),
+  row('o:b1', { seq: 4, e_name: 'Berain Water Carton', e_brand: 'Berain', category: 'water', ...candidate({ brand: 'Berain', family: 'Water', variety: 'Spring' }) }),
+  row('o:b2', { seq: 5, e_name: 'Berain Water Cartons', e_brand: 'Berain', category: 'water', valid_from: '2026-07-15', ...candidate({ brand: 'Berain', family: 'Water', variety: 'Spring' }) }),
   row('o:dead', { seq: 6, e_name: null, e_name_ar: null }),
 ];
 
@@ -105,7 +112,7 @@ console.log('replay:');
   // trusted semantic evidence admits the candidate.
   const looseCorpus = [
     ...corpus,
-    row('o:h3', { seq: 7, e_name: 'Halah Basmati Rice', e_brand: 'Halah' }),
+    row('o:h3', { seq: 7, e_name: 'Halah Basmati Rice', e_brand: 'Halah', ...candidate({ brand: 'Halah', family: 'Rice', variety: 'Basmati' }) }),
   ];
   const loose = await replay(looseCorpus, [
     ...labels,

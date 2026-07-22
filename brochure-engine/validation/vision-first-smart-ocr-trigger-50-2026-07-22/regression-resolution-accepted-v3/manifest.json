@@ -1,0 +1,5533 @@
+{
+  "experiment": "Vision-first with smarter selective OCR fallback — same 50 crops",
+  "created_at": "2026-07-22T01:47:54.516Z",
+  "seed": "mistral-cost-benchmark-50-2026-07-21-v1",
+  "selection_method": "Verbatim ordered reuse of the prior Vision-first 50-crop manifest; no replacement or reshuffle.",
+  "sample_count": 50,
+  "retailer_count": 18,
+  "category_count": 49,
+  "ordered_set_sha256": "9eb9c73cbd6f7995dd335e05447c94cf7864a06fe81aae448a63308930f8b499",
+  "source_manifest": "../vision-first-ocr-fallback-50-2026-07-22/manifest.json",
+  "source_observations": "../vision-first-ocr-fallback-50-2026-07-22/observations.json",
+  "prompt_source": "../../src/offers/enrich.js#VISION_PROMPT",
+  "prompt_sha256": "6d9c9ca64ac64779bfc7e96a12f5f4c4e46a1755f4ddf693427db59dc81dbf15",
+  "models": {
+    "vision": "mistral-small-latest",
+    "ocr": "mistral-ocr-latest"
+  },
+  "retry_policy": "disabled; exactly one attempt per invoked model",
+  "trigger_policy": "OCR only for missing product name, missing Arabic product name, missing brand, missing/invalid size when deterministic Vision-text size evidence exists, malformed/unusable Vision, or required-field validation failure; confidence is ignored",
+  "samples": [
+    {
+      "benchmark_index": 1,
+      "index": 651,
+      "id": "aljazera:central:d4d:93167838",
+      "store": "aljazera",
+      "region": "central",
+      "category": "deli-speaclity-meats",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/903e84b68ad6311cb07353240dc913be.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Smoked Turkey Breast",
+        "name_ar": "صدر ديك رومي مدخن",
+        "brand": "Lapiara",
+        "size": "KG",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T13:23:46.641Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0651.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 35747,
+        "sha256": "8c78451d353ae0ff299d737b3d6d1295c5730f9a5abc52ceaaad2ae71ba46608",
+        "height": 486,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 124
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "LAPIARA SMOKED TURKEY BREAST\n(KG)",
+          "name_ar": "لايبارا صدر ديك رومي مدخن (كفم)",
+          "brand": "LAPIARA",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "lapiara smoked turkey breast kg لايبارا صدر ديك رومي مدخن كفم lapiara",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "Lapiana Smoked Turkey Breast",
+          "name_ar": "لابيارا صدر ديك رومي مدخن (كجم)",
+          "brand": "Lapiana",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "lapiana smoked turkey breast لابيارا صدر ديك رومي مدخن كجم lapiana",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 2488
+      }
+    },
+    {
+      "benchmark_index": 2,
+      "index": 753,
+      "id": "almadina:central:d4d:93545889",
+      "store": "almadina",
+      "region": "central",
+      "category": "fresh-fish",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/18/8371ed3659e2888495c59f0059241a94.jpg",
+      "valid_from": "2026-07-18",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Indian Mackerel Small/Kg",
+        "name_ar": "سمك با غا هندي صغير / كيلو",
+        "brand": null,
+        "size": null,
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-20T22:44:21.961Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0753.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 25945,
+        "sha256": "00bae2d5123ac1dab5a6afd89822536c20bb4541c1880a63777d30eea572f527",
+        "height": 327,
+        "width": 512,
+        "difficulty_proxy": "difficult",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 126
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Indian Mackerel Small/Kg",
+          "name_ar": "سمك با غا هندي صغير / كيلو",
+          "brand": "Indian",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "indian mackerel small kg سمك با غا هندي صغير كيلو indian",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "brand",
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "Indian Mackerel Small/Kg",
+          "name_ar": "سمك با غا هندي صغير / كيلو",
+          "brand": "Indian",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "indian mackerel small kg سمك با غا هندي صغير كيلو indian",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1535
+      }
+    },
+    {
+      "benchmark_index": 3,
+      "index": 460,
+      "id": "alwafa:central:d4d:93172608",
+      "store": "alwafa",
+      "region": "central",
+      "category": "pulses-beans-grains",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/77c8814502c070f8dcdc8e6d36557ef9.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Black Chana / Chana Dal Split",
+        "name_ar": "حمص أسود / حمص أبيض مجروش",
+        "brand": null,
+        "size": "1.5 kg",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T12:30:39.923Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0460.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 39684,
+        "sha256": "df8793628ba4fd2957ce7b67c77ad5e2de6241078883e787ff5f2d7eb63a95c7",
+        "height": 512,
+        "width": 453,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 121
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Black Chana / Chana Dal Split per 1.5 kg",
+          "name_ar": "حمص أسود / حمص أبيض مجروش 1.0 كغ",
+          "brand": "Black",
+          "size": "1.5 kg",
+          "pack_count": null,
+          "normalized_name": "black chana chana dal split per 1 5 kg حمص اسود حمص ابيض مجروش 1 0 كغ black",
+          "parsed_size": {
+            "unit": "g",
+            "each": 1500,
+            "pack": 1,
+            "total": 1500,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "brand"
+        ],
+        "final_enrichment": {
+          "name_en": "Black Chana / Chana Dal Split per 1.5 kg",
+          "name_ar": "چناSplit",
+          "brand": "Black",
+          "size": "1.5 كجم",
+          "pack_count": null,
+          "normalized_name": "black chana chana dal split per 1 5 kg چناsplit black",
+          "parsed_size": {
+            "unit": "g",
+            "each": 1500,
+            "pack": 1,
+            "total": 1500,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "Vision",
+          "brand": "OCR",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1429
+      }
+    },
+    {
+      "benchmark_index": 4,
+      "index": 723,
+      "id": "amarket:central:d4d:93222996",
+      "store": "amarket",
+      "region": "central",
+      "category": "tea-coffee",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/02df608ef80509fbf35aa2aa9dd948cd.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "AL KBOUS TEA BAGS 100'S",
+        "name_ar": "شاي الكوس ١٠٠ كيس",
+        "brand": "AL KBOUS",
+        "size": "100'S",
+        "confidence": 0.98,
+        "corroboration": 0.7777777777777778,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T14:54:01.914Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0723.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 25469,
+        "sha256": "8223d75e455e45c91e221859c1b8ee5a3313294401c0e184fdd7a907b5675586",
+        "height": 335,
+        "width": 512,
+        "difficulty_proxy": "difficult",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 118
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "name_ar",
+          "brand",
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "|  ![img-0.jpeg](img-0.jpeg)  |",
+          "name_ar": "شاي الكوس 100 ق",
+          "brand": "AL KBOUS TEA",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "img 0 jpeg img 0 jpeg شاي الكوس 100 ق al kbous tea",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 6
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "AL KBOUS TEA BAGS 100'S",
+          "name_ar": "شاي الكوس ١٠٠ كيس",
+          "brand": "AL KBOUS",
+          "size": "100'S",
+          "pack_count": null,
+          "normalized_name": "al kbous tea bags 100 s شاي الكوس 100 كيس al kbous",
+          "parsed_size": {
+            "unit": "pcs",
+            "each": 1,
+            "pack": 100,
+            "total": 100,
+            "src": "count-weak"
+          },
+          "canonical_brand": null,
+          "package_quantity": 100
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1093
+      }
+    },
+    {
+      "benchmark_index": 5,
+      "index": 892,
+      "id": "carrefour:central:d4d:93218136",
+      "store": "carrefour",
+      "region": "central",
+      "category": "mobiles",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/1f0c8216643c8b2e64ccabf822c1ead1.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Samsung Galaxy S26 Ultra",
+        "name_ar": "سامسونج جالاكسي إس 26 ألتا",
+        "brand": "Samsung",
+        "size": null,
+        "confidence": 0.98,
+        "corroboration": 0.875,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T15:00:40.841Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0892.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 29424,
+        "sha256": "7cc5f5fd418832123f675c11d7ba576fa1af0a3ad1c34e40227a642d39a68ab7",
+        "height": 478,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 121
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "CAMER 200MP / 12MP | 6.9' | 256/12GB|5000 MAH",
+          "name_ar": "سامسونج جالاكسي إس ٢٦ ألترا",
+          "brand": "سامسونج",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "camer 200mp 12mp 6 9 256 12gb 5000 mah سامسونج جالاكسي اس 26 الترا سامسونج",
+          "parsed_size": null,
+          "canonical_brand": {
+            "slug": "samsung",
+            "en": "Samsung",
+            "ar": "سامسونج"
+          },
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Rule-derived",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "CAMER 200MP / 12MP | 6.9' | 256/12GB|5000 MAH",
+          "name_ar": "سامسونج جالاكسي إس 26 ألتا",
+          "brand": "SAMSUNG Galaxy",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "camer 200mp 12mp 6 9 256 12gb 5000 mah سامسونج جالاكسي اس 26 التا samsung galaxy",
+          "parsed_size": null,
+          "canonical_brand": {
+            "slug": "samsung",
+            "en": "Samsung",
+            "ar": "سامسونج"
+          },
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Rule-derived",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1391
+      }
+    },
+    {
+      "benchmark_index": 6,
+      "index": 682,
+      "id": "cityflower:central:d4d:93141654",
+      "store": "cityflower",
+      "region": "central",
+      "category": "skin-face-care",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/ff9d486c2c5862c2d2641ffb8e0dd394.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Smart and Handsome Face Cream",
+        "name_ar": "كريم فيس اند هاندسم",
+        "brand": "Emami",
+        "size": "80ml + 20ml",
+        "confidence": 0.98,
+        "corroboration": 0.8,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T11:58:57.253Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0682.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 41170,
+        "sha256": "daa9afafec7b7b0fdebc074a5e4f887e3e81c22789a26acc74fc8e42c23005a9",
+        "height": 512,
+        "width": 449,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 130
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "MEDIAN AMERICAN\nMEDIAN AMERICAN",
+          "name_ar": "كريم إمامي إف إند إنتش للوجه ٨٠ مل + ٢٠ مل",
+          "brand": "MEDIAN",
+          "size": "٨٠ مل",
+          "pack_count": null,
+          "normalized_name": "median american median american كريم امامي اف اند انتش للوجه 80 مل 20 مل median",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 80,
+            "pack": 1,
+            "total": 80,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "SMART AND HANDSOME",
+          "name_ar": "كريمي ف Hansen",
+          "brand": "Emami",
+          "size": "80ml + 20ml",
+          "pack_count": null,
+          "normalized_name": "smart and handsome كريمي ف hansen emami",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 80,
+            "pack": 1,
+            "total": 80,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1052
+      }
+    },
+    {
+      "benchmark_index": 7,
+      "index": 221,
+      "id": "danube:central:d4d:93267501",
+      "store": "danube",
+      "region": "central",
+      "category": "chocolates-candies",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/15/42a347d08e5107378df6490a0bcc9841.jpg",
+      "valid_from": "2026-07-15",
+      "valid_to": "2026-07-28",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Kinder Schoko-Bons Crispy",
+        "name_ar": "شوكولاتة كندر شوكو بونز كرسيبي",
+        "brand": "Kinder",
+        "size": "89g",
+        "confidence": 0.98,
+        "corroboration": 0.8,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-18T07:53:02.087Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0221.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 42133,
+        "sha256": "3b160aa1aaf58d8ecf78bec9b846d40a20eaa10ef0f32155782209fd7ed8c825",
+        "height": 487,
+        "width": 512,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 121
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Kinder Schoko Bons 89g/Mini Chocolate 120g",
+          "name_ar": "شوكولاتة كيدر شوكو بونز ٨٩غ/ ميني كيدر ١٢٠غ",
+          "brand": "Kinder",
+          "size": "120g",
+          "pack_count": null,
+          "normalized_name": "kinder schoko bons 89g mini chocolate 120g شوكولاته كيدر شوكو بونز 89غ ميني كيدر 120غ kinder",
+          "parsed_size": {
+            "unit": "g",
+            "each": 89,
+            "pack": 1,
+            "total": 89,
+            "src": "measure"
+          },
+          "canonical_brand": {
+            "slug": "kinder",
+            "en": "Kinder",
+            "ar": "كيندر"
+          },
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Rule-derived",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 3
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Kinder Chocolate mini",
+          "name_ar": "شوكولاتة كندر 89غ/ميني شوكو كندر 120غ",
+          "brand": "Kinder",
+          "size": "89g/Mini Chocolate 120g",
+          "pack_count": null,
+          "normalized_name": "kinder chocolate mini شوكولاته كندر 89غ ميني شوكو كندر 120غ kinder",
+          "parsed_size": {
+            "unit": "g",
+            "each": 89,
+            "pack": 1,
+            "total": 89,
+            "src": "measure"
+          },
+          "canonical_brand": {
+            "slug": "kinder",
+            "en": "Kinder",
+            "ar": "كيندر"
+          },
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Rule-derived",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1282
+      }
+    },
+    {
+      "benchmark_index": 8,
+      "index": 650,
+      "id": "farm:central:d4d:93148542",
+      "store": "farm",
+      "region": "central",
+      "category": "milk-laban",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/14/149153609174c99aed1e0f919ec4608d.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Activia Fresh Laban Full Fat / Low Fat",
+        "name_ar": "أكتفيا لبن طازج كامل الدسم / قليل الدسم",
+        "brand": "Activia",
+        "size": "1750ML",
+        "confidence": 0.98,
+        "corroboration": 0.9333333333333333,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T14:17:26.075Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0650.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 35067,
+        "sha256": "c8be7d18241876dbb7f42883cefee528f4acd8ff33c4b213789a222120e957e9",
+        "height": 512,
+        "width": 422,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 115
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "ACTIVIA FRESH LABAN FULL FAT\n/ LOW FAT 1750ML",
+          "name_ar": "اكتيفيا لبن طازج كامل الدسم\n/ قليل الدسم ١٧٥٠ مل",
+          "brand": "ACTIVIA",
+          "size": "١٧٥٠ مل",
+          "pack_count": null,
+          "normalized_name": "activia fresh laban full fat low fat 1750ml اكتيفيا لبن طازج كامل الدسم قليل الدسم 1750 مل activia",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 1750,
+            "pack": 1,
+            "total": 1750,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "ACTIVIA FRESH LABAN FULL FAT / LOW FAT 1750ML",
+          "name_ar": "أكتفيا لبن طازج كامل الدسم / قليل الدسم ١٧٥٠ مل",
+          "brand": "ACTIVIA",
+          "size": "1750ML",
+          "pack_count": null,
+          "normalized_name": "activia fresh laban full fat low fat 1750ml اكتفيا لبن طازج كامل الدسم قليل الدسم 1750 مل activia",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 1750,
+            "pack": 1,
+            "total": 1750,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1173
+      }
+    },
+    {
+      "benchmark_index": 9,
+      "index": 868,
+      "id": "grandhyper:central:d4d:93225402",
+      "store": "grandhyper",
+      "region": "central",
+      "category": "insect-repellent",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/c33d3d276933553a3a41545fbb47049f.jpg",
+      "valid_from": "2026-07-15",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "RAID Liquid Mosquitoes Repellent",
+        "name_ar": "مبيد حشرات سائل ريد",
+        "brand": "RAID",
+        "size": "21.9 ML",
+        "confidence": 0.98,
+        "corroboration": 0.7777777777777778,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T13:53:14.803Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0868.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 42828,
+        "sha256": "93fb905d44396d0d8ac85033acdcb8b7b6516bd32b97cb8c674f45547853d446",
+        "height": 512,
+        "width": 471,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 118
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "RAID LIQUID MOSQUITOES REPELLENT\n30 NIGHTS 21.9 ML WITH MACHINE",
+          "name_ar": "ريد جهاز كهربائي طارد للبعوض مع\nعبوة سائل تكفي ٣٠ ليلة - ٢١.٩ مل",
+          "brand": "RAID",
+          "size": "٢١.٩ مل",
+          "pack_count": null,
+          "normalized_name": "raid liquid mosquitoes repellent 30 nights 21 9 ml with machine ريد جهاز كهربايي طارد للبعوض مع عبوه سايل تكفي 30 ليله 21 9 مل raid",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 21.9,
+            "pack": 1,
+            "total": 21.9,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "RAID LIQUID MOSQUITOES REPELLENT 30 NIGHTS 21.9 ML WITH MACHINE",
+          "name_ar": "ريد جهاز كهربائي طارد للبعوض 30 ليلة 21.9 مل",
+          "brand": "RAID",
+          "size": "21.9 ML WITH MACHINE",
+          "pack_count": null,
+          "normalized_name": "raid liquid mosquitoes repellent 30 nights 21 9 ml with machine ريد جهاز كهربايي طارد للبعوض 30 ليله 21 9 مل raid",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 21.9,
+            "pack": 1,
+            "total": 21.9,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1234
+      }
+    },
+    {
+      "benchmark_index": 10,
+      "index": 807,
+      "id": "hyperpanda:central:d4d:93239019",
+      "store": "hyperpanda",
+      "region": "central",
+      "category": "snacks",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/15/c81ee0594ef2f793f6ea615082b968a7.jpg",
+      "valid_from": "2026-07-15",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Al Batal Potato Chips",
+        "name_ar": "بطاطس شيبس البطل",
+        "brand": "Al Batal",
+        "size": "12 x 23g",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T15:11:02.327Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0807.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 28737,
+        "sha256": "6620d8574fe1aec50dc1684cf012661a72efe70562340cc15394f375afb70f43",
+        "height": 436,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 121
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "brand"
+        ],
+        "final_enrichment": {
+          "name_en": "Al Batal Potato Chips (12 x 23g)",
+          "name_ar": "بطاطس شيبس البطل (١٢ x ٢٣ جرام)",
+          "brand": "Al Batal",
+          "size": "٢٣ جرام",
+          "pack_count": "12 x",
+          "normalized_name": "al batal potato chips 12 x 23g بطاطس شيبس البطل 12 x 23 جرام al batal",
+          "parsed_size": {
+            "unit": "g",
+            "each": 23,
+            "pack": 12,
+            "total": 276,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 12
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "Vision",
+          "size": "OCR",
+          "pack_count": "OCR",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Al Batal Potato Chips",
+          "name_ar": "بطاطس شيبس البطل",
+          "brand": "Al Batal",
+          "size": "12 x 23g",
+          "pack_count": null,
+          "normalized_name": "al batal potato chips بطاطس شيبس البطل al batal",
+          "parsed_size": {
+            "unit": "g",
+            "each": 23,
+            "pack": 12,
+            "total": 276,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 12
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1048
+      }
+    },
+    {
+      "benchmark_index": 11,
+      "index": 272,
+      "id": "lulu:central:d4d:93281295",
+      "store": "lulu",
+      "region": "central",
+      "category": "fragrance",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/15/f110ddbe7a0eb0dd5becc443b2641904.jpg",
+      "valid_from": "2026-07-15",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Sapil Solid EDT Men 100ml",
+        "name_ar": "سابل صوليد مع العطر الرجالي",
+        "brand": "Sapil",
+        "size": "100ml",
+        "confidence": 0.98,
+        "corroboration": 0.7,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T21:48:27.706Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0272.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 25816,
+        "sha256": "66bb4c3162ecadea49bcb106d2a57ab130e18766abb7dd405587c47fe5119ab8",
+        "height": 512,
+        "width": 405,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 115
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Sapil Solid\nEDT Men 100ml",
+          "name_ar": "سابيل سوليد\nماء العطر للرجال",
+          "brand": "Sapil",
+          "size": "١٠٠ مل",
+          "pack_count": null,
+          "normalized_name": "sapil solid edt men 100ml سابيل سوليد ماء العطر للرجال sapil",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 100,
+            "pack": 1,
+            "total": 100,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": null,
+          "name_ar": "سابل صوليد مع العطر الدائم",
+          "brand": "Sapil",
+          "size": "100ml",
+          "pack_count": null,
+          "normalized_name": "سابل صوليد مع العطر الدايم sapil",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 100,
+            "pack": 1,
+            "total": 100,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Null",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 950
+      }
+    },
+    {
+      "benchmark_index": 12,
+      "index": 98,
+      "id": "makkah:central:d4d:93547806",
+      "store": "makkah",
+      "region": "central",
+      "category": "biscuits",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/19/5014f0074148a511910b94242416889e.jpg",
+      "valid_from": "2026-07-19",
+      "valid_to": "2026-07-22",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "all-retailer-coverage"
+      ],
+      "previous_enrichment": {
+        "name": "Trdp Mario Biscuit 90gm*8pcs",
+        "name_ar": "بسكويت تراب ماريو ٩٠ جم * ٨ قطع",
+        "brand": "Trdp",
+        "size": "90gm*8pcs",
+        "confidence": 0.98,
+        "corroboration": 0.7,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-20T07:23:00.437Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0098.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 46029,
+        "sha256": "25b44a0d60d6148e35ff3953bfd2e1bd82d70f70df1935e07da1a27c1be617e9",
+        "height": 512,
+        "width": 434,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 124
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "name_ar"
+        ],
+        "final_enrichment": {
+          "name_en": "Trdp Mario\nBiscuit 90gm*8pcs",
+          "name_ar": null,
+          "brand": "Trdp",
+          "size": "90gm*8",
+          "pack_count": "8pcs",
+          "normalized_name": "trdp mario biscuit 90gm 8pcs trdp",
+          "parsed_size": {
+            "unit": "g",
+            "each": 90,
+            "pack": 8,
+            "total": 720,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 8
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "Null",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "OCR",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Trdp Mario Biscuit 90gm*8pcs",
+          "name_ar": "بسكويت تراب ماريو ٩٠ جم * ٨ قطع",
+          "brand": "Trdp",
+          "size": "90gm*8pcs",
+          "pack_count": null,
+          "normalized_name": "trdp mario biscuit 90gm 8pcs بسكويت تراب ماريو 90 جم 8 قطع trdp",
+          "parsed_size": {
+            "unit": "g",
+            "each": 90,
+            "pack": 8,
+            "total": 720,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 8
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1224
+      }
+    },
+    {
+      "benchmark_index": 13,
+      "index": 227,
+      "id": "marksave:central:d4d:93203448",
+      "store": "marksave",
+      "region": "central",
+      "category": "rice",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/938c4143d14f7f5fcf7331308663f791.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "unlabeled",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Thennal Palakkadan Vadi Matta Rice",
+        "name_ar": "ثنيل ارز بالاكادن وادي ماتا ٥ كجم",
+        "brand": "Thennal",
+        "size": "5kg",
+        "confidence": 0.98,
+        "corroboration": 0.8333333333333334,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-21T03:23:00.220Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0227.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 45383,
+        "sha256": "6db9a049150bf308f74743b90b2a99426a9a004203aef27a1d4e8720dfe7535a",
+        "height": 476,
+        "width": 512,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 123
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Thennal Palakkadan Vadi Matta Rice 5kg",
+          "name_ar": "ٹینال آرز بالاکادان وادی ماتا ۵ کجم",
+          "brand": "Thennal",
+          "size": "5kg",
+          "pack_count": null,
+          "normalized_name": "thennal palakkadan vadi matta rice 5kg ٹينال ارز بالاكادان وادي ماتا ۵ كجم thennal",
+          "parsed_size": {
+            "unit": "g",
+            "each": 5000,
+            "pack": 1,
+            "total": 5000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Thennal Palakkadan Vadi Matta Rice",
+          "name_ar": "ثنل از بالاكادن وادي ماتا ٥ كجم",
+          "brand": "Thennal",
+          "size": "5kg",
+          "pack_count": null,
+          "normalized_name": "thennal palakkadan vadi matta rice ثنل از بالاكادن وادي ماتا 5 كجم thennal",
+          "parsed_size": {
+            "unit": "g",
+            "each": 5000,
+            "pack": 1,
+            "total": 5000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1175
+      }
+    },
+    {
+      "benchmark_index": 14,
+      "index": 179,
+      "id": "nesto:central:d4d:93212985",
+      "store": "nesto",
+      "region": "central",
+      "category": "laundry",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/fe8aedc6e15c8fe51cc7de074fe39f88.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Vanish Oxi Max Stain Remover",
+        "name_ar": "Vanish Crystal White Oxy Action",
+        "brand": "Vanish",
+        "size": "500g / 450g",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-18T07:53:02.087Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0179.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 60592,
+        "sha256": "7e40829d580081b3d9297368e8427563c188d23a822ca6a159a76f2d57dab6a4",
+        "height": 512,
+        "width": 507,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 145
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Vanish Oxi Max Stain Remover 500gm\n/Vanish Crystal White Oxy Action 450gm",
+          "name_ar": "فانيش مزيل بقع ٥٠٠ جرام / فانيش كريستال\nوايت أوكسي أكشن ٤٥٠ جرام",
+          "brand": "Vanish",
+          "size": "٥٠٠ جرام",
+          "pack_count": null,
+          "normalized_name": "vanish oxi max stain remover 500gm vanish crystal white oxy action 450gm فانيش مزيل بقع 500 جرام فانيش كريستال وايت اوكسي اكشن 450 جرام vanish",
+          "parsed_size": {
+            "unit": "g",
+            "each": 500,
+            "pack": 1,
+            "total": 500,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Vanish Oxi Max Stain Remover",
+          "name_ar": "Vanish Crystal White Oxy Action 450gm / فانيش كريستال وايت أكسي أكشن 450 جم",
+          "brand": "Vanish",
+          "size": "450gm / 500gm",
+          "pack_count": null,
+          "normalized_name": "vanish oxi max stain remover vanish crystal white oxy action 450gm فانيش كريستال وايت اكسي اكشن 450 جم vanish",
+          "parsed_size": {
+            "unit": "g",
+            "each": 450,
+            "pack": 1,
+            "total": 450,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1502
+      }
+    },
+    {
+      "benchmark_index": 15,
+      "index": 12,
+      "id": "othaim:central:d4d:93235122",
+      "store": "othaim",
+      "region": "central",
+      "category": "canned-packeted",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/7bd84858871284c3cb27419863c7ce0b.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "all-category-coverage"
+      ],
+      "previous_enrichment": {
+        "name": "Light Meat Tuna",
+        "name_ar": "تونة خفيفة",
+        "brand": "Goody",
+        "size": null,
+        "confidence": 0.98,
+        "corroboration": 0.8333333333333334,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T15:22:28.144Z",
+        "mint_verdict": null
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0012.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 36211,
+        "sha256": "81066b1ffd0bce9a1f1a8fc3f59ea7d81864976a0b5836174c7b21c11006671e",
+        "height": 512,
+        "width": 430,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 127
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Goody\nLight Meat Tuna",
+          "name_ar": "تونة قودي خفيف",
+          "brand": "قودي",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "goody light meat tuna تونه قودي خفيف قودي",
+          "parsed_size": null,
+          "canonical_brand": {
+            "slug": "goody",
+            "en": "Goody",
+            "ar": "قودي"
+          },
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Rule-derived",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "Light Meat Tuna",
+          "name_ar": "تونة قودي خفيف",
+          "brand": "Goody",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "light meat tuna تونه قودي خفيف goody",
+          "parsed_size": null,
+          "canonical_brand": {
+            "slug": "goody",
+            "en": "Goody",
+            "ar": "قودي"
+          },
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Rule-derived",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1239
+      }
+    },
+    {
+      "benchmark_index": 16,
+      "index": 742,
+      "id": "prime:central:d4d:93144711",
+      "store": "prime",
+      "region": "central",
+      "category": "dishwasher",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/37a3052ff3811ba6e9df8e60a6209724.jpg",
+      "valid_from": "2026-07-13",
+      "valid_to": "2026-07-23",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "LUX DISHWASHING LIQUID LEMON/REGULAR (BENJ12 UF) 725ML",
+        "name_ar": "لوكس سائل جلي ليمون / عادي بنجي ١٢ يو اف ٧٢٥ مل",
+        "brand": "LUX",
+        "size": "725ML",
+        "confidence": 0.98,
+        "corroboration": 0.4666666666666667,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-20T06:41:03.744Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0742.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 31638,
+        "sha256": "ca1dc68d94e0c07cbb529a2a3a0a52ddac7fbb0696e40e265f8be2aff99d91ce",
+        "height": 406,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 118
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "AUX DISHWASHING LIQUID LEMON/REGULAR (BENJ12 UF) 725ML",
+          "name_ar": "لوكس ليمون / د العادي بنجي ٢ يف ٧٢٥ مل",
+          "brand": "AUX",
+          "size": "٧٢٥ مل",
+          "pack_count": null,
+          "normalized_name": "aux dishwashing liquid lemon regular benj12 uf 725ml لوكس ليمون د العادي بنجي 2 يف 725 مل aux",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 725,
+            "pack": 1,
+            "total": 725,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "LUX DISHWASHING LIQUID LEMON/REGULAR (BENJI2 UF) 725ML",
+          "name_ar": "لوكس سائل غسيل أطباق ليمون / عادي بنجي ٢",
+          "brand": "LUX",
+          "size": "725ML",
+          "pack_count": null,
+          "normalized_name": "lux dishwashing liquid lemon regular benji2 uf 725ml لوكس سايل غسيل اطباق ليمون عادي بنجي 2 lux",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 725,
+            "pack": 1,
+            "total": 725,
+            "src": "measure"
+          },
+          "canonical_brand": {
+            "slug": "lux",
+            "en": "Lux",
+            "ar": "لكس"
+          },
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Rule-derived",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1252
+      }
+    },
+    {
+      "benchmark_index": 17,
+      "index": 101,
+      "id": "ramez:central:d4d:93579768",
+      "store": "ramez",
+      "region": "central",
+      "category": "fresh-fruits",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/20/a6d0b30e8af65fb2e53a034e3e315213.jpg",
+      "valid_from": "2026-07-20",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "all-retailer-coverage"
+      ],
+      "previous_enrichment": {
+        "name": null,
+        "name_ar": "عنب صنفوق",
+        "brand": null,
+        "size": "12.50",
+        "confidence": 0.95,
+        "corroboration": 0.5,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-21T06:05:04.322Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0101.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 25478,
+        "sha256": "d8978296617f09ac74ce196ae17ffb8e18fb635be74c2f6437da56257db12424",
+        "height": 380,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 119
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "name_en",
+          "brand",
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": null,
+          "name_ar": "عنب صندوق",
+          "brand": null,
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "عنب صندوق",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Null",
+          "name_ar": "OCR",
+          "brand": "Null",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "brand",
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": null,
+          "name_ar": "عنب صنفوق",
+          "brand": null,
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "عنب صنفوق",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Null",
+          "name_ar": "Vision",
+          "brand": "Null",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1371
+      }
+    },
+    {
+      "benchmark_index": 18,
+      "index": 795,
+      "id": "tamimi:central:d4d:93154902",
+      "store": "tamimi",
+      "region": "central",
+      "category": "chocolates-candies",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/14/094cbe1fc01eb2292737e06bf69d5afa.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "KITKAT MINI PISTACHIO KUNAFA CHOCOLATE",
+        "name_ar": "شوكولاتة ميني كيت كات بالكنافة والفستق",
+        "brand": "KitKat",
+        "size": "166 GRAMS",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T12:55:18.385Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0795.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 38935,
+        "sha256": "ac86cd7a4dd56b0eb727276277837524e7267f6feb1d31cb77b227fba63bc1f9",
+        "height": 512,
+        "width": 508,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 126
+          }
+        ]
+      },
+      "selection_reason": "retailer-anchor",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "KITKAT MINI PISTACHIO KUNAFA\nCHOCOLATE 166 GRAMS",
+          "name_ar": "شوكولاتة ميني كيت كات بالكنافة والفستق،\nكيت كات، ١٦٦ جرام",
+          "brand": "KITKAT",
+          "size": "١٦٦ جرام",
+          "pack_count": null,
+          "normalized_name": "kitkat mini pistachio kunafa chocolate 166 grams شوكولاته ميني كيت كات بالكنافه والفستق كيت كات 166 جرام kitkat",
+          "parsed_size": {
+            "unit": "g",
+            "each": 166,
+            "pack": 1,
+            "total": 166,
+            "src": "measure"
+          },
+          "canonical_brand": {
+            "slug": "kitkat",
+            "en": "KitKat",
+            "ar": "كيتكات"
+          },
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Rule-derived",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "KITKAT MINI PISTACHIO KUNAFA CHOCOLATE 166 GRAMS",
+          "name_ar": "شوكولاتة ميني كيت كات بالكنافة والفستق",
+          "brand": "KITKAT",
+          "size": "166 GRAMS",
+          "pack_count": null,
+          "normalized_name": "kitkat mini pistachio kunafa chocolate 166 grams شوكولاته ميني كيت كات بالكنافه والفستق kitkat",
+          "parsed_size": {
+            "unit": "g",
+            "each": 166,
+            "pack": 1,
+            "total": 166,
+            "src": "measure"
+          },
+          "canonical_brand": {
+            "slug": "kitkat",
+            "en": "KitKat",
+            "ar": "كيتكات"
+          },
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Rule-derived",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1196
+      }
+    },
+    {
+      "benchmark_index": 19,
+      "index": 543,
+      "id": "nesto:central:d4d:93535815",
+      "store": "nesto",
+      "region": "central",
+      "category": "footwear",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/18/2152f24929e3130e056e67a5bb18c459.jpg",
+      "valid_from": "2026-07-18",
+      "valid_to": "2026-07-31",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Men's Safety Shoes Asstd",
+        "name_ar": "حذاء سلامة رجالى منوع",
+        "brand": "MARKSMAN",
+        "size": "PAIR",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-20T07:20:42.415Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0543.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 35051,
+        "sha256": "14d6932e08118c3ec6b5e58b5afe6134ac5a4763f581512569ad5c5ba3a992af",
+        "height": 512,
+        "width": 428,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 121
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Men's Safety Shoes Asstd",
+          "name_ar": "حذاء سلامة رجالي منوع",
+          "brand": "Men's",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "men s safety shoes asstd حذاء سلامه رجالي منوع men s",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "Men's Safety Shoes Asstd",
+          "name_ar": "حذاء سلامة رجالي منوع",
+          "brand": "MARKSMAN",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "men s safety shoes asstd حذاء سلامه رجالي منوع marksman",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1188
+      }
+    },
+    {
+      "benchmark_index": 20,
+      "index": 570,
+      "id": "nesto:central:d4d:93195933",
+      "store": "nesto",
+      "region": "central",
+      "category": "ice-ice-cream",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/14/14f9b31484225c13dd98137bbf0101be.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Saudia Ice Cream",
+        "name_ar": "السعودية آيس كريم",
+        "brand": "Saudia",
+        "size": "2Lt",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-18T07:53:02.087Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0570.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 38797,
+        "sha256": "38952147978d7b10d17db1f90f9e3b9014a06a92a91940e11530df7e18306f3c",
+        "height": 512,
+        "width": 446,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 127
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Saudia Ice Cream 2Lt",
+          "name_ar": "السعودية ايس كريم منوع ٢ لتر",
+          "brand": "Saudia",
+          "size": "٢ لتر",
+          "pack_count": null,
+          "normalized_name": "saudia ice cream 2lt السعوديه ايس كريم منوع 2 لتر saudia",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 2000,
+            "pack": 1,
+            "total": 2000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": null,
+          "name_ar": "السعودية",
+          "brand": "Saudia",
+          "size": "2Lt",
+          "pack_count": null,
+          "normalized_name": "السعوديه saudia",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 2000,
+            "pack": 1,
+            "total": 2000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Null",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 978
+      }
+    },
+    {
+      "benchmark_index": 21,
+      "index": 878,
+      "id": "alwafa:central:d4d:93173550",
+      "store": "alwafa",
+      "region": "central",
+      "category": "kitchen-appliance",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/14/20a047503c98798d5080c866a8570f6d.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Kenwood Juicer 800W Steel",
+        "name_ar": "مصفاة كينвуود 800 وات ستيل",
+        "brand": "Kenwood",
+        "size": "800W",
+        "confidence": 0.98,
+        "corroboration": 0.7,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T12:18:32.674Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0878.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 35855,
+        "sha256": "06c977f4311677f08a87d2aff7a515d75163a09004d747df3849e28f206082fa",
+        "height": 442,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 115
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "brand",
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "|  ENERGY EXPRESS | ENERGY EXPRESS  |",
+          "name_ar": "کینوود عصاره ۸۰۰ واط ستانلس ستیل",
+          "brand": "Kenwood",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "energy express energy express كينوود عصاره ۸۰۰ واط ستانلس ستيل kenwood",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "Kenwood Juicer 800W Steel - JEM02.A0BK",
+          "name_ar": "كنوود جوسر 800 وات ستيل - JEM02.A0BK",
+          "brand": "Kenwood",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "kenwood juicer 800w steel jem02 a0bk كنوود جوسر 800 وات ستيل jem02 a0bk kenwood",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1422
+      }
+    },
+    {
+      "benchmark_index": 22,
+      "index": 382,
+      "id": "lulu:central:d4d:93280728",
+      "store": "lulu",
+      "region": "central",
+      "category": "eggs",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/15/1bb2d78c7fffb34c58348e8168a7a358.jpg",
+      "valid_from": "2026-07-15",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "White Eggs Large Plastic Tray 30s",
+        "name_ar": "الفيالق يضخ أبيض كبير - ٣٠ حبة",
+        "brand": "Al Falaq Fresh",
+        "size": "30s",
+        "confidence": 0.98,
+        "corroboration": 0.7692307692307693,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T22:09:36.130Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0382.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 27224,
+        "sha256": "a22a4015a10da48c50ed040e5c7a33169f33f26c6524b567f39edd2fd606bd26",
+        "height": 411,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 111
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "brand",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Al Failaq Fresh\nWhite Eggs Large\nPlastic Tray 30s",
+          "name_ar": "الفيلق بيض أبيض كبير ٣٠ حبة",
+          "brand": "Al Falaq",
+          "size": "٣٠ حبة",
+          "pack_count": null,
+          "normalized_name": "al failaq fresh white eggs large plastic tray 30s الفيلق بيض ابيض كبير 30 حبه al falaq",
+          "parsed_size": {
+            "unit": "pcs",
+            "each": 1,
+            "pack": 30,
+            "total": 30,
+            "src": "count-weak"
+          },
+          "canonical_brand": null,
+          "package_quantity": 30
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "Vision",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "White Eggs Large Plastic Tray 30s",
+          "name_ar": "الفيالق يضئ أبيض كبير - ٣٠ حبة",
+          "brand": "الفيالق",
+          "size": "30s",
+          "pack_count": null,
+          "normalized_name": "white eggs large plastic tray 30s الفيالق يضي ابيض كبير 30 حبه الفيالق",
+          "parsed_size": {
+            "unit": "pcs",
+            "each": 1,
+            "pack": 30,
+            "total": 30,
+            "src": "count-weak"
+          },
+          "canonical_brand": null,
+          "package_quantity": 30
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1141
+      }
+    },
+    {
+      "benchmark_index": 23,
+      "index": 453,
+      "id": "alwafa:central:d4d:93172509",
+      "store": "alwafa",
+      "region": "central",
+      "category": "ready-to-eat",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/16f7d355bffe6f01b7d4e90c317bd12d.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Ghee Rice W/Beef Curry Combo",
+        "name_ar": "أرز السمن مع كاري لحم البقر",
+        "brand": "EA",
+        "size": null,
+        "confidence": 0.98,
+        "corroboration": 0.9,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T12:30:26.476Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0453.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 44920,
+        "sha256": "de23dcda3cc02684b22763a3d43384aac754b5c207770d4c82f856aa51277094",
+        "height": 503,
+        "width": 512,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 123
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Ghee Rice W/Beef Curry Combo",
+          "name_ar": "أرز بالسمن مع كاري لحم البقر",
+          "brand": "Ghee",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "ghee rice w beef curry combo ارز بالسمن مع كاري لحم البقر ghee",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "brand",
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "Ghee Rice W/Beef Curry Combo",
+          "name_ar": "أرز السمن مع كاري لحم البقر",
+          "brand": "Ghee",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "ghee rice w beef curry combo ارز السمن مع كاري لحم البقر ghee",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1347
+      }
+    },
+    {
+      "benchmark_index": 24,
+      "index": 845,
+      "id": "lulu:central:d4d:93281661",
+      "store": "lulu",
+      "region": "central",
+      "category": "cookware",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/15/0b2a5ab545ed706cb2b9af1941a04314.jpg",
+      "valid_from": "2026-07-15",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Chefline Nonstick Flat Tawa 28cm",
+        "name_ar": "شيفلاين صينية غير لاصقة ٢٨ سم",
+        "brand": "Chefline",
+        "size": "28 cm",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T19:10:28.810Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0845.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 42958,
+        "sha256": "d25e6c79964ae9cc01d13576d538da26a870723ebc8593dc322bed69e106eabd",
+        "height": 453,
+        "width": 512,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 132
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Chefline Nonstick\nFlat Tawa 28cm",
+          "name_ar": "شيفلاين صينية\nمسطحة غير لاصقة ٢٨ سم",
+          "brand": "Chefline",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "chefline nonstick flat tawa 28cm شيفلاين صينيه مسطحه غير لاصقه 28 سم chefline",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 5
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "Chefline Nonstick Flat Tawa 28cm",
+          "name_ar": "شيفلاين صينية غير قابلة للالتصاق 28 سم",
+          "brand": "Chefline",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "chefline nonstick flat tawa 28cm شيفلاين صينيه غير قابله للالتصاق 28 سم chefline",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1558
+      }
+    },
+    {
+      "benchmark_index": 25,
+      "index": 164,
+      "id": "lulu:central:d4d:93282216",
+      "store": "lulu",
+      "region": "central",
+      "category": "large-appliances",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/15/ccfd0814b275730a3dd114c51a8054d2.jpg",
+      "valid_from": "2026-07-15",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Beko Dish Washer",
+        "name_ar": "غسالة صحون بيكو",
+        "brand": "Beko",
+        "size": "6 Programs",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T18:54:01.504Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0164.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 20290,
+        "sha256": "275d6d9760e20a019ef5500c275e58435f2ac60408e29b7aab4666321bf8cb79",
+        "height": 512,
+        "width": 436,
+        "difficulty_proxy": "difficult",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 118
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Beko Dish Washer\nDVN064215 6Pgm SI",
+          "name_ar": "بيكو غسالة صحن",
+          "brand": "Beko",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "beko dish washer dvn064215 6pgm si بيكو غساله صحن beko",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "Beko Dish Washer\nDVN064215 6Pgm SI",
+          "name_ar": "غسالة أطباق",
+          "brand": "beko",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "beko dish washer dvn064215 6pgm si غساله اطباق beko",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1092
+      }
+    },
+    {
+      "benchmark_index": 26,
+      "index": 917,
+      "id": "tamimi:central:d4d:93156045",
+      "store": "tamimi",
+      "region": "central",
+      "category": "salts-spices-paste",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/14/222e440199ec6861c797012705d65bac.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Pomi Tomato Paste",
+        "name_ar": "بومي معجون الطماطم",
+        "brand": "Pomi",
+        "size": "700 - 750 GRAMS/ML",
+        "confidence": 0.98,
+        "corroboration": 0.8571428571428571,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T12:43:45.354Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0917.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 41147,
+        "sha256": "727e1f8a94b70e17d00bd1ec4965bde955d358992cde279b190657593beb467e",
+        "height": 512,
+        "width": 512,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 130
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "POMI PRODUCTS, ASSORTED ITEMS,\n700 - 750 GRAMS/ML",
+          "name_ar": "منتجات الطماطم، أصناف متنوعة،\nبومي، ٧٠٠ - ٧٥٠ جرام/مل",
+          "brand": "POMI",
+          "size": "٧٥٠ جرام",
+          "pack_count": null,
+          "normalized_name": "pomi products assorted items 700 750 grams ml منتجات الطماطم اصناف متنوعه بومي 700 750 جرام مل pomi",
+          "parsed_size": {
+            "unit": "g",
+            "each": 750,
+            "pack": 1,
+            "total": 750,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Pomi Tomato Paste",
+          "name_ar": "بومي معجون طماطم",
+          "brand": "Pomi",
+          "size": "210g",
+          "pack_count": null,
+          "normalized_name": "pomi tomato paste بومي معجون طماطم pomi",
+          "parsed_size": {
+            "unit": "g",
+            "each": 210,
+            "pack": 1,
+            "total": 210,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1223
+      }
+    },
+    {
+      "benchmark_index": 27,
+      "index": 516,
+      "id": "tamimi:central:d4d:93154563",
+      "store": "tamimi",
+      "region": "central",
+      "category": "oil-ghee",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/14/6928327d41bb923b422f92e2f22b1c6d.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Crystal Yellow Ghee",
+        "name_ar": "سمن أصفر كريستال",
+        "brand": "Crystal",
+        "size": "700 grams",
+        "confidence": 0.98,
+        "corroboration": 0.8571428571428571,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T12:43:28.053Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0516.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 37580,
+        "sha256": "d270e9fd3a565efc347a326e8d49fdc908f8882155008bd7c68a70de1a6c5828",
+        "height": 510,
+        "width": 512,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 124
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "CRYSTAL YELLOW GHEE, 700 GRAMS",
+          "name_ar": "سمن أصفر كريستال، ٧٠٠ جرام",
+          "brand": "CRYSTAL",
+          "size": "٧٠٠ جرام",
+          "pack_count": null,
+          "normalized_name": "crystal yellow ghee 700 grams سمن اصفر كريستال 700 جرام crystal",
+          "parsed_size": {
+            "unit": "g",
+            "each": 700,
+            "pack": 1,
+            "total": 700,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "CRYSTAL YELLOW GHEE",
+          "name_ar": "سمن أصفر كريستال",
+          "brand": "كريستال",
+          "size": "700 grams",
+          "pack_count": null,
+          "normalized_name": "crystal yellow ghee سمن اصفر كريستال كريستال",
+          "parsed_size": {
+            "unit": "g",
+            "each": 700,
+            "pack": 1,
+            "total": 700,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1022
+      }
+    },
+    {
+      "benchmark_index": 28,
+      "index": 860,
+      "id": "lulu:central:d4d:92778480",
+      "store": "lulu",
+      "region": "central",
+      "category": "small-appliances",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/7/ffe39a40fa5fe245610659fd16b6704f.jpg",
+      "valid_from": "2026-07-07",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Philips Pedestal Fan",
+        "name_ar": "مروحة سقف فيليبس",
+        "brand": "Philips",
+        "size": null,
+        "confidence": 0.98,
+        "corroboration": 0.8571428571428571,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T13:06:09.002Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0860.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 19871,
+        "sha256": "88a08748660866b1bf32c1b54b56b3eb5b1ff301e476a68552d9af52167a3c6f",
+        "height": 512,
+        "width": 230,
+        "difficulty_proxy": "difficult",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 102
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Philips Pedestal\nFan ACP620/00\nSMART SAVINGS\nON LATEST TEG!",
+          "name_ar": "العرض سار في جميع الفروع في لولو السعودية SA",
+          "brand": "Philips",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "philips pedestal fan acp620 00 smart savings on latest teg العرض سار في جميع الفروع في لولو السعوديه sa philips",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "Philips Pedestal Fan ACF620/00",
+          "name_ar": "مروحة فيليبس السقفية ACF620/00",
+          "brand": "Philips",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "philips pedestal fan acf620 00 مروحه فيليبس السقفيه acf620 00 philips",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1286
+      }
+    },
+    {
+      "benchmark_index": 29,
+      "index": 619,
+      "id": "danube:central:d4d:93265977",
+      "store": "danube",
+      "region": "central",
+      "category": "hair-care",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/15/1f89ef5cb77e2cc81794b819b370d8e5.jpg",
+      "valid_from": "2026-07-15",
+      "valid_to": "2026-07-28",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Dabur Vatika Hair Oil",
+        "name_ar": "دابور فاتيكا زيت شعر",
+        "brand": "Vatika",
+        "size": "300ml",
+        "confidence": 0.98,
+        "corroboration": 0.8888888888888888,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T14:28:45.485Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0619.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 30005,
+        "sha256": "fcebd35033ebddc551f06a055935989b48db319a5864c7bcc3ac46d71d766d77",
+        "height": 489,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 110
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Dabur Vatika Hair Oil 300ml",
+          "name_ar": "زيت شعر فاتيكا ٣٠٠ مل",
+          "brand": "Dabur",
+          "size": "٣٠٠ مل",
+          "pack_count": null,
+          "normalized_name": "dabur vatika hair oil 300ml زيت شعر فاتيكا 300 مل dabur",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 300,
+            "pack": 1,
+            "total": 300,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Vatika Hair Oil",
+          "name_ar": "دابور فاتيكا زيت شعر",
+          "brand": "Vatika",
+          "size": "300ml",
+          "pack_count": null,
+          "normalized_name": "vatika hair oil دابور فاتيكا زيت شعر vatika",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 300,
+            "pack": 1,
+            "total": 300,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 939
+      }
+    },
+    {
+      "benchmark_index": 30,
+      "index": 124,
+      "id": "alwafa:central:d4d:93193317",
+      "store": "alwafa",
+      "region": "central",
+      "category": "soft-drinks",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/0e3476067c758b4064ed47ee984258a1.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Kinza Carbonated Drink",
+        "name_ar": "كينزا مشروب غازي",
+        "brand": "Kinza",
+        "size": "360ml x 24",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T12:15:12.574Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0124.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 39223,
+        "sha256": "cc6a1a9556aa802a5c281480a582b6e09b1a51be20402e12292fccb562a6d24c",
+        "height": 430,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 129
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": false,
+        "vision_requested_fields": [],
+        "final_enrichment": {
+          "name_en": "Kinza Carbonated Drink 360mlX24 Asstd",
+          "name_ar": "كينزا مشروب غازي ٣٦٠ مل * ٢٤",
+          "brand": "Kinza",
+          "size": "٣٦٠ مل * ٢٤",
+          "pack_count": "X24",
+          "normalized_name": "kinza carbonated drink 360mlx24 asstd كينزا مشروب غازي 360 مل 24 kinza",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 360,
+            "pack": 24,
+            "total": 8640,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 24
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "OCR",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Kinza Carbonated Drink 360ml",
+          "name_ar": "كينزا مشروب غازي ٣٦٠ مل",
+          "brand": "Kinza",
+          "size": "360ml",
+          "pack_count": null,
+          "normalized_name": "kinza carbonated drink 360ml كينزا مشروب غازي 360 مل kinza",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 360,
+            "pack": 1,
+            "total": 360,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1042
+      }
+    },
+    {
+      "benchmark_index": 31,
+      "index": 688,
+      "id": "tamimi:central:d4d:93155889",
+      "store": "tamimi",
+      "region": "central",
+      "category": "flour-baking",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/14/376284274a218d956509b8334fdf161c.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Shredded or Sweetened Flaked Coconut",
+        "name_ar": "شريدد أو رقيق محلاة، أفروچود",
+        "brand": "Overjoyed",
+        "size": "397 grams",
+        "confidence": 0.98,
+        "corroboration": 0.6666666666666666,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T12:45:54.154Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0688.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 39965,
+        "sha256": "e883985e1b91639c0a77732902bb5cf946b1b7fd25762ab6ab88aa7bb7f7f81e",
+        "height": 512,
+        "width": 506,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 126
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "OVERJOYED SHREDDED OR SWEETENED\nFLAKED COCONUT, 397 GRAMS",
+          "name_ar": "جوز هند مبشور أو رقائق محلاة، أوفرجويد،",
+          "brand": "OVERJOYED",
+          "size": "٣٩٧ جرام",
+          "pack_count": null,
+          "normalized_name": "overjoyed shredded or sweetened flaked coconut 397 grams جوز هند مبشور او رقايق محلاه اوفرجويد overjoyed",
+          "parsed_size": {
+            "unit": "g",
+            "each": 397,
+            "pack": 1,
+            "total": 397,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "OVERJOYED SHREDDED OR SWEETENED FLAKED COCONUT, 397 GRAMS",
+          "name_ar": null,
+          "brand": "overjoyed",
+          "size": "397 grams",
+          "pack_count": null,
+          "normalized_name": "overjoyed shredded or sweetened flaked coconut 397 grams overjoyed",
+          "parsed_size": {
+            "unit": "g",
+            "each": 397,
+            "pack": 1,
+            "total": 397,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Null",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1182
+      }
+    },
+    {
+      "benchmark_index": 32,
+      "index": 331,
+      "id": "marksave:central:d4d:93379602",
+      "store": "marksave",
+      "region": "central",
+      "category": "pasta-noodles",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/16/4510ed961522526839c1a8ea74686d40.jpg",
+      "valid_from": "2026-07-16",
+      "valid_to": "2026-07-22",
+      "language_proxy": "unlabeled",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Samyang Buldak Noodles 5X130/140/145Gm",
+        "name_ar": "شيبية ساميانج بولداك",
+        "brand": "Samyang",
+        "size": "5X130/140/145Gm",
+        "confidence": 0.98,
+        "corroboration": 0.9,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-21T09:26:31.277Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0331.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 52751,
+        "sha256": "97959ae9319d34579a15cbe737640089e993a0be9f5f5b0bc68b618098d5e468",
+        "height": 512,
+        "width": 414,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 126
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": false,
+        "vision_requested_fields": [],
+        "final_enrichment": {
+          "name_en": "Samyang Buldak Noodles 5X130/140/145Gm",
+          "name_ar": "شعيرية ساميانج بولداك ١٣/١٤٠/١٤٥٠٥ جم",
+          "brand": "Samyang",
+          "size": "145Gm",
+          "pack_count": "5X",
+          "normalized_name": "samyang buldak noodles 5x130 140 145gm شعيريه ساميانج بولداك 13 140 14505 جم samyang",
+          "parsed_size": {
+            "unit": "g",
+            "each": 145,
+            "pack": 130,
+            "total": 18850,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 130
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "OCR",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Buldak",
+          "name_ar": "بولداك",
+          "brand": "Samyang",
+          "size": "5x130/140/145Gm",
+          "pack_count": null,
+          "normalized_name": "buldak بولداك samyang",
+          "parsed_size": {
+            "unit": "g",
+            "each": 145,
+            "pack": 130,
+            "total": 18850,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 130
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1135
+      }
+    },
+    {
+      "benchmark_index": 33,
+      "index": 552,
+      "id": "aljazera:central:d4d:93167502",
+      "store": "aljazera",
+      "region": "central",
+      "category": "malt-beverages",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/396ee13550ecb36b690973c196dd1218.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "HEINEKEN 0.0 ALCOHOL FREE MALT DRINK",
+        "name_ar": "شراب شير خالي من الكحول",
+        "brand": "HEINEKEN",
+        "size": "6x330ML",
+        "confidence": 0.98,
+        "corroboration": 0.9,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T13:26:32.629Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0552.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 41179,
+        "sha256": "b10d86b69aa101194994396f0c5f59ba618c86cec56586dd0dc92f962bb2e7a4",
+        "height": 512,
+        "width": 512,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 130
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "HEINEKEN 0.0 ALCOHOL FREE\nMALT DRINK",
+          "name_ar": "هنكن شراب شعير خالي من الكحول",
+          "brand": "HEINEKEN",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "heineken 0 0 alcohol free malt drink هنكن شراب شعير خالي من الكحول heineken",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "HEINEKEN 0.0 ALCOHOL FREE MALT DRINK",
+          "name_ar": "مشروب شير خالي من الكحول",
+          "brand": "HEINEKEN",
+          "size": "6x330ML",
+          "pack_count": null,
+          "normalized_name": "heineken 0 0 alcohol free malt drink مشروب شير خالي من الكحول heineken",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 330,
+            "pack": 6,
+            "total": 1980,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 6
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1038
+      }
+    },
+    {
+      "benchmark_index": 34,
+      "index": 461,
+      "id": "alwafa:central:d4d:93173541",
+      "store": "alwafa",
+      "region": "central",
+      "category": "accessories",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/14/ad8e2fc2918dabcaa30062e8d9814d51.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "TIT Portable Speaker W/Karoke60W TS-4404",
+        "name_ar": "ميكروفون كاريوكي 60 وات",
+        "brand": "TIT",
+        "size": null,
+        "confidence": 0.98,
+        "corroboration": 0.7777777777777778,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T12:22:50.076Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0461.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 29642,
+        "sha256": "bec3d136b8209989a550e85ccbfa1e160cf6eb242dec3ca0f1834f7ba792884c",
+        "height": 512,
+        "width": 341,
+        "difficulty_proxy": "difficult",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 125
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "TIT Portable Speaker\nW/Karoke60W TS-4404",
+          "name_ar": "تي أي تي سماعة محمولة مع\nكاريوكي ٦٠ واط",
+          "brand": "TIT",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "tit portable speaker w karoke60w ts 4404 تي اي تي سماعه محموله مع كاريوكي 60 واط tit",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "TIT Portable Speaker W/Karoke60W TS-4404",
+          "name_ar": "تيت سباكر بورتبل مع كاروكي 60 وات",
+          "brand": "TIT",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "tit portable speaker w karoke60w ts 4404 تيت سباكر بورتبل مع كاروكي 60 وات tit",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1375
+      }
+    },
+    {
+      "benchmark_index": 35,
+      "index": 976,
+      "id": "marksave:central:d4d:93192234",
+      "store": "marksave",
+      "region": "central",
+      "category": "bath-body",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/6b9f26c0483dff317d81a1fe59d83999.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Al Wazir Perfumed Soap Bar 450Gm",
+        "name_ar": "صابون معطر 450 جم",
+        "brand": "Al Wazir",
+        "size": "450Gm",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-21T06:11:34.322Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0976.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 40445,
+        "sha256": "1e3ebc883d6ab33c8bdb50da8bfa8a484374fbb761aca9393859c341b5674da9",
+        "height": 512,
+        "width": 483,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 114
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "brand",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Al Wazir Perfumed Soap Bar 450Gm",
+          "name_ar": "الوزير قالب صابون معطر ٤٥٠ جم",
+          "brand": "الوزير",
+          "size": "450Gm",
+          "pack_count": null,
+          "normalized_name": "al wazir perfumed soap bar 450gm الوزير قالب صابون معطر 450 جم الوزير",
+          "parsed_size": {
+            "unit": "g",
+            "each": 450,
+            "pack": 1,
+            "total": 450,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "Vision",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 8
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Al Wazir Perfumed Soap",
+          "name_ar": "الصابون المعطر الوزير",
+          "brand": "Al Wazir",
+          "size": "450Gm",
+          "pack_count": null,
+          "normalized_name": "al wazir perfumed soap الصابون المعطر الوزير al wazir",
+          "parsed_size": {
+            "unit": "g",
+            "each": 450,
+            "pack": 1,
+            "total": 450,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1105
+      }
+    },
+    {
+      "benchmark_index": 36,
+      "index": 4,
+      "id": "danube:central:d4d:93266673",
+      "store": "danube",
+      "region": "central",
+      "category": "baby-diapers",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/15/f4164fcf1e7b0f53f02f5d864f3e4166.jpg",
+      "valid_from": "2026-07-15",
+      "valid_to": "2026-07-28",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "all-category-coverage"
+      ],
+      "previous_enrichment": {
+        "name": "Diaper (Pants)",
+        "name_ar": "حفاضات",
+        "brand": "Babyjoy",
+        "size": "48pcs",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T14:24:44.873Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0004.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 36321,
+        "sha256": "1f6093f1e2231735f7427229012c89e0336bbe627294965c42749194315378bd",
+        "height": 497,
+        "width": 512,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 162
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Babyjoy Diaper (Pants)",
+          "name_ar": "بيبي جوي حفاضات كلوت",
+          "brand": "Babyjoy",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "babyjoy diaper pants بيبي جوي حفاضات كلوت babyjoy",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "Babyjoy Diaper (Pants)",
+          "name_ar": "بايبيجوي حفاظات كلوت",
+          "brand": "Babyjoy",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "babyjoy diaper pants بايبيجوي حفاظات كلوت babyjoy",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1381
+      }
+    },
+    {
+      "benchmark_index": 37,
+      "index": 733,
+      "id": "alwafa:central:d4d:93170925",
+      "store": "alwafa",
+      "region": "central",
+      "category": "dining-serving",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/14/6b80da3e483f072e9fe8fa1a0fd7d232.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Royal Prince Melamine Dinner Set 18pc",
+        "name_ar": "أطباق العشاء من الملامين رويال برنس 18 قطعة",
+        "brand": "Royal Prince",
+        "size": "18pcs",
+        "confidence": 0.98,
+        "corroboration": 0.7857142857142857,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T12:32:35.027Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0733.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 46222,
+        "sha256": "7f3c15c3e5ebb728ec73c3a237e608175bc4552879060aef0748e03995da63ff",
+        "height": 512,
+        "width": 477,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 134
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": false,
+        "vision_requested_fields": [],
+        "final_enrichment": {
+          "name_en": "Royal Prince Melamine Dinner Set 18pc\nAstd",
+          "name_ar": "رويال برنس طقم سفرة ميلامين ١٨ قطعة",
+          "brand": "Royal",
+          "size": "١٨ قطعة",
+          "pack_count": "18 Pcs",
+          "normalized_name": "royal prince melamine dinner set 18pc astd رويال برنس طقم سفره ميلامين 18 قطعه royal",
+          "parsed_size": {
+            "unit": "pcs",
+            "each": 1,
+            "pack": 18,
+            "total": 18,
+            "src": "count"
+          },
+          "canonical_brand": null,
+          "package_quantity": 18
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "OCR",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Royal Prince Melamine Dinner Set 18pc",
+          "name_ar": "روял پرنس مېلامین ډنر سیټ ۱۸ ټوکی",
+          "brand": "Royal Prince",
+          "size": "18 Pcs Set",
+          "pack_count": null,
+          "normalized_name": "royal prince melamine dinner set 18pc روял پرنس مېلامين ډنر سيټ ۱۸ ټوكي royal prince",
+          "parsed_size": {
+            "unit": "pcs",
+            "each": 1,
+            "pack": 18,
+            "total": 18,
+            "src": "count"
+          },
+          "canonical_brand": null,
+          "package_quantity": 18
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1233
+      }
+    },
+    {
+      "benchmark_index": 38,
+      "index": 84,
+      "id": "amarket:central:d4d:93222339",
+      "store": "amarket",
+      "region": "central",
+      "category": "sugar-sweetener",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/8287edee9a36bcbba69aea61b09d384f.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "all-category-coverage"
+      ],
+      "previous_enrichment": {
+        "name": "ALBAYT WHITE FINE SUGAR",
+        "name_ar": "سكر أبيض ناعم",
+        "brand": "ALBAYT",
+        "size": "10 KG",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T14:46:53.108Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0084.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 27668,
+        "sha256": "a45e93ac1156318be8166614f54ab38ff362471672acd2322681b056b5615b07",
+        "height": 424,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 122
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "ALBAYT WHITE FINE SUGAR 10 KG",
+          "name_ar": "البيت سكر ابيض ناعم ١٠ كيلو",
+          "brand": "ALBAYT",
+          "size": "١٠ كيلو",
+          "pack_count": null,
+          "normalized_name": "albayt white fine sugar 10 kg البيت سكر ابيض ناعم 10 كيلو albayt",
+          "parsed_size": {
+            "unit": "g",
+            "each": 10000,
+            "pack": 1,
+            "total": 10000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "ALBAYT WHITE FINE SUGAR 10 KG",
+          "name_ar": "سكر ابيض ناعم ١٠ كيلو",
+          "brand": "ALBAYT",
+          "size": "10 KG",
+          "pack_count": null,
+          "normalized_name": "albayt white fine sugar 10 kg سكر ابيض ناعم 10 كيلو albayt",
+          "parsed_size": {
+            "unit": "g",
+            "each": 10000,
+            "pack": 1,
+            "total": 10000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 988
+      }
+    },
+    {
+      "benchmark_index": 39,
+      "index": 857,
+      "id": "lulu:central:d4d:93282276",
+      "store": "lulu",
+      "region": "central",
+      "category": "tv",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/15/e788f4bc2b37387b65ac91e991d99bc5.jpg",
+      "valid_from": "2026-07-15",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "LG 4K Nano TV 85 inch",
+        "name_ar": "LG 4K نانو تلفزيون 85 إنش",
+        "brand": "LG",
+        "size": "85 inch",
+        "confidence": 0.98,
+        "corroboration": 0.4,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T18:53:53.309Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0857.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 40932,
+        "sha256": "033e5e96578a047ddba202a10cadfd475fc1edf5d0864e6f472c4159f696963c",
+        "height": 512,
+        "width": 463,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 120
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "brand",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "LG 4K Nano TV\n85NU8E0B6LA 85inch",
+          "name_ar": "تلفاز LG بتقنية EK Nano\nومقاس ٨٥ بوصة موديل",
+          "brand": "LG",
+          "size": "6L",
+          "pack_count": null,
+          "normalized_name": "lg 4k nano tv 85nu8e0b6la 85inch تلفاز lg بتقنيه ek nano ومقاس 85 بوصه موديل lg",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 6000,
+            "pack": 1,
+            "total": 6000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "Vision",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 3
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "product_name",
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "LG 4K Nano TV\n85NU8E0B6LA 85inch",
+          "name_ar": "تلفاز LG بتقنية EK Nano\nومقاس ٨٥ بوصة موديل",
+          "brand": "LG",
+          "size": "6L",
+          "pack_count": null,
+          "normalized_name": "lg 4k nano tv 85nu8e0b6la 85inch تلفاز lg بتقنيه ek nano ومقاس 85 بوصه موديل lg",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 6000,
+            "pack": 1,
+            "total": 6000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "Vision",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1389
+      }
+    },
+    {
+      "benchmark_index": 40,
+      "index": 864,
+      "id": "nesto:central:d4d:93535107",
+      "store": "nesto",
+      "region": "central",
+      "category": "fresh-chicken-poultry",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/18/a586cd8b5a52d5a9324af8a267e5ff6b.jpg",
+      "valid_from": "2026-07-18",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Royal Chicken Franks 300/340gm",
+        "name_ar": "فرانك دجاج رويال 300/340 جم",
+        "brand": "Royal",
+        "size": "300/340gm",
+        "confidence": 0.98,
+        "corroboration": 0.8181818181818182,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-20T07:15:25.434Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0864.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 33380,
+        "sha256": "1d7d32474e4fddcc6607e3d490f9b135a04659140a82c4495a68320e5ef2886c",
+        "height": 512,
+        "width": 468,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 123
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Royal Chicken Franks 300/340gm",
+          "name_ar": "رويال نقانق دجاج ٣٠ / ٣٤٠ جم",
+          "brand": "Royal",
+          "size": "340gm",
+          "pack_count": null,
+          "normalized_name": "royal chicken franks 300 340gm رويال نقانق دجاج 30 340 جم royal",
+          "parsed_size": {
+            "unit": "g",
+            "each": 340,
+            "pack": 1,
+            "total": 340,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Royal Chicken Franks",
+          "name_ar": "فرانك دجاج",
+          "brand": "Royal",
+          "size": "300/340gm",
+          "pack_count": null,
+          "normalized_name": "royal chicken franks فرانك دجاج royal",
+          "parsed_size": {
+            "unit": "g",
+            "each": 340,
+            "pack": 1,
+            "total": 340,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1121
+      }
+    },
+    {
+      "benchmark_index": 41,
+      "index": 765,
+      "id": "prime:central:d4d:93127428",
+      "store": "prime",
+      "region": "central",
+      "category": "cheese-creame",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/13/bdd1b78f5a5d857e6e30d850791e588b.jpg",
+      "valid_from": "2026-07-13",
+      "valid_to": "2026-07-23",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "MAISTRO CORN PUFF (CHEESE & JALAPENO)",
+        "name_ar": "مايسترو كورن باف (جينة بالجبن و الجالابينو)",
+        "brand": "MAISTRO",
+        "size": "65 GM",
+        "confidence": 0.98,
+        "corroboration": 0.5833333333333334,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-20T06:41:16.580Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0765.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 55275,
+        "sha256": "6985f2a175ecb6a093207f09c5de6e175bae1a740bd887069654bb8b96042cc8",
+        "height": 490,
+        "width": 512,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 132
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": false,
+        "vision_requested_fields": [],
+        "final_enrichment": {
+          "name_en": "MAISTRO CORN PUFF (CHEESE & JALAPENO) 65 GM",
+          "name_ar": "مايسترو منتفخات ذرة (جبنة بالهاليينو) ٦٥ جم",
+          "brand": "MAISTRO",
+          "size": "٤ حبة",
+          "pack_count": "4 PCS",
+          "normalized_name": "maistro corn puff cheese jalapeno 65 gm مايسترو منتفخات ذره جبنه بالهاليينو 65 جم maistro",
+          "parsed_size": {
+            "unit": "g",
+            "each": 65,
+            "pack": 4,
+            "total": 260,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 4
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "OCR",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "MAISTRO CORN PUFF (CHEESE & JALAPENO)",
+          "name_ar": "مايسترو كورن باف (جبن بالجبن)",
+          "brand": "MAISTRO",
+          "size": "65 GM",
+          "pack_count": null,
+          "normalized_name": "maistro corn puff cheese jalapeno مايسترو كورن باف جبن بالجبن maistro",
+          "parsed_size": {
+            "unit": "g",
+            "each": 65,
+            "pack": 1,
+            "total": 65,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1332
+      }
+    },
+    {
+      "benchmark_index": 42,
+      "index": 609,
+      "id": "marksave:central:d4d:93539697",
+      "store": "marksave",
+      "region": "central",
+      "category": "frozen-meat",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/18/81204703ec02fa18f782b6072c1ddc35.jpg",
+      "valid_from": "2026-07-18",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Astra Frozen Quail 600Gm",
+        "name_ar": "استرا سمان مجمد ٦٠٠ جم",
+        "brand": "Astra",
+        "size": "600Gm",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-21T03:30:35.073Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0609.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 29605,
+        "sha256": "68447bf1689ef820b3d943fa66ccf0e38e6abd3c959606750ce067301d806b6c",
+        "height": 418,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 119
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "name_en",
+          "name_ar",
+          "brand",
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Astra Frozen Quail 600Gm",
+          "name_ar": "أسترا سمان مجمد ٦٠٠ جم",
+          "brand": "Astra",
+          "size": "600Gm",
+          "pack_count": null,
+          "normalized_name": "astra frozen quail 600gm استرا سمان مجمد 600 جم astra",
+          "parsed_size": {
+            "unit": "g",
+            "each": 600,
+            "pack": 1,
+            "total": 600,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Astra Frozen Quail 600Gm",
+          "name_ar": "أسترا سمان مجمد ٦٠٠ جم",
+          "brand": "Astra",
+          "size": "600Gm",
+          "pack_count": null,
+          "normalized_name": "astra frozen quail 600gm استرا سمان مجمد 600 جم astra",
+          "parsed_size": {
+            "unit": "g",
+            "each": 600,
+            "pack": 1,
+            "total": 600,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1028
+      }
+    },
+    {
+      "benchmark_index": 43,
+      "index": 581,
+      "id": "grandhyper:central:d4d:93225558",
+      "store": "grandhyper",
+      "region": "central",
+      "category": "kids-wear",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/851302ba5921bc01c5f052a4bfa2cd84.jpg",
+      "valid_from": "2026-07-15",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Boys T-Shirt",
+        "name_ar": "قميص ولد",
+        "brand": "PEANUTS",
+        "size": null,
+        "confidence": 0.98,
+        "corroboration": 0.8,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T13:51:49.079Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0581.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 22244,
+        "sha256": "f3165fd5f38d0aec8900f557bf0f2ba444aa8f2212529888c09ff9eb6d03378f",
+        "height": 512,
+        "width": 449,
+        "difficulty_proxy": "difficult",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 119
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "BOYS T SHIRT",
+          "name_ar": "قميص للأولاد",
+          "brand": "BOYS",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "boys t shirt قميص للاولاد boys",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "PEANUTS ATHLETIC DEPARTMENT",
+          "name_ar": "قميص ولد",
+          "brand": "PEANUTS",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "peanuts athletic department قميص ولد peanuts",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1618
+      }
+    },
+    {
+      "benchmark_index": 44,
+      "index": 515,
+      "id": "prime:central:d4d:93127215",
+      "store": "prime",
+      "region": "central",
+      "category": "cleaning",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/13/e39eec7ea9c6b72f83c3d8fd28bb7db1.jpg",
+      "valid_from": "2026-07-13",
+      "valid_to": "2026-07-23",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "DETOC MULTIPURPOSE CLEANING GEL 2KG",
+        "name_ar": "ديتوك جل تنظيف متعدد الأغراض 2 كجم",
+        "brand": "DETOC",
+        "size": "2KG",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-20T06:36:17.573Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0515.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 33770,
+        "sha256": "bb107b27f57507064ae7907218f984aba567973cd675353ce899cc53dbdeac76",
+        "height": 512,
+        "width": 433,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 125
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "DETOC MULTIPURPOSE CLEANING GEL 2KG",
+          "name_ar": "ديتوك جل تنظيف متعدد الأغراض ٢ كجم",
+          "brand": "DETOC",
+          "size": "٢ كجم",
+          "pack_count": null,
+          "normalized_name": "detoc multipurpose cleaning gel 2kg ديتوك جل تنظيف متعدد الاغراض 2 كجم detoc",
+          "parsed_size": {
+            "unit": "g",
+            "each": 2000,
+            "pack": 1,
+            "total": 2000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "DETOC MULTIPURPOSE CLEANING GEL 2KG",
+          "name_ar": "جل تنظيف متعدد الأغراض 2 كجم",
+          "brand": "DETOC",
+          "size": "2KG",
+          "pack_count": null,
+          "normalized_name": "detoc multipurpose cleaning gel 2kg جل تنظيف متعدد الاغراض 2 كجم detoc",
+          "parsed_size": {
+            "unit": "g",
+            "each": 2000,
+            "pack": 1,
+            "total": 2000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1106
+      }
+    },
+    {
+      "benchmark_index": 45,
+      "index": 709,
+      "id": "othaim:central:d4d:93234324",
+      "store": "othaim",
+      "region": "central",
+      "category": "sauces-spreads",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/e97db6918524c6c600fa5439fd03c962.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Haley Hot Sauce",
+        "name_ar": "شطّة هالي حارة",
+        "brand": "haley",
+        "size": "473ml",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T13:17:38.951Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0709.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 34832,
+        "sha256": "b71c767a9d08207a68a55fd7f03f048fc412b47448322974304ac548fd60c490",
+        "height": 457,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 117
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Haley Hot\nSauce",
+          "name_ar": "شطة هالي حارة",
+          "brand": "Haley",
+          "size": "473ml",
+          "pack_count": "2 PCS",
+          "normalized_name": "haley hot sauce شطه هالي حاره haley",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 473,
+            "pack": 2,
+            "total": 946,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 2
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Vision",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Haley Hot Sauce",
+          "name_ar": "شطّة هالي حارة",
+          "brand": "haley",
+          "size": "473ml",
+          "pack_count": null,
+          "normalized_name": "haley hot sauce شطه هالي حاره haley",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 473,
+            "pack": 1,
+            "total": 473,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1057
+      }
+    },
+    {
+      "benchmark_index": 46,
+      "index": 859,
+      "id": "nesto:central:d4d:93187185",
+      "store": "nesto",
+      "region": "central",
+      "category": "sweets",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/1d17e0398b68c5db69f73c390b57ffd6.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Pistachio Kunafa Filled Chocolate / Brook Choco Sticks",
+        "name_ar": "كنافة الفستق المحشوة بالشوكولاتة / بروك شوكو ستكس",
+        "brand": null,
+        "size": "500 gm",
+        "confidence": 0.98,
+        "corroboration": 0.714,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-18T07:53:02.087Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0859.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 54415,
+        "sha256": "e5cc211818f0084b3c3e6a8e7a9c91e2790e300d7970debe7526adc158904d3b",
+        "height": 512,
+        "width": 466,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 135
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Pistachio Kunafa Filled Chocolate / Brook Choco\nSticks Astd per 500 gm",
+          "name_ar": "كنافة بالفستق محشوة بالشوكولاتة / بروك شوكولاتة أعواد\nمنوعة ٥٠٠ جرام",
+          "brand": "Pistachio",
+          "size": "٥٠٠ جرام",
+          "pack_count": null,
+          "normalized_name": "pistachio kunafa filled chocolate brook choco sticks astd per 500 gm كنافه بالفستق محشوه بالشوكولاته بروك شوكولاته اعواد منوعه 500 جرام pistachio",
+          "parsed_size": {
+            "unit": "g",
+            "each": 500,
+            "pack": 1,
+            "total": 500,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "brand"
+        ],
+        "final_enrichment": {
+          "name_en": "Pistachio Kunafa Filled Chocolate / Brook Choco Sticks",
+          "name_ar": "قطيفة الفستق المحشوة بالشوكولا / بروك شوكو ستكس",
+          "brand": "Pistachio",
+          "size": "500 gm",
+          "pack_count": null,
+          "normalized_name": "pistachio kunafa filled chocolate brook choco sticks قطيفه الفستق المحشوه بالشوكولا بروك شوكو ستكس pistachio",
+          "parsed_size": {
+            "unit": "g",
+            "each": 500,
+            "pack": 1,
+            "total": 500,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "OCR",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1498
+      }
+    },
+    {
+      "benchmark_index": 47,
+      "index": 918,
+      "id": "nesto:central:d4d:93535914",
+      "store": "nesto",
+      "region": "central",
+      "category": "powdered-condensed-milk",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/18/b96128b087d38908b267dca60eb37673.jpg",
+      "valid_from": "2026-07-18",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Freshco Milk Powder",
+        "name_ar": "حليب مجفف",
+        "brand": "Freshco",
+        "size": "2.25 KG",
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-20T07:12:25.904Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0918.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 38209,
+        "sha256": "39c7792c375182aa8f39e1d1f1db6dab5839e62440d419551931a68adbbeeb56",
+        "height": 512,
+        "width": 373,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 114
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "brand",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "The Pet Customer\nBy Promotion Price",
+          "name_ar": "ماء من\nالملابس\nالتي\nتطورت",
+          "brand": "freshco",
+          "size": "2.25Kg",
+          "pack_count": null,
+          "normalized_name": "the pet customer by promotion price ماء من الملابس التي تطورت freshco",
+          "parsed_size": {
+            "unit": "g",
+            "each": 2250,
+            "pack": 1,
+            "total": 2250,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "Vision",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Freshco Milk Powder",
+          "name_ar": "حليب مجفف",
+          "brand": "Freshco",
+          "size": "2.25 KG",
+          "pack_count": null,
+          "normalized_name": "freshco milk powder حليب مجفف freshco",
+          "parsed_size": {
+            "unit": "g",
+            "each": 2250,
+            "pack": 1,
+            "total": 2250,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 883
+      }
+    },
+    {
+      "benchmark_index": 48,
+      "index": 345,
+      "id": "farm:central:d4d:93149721",
+      "store": "farm",
+      "region": "central",
+      "category": "pets",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/14/5507866cc0353950cc693e55b30ed82e.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "bilingual",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Best Clean Bentonite Cat Litter",
+        "name_ar": "بست كلين بنتونايت قطط",
+        "brand": "Best Clean",
+        "size": "10L",
+        "confidence": 0.98,
+        "corroboration": 0.9090909090909091,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-19T14:06:29.023Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0345.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 40498,
+        "sha256": "6a0a1b96b1d5ccc211b1622dd4a6d69b86c83a070d82a3ee026af5a4c0a556af",
+        "height": 508,
+        "width": 512,
+        "difficulty_proxy": "easy",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 128
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "brand",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "BEST CLEAN BENTONITE CAT LITTER 10LTR",
+          "name_ar": "بست كلين بنتونايت رمل القطط ١٠ لتر",
+          "brand": "Best Clean",
+          "size": "١٠ لتر",
+          "pack_count": null,
+          "normalized_name": "best clean bentonite cat litter 10ltr بست كلين بنتونايت رمل القطط 10 لتر best clean",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 10000,
+            "pack": 1,
+            "total": 10000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "Vision",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 8
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": false,
+        "ocr_fallback_reasons": [],
+        "final_enrichment": {
+          "name_en": "Best Clean Bentonite Cat Litter",
+          "name_ar": "بست كلين بنتونايت قطط ١٠ لتر",
+          "brand": "Best Clean",
+          "size": "10LTR",
+          "pack_count": null,
+          "normalized_name": "best clean bentonite cat litter بست كلين بنتونايت قطط 10 لتر best clean",
+          "parsed_size": {
+            "unit": "ml",
+            "each": 10000,
+            "pack": 1,
+            "total": 10000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "Vision",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 1,
+        "elapsed_ms": 1088
+      }
+    },
+    {
+      "benchmark_index": 49,
+      "index": 927,
+      "id": "marksave:central:d4d:93191415",
+      "store": "marksave",
+      "region": "central",
+      "category": "smart-watch",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/14/e2b14fd22210e6cbbe92f8a81391b48d.jpg",
+      "valid_from": "2026-07-14",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Smart Watch T 55",
+        "name_ar": "ساعة ذكية تي ٥٥",
+        "brand": null,
+        "size": null,
+        "confidence": 0.98,
+        "corroboration": 1,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-21T09:25:58.748Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0927.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 33092,
+        "sha256": "02cbd32f028b4b2e6d904de6a67c4e01f8a58e7f68220e30dbfe1df59744f2a2",
+        "height": 395,
+        "width": 512,
+        "difficulty_proxy": "medium",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 120
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "size",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "Smart Watch T 55",
+          "name_ar": "ساعة ذكية تي ٥٥",
+          "brand": "Smart",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "smart watch t 55 ساعه ذكيه تي 55 smart",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "brand",
+          "size"
+        ],
+        "final_enrichment": {
+          "name_en": "Smart Watch T 55",
+          "name_ar": "ساعة ذكية تي ٥٥",
+          "brand": "Smart",
+          "size": null,
+          "pack_count": null,
+          "normalized_name": "smart watch t 55 ساعه ذكيه تي 55 smart",
+          "parsed_size": null,
+          "canonical_brand": null,
+          "package_quantity": null
+        },
+        "provenance": {
+          "name_en": "Vision",
+          "name_ar": "Vision",
+          "brand": "OCR",
+          "size": "Null",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Null",
+          "canonical_brand": "Null",
+          "package_quantity": "Null"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1318
+      }
+    },
+    {
+      "benchmark_index": 50,
+      "index": 943,
+      "id": "marksave:central:d4d:93539499",
+      "store": "marksave",
+      "region": "central",
+      "category": "meat-fresh-chilled",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/18/6cbd68b3279c33dd2a712ab40ac8ddcc.jpg",
+      "valid_from": "2026-07-18",
+      "valid_to": "2026-07-21",
+      "language_proxy": "arabic-only",
+      "sampling_reasons": [
+        "production-distribution-random-fill"
+      ],
+      "previous_enrichment": {
+        "name": "Hashi Bone In Per Kg",
+        "name_ar": "لحم عظام الكلب",
+        "brand": null,
+        "size": "2 KG PER CUSTOMER",
+        "confidence": 0.98,
+        "corroboration": 0.6666666666666666,
+        "model": "mistral-small-latest",
+        "enriched_at": "2026-07-21T03:56:57.192Z",
+        "mint_verdict": "minted"
+      },
+      "crop": {
+        "file": "../ocr-first-production-validation-1000-2026-07-21/assets/0943.jpg",
+        "content_type": "image/jpeg",
+        "bytes": 35942,
+        "sha256": "5d5ad1c8e5829f9b0301c2a97dcb5a47e29a713503df126dee099c3ddbb8718d",
+        "height": 305,
+        "width": 512,
+        "difficulty_proxy": "difficult",
+        "download_attempts": [
+          {
+            "attempt": 1,
+            "success": true,
+            "duration_ms": 112
+          }
+        ]
+      },
+      "selection_reason": "category-diversity-fill",
+      "baseline_ocr_first": {
+        "vision_invoked": true,
+        "vision_requested_fields": [
+          "brand",
+          "pack_count"
+        ],
+        "final_enrichment": {
+          "name_en": "29.95 NOW",
+          "name_ar": "لحم حاشي بالعظم للكيلو",
+          "brand": null,
+          "size": "2 KG",
+          "pack_count": null,
+          "normalized_name": "29 95 now لحم حاشي بالعظم للكيلو",
+          "parsed_size": {
+            "unit": "g",
+            "each": 2000,
+            "pack": 1,
+            "total": 2000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "OCR",
+          "brand": "Null",
+          "size": "OCR",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2
+      },
+      "baseline_vision_first": {
+        "ocr_fallback_required": true,
+        "ocr_fallback_reasons": [
+          "brand"
+        ],
+        "final_enrichment": {
+          "name_en": "29.95 NOW",
+          "name_ar": "عظم الكلبو",
+          "brand": null,
+          "size": "2 كجم لكل عميل",
+          "pack_count": null,
+          "normalized_name": "29 95 now عظم الكلبو",
+          "parsed_size": {
+            "unit": "g",
+            "each": 2000,
+            "pack": 1,
+            "total": 2000,
+            "src": "measure"
+          },
+          "canonical_brand": null,
+          "package_quantity": 1
+        },
+        "provenance": {
+          "name_en": "OCR",
+          "name_ar": "Vision",
+          "brand": "Null",
+          "size": "Vision",
+          "pack_count": "Null",
+          "normalized_name": "Rule-derived",
+          "parsed_size": "Rule-derived",
+          "canonical_brand": "Null",
+          "package_quantity": "Rule-derived"
+        },
+        "api_attempts": 2,
+        "elapsed_ms": 1346
+      }
+    }
+  ]
+}

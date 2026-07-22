@@ -218,6 +218,7 @@ export function createMemRegistryStore({ offers = [] } = {}) {
       const out = [];
       for (const s of sightings.values()) {
         if (!want.has(s.product_id)) continue;
+        if (s.match_band !== 'auto' && s.match_band !== 'created') continue;
         const o = offerById.get(s.offer_id) || null;
         out.push({
           ...s,
@@ -251,6 +252,7 @@ export function createMemRegistryStore({ offers = [] } = {}) {
       let best = null;
       for (const s of sightings.values()) {
         if (!family.has(s.product_id)) continue;
+        if (s.match_band !== 'auto' && s.match_band !== 'created') continue;
         const o = offerById.get(s.offer_id);
         if (!o || !o.valid_to || o.valid_to < today) continue;
         if (!best || o.price < best.price) {

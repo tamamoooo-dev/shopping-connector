@@ -22,9 +22,10 @@
 
 import { readFromOffer, evidenceTokens, readSize, READ_VERDICT } from './read.js';
 import {
-  resolveOffer, scoreCandidate, distinctiveTokens, sizeConflicts, brandRelation,
+  scoreCandidate, distinctiveTokens, sizeConflicts, brandRelation,
   candidateAdmission, productCoreTokens, TUNING,
 } from './resolver.js';
+import { resolveLegacyOffer as resolveOffer } from './legacyResolver.js';
 
 const { tAttach: T_ATTACH, tReview: T_REVIEW } = TUNING;
 
@@ -243,11 +244,11 @@ console.log('scoring:');
 // --- candidate admission ------------------------------------------------------
 console.log('candidate admission:');
 {
-  check('core strips brand, package, promotion, connectors and sizes',
+  check('core performs structural brand removal without semantic filtering',
     productCoreTokens(
       ['sadia', 'fresh', 'chicken', 'with', 'bag', '450g', 'offer'],
       'Sadia',
-    ).join(',') === 'chicken');
+    ).join(',') === 'fresh,chicken,with,bag,450g,offer');
 
   const sadiaBeans = product('pr_sadia_beans', ['sadia', 'green', 'beans'], {
     brand_text: 'sadia', size_unit: 'g', size_total: 450, size_pack: 1,
@@ -261,7 +262,7 @@ console.log('candidate admission:');
   };
   const beansAdmission = candidateAdmission(sadiaBreasts, sadiaBeans);
   check('Sadia chicken breasts cannot enter beans scoring despite same brand/size',
-    !beansAdmission.admitted && beansAdmission.reason === 'form-conflict');
+    !beansAdmission.admitted && beansAdmission.reason === 'category-conflict');
 
   const sadiaCorn = product('pr_sadia_corn', ['sadia', 'sweet', 'corn'], {
     brand_text: 'sadia', size_unit: 'g', size_total: 450, size_pack: 1,
@@ -275,8 +276,8 @@ console.log('candidate admission:');
     family: 'corn', category: 'frozen-fruits-veg', kind: 'product',
     corroboration: 0.9,
   };
-  check('a multi-form corn/beans tile cannot attach to a corn-only identity',
-    candidateAdmission(mixedVegetables, sadiaCorn).reason === 'form-conflict');
+  check('Registry does not invent a variety conflict from raw legacy tokens',
+    candidateAdmission(mixedVegetables, sadiaCorn).admitted);
   const chickenBreast = product('pr_breast', ['sadia', 'chicken', 'breasts'], {
     brand_text: 'sadia', size_unit: 'g', size_total: 450, size_pack: 1,
     family: 'chicken', category: 'frozen-chicken-poultry',
@@ -284,14 +285,14 @@ console.log('candidate admission:');
   const liverRead = {
     ...sadiaBreasts, tokens: ['sadia', 'chicken', 'liver'],
   };
-  check('same-family liver and breast forms are incompatible',
-    candidateAdmission(liverRead, chickenBreast).reason === 'form-conflict');
+  check('Registry does not reclassify raw legacy cut tokens',
+    candidateAdmission(liverRead, chickenBreast).admitted);
 
   const genericChicken = product('pr_generic_chicken', ['sadia', 'chicken', 'seasoned'], {
     brand_text: 'sadia', family: 'chicken', category: 'frozen-chicken-poultry',
   });
-  check('a species-only overlap cannot admit a known form into a form-less hub',
-    candidateAdmission(liverRead, genericChicken).reason === 'form-specificity');
+  check('missing stored structured cut remains neutral for legacy products',
+    candidateAdmission(liverRead, genericChicken).admitted);
 
   const searaNuggets = product('pr_nuggets', ['seara', 'chicken', 'nuggets', 'crispy'], {
     brand_text: 'seara', size_unit: 'g', size_total: 750, size_pack: 1,
@@ -305,8 +306,8 @@ console.log('candidate admission:');
   };
   check('legitimate same-form Seara nuggets remain admissible',
     candidateAdmission(nuggetsRead, searaNuggets).admitted);
-  check('Seara fillet cannot merge into Seara nuggets',
-    candidateAdmission({ ...nuggetsRead, tokens: ['seara', 'chicken', 'fillet'] }, searaNuggets).reason === 'form-conflict');
+  check('Registry does not derive cut from raw legacy wording',
+    candidateAdmission({ ...nuggetsRead, tokens: ['seara', 'chicken', 'fillet'] }, searaNuggets).admitted);
   check('different known canonical departments/categories veto admission',
     candidateAdmission(
       { ...nuggetsRead, category: 'fresh-chicken-poultry' },
@@ -322,8 +323,8 @@ console.log('candidate admission:');
     size: { unit: 'g', each: 200, pack: 1 }, brandText: 'almarai',
     family: 'cake', category: 'cakes-pastry', kind: 'product', corroboration: 0.9,
   };
-  check('Almarai cake cannot enter Almarai butter scoring',
-    candidateAdmission(cakeRead, almaraiButter).reason === 'form-conflict');
+  check('Identity Builder family conflict vetoes without lexical reclassification',
+    candidateAdmission(cakeRead, almaraiButter).reason === 'family-conflict');
 
   const noisyFamilyOil = product('pr_oil', ['mr', 'chef', 'pure', 'sunflower', 'oil'], {
     brand_text: 'mr chef', family: 'powder', category: 'oil-ghee',
@@ -333,8 +334,8 @@ console.log('candidate admission:');
     brandText: 'mr chef', family: 'oil', category: 'oil-ghee', kind: 'product',
     corroboration: 0.9,
   };
-  check('lexical family overrides a noisy stored family for admission',
-    candidateAdmission(cleanOilRead, noisyFamilyOil).admitted);
+  check('Registry never overrides structured family with lexical inference',
+    candidateAdmission(cleanOilRead, noisyFamilyOil).reason === 'family-conflict');
 
   const arabicChicken = product('pr_ar_chicken', ['دجاج', 'صدور'], {
     family: 'chicken', category: 'frozen-chicken-poultry',
@@ -344,8 +345,8 @@ console.log('candidate admission:');
     family: 'chicken', category: 'frozen-chicken-poultry', kind: 'product',
     corroboration: 0.9,
   };
-  check('trusted bilingual product-core synonyms remain admissible',
-    candidateAdmission(englishChicken, arabicChicken).admitted);
+  check('Registry does not translate bilingual raw tokens',
+    !candidateAdmission(englishChicken, arabicChicken).admitted);
 }
 
 // --- blocking -------------------------------------------------------------------

@@ -18,10 +18,10 @@
 //    keys — resolves to ONE product across two weeks.
 
 import {
-  updatedProfile, adoptDisplay, adoptSize, adoptBrandSlug, learnFromSighting, LEARN_TUNING,
+  updatedProfile, adoptDisplay, adoptSize, learnFromSighting, LEARN_TUNING,
 } from './learn.js';
 import { applyDecision } from './apply.js';
-import { resolveOffer } from './resolver.js';
+import { resolveLegacyOffer as resolveOffer } from './legacyResolver.js';
 import { observationFromOffer } from './read.js';
 import { decodeProfile, REGISTRY_ALGO_VERSION } from './model.js';
 
@@ -76,8 +76,8 @@ console.log('display adoption (§5.3):');
   check('stale pick (> 6 weeks) -> fresh read wins anyway', adoptDisplay(stale, { name: 'New Halah Oil', nameAr: null, corroboration: 0.4, week: '2026-07-15' })?.display_name === 'New Halah Oil');
 }
 
-// --- §5.3 size + brand adoption -------------------------------------------------
-console.log('size + brand adoption (§5.3):');
+// --- §5.3 size adoption ---------------------------------------------------------
+console.log('size adoption (§5.3):');
 {
   const fill = adoptSize(baseProduct(), { unit: 'ml', each: 1500, pack: 2 });
   check('sized read fills a nosize product', fill?.fill?.size_total === 1500 && fill.fill.size_pack === 2);
@@ -85,11 +85,6 @@ console.log('size + brand adoption (§5.3):');
   check('equal size -> nothing to do', adoptSize(sized, { unit: 'ml', each: 1500, pack: 2 }) === null);
   check('conflicting size never overwrites — flags review', adoptSize(sized, { unit: 'ml', each: 500, pack: 1 })?.flag === 'size-conflict');
 
-  const b1 = adoptBrandSlug(baseProduct(), { name: 'Almarai Fresh Milk', nameAr: null, source: 'd4d', category: 'milk-laban' });
-  check('detectBrand sets brand_slug', b1?.fill?.brand_slug === 'almarai');
-  const b2 = adoptBrandSlug(baseProduct({ brand_slug: 'nadec' }), { name: 'Almarai Fresh Milk', nameAr: null, source: 'd4d', category: 'milk-laban' });
-  check('conflicting detection never overwrites — flags review', b2?.flag === 'brand-conflict');
-  check('same detection -> no-op', adoptBrandSlug(baseProduct({ brand_slug: 'almarai' }), { name: 'Almarai Milk', nameAr: null, source: 'd4d', category: null }) === null);
 }
 
 // --- learnFromSighting composite ------------------------------------------------
@@ -106,6 +101,7 @@ console.log('learnFromSighting:');
   check('dormant reactivates (§5.1 ⇄)', fields.status === 'active');
   check('display + provenance adopted', fields.display_name === 'Halah Sunflower Oil' && fields.display_corroboration === 0.8 && fields.display_week === '2026-07-15');
   check('brand_text follows display provenance', fields.brand_text === 'halah');
+  check('Registry does not classify a brand slug from display wording', fields.brand_slug === undefined);
   check('size filled from the read', fields.size_unit === 'ml' && fields.size_total === 1500 && fields.size_pack === 2);
   check('profile taught + index tokens returned', decodeProfile(fields.token_profile).sunflower.count === 1 && tokens.includes('sunflower'));
   check('algo_version stamped', fields.algo_version === REGISTRY_ALGO_VERSION);
@@ -152,7 +148,7 @@ console.log('apply:');
   check('auto band teaches: recurring tokens now count 2, evidence advanced',
     prof.halah.count === 2 && prof.oil.count === 2 && taught.sightings === 2 && taught.last_seen === '2026-07-15');
 
-  // Review band: attaches but never teaches.
+  // Review band: records no trusted assignment and never teaches.
   const offer3 = { ...offer1, id: 'othaim:riyadh:d4d:o3', valid_from: '2026-07-15', price: 9.9 };
   const before = JSON.stringify(store._products.get(a1.productId));
   const reviewDecision = {
@@ -160,12 +156,12 @@ console.log('apply:');
     read: { tokens: ['halah', 'oil'], size: null, brandText: 'halah', family: 'oil', category: null, kind: 'product', corroboration: 0.6 },
   };
   const a3 = await applyDecision(reviewDecision, observationFromOffer(offer3, enr1), store);
-  check('review: sighting written (band review)', a3.applied === 'review' && store._sightings.get(offer3.id)?.match_band === 'review');
+  check('review: no trusted Product ID sighting written', a3.applied === 'review' && !store._sightings.has(offer3.id));
   check('review NEVER teaches: product row byte-identical', JSON.stringify(store._products.get(a1.productId)) === before);
 
   // Defer writes nothing.
   const a4 = await applyDecision({ outcome: 'defer', verdict: 'low_corroboration' }, null, store);
-  check('defer -> nothing written', a4.applied === 'defer' && store._sightings.size === 3 && store._products.size === 1);
+  check('defer -> nothing written', a4.applied === 'defer' && store._sightings.size === 2 && store._products.size === 1);
 }
 
 if (failures) {

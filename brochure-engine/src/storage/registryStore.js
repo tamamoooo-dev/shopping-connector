@@ -400,7 +400,8 @@ export function createD1RegistryStore(db) {
             `SELECT s.*, o.source_url AS o_source_url, o.image_url AS o_image_url,
                     o.valid_to AS o_valid_to, o.currency AS o_currency
                FROM product_sightings s LEFT JOIN offers o ON o.id = s.offer_id
-              WHERE s.product_id IN (${chunk.map(() => '?').join(',')})`,
+              WHERE s.product_id IN (${chunk.map(() => '?').join(',')})
+                AND s.match_band IN ('auto', 'created')`,
           )
           .bind(...chunk)
           .all();
@@ -440,6 +441,7 @@ export function createD1RegistryStore(db) {
             WHERE (s.product_id = ?1 OR s.product_id IN
                     (SELECT id FROM products WHERE status = 'merged' AND merged_into = ?1))
               AND o.valid_to >= ?2
+              AND s.match_band IN ('auto', 'created')
             ORDER BY o.price ASC LIMIT 1`,
         )
         .bind(productId, today)
