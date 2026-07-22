@@ -167,11 +167,12 @@ function buildContext(env) {
     opsToken: env.OPS_TOKEN,
     enrichStore,
     visionJobStore,
-    mistralKey: env.MISTRAL_API_KEY,
-    // Optional cold-standby key (offers/mistralKeys.js): when set, the drain
-    // fails over to it if the primary becomes unusable (auth/persistent quota).
-    // Unset ⇒ single-key chain ⇒ today's exact behavior. Never parallel quota.
-    mistralKeyBackup: env.MISTRAL_API_KEY_BACKUP,
+    // The main credential is currently provider-rate-limited, so production
+    // intentionally serves from the backup binding first. The main credential
+    // remains the second failover slot; keys are still used serially, never in
+    // parallel, by offers/mistralKeys.js.
+    mistralKey: env.MISTRAL_API_KEY_BACKUP || env.MISTRAL_API_KEY,
+    mistralKeyBackup: env.MISTRAL_API_KEY_BACKUP ? env.MISTRAL_API_KEY : null,
     // Runtime extraction policy; normalized inside offers/enrich.js. Unset or
     // invalid values safely retain the validated Vision First default.
     extractionStrategy: env.EXTRACTION_STRATEGY,
@@ -228,7 +229,7 @@ export default {
     if (event.cron === '* * * * *') {
       ctx.waitUntil(
         (async () => {
-          if (!env.MISTRAL_API_KEY) return;
+          if (!env.MISTRAL_API_KEY && !env.MISTRAL_API_KEY_BACKUP) return;
           const context = buildContext(env);
           const job = await context.visionJobStore.get().catch(() => null);
           if (!job || job.status !== 'running') return; // idle: one D1 read, done
@@ -300,7 +301,7 @@ export default {
     if (event.cron === '10,30,50 * * * *') {
       ctx.waitUntil(
         (async () => {
-          if (!env.MISTRAL_API_KEY) return;
+          if (!env.MISTRAL_API_KEY && !env.MISTRAL_API_KEY_BACKUP) return;
           const context = buildContext(env);
           // Yield to an active Background Vision job — it owns the drain via the
           // 1-minute cron above; running both would double the resolution writer.
