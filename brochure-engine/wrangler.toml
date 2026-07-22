@@ -8,6 +8,10 @@ name = "brochure-engine"
 main = "src/index.js"
 compatibility_date = "2025-06-01"
 
+[vars]
+EXTRACTION_STRATEGY = "ocr-first"
+IDENTITY_NORMALIZATION_MODE = "strict"
+
 # Optional runtime extraction policy. Leave unset for the validated default
 # (`vision-first`), or configure in the Worker environment as one of:
 # vision-first, ocr-first, vision-only, ocr-only.
@@ -106,3 +110,35 @@ id = "38b0639256a34d1ebd7d96dcb55d0a9b"
 #   npx wrangler secret put OPS_TOKEN
 # After deploying, apply the audit-table migration once:
 #   npx wrangler d1 execute brochure-engine --remote --file=./migrate-2026-07-ops.sql
+
+# --- Isolated release gate -----------------------------------------------------
+# Staging deliberately has no cron triggers. Release verification invokes each
+# write path explicitly, against staging-only D1/KV resources, before the
+# production Worker or its data is touched.
+[env.staging]
+name = "brochure-engine-staging"
+
+[env.staging.triggers]
+crons = []
+
+[env.staging.vars]
+EXTRACTION_STRATEGY = "ocr-first"
+IDENTITY_NORMALIZATION_MODE = "strict"
+ENVIRONMENT = "staging"
+
+[[env.staging.services]]
+binding = "SELF"
+service = "brochure-engine-staging"
+
+[[env.staging.services]]
+binding = "CONNECTOR"
+service = "shopping-connector"
+
+[[env.staging.d1_databases]]
+binding = "DB"
+database_name = "brochure-engine-staging"
+database_id = "fbdc703a-ec43-4321-a680-545859f50f1d"
+
+[[env.staging.kv_namespaces]]
+binding = "BROCHURES_KV"
+id = "b58eb13be0274a0f9f0a61ebea5f1946"

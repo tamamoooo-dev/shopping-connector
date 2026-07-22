@@ -214,6 +214,46 @@ console.log('drain:');
 }
 {
   const store = memEnrichStore();
+  store.setDebris([{ id: 'ocr-first:1', image_url: 'http://cdn/ocr-first.jpg' }]);
+  const calls = { crop: 0, ocr: 0, vision: 0 };
+  globalThis.fetch = async (url) => {
+    const value = String(url);
+    if (value === 'http://cdn/ocr-first.jpg') {
+      calls.crop += 1;
+      return {
+        ok: true,
+        headers: { get: () => 'image/jpeg' },
+        arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+      };
+    }
+    if (value.endsWith('/ocr')) {
+      calls.ocr += 1;
+      return { ok: true, json: async () => ({ pages: [{ markdown: '# Sadia Chicken\n# دجاج ساديا\n900 g' }] }) };
+    }
+    calls.vision += 1;
+    throw new Error('complete Vision outage');
+  };
+  const response = await handleRequest(new Request('http://x/enrich?strategy=ocr-first', {
+    method: 'POST',
+    headers: { 'X-Ingest-Secret': 'secret' },
+  }), {
+    ingestSecret: 'secret',
+    enrichStore: store,
+    mistralKey: 'k',
+    extractionStrategy: 'vision-first',
+  });
+  const body = await response.json();
+  const row = store.rows.get('ocr-first:1');
+  check('OCR-first production route succeeds during a complete Vision outage',
+    response.status === 200 && calls.crop === 1 && calls.ocr === 1 && calls.vision === 0 && body.enriched === 1);
+  check('OCR-first production diagnostics report exactly one OCR request',
+    body.extraction.strategy === 'ocr-first' && body.extraction.visionRequests === 0 && body.extraction.ocrRequests === 1);
+  check('OCR-first stored contract is OCR-sourced, servable, and Registry-ready',
+    row?.model === 'mistral-ocr-latest' && Number(row?.confidence) > 0 && Number(row?.confidence) <= 1 && row?.corroboration === 1
+      && row?.identity_candidate?.family === 'Chicken');
+}
+{
+  const store = memEnrichStore();
   store.setDebris([{ id: 'a:no-ocr', image_url: 'http://cdn/no-ocr.jpg', search_text: 'halah oil' }]);
   globalThis.fetch = fakeFetch({
     'http://cdn/no-ocr.jpg': '{"name_en":"Halah Oil","name_ar":null,"brand":"Halah","confidence":0.9}',

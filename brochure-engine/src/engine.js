@@ -731,7 +731,7 @@ export async function handleRequest(request, ctx) {
       return json({ error: 'Enrichment unavailable (no store or MISTRAL_API_KEY).' }, 503);
     }
     // One crop fetch + Vision + possible OCR = at most three subrequests per
-    // offer. Cap at 16 so even forced OCR First stays within the Worker budget.
+    // offer. Cap at 16 so fallback-heavy Vision First stays within the Worker budget.
     const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 15, 16));
     // Scope (pipeline milestone): 'all' = every current offer with a crop
     // (full-catalog vision coverage, the default per the evaluation plan);

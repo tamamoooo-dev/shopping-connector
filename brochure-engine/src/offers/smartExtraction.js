@@ -2,8 +2,9 @@
 //
 // This module deliberately stops at extraction. It has no storage, Registry,
 // identity, search, ranking, history, or product-normalization dependency.
-// Vision is authoritative whenever it produced a valid field; deterministic
-// OCR parsing can only fill a field Vision left missing or validation rejected.
+// Vision is authoritative in strategies that invoke it; deterministic OCR
+// parsing fills fields Vision left missing. OCR-first/only are independent,
+// OCR-authoritative strategies and never require a Vision observation.
 
 import { parseSize } from '../matching.js';
 import { matchBrandToken } from '../browse/brands.js';
@@ -447,8 +448,21 @@ export function validateOcrOutput(markdown, { usable = true, error = null } = {}
     const decision = fieldDecision(field, candidate.value, !catastrophic, 'OCR');
     return [field, { ...decision, evidenceLines: candidate.evidenceLines || [], method: candidate.method || 'deterministic-visible-text-rule' }];
   }));
+  // OCR providers do not return a trustworthy field-level confidence. Derive
+  // an auditable 0..1 score from validated visible-field coverage instead of
+  // borrowing Vision confidence or inventing model certainty.
+  const confidenceWeights = { name_en: 0.3, name_ar: 0.3, brand: 0.15, size: 0.15, pack_count: 0.1 };
+  const confidence = catastrophic
+    ? null
+    : Number(EXTRACTION_FIELDS.reduce(
+      (score, field) => score + (fields[field].status === 'Accepted' ? confidenceWeights[field] : 0),
+      0,
+    ).toFixed(2));
   return {
     ruleVersion: 'ocr-field-admission-v1',
+    confidenceUsedForAdmission: false,
+    confidence,
+    confidenceMethod: 'validated-visible-field-coverage-v1',
     global: { transportOk, catastrophic, reasons: globalReasons },
     fields,
     acceptedFields: EXTRACTION_FIELDS.filter((field) => fields[field].status === 'Accepted'),
@@ -462,6 +476,7 @@ export function validateOcrOutput(markdown, { usable = true, error = null } = {}
 export function emptySourceValidation(source) {
   return {
     ruleVersion: `${source.toLowerCase()}-not-invoked`,
+    confidence: null,
     fields: Object.fromEntries(EXTRACTION_FIELDS.map((field) => [field, {
       status: 'NotInvoked', value: null, candidate: null, reasons: [],
     }])),
@@ -545,7 +560,6 @@ export async function runSmartExtraction({
 
   if (selectedStrategy === EXTRACTION_STRATEGIES.OCR_FIRST) {
     await invokeOcr();
-    await invokeVision();
   } else if (selectedStrategy === EXTRACTION_STRATEGIES.OCR_ONLY) {
     await invokeOcr();
   } else {
@@ -556,6 +570,10 @@ export async function runSmartExtraction({
   }
 
   const merge = mergeValidatedExtractions(visionValidation, ocrValidation);
+  const ocrAuthoritative = selectedStrategy === EXTRACTION_STRATEGIES.OCR_FIRST
+    || selectedStrategy === EXTRACTION_STRATEGIES.OCR_ONLY;
+  const confidence = ocrAuthoritative ? ocrValidation.confidence : visionValidation.confidence;
+  const confidenceProvenance = confidence == null ? 'Null' : ocrAuthoritative ? 'OCR' : 'Vision';
   const structured = {
     brand: merge.final.brand,
     productName: merge.final.name_en,
@@ -574,7 +592,7 @@ export async function runSmartExtraction({
 
   return {
     extraction: structured,
-    confidence: visionValidation.confidence ?? null,
+    confidence,
     provenance: {
       brand: merge.provenance.brand,
       productName: merge.provenance.name_en,
@@ -582,7 +600,7 @@ export async function runSmartExtraction({
       size: merge.provenance.size,
       packCount: merge.provenance.pack_count,
       count: merge.provenance.pack_count,
-      confidence: merge.provenance.confidence,
+      confidence: confidenceProvenance,
     },
     diagnostics: {
       strategy: selectedStrategy,
@@ -600,7 +618,7 @@ export async function runSmartExtraction({
         size: merge.provenance.size,
         packCount: merge.provenance.pack_count,
         count: merge.provenance.pack_count,
-        confidence: merge.provenance.confidence,
+        confidence: confidenceProvenance,
       },
       processingTimeMs: Math.max(0, now() - started),
       visionRequests,

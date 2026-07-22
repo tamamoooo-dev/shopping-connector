@@ -387,7 +387,8 @@ function identityFromExtraction(result, mode) {
 // The serving gate historically stored OCR-overlap corroboration. Smart
 // Extraction instead has a stronger source-local invariant: every populated
 // final field must have passed the validator for the source recorded in its
-// provenance, and accepted Vision fields must not have been overwritten.
+// provenance. This gate is deliberately source-neutral so OCR-primary strategies
+// do not depend on Vision diagnostics.
 // Encode that completed validation with the existing numeric gate so all
 // downstream SQL/API contracts remain unchanged.
 export function validatedExtractionCorroboration(result) {
@@ -395,7 +396,7 @@ export function validatedExtractionCorroboration(result) {
   const provenance = result?.provenance || {};
   const diagnostics = result?.diagnostics || {};
   if (!extraction.productName && !extraction.arabicName) return null;
-  if (diagnostics.acceptedVisionFieldsOverwritten !== 0) return null;
+  if (diagnostics.visionRequests > 0 && diagnostics.acceptedVisionFieldsOverwritten !== 0) return null;
   const accepted = {
     Vision: new Set(diagnostics.validationResult?.acceptedFields || []),
     OCR: new Set(diagnostics.ocrValidationResult?.acceptedFields || []),
@@ -410,6 +411,14 @@ export function validatedExtractionCorroboration(result) {
     if (!accepted[source]?.has(validationField)) return null;
   }
   return 1;
+}
+
+function extractionSource(result) {
+  const diagnostics = result?.diagnostics || {};
+  if (diagnostics.ocrRequests > 0 && diagnostics.visionRequests === 0) return 'ocr';
+  return result?.provenance?.productName === 'OCR' && result?.provenance?.arabicName !== 'Vision'
+    ? 'ocr'
+    : 'vision';
 }
 
 // One auditable provider observation. Unlike enrichOffer(), this preserves the
@@ -459,9 +468,7 @@ export async function enrichOffer(
     size: extracted.size,
     confidence: result.confidence,
     corroboration: validatedExtractionCorroboration(result),
-    source: result.provenance.productName === 'OCR' && result.provenance.arabicName !== 'Vision'
-      ? 'ocr'
-      : 'vision',
+    source: extractionSource(result),
     model: extractionModel(result.diagnostics, model, ocrModel),
     cropUrl: crop.cropUrl,
     enrichedAt: new Date().toISOString(),
@@ -531,9 +538,7 @@ export async function enrichWithFailover(
     size: extracted.size,
     confidence: result.confidence,
     corroboration: validatedExtractionCorroboration(result),
-    source: result.provenance.productName === 'OCR' && result.provenance.arabicName !== 'Vision'
-      ? 'ocr'
-      : 'vision',
+    source: extractionSource(result),
     model: extractionModel(result.diagnostics, model, ocrModel),
     cropUrl: crop.cropUrl,
     enrichedAt: new Date().toISOString(),

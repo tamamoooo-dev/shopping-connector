@@ -9,6 +9,7 @@ import {
   mergeValidatedExtractions,
   runSmartExtraction,
 } from './smartExtraction.js';
+import { validatedExtractionCorroboration } from './enrich.js';
 
 let failures = 0;
 function check(label, condition) {
@@ -80,6 +81,8 @@ const ocr = validateOcrOutput([
   '# منتج علامة مختلف',
   '1 kg',
 ].join('\n'));
+check('OCR confidence is derived from validated OCR coverage', ocr.confidence === 0.9
+  && ocr.confidenceMethod === 'validated-visible-field-coverage-v1');
 const merged = mergeValidatedExtractions(complete, ocr);
 check('accepted Vision product name is immutable', merged.final.name_en === completeVision.name_en && merged.provenance.name_en === 'Vision');
 check('accepted Vision size is immutable', merged.final.size === completeVision.size && merged.provenance.size === 'Vision');
@@ -121,6 +124,16 @@ console.log('pipeline orchestration:');
   check('Vision-confirmed fields remain Vision-owned', result.extraction.productName === completeVision.name_en && result.provenance.productName === 'Vision');
 }
 {
+  const { confidence: _omitted, ...visionWithoutConfidence } = completeVision;
+  const result = await runSmartExtraction({
+    strategy: 'vision-first',
+    runVision: async () => ({ parsedObject: { ...visionWithoutConfidence, brand: null }, rawReply: '{}' }),
+    runOcr: async () => ({ rawOutput: '# Sadia Chicken\n# دجاج ساديا\n900 g' }),
+  });
+  check('Vision First confidence behavior remains Vision-derived', result.confidence === null
+    && result.provenance.confidence === 'Null' && result.diagnostics.ocrValidationResult.confidence > 0);
+}
+{
   const counts = { vision: 0, ocr: 0 };
   const run = (strategy) => runSmartExtraction({
     strategy,
@@ -134,7 +147,20 @@ console.log('pipeline orchestration:');
   check('OCR Only never invokes Vision', counts.vision === 0 && counts.ocr === 1 && ocrOnly.diagnostics.strategy === 'ocr-only');
   counts.vision = 0; counts.ocr = 0;
   const ocrFirst = await run('ocr-first');
-  check('OCR First changes call order/strategy without changing Vision precedence', counts.vision === 1 && counts.ocr === 1 && ocrFirst.provenance.productName === 'Vision');
+  check('OCR First invokes OCR without invoking Vision', counts.vision === 0 && counts.ocr === 1);
+  check('OCR First output and confidence are entirely OCR-derived', ocrFirst.provenance.productName === 'OCR'
+    && ocrFirst.provenance.confidence === 'OCR' && ocrFirst.confidence === ocrFirst.diagnostics.ocrValidationResult.confidence);
+  check('OCR First passes the source-neutral canonical serving gate', validatedExtractionCorroboration(ocrFirst) === 1);
+}
+{
+  let visionCalls = 0;
+  const result = await runSmartExtraction({
+    strategy: 'ocr-first',
+    runOcr: async () => ({ rawOutput: '# OCR Product\n# منتج أو سي آر\n900 g' }),
+    runVision: async () => { visionCalls += 1; throw new Error('complete Vision outage'); },
+  });
+  check('OCR First succeeds during a complete Vision outage', visionCalls === 0
+    && result.extraction.productName === 'OCR Product' && result.diagnostics.visionRequests === 0);
 }
 
 if (failures) {
