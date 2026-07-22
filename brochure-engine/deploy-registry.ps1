@@ -11,6 +11,37 @@
 $ErrorActionPreference = 'Continue'
 $engine = 'https://brochure-engine.tamamoooo.workers.dev'
 
+# Production authentication preflight. Never fall back to local-secrets.mjs,
+# INGEST_SECRET, or .ingest.secret: those are local/staging sources, not the
+# production deployment credential authority. The deployment secret store must
+# inject this distinct variable because Cloudflare never returns secret values.
+$productionIngestSecret = [Environment]::GetEnvironmentVariable('PRODUCTION_INGEST_SECRET')
+if ([string]::IsNullOrWhiteSpace($productionIngestSecret)) {
+  Write-Error 'Configuration error: PRODUCTION_INGEST_SECRET is required from the production deployment secret store. No deployment or authenticated request was attempted.'
+  exit 2
+}
+
+# Validate the credential on a protected read-only endpoint before any schema
+# write or Worker deployment. Stale credentials therefore fail safely before
+# production changes.
+try {
+  $authProbe = Invoke-WebRequest -Uri "$engine/registry/review?limit=1" -Method Get -Headers @{ 'X-Ingest-Secret' = $productionIngestSecret } -TimeoutSec 30 -UseBasicParsing
+  if ($authProbe.StatusCode -ne 200) {
+    Write-Error "Configuration error: production authentication preflight returned HTTP $($authProbe.StatusCode). No deployment was attempted."
+    exit 2
+  }
+} catch {
+  $status = $_.Exception.Response.StatusCode.value__
+  if ($status -eq 401 -or $status -eq 403) {
+    Write-Error 'Configuration error: PRODUCTION_INGEST_SECRET was rejected by production. Refresh the deployment secret-store value. No deployment was attempted.'
+    exit 2
+  }
+  Write-Error "Configuration error: production authentication preflight could not complete: $($_.Exception.Message). No deployment was attempted."
+  exit 2
+}
+
+Write-Host '== 0/4 production authentication preflight passed'
+
 Write-Host "== 1/4 offer_enrichments columns (ALTERs; 'duplicate column' = already done)"
 npx wrangler d1 execute brochure-engine --remote --command "ALTER TABLE offer_enrichments ADD COLUMN match_text TEXT"
 npx wrangler d1 execute brochure-engine --remote --command "ALTER TABLE offer_enrichments ADD COLUMN mint_verdict TEXT"
@@ -22,8 +53,8 @@ if (-not $?) { Write-Host 'registry migration FAILED — stopping before deploy'
 Write-Host "== 3/4 verify schema"
 npx wrangler d1 execute brochure-engine --remote --json --command "SELECT name FROM sqlite_master WHERE type='table' AND name IN ('products','product_tokens','product_sightings')"
 
-Write-Host "== 4/4 wrangler deploy"
-npx wrangler deploy
+Write-Host "== 4/4 wrangler deploy (explicit top-level production target)"
+npx wrangler deploy --env=""
 if (-not $?) { Write-Host 'deploy FAILED'; exit 1 }
 
 Write-Host "== production checks (public reads)"
