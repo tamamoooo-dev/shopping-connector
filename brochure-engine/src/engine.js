@@ -18,6 +18,7 @@ import { getQueryPricesDoc, getLowestDoc, recordOfferHistory, deriveIdentity } f
 import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offers/contract.js';
 import { drainEnrichment, applyEnrichment } from './offers/enrich.js';
+import { readVisionModelSetting } from './offers/visionModel.js';
 import { drainResolution } from './registry/drain.js';
 import { runMaintenance } from './registry/lifecycle.js';
 import { applyReviewAction } from './registry/review.js';
@@ -743,10 +744,20 @@ export async function handleRequest(request, ctx) {
     const strategy = url.searchParams.get('strategy') || ctx.extractionStrategy;
     const identityNormalizationMode = url.searchParams.get('identityMode') || ctx.identityNormalizationMode;
     const t0 = Date.now();
+    // Vision Model Selection Policy (offers/visionModel.js). EVERY drain — the
+    // enrich cron, the ops Vision Drain, and the background Vision job — reaches
+    // Mistral through this one route, so reading the operator's selection here
+    // covers all of them and there is no second place to keep in sync. Medium
+    // unless an operator explicitly armed Budget Mode; a read failure is Medium
+    // too, by construction in readVisionModelSetting.
+    const visionModel = await readVisionModelSetting(ctx.objectStore);
     const report = await drainEnrichment(
       { enrichStore: ctx.enrichStore, mistralKey: ctx.mistralKey, mistralKeyBackup: ctx.mistralKeyBackup },
-      { limit, currentOn: todayISO(), scope, strategy, identityNormalizationMode },
+      { limit, currentOn: todayISO(), scope, strategy, identityNormalizationMode, model: visionModel.model },
     );
+    // Which model produced this batch, on the report itself: the per-offer rows
+    // already carry it, but the console reads the report.
+    report.visionModel = { tier: visionModel.tier, model: visionModel.model, budget: visionModel.budget };
     // ENRICHMENT ONLY (2026-07-20): resolution is DECOUPLED — it no longer rides
     // this child (the combined enrichment + resolution CPU tripped the per-
     // invocation limit under load). Each cron coordinator (index.js) now runs one
@@ -767,6 +778,10 @@ export async function handleRequest(request, ctx) {
             enriched: report.enriched,
             declined: report.declined,
             pruned: report.pruned,
+            // Audited per run so a quality regression can always be traced back
+            // to the model that was active when the rows were written.
+            model: visionModel.model,
+            budgetMode: visionModel.budget,
             resolved: report.resolution
               ? {
                   scanned: report.resolution.scanned,

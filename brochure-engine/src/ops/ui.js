@@ -130,6 +130,10 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
 .progGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:4px 0 10px}
 .tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--card2);color:var(--mut);margin-left:6px}
 .tag.run{background:rgba(34,197,94,.16);color:var(--ok)}
+.tag.warnTag{background:rgba(245,158,11,.16);color:var(--warn)}
+.warnBox{background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.38);color:var(--warn);
+  border-radius:10px;padding:10px 12px;font-size:12.5px;font-weight:600;margin-bottom:10px;line-height:1.4}
+.segSub{font-size:10px;font-weight:600;opacity:.75}
 </style>
 </head>
 <body>
@@ -181,6 +185,17 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
     </div>
 
     <div class="card">
+      <h2>Vision Model <span id="vmTag" class="tag">…</span></h2>
+      <div class="mut" style="margin-bottom:10px">Medium is the production baseline for canonical product data. Small is a manual fallback for when API limits or budget become a concern — models are never switched automatically.</div>
+      <div id="vmWarn" class="warnBox" style="display:none"></div>
+      <div class="seg" id="vmSeg">
+        <button data-tier="medium">Medium 3.5<br><span class="segSub">Recommended</span></button>
+        <button data-tier="small">Small 2603<br><span class="segSub">Budget</span></button>
+      </div>
+      <div id="vmPanel"><span class="spin"></span></div>
+    </div>
+
+    <div class="card">
       <h2>Background Vision <span id="vjTag" class="tag">idle</span></h2>
       <div class="mut" style="margin-bottom:8px">Drains the queue to empty on the server — safe to close this page; it keeps running. For backfills, maintenance, and recovery.</div>
       <div id="vjPanel"><span class="mut">No job yet.</span></div>
@@ -192,7 +207,7 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
 
     <div class="card">
       <h2>Inspector</h2>
-      <div class="seg">
+      <div class="seg" id="insSeg">
         <button data-ins="offer" class="on">Offer</button>
         <button data-ins="registry">Registry</button>
       </div>
@@ -348,7 +363,7 @@ document.querySelectorAll("nav button").forEach(function (b) {
     $("#v-" + b.dataset.v).classList.add("active");
     stopPoll();
     if (b.dataset.v === "home" || b.dataset.v === "stores") loadOverview();
-    if (b.dataset.v === "vision") { loadQueue(); loadVisionJob(); startPoll(function () { loadProgress(); loadVisionJob(); }, 5000); }
+    if (b.dataset.v === "vision") { loadQueue(); loadVisionJob(); loadVisionModel(); startPoll(function () { loadProgress(); loadVisionJob(); }, 5000); }
     if (b.dataset.v === "more") { loadMore(); loadMoreOps(); }
   };
 });
@@ -738,6 +753,61 @@ function runLiveDrain() {
   step();
 }
 
+/* ---------- Vision tab: Vision Model (Developer Tool) ---------- */
+/* Medium is the production baseline; Small is a MANUAL fallback for API-limit
+   or budget pressure. Nothing else in the system moves this — models are never
+   switched automatically (see offers/visionModel.js for why). */
+var vmSetting = null, vmBusy = false;
+function loadVisionModel() { return api("vision/model").then(renderVisionModel).catch(function () {}); }
+function renderVisionModel(r) {
+  var s = r && r.setting;
+  if (!s) return;
+  vmSetting = s;
+  var tag = $("#vmTag");
+  tag.textContent = s.budget ? "budget" : "production";
+  tag.className = "tag" + (s.budget ? " warnTag" : "");
+  $("#vmSeg").querySelectorAll("button").forEach(function (b) {
+    b.classList.toggle("on", b.dataset.tier === s.tier);
+    b.disabled = vmBusy;
+  });
+  $("#vmWarn").style.display = s.warning ? "block" : "none";
+  if (s.warning) $("#vmWarn").textContent = s.warning;
+  $("#vmPanel").innerHTML =
+    kvl("Active model", s.model) +
+    kvl("Version", s.version) +
+    kvl("Selected", s.selectedAt
+      ? ago(s.selectedAt) + (s.selectedBy ? " · " + s.selectedBy : "")
+      : "never — running the default") +
+    '<div class="mut" style="margin-top:6px">Applies to the next drain; work already running finishes on the model it started with, and every stored row records its own model. Live Mistral rate-limit signal appears under Vision Progress above.</div>';
+}
+$("#vmSeg").querySelectorAll("button").forEach(function (b) {
+  b.onclick = function () {
+    var tier = b.dataset.tier;
+    if (vmBusy || (vmSetting && vmSetting.tier === tier)) return;
+    var budget = tier === "small";
+    /* Only the downgrade is gated. Returning to the production baseline is the
+       safe direction and should never sit behind a warning sheet. */
+    var ask = budget
+      ? confirmSheet("Enable Budget Mode",
+          "Switches extraction to Small 2603. Quality may decrease, especially for package size and brand recognition. Medium is the production baseline — use this only while API limits or budget are a concern.",
+          false)
+      : Promise.resolve(true);
+    ask.then(function (ok) {
+      if (!ok) return;
+      vmBusy = true;
+      api("vision/model", { body: { confirm: true, tier: tier } }).then(function (r2) {
+        vmBusy = false;
+        toast(budget ? "Budget Mode enabled" : "Medium (production) restored");
+        renderVisionModel({ setting: r2.setting });
+      }).catch(function (e) {
+        vmBusy = false;
+        toast(e.message || "error", true);
+        loadVisionModel();
+      });
+    });
+  };
+});
+
 /* ---------- Vision tab: Background Manual Vision job (§2) ---------- */
 function providerLimitHtml(pl) {
   if (!pl) return "";
@@ -801,9 +871,12 @@ $("#vjStopBtn").onclick = function () {
 };
 
 /* ---------- Vision tab: Inspector (§2/§3) ---------- */
-$("#v-vision").querySelectorAll(".seg button").forEach(function (b) {
+/* Scoped to #insSeg, not to every .seg in the tab — the Vision Model selector
+   is a segmented control on this tab too, and a tab-wide query would clear its
+   selection whenever the Inspector toggled. */
+$("#insSeg").querySelectorAll("button").forEach(function (b) {
   b.onclick = function () {
-    $("#v-vision").querySelectorAll(".seg button").forEach(function (x) { x.classList.remove("on"); });
+    $("#insSeg").querySelectorAll("button").forEach(function (x) { x.classList.remove("on"); });
     b.classList.add("on");
     var reg = b.dataset.ins === "registry";
     $("#insOffer").style.display = reg ? "none" : "block";

@@ -48,6 +48,12 @@ import { drainResolution } from '../registry/drain.js';
 import { runMaintenance } from '../registry/lifecycle.js';
 import { deriveIdentity } from '../priceHistory.js';
 import { servable } from '../offers/enrich.js';
+import {
+  readVisionModelSetting,
+  writeVisionModelSetting,
+  VISION_MODEL_OPTIONS,
+  VISION_MODEL_TIERS,
+} from '../offers/visionModel.js';
 import { CONSOLE_HTML } from './ui.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
@@ -455,6 +461,26 @@ async function runVisionStart(ctx, body) {
   return { action: 'ops:vision-start', ok: true, job };
 }
 
+// Developer Tool — Vision Model selection (offers/visionModel.js). The ONLY
+// thing in the system that moves this setting: models are never switched
+// automatically, by policy. Medium is production; Small is a manual fallback for
+// API-limit or budget pressure. Takes effect on the next drain — running work
+// finishes on the model it started with, and every row records its own model.
+async function runVisionModelSelect(ctx, body) {
+  const requested = String(body?.tier == null ? '' : body.tier).trim().toLowerCase();
+  if (!VISION_MODEL_TIERS[requested]) {
+    throw new OpsError(`Unknown vision model tier '${requested}'.`);
+  }
+  const setting = await writeVisionModelSetting(ctx.objectStore, requested, { by: 'ops' });
+  await auditOp(ctx, {
+    action: 'ops:vision-model',
+    ok: true,
+    elapsed_ms: 0,
+    detail: { tier: setting.tier, model: setting.model, budgetMode: setting.budget },
+  });
+  return { action: 'ops:vision-model', ok: true, setting };
+}
+
 // Background Manual Vision — stop. Flips the job to 'stopped'; the running chain
 // halts at its next hop's status check (it never clobbers a stop back to
 // running). D1-only, no vision calls — safe anytime.
@@ -795,6 +821,11 @@ async function apiRoute(request, ctx, url, sub) {
         return opsJson(await visionProgress(ctx));
       case 'vision/job': // Background Manual Vision job snapshot (polled)
         return opsJson({ job: ctx.visionJobStore ? await ctx.visionJobStore.get() : null });
+      case 'vision/model': // Developer Tool — active model + the tiers on offer
+        return opsJson({
+          setting: await readVisionModelSetting(ctx.objectStore),
+          options: VISION_MODEL_OPTIONS,
+        });
       case 'queue': // §4 Queue Monitor
         return opsJson(await queueSnapshot(ctx));
       case 'crons': // §5 Cron Monitor
@@ -855,6 +886,13 @@ async function apiRoute(request, ctx, url, sub) {
       case 'vision/stop': {
         // Halt the running Vision job (D1-only, no vision calls).
         return opsJson(await runVisionStop(ctx));
+      }
+      case 'vision/model': {
+        // Developer Tool: switch the extraction model. Confirm-gated like every
+        // console mutation — this one changes the quality of every product
+        // record written from here on.
+        requireConfirm(body, true);
+        return opsJson(await runVisionModelSelect(ctx, body));
       }
       case 'verify': {
         // Read-only: verification without any ingest (no confirmation needed).
