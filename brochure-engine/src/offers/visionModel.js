@@ -89,8 +89,21 @@ export function visionModelFor(tier) {
   return VISION_MODEL_TIERS[normalizeVisionTier(tier)];
 }
 
+// ARMED vs INERT — the safety property this whole module is built around.
+//
+// `armed` is true only when an operator actually stored a selection. Until then
+// the feature is INERT: engine.js passes NO model to drainEnrichment, extraction
+// keeps running on enrich.js's own DEFAULT_MODEL, and production behaves exactly
+// as it did before this feature existed. That is what lets the selector ship
+// ahead of the frozen extraction baseline instead of riding with it.
+//
+// `tier`/`model` still describe the tier that WOULD be selected (Medium, by the
+// fail-safe rule below) so the console has something coherent to render — they
+// are a proposal while inert, not a description of what is running. Callers must
+// branch on `armed`, never on `model` alone.
 function settingFrom(tier, extra = {}) {
   const t = visionModelFor(tier);
+  const source = extra.source || 'default';
   return {
     tier: t.tier,
     model: t.model,
@@ -101,6 +114,8 @@ function settingFrom(tier, extra = {}) {
     selectedAt: null,
     selectedBy: null,
     ...extra,
+    source,
+    armed: source === 'stored',
   };
 }
 

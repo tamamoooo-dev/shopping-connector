@@ -47,7 +47,7 @@ import {
 import { drainResolution } from '../registry/drain.js';
 import { runMaintenance } from '../registry/lifecycle.js';
 import { deriveIdentity } from '../priceHistory.js';
-import { servable } from '../offers/enrich.js';
+import { servable, DEFAULT_MODEL } from '../offers/enrich.js';
 import {
   readVisionModelSetting,
   writeVisionModelSetting,
@@ -478,7 +478,9 @@ async function runVisionModelSelect(ctx, body) {
     elapsed_ms: 0,
     detail: { tier: setting.tier, model: setting.model, budgetMode: setting.budget },
   });
-  return { action: 'ops:vision-model', ok: true, setting };
+  // Same shape the GET returns, so the console renders a selection response and
+  // a poll response through one code path. Once armed, active === selected.
+  return { action: 'ops:vision-model', ok: true, setting, defaultModel: DEFAULT_MODEL, activeModel: setting.model };
 }
 
 // Background Manual Vision — stop. Flips the job to 'stopped'; the running chain
@@ -821,11 +823,20 @@ async function apiRoute(request, ctx, url, sub) {
         return opsJson(await visionProgress(ctx));
       case 'vision/job': // Background Manual Vision job snapshot (polled)
         return opsJson({ job: ctx.visionJobStore ? await ctx.visionJobStore.get() : null });
-      case 'vision/model': // Developer Tool — active model + the tiers on offer
+      case 'vision/model': { // Developer Tool — active model + the tiers on offer
+        // `defaultModel` is what extraction runs on while the selector is INERT
+        // (no operator selection stored). The console must show the model that
+        // is really running, not the tier the selector proposes — otherwise an
+        // unarmed card would claim Medium while production is still on the
+        // engine default.
+        const setting = await readVisionModelSetting(ctx.objectStore);
         return opsJson({
-          setting: await readVisionModelSetting(ctx.objectStore),
+          setting,
+          defaultModel: DEFAULT_MODEL,
+          activeModel: setting.armed ? setting.model : DEFAULT_MODEL,
           options: VISION_MODEL_OPTIONS,
         });
+      }
       case 'queue': // §4 Queue Monitor
         return opsJson(await queueSnapshot(ctx));
       case 'crons': // §5 Cron Monitor

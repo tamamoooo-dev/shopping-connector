@@ -757,48 +757,73 @@ function runLiveDrain() {
 /* Medium is the production baseline; Small is a MANUAL fallback for API-limit
    or budget pressure. Nothing else in the system moves this — models are never
    switched automatically (see offers/visionModel.js for why). */
-var vmSetting = null, vmBusy = false;
+var vmSetting = null, vmActive = null, vmOptions = [], vmBusy = false;
 function loadVisionModel() { return api("vision/model").then(renderVisionModel).catch(function () {}); }
 function renderVisionModel(r) {
   var s = r && r.setting;
   if (!s) return;
   vmSetting = s;
+  if (r.options) vmOptions = r.options;
+  /* The model REALLY running. While no selection is stored the selector is
+     inert and extraction uses the engine default, so never render s.model as
+     if it were active — an unarmed card must not claim a tier it isn't using. */
+  vmActive = r.activeModel || (s.armed ? s.model : null);
   var tag = $("#vmTag");
-  tag.textContent = s.budget ? "budget" : "production";
-  tag.className = "tag" + (s.budget ? " warnTag" : "");
+  tag.textContent = !s.armed ? "engine default" : (s.budget ? "budget" : "production");
+  tag.className = "tag" + (s.armed && s.budget ? " warnTag" : "");
   $("#vmSeg").querySelectorAll("button").forEach(function (b) {
-    b.classList.toggle("on", b.dataset.tier === s.tier);
+    b.classList.toggle("on", s.armed && b.dataset.tier === s.tier);
     b.disabled = vmBusy;
   });
-  $("#vmWarn").style.display = s.warning ? "block" : "none";
-  if (s.warning) $("#vmWarn").textContent = s.warning;
+  var warn = s.armed ? s.warning : null;
+  $("#vmWarn").style.display = warn ? "block" : "none";
+  if (warn) $("#vmWarn").textContent = warn;
   $("#vmPanel").innerHTML =
-    kvl("Active model", s.model) +
-    kvl("Version", s.version) +
-    kvl("Selected", s.selectedAt
-      ? ago(s.selectedAt) + (s.selectedBy ? " · " + s.selectedBy : "")
-      : "never — running the default") +
-    '<div class="mut" style="margin-top:6px">Applies to the next drain; work already running finishes on the model it started with, and every stored row records its own model. Live Mistral rate-limit signal appears under Vision Progress above.</div>';
+    kvl("Active model", vmActive || "—") +
+    (s.armed
+      ? kvl("Version", s.version) + kvl("Selected",
+          ago(s.selectedAt) + (s.selectedBy ? " · " + s.selectedBy : ""))
+      : kvl("Selected", "never — no override stored")) +
+    '<div class="mut" style="margin-top:6px">' +
+    (s.armed
+      ? "Applies to the next drain; work already running finishes on the model it started with, and every stored row records its own model."
+      : "No override stored, so extraction runs on the engine default above and this selector changes nothing. Picking a tier arms it for the next drain.") +
+    " Live Mistral rate-limit signal appears under Vision Progress above.</div>";
 }
 $("#vmSeg").querySelectorAll("button").forEach(function (b) {
   b.onclick = function () {
     var tier = b.dataset.tier;
-    if (vmBusy || (vmSetting && vmSetting.tier === tier)) return;
+    /* Only a tier that is ALREADY ARMED is a no-op. While inert, clicking the
+       proposed tier is a real action — it arms the override — so it must not be
+       swallowed here. */
+    if (vmBusy || (vmSetting && vmSetting.armed && vmSetting.tier === tier)) return;
     var budget = tier === "small";
-    /* Only the downgrade is gated. Returning to the production baseline is the
-       safe direction and should never sit behind a warning sheet. */
+    var opt = vmOptions.filter(function (o) { return o.tier === tier; })[0];
+    /* Arming ANY tier whose model differs from what is running right now changes
+       extraction, so it is confirmed. That matters most while the selector is
+       inert and the engine default is not Medium: picking Medium there is a real
+       model change, not a return to a baseline already in force. Once the engine
+       default IS Medium, arming Medium changes nothing and asks nothing. */
+    var changesModel = !!(opt && vmActive && opt.model !== vmActive);
     var ask = budget
       ? confirmSheet("Enable Budget Mode",
           "Switches extraction to Small 2603. Quality may decrease, especially for package size and brand recognition. Medium is the production baseline — use this only while API limits or budget are a concern.",
           false)
-      : Promise.resolve(true);
+      : changesModel
+        ? confirmSheet("Switch to " + (opt ? opt.label : "Medium"),
+            "Extraction is running on " + vmActive + " right now. Arming this tier moves it to " + opt.model +
+            " from the next drain on, at a higher cost per crop. Nothing switches back automatically.",
+            false)
+        : Promise.resolve(true);
     ask.then(function (ok) {
       if (!ok) return;
       vmBusy = true;
       api("vision/model", { body: { confirm: true, tier: tier } }).then(function (r2) {
         vmBusy = false;
-        toast(budget ? "Budget Mode enabled" : "Medium (production) restored");
-        renderVisionModel({ setting: r2.setting });
+        toast(budget ? "Budget Mode enabled" : "Medium (production) armed");
+        /* Pass the whole response, not just .setting — it carries activeModel,
+           without which the panel would fall back to rendering a dash. */
+        renderVisionModel(r2);
       }).catch(function (e) {
         vmBusy = false;
         toast(e.message || "error", true);

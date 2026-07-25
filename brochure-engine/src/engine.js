@@ -17,7 +17,7 @@ import { rowToDoc } from './contract.js';
 import { getQueryPricesDoc, getLowestDoc, recordOfferHistory, deriveIdentity } from './priceHistory.js';
 import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offers/contract.js';
-import { drainEnrichment, applyEnrichment } from './offers/enrich.js';
+import { drainEnrichment, applyEnrichment, DEFAULT_MODEL } from './offers/enrich.js';
 import { readVisionModelSetting } from './offers/visionModel.js';
 import { drainResolution } from './registry/drain.js';
 import { runMaintenance } from './registry/lifecycle.js';
@@ -747,17 +747,38 @@ export async function handleRequest(request, ctx) {
     // Vision Model Selection Policy (offers/visionModel.js). EVERY drain — the
     // enrich cron, the ops Vision Drain, and the background Vision job — reaches
     // Mistral through this one route, so reading the operator's selection here
-    // covers all of them and there is no second place to keep in sync. Medium
-    // unless an operator explicitly armed Budget Mode; a read failure is Medium
-    // too, by construction in readVisionModelSetting.
+    // covers all of them and there is no second place to keep in sync.
+    //
+    // INERT UNTIL ARMED: with no stored selection we pass no `model` key at all,
+    // so drainEnrichment's own `model = DEFAULT_MODEL` default applies and this
+    // route behaves exactly as it did before the selector existed. Only an
+    // explicit operator choice overrides it. Deliberate — the selector ships
+    // AHEAD of the frozen extraction baseline, and defaulting to Medium here
+    // would silently move production onto a model/prompt pairing nobody has
+    // measured. A read failure is inert too, by construction.
     const visionModel = await readVisionModelSetting(ctx.objectStore);
     const report = await drainEnrichment(
       { enrichStore: ctx.enrichStore, mistralKey: ctx.mistralKey, mistralKeyBackup: ctx.mistralKeyBackup },
-      { limit, currentOn: todayISO(), scope, strategy, identityNormalizationMode, model: visionModel.model },
+      {
+        limit,
+        currentOn: todayISO(),
+        scope,
+        strategy,
+        identityNormalizationMode,
+        ...(visionModel.armed ? { model: visionModel.model } : {}),
+      },
     );
     // Which model produced this batch, on the report itself: the per-offer rows
-    // already carry it, but the console reads the report.
-    report.visionModel = { tier: visionModel.tier, model: visionModel.model, budget: visionModel.budget };
+    // already carry it, but the console reads the report. This is the model that
+    // ACTUALLY ran — while inert that is enrich.js's DEFAULT_MODEL, not the tier
+    // the selector happens to be proposing.
+    const activeVisionModel = visionModel.armed ? visionModel.model : DEFAULT_MODEL;
+    report.visionModel = {
+      tier: visionModel.armed ? visionModel.tier : null,
+      model: activeVisionModel,
+      budget: visionModel.armed ? visionModel.budget : false,
+      armed: visionModel.armed,
+    };
     // ENRICHMENT ONLY (2026-07-20): resolution is DECOUPLED — it no longer rides
     // this child (the combined enrichment + resolution CPU tripped the per-
     // invocation limit under load). Each cron coordinator (index.js) now runs one
@@ -780,8 +801,8 @@ export async function handleRequest(request, ctx) {
             pruned: report.pruned,
             // Audited per run so a quality regression can always be traced back
             // to the model that was active when the rows were written.
-            model: visionModel.model,
-            budgetMode: visionModel.budget,
+            model: activeVisionModel,
+            budgetMode: visionModel.armed && visionModel.budget,
             resolved: report.resolution
               ? {
                   scanned: report.resolution.scanned,

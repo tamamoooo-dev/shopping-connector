@@ -45,10 +45,13 @@ const decode = (bytes) => JSON.parse(new TextDecoder().decode(bytes));
 
 console.log('\n--- catalog + policy invariants ---');
 check('default tier is medium', DEFAULT_VISION_TIER === 'medium');
+// Deliberately NOT asserted against enrich.js's DEFAULT_MODEL. The selector
+// ships ahead of the frozen extraction baseline, so the two are allowed to
+// differ; the engine simply does not override while inert (see the ARMED block
+// below). Once the baseline lands they converge on their own.
 check(
   'medium puts the FROZEN baseline model string on the wire',
-  VISION_MODEL_TIERS.medium.model === 'mistral-medium-latest' &&
-    VISION_MODEL_TIERS.medium.model === DEFAULT_MODEL,
+  VISION_MODEL_TIERS.medium.model === 'mistral-medium-latest',
 );
 check('medium records the resolved version without sending it',
   VISION_MODEL_TIERS.medium.version === 'mistral-medium-3.5');
@@ -77,7 +80,7 @@ check('visionModelFor(garbage) yields the medium record', visionModelFor('nope')
 console.log('\n--- reading the setting ---');
 {
   const none = await readVisionModelSetting(null);
-  check('no object store bound -> medium', none.tier === 'medium' && none.model === DEFAULT_MODEL);
+  check('no object store bound -> medium', none.tier === 'medium' && none.model === 'mistral-medium-latest');
   check('no object store bound -> source "default"', none.source === 'default');
 
   const store = memoryObjectStore();
@@ -121,11 +124,66 @@ console.log('\n--- writing the setting ---');
   check('switching back restores the production baseline',
     restored.tier === 'medium' && restored.budget === false && restored.warning === null);
   check('restored selection round-trips',
-    (await readVisionModelSetting(store)).model === DEFAULT_MODEL);
+    (await readVisionModelSetting(store)).model === 'mistral-medium-latest');
 
   let threw = false;
   try { await writeVisionModelSetting(null, 'small'); } catch { threw = true; }
   check('writing without an object store fails loudly', threw);
+}
+
+console.log('\n--- ARMED vs INERT: production is untouched until an operator picks ---');
+// The property that lets this feature deploy AHEAD of the frozen extraction
+// baseline. engine.js spreads `model` into the drain options only when armed, so
+// `armed === false` must mean drainEnrichment sees no `model` key at all and
+// falls through to its own DEFAULT_MODEL. Modelled here exactly as engine.js
+// builds it, so a regression in that branch fails this suite.
+const drainOptionsFor = (setting) => ({
+  limit: 15,
+  ...(setting.armed ? { model: setting.model } : {}),
+});
+// Mirrors drainEnrichment's own `{ model = DEFAULT_MODEL }` destructuring, so
+// "what would the drain actually send?" is answered the same way the real
+// function answers it.
+const effectiveModel = ({ model = DEFAULT_MODEL } = {}) => model;
+{
+  check('no store bound is INERT', (await readVisionModelSetting(null)).armed === false);
+
+  const store = memoryObjectStore();
+  check('unset key is INERT', (await readVisionModelSetting(store)).armed === false);
+
+  store.objects.set(VISION_MODEL_KEY, new TextEncoder().encode('{not json'));
+  check('corrupt record is INERT', (await readVisionModelSetting(store)).armed === false);
+
+  store.objects.set(VISION_MODEL_KEY, new TextEncoder().encode(JSON.stringify({ tier: 'nano' })));
+  check('unknown stored tier is INERT', (await readVisionModelSetting(store)).armed === false);
+
+  const throwing = { async get() { throw new Error('KV down'); } };
+  check('store failure is INERT', (await readVisionModelSetting(throwing)).armed === false);
+
+  // The end-to-end promise: nothing is overridden, so DEFAULT_MODEL survives.
+  const inertOpts = drainOptionsFor(await readVisionModelSetting(null));
+  check('INERT passes NO model key to the drain',
+    Object.prototype.hasOwnProperty.call(inertOpts, 'model') === false);
+  check('INERT therefore leaves DEFAULT_MODEL in force',
+    effectiveModel(inertOpts) === DEFAULT_MODEL);
+
+  // ...and the moment an operator picks, the override takes effect.
+  const armedStore = memoryObjectStore();
+  await writeVisionModelSetting(armedStore, 'small', { by: 'ops' });
+  const armed = await readVisionModelSetting(armedStore);
+  check('an explicit selection ARMS the override', armed.armed === true && armed.source === 'stored');
+  check('ARMED passes the selected model to the drain',
+    drainOptionsFor(armed).model === 'mistral-small-2603');
+  check('ARMED overrides DEFAULT_MODEL',
+    effectiveModel(drainOptionsFor(armed)) === 'mistral-small-2603');
+
+  // Explicitly choosing Medium is an ARMED state too, not a return to inert:
+  // the operator's choice must survive a later change to the engine default.
+  await writeVisionModelSetting(armedStore, 'medium', { by: 'ops' });
+  const armedMedium = await readVisionModelSetting(armedStore);
+  check('explicitly choosing Medium stays ARMED', armedMedium.armed === true);
+  check('ARMED Medium pins the frozen baseline model',
+    drainOptionsFor(armedMedium).model === 'mistral-medium-latest');
 }
 
 console.log('\n--- the selection reaches the wire ---');
