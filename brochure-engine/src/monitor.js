@@ -59,6 +59,7 @@ import {
   queryTokens,
 } from './offers/contract.js';
 import { applyEnrichment } from './offers/enrich.js';
+import { notificationDestination } from './notificationNavigation.js';
 
 // The live search providers a grocery watch sweeps (search-connector ids),
 // most reliable first. Best-effort stores (amazon, noon) are included — a
@@ -381,7 +382,7 @@ export async function checkWatch(ctx, watch) {
           body:
             `Target ${watch.targetPrice.toFixed(2)} reached — ${best.name || watch.query}` +
             (best.source === 'flyer' ? ' (flyer price — verify on the flyer)' : ''),
-          link: best.link,
+          link: notificationDestination(watch, best),
         });
       } catch (err) {
         line.notes.push(`notify: ${err.message}`);
