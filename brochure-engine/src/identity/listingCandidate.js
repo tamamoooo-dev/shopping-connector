@@ -71,9 +71,19 @@ const PROCESSING = new Map(
 
 // Processing words are also VARIANT words in priceWatch.js (a shampoo is not
 // "processed", but a "frozen" pizza is). A word may only describe ONE
-// dimension, or the same evidence would be counted twice and a candidate that
-// expressed it once would conflict with itself.
-const PROCESSING_VALUES = new Set(PROCESSING.values());
+// dimension, or the same evidence is counted twice and a candidate that
+// expressed it once conflicts with itself.
+//
+// This must exclude every SURFACE FORM, not just the canonical values.
+// Measured in production 2026-07-29: filtering on values alone left the Arabic
+// forms behind, so "…مجمد 400 جم" produced processing:'frozen' AND
+// variety:'مجمد' while its English twin produced processing:'frozen' and
+// variety:null — the same product, in two languages, disagreeing on variety.
+// The resolver then vetoes the pair (`variety-not-evidenced`), which is the
+// silent non-match this whole redesign exists to remove. It also let a
+// name with no family or cut reach the resolver's two-dimension minimum on
+// one concept counted twice, minting a product that should have asked.
+const PROCESSING_VALUES = new Set([...PROCESSING.keys(), ...PROCESSING.values()]);
 
 // Canonical PACKAGE types — the physical container, not the contents. Kept
 // deliberately short: a package type is corroboration, never identity (the

@@ -111,9 +111,19 @@ const seeded = async (withProduct = true) => {
   const countAfterFirst = await ctx.registryStore.productCount();
   const second = await resolveLegacyWatches(ctx);
 
-  ok(second.scanned === first.needsConfirmation + first.unresolvable,
-    'a second run only revisits watches that never got an anchor');
+  // REGRESSION (production, 2026-07-29): a second run must scan NOTHING. It
+  // previously re-visited every needs-confirmation watch, which livelocks a
+  // batched backfill — with a small limit the run re-scans the same stuck
+  // watches forever and never reaches the rest of the list. 12 production
+  // batches re-scanned 2 watches while 17 were never visited.
+  ok(second.scanned === 0, 'a second run scans nothing — every watch is settled');
   ok(second.minted.length === 0, 'and mints NOTHING');
+
+  // `retry` is how a settled-but-unanchored watch gets another chance, once
+  // the registry has moved or a human is ready to answer.
+  const forced = await resolveLegacyWatches(ctx, { limit: 100, retry: true });
+  ok(forced.scanned === first.needsConfirmation + first.unresolvable,
+    'retry re-visits exactly the watches that never got an anchor');
   ok((await ctx.registryStore.productCount()) === countAfterFirst,
     'the registry product count is unchanged by a re-run');
 

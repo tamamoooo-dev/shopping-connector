@@ -79,6 +79,22 @@ const listing = (over = {}) => ({
   );
 }
 
+// REGRESSION (production, 2026-07-29): a processing word must be excluded from
+// `variety` in EVERY surface form, not just its canonical value. Filtering on
+// values alone left the Arabic forms behind, so the same product in two
+// languages disagreed on variety — and the resolver vetoes that pair
+// (variety-not-evidenced), which is a silent non-match. It also let one concept
+// counted twice satisfy the resolver's two-dimension minimum, minting a product
+// that should have asked for confirmation.
+{
+  const ar = listingSemantics(listing({ name: 'ساديا صدور دجاج مجمدة 900 جم', brand: 'ساديا' }));
+  const en = listingSemantics(listing({ name: 'Sadia Frozen Chicken Breast 900 g', brand: 'Sadia' }));
+  assert.equal(ar.processing, 'frozen', 'the Arabic form sets processing');
+  assert.equal(en.processing, 'frozen', 'and so does the English form');
+  assert.equal(ar.variety, en.variety, 'the two languages must agree on variety');
+  assert.equal(ar.variety, null, 'the processing word appears in exactly one dimension');
+}
+
 {
   const s = listingSemantics(listing({ name: 'Almarai Full Fat Milk 1 L', brand: 'Almarai' }));
   assert.equal(s.family, 'milk');

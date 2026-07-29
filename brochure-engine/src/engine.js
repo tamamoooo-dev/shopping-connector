@@ -33,7 +33,10 @@ import {
   buildWatch,
   buildWatchSettingsUpdate,
   checkWatches,
-  isMonitorable,
+  confirmWatchProduct,
+  diagnoseWatch,
+  resolveLegacyWatches,
+  watchCandidates,
   MAX_WATCHES,
   MAX_WATCHES_TOTAL,
   MAX_WATCH_ROWS,
@@ -807,12 +810,18 @@ export async function handleRequest(request, ctx) {
     }
     if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
     if (!ctx.registryStore) return json({ error: 'Registry unavailable.' }, 503);
-    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 100, 500));
+    // Small by default — resolution is CPU-heavy against a large registry and
+    // a big batch dies at the Worker CPU limit. Idempotent and resumable, so
+    // the caller loops until `scanned` is 0. See resolveLegacyWatches.
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 3, 500));
     // ?dryRun=1 reports exactly what WOULD happen and writes nothing — no
     // anchor, no mint. A minted product survives an engine rollback, so the
     // operator gets to see the list before it exists rather than after.
     const dryRun = url.searchParams.get('dryRun') === '1';
-    return json(await resolveLegacyWatches(ctx, { limit, dryRun }));
+    // ?retry=1 re-visits watches already settled into needs-confirmation or
+    // unresolvable. Off by default so a plain loop always makes progress.
+    const retry = url.searchParams.get('retry') === '1';
+    return json(await resolveLegacyWatches(ctx, { limit, dryRun, retry }));
   }
 
   // Delete a watch (and its alerts) — only the owning profile's.

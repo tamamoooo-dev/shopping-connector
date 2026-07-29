@@ -15,6 +15,9 @@
 import { handleRequest } from './engine.js';
 import { buildWatch, MAX_WATCHES, MAX_WATCHES_TOTAL, MAX_WATCH_ROWS } from './monitor.js';
 import { createMemoryWatchStore } from './storage/local.js';
+import { createMemRegistryStore } from './registry/memstore.js';
+import { productFromListing } from './identity/listingCandidate.js';
+import { decodeProfile, profileTokens } from './registry/model.js';
 
 let pass = 0, fail = 0;
 const ok = (name, cond) => { if (cond) { pass++; } else { fail++; console.error('FAIL:', name); } };
@@ -314,6 +317,52 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
   ok('grocery watch matches via the vision read and alerts', line.alerted === true && line.price === 8.5);
   ok('alert carries the VISION name',
     (await ctx.watchStore.listAlerts({ limit: 5 })).some((a) => a.name === 'Tanzanian Mutton'));
+}
+
+
+// --- every watch route must actually EXECUTE through handleRequest ------------
+// REGRESSION (2026-07-29, caught in production): four handlers called functions
+// that were never imported into engine.js. `node --check` passes (syntax is
+// valid) and the suite passed, because these routes were only ever exercised by
+// calling their functions DIRECTLY — never through the router. Production
+// returned 1101 / ReferenceError. Reaching the handler body is the whole point.
+{
+  const ctx = {
+    watchStore: createMemoryWatchStore(),
+    registryStore: createMemRegistryStore(),
+    ingestSecret: 'sek',
+  };
+  const created = await (await post(ctx, '/watches', {
+    ...watchBody(A, 'Sadia Chicken Breast 900 g', 20),
+    label: 'Sadia Chicken Breast 900 g',
+    listing: { id: '1', name: 'Sadia Chicken Breast 900 g', brand: 'Sadia', size: '900 g' },
+  })).json();
+  const id = created.watch.id;
+
+  const cand = await get(ctx, `/watches/candidates?id=${id}&profile=${A}`);
+  ok('GET /watches/candidates executes', cand.status === 200 && Array.isArray((await cand.json()).candidates));
+
+  const diag = await get(ctx, `/watches/diagnose?id=${id}&profile=${A}`);
+  ok('GET /watches/diagnose executes', diag.status === 200 && 'anchor' in (await diag.json()));
+
+  const legacy = await handleRequest(
+    new Request(`${BASE}/watches/resolve-legacy?dryRun=1`, {
+      method: 'POST', headers: { 'X-Ingest-Secret': 'sek' },
+    }),
+    ctx,
+  );
+  ok('POST /watches/resolve-legacy executes', legacy.status === 200 && (await legacy.json()).dryRun === true);
+
+  // Confirmation goes through PATCH; bind to a real product so it reaches the
+  // write rather than stopping at validation.
+  const product = productFromListing(
+    { id: '2', name: 'Almarai Full Fat Yoghurt 400 g', brand: 'Almarai', size: '400 g' },
+    { date: '2026-07-29' },
+  );
+  await ctx.registryStore.createProduct(product, profileTokens(decodeProfile(product.token_profile)));
+  const confirm = await patch(ctx, `/watches?id=${id}&profile=${A}`, { registryProductId: product.id });
+  ok('PATCH /watches confirmation executes',
+    confirm.status === 200 && (await confirm.json()).watch.registryProductId === product.id);
 }
 
 console.log(`\nwatches.test: ${pass} passed, ${fail} failed`);

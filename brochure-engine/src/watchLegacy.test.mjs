@@ -114,7 +114,10 @@ async function seeded() {
     legacy({ label: '', query: 'xx', identityFamily: null, identityType: null }),
   ]) await ctx.watchStore.create(w);
 
-  const report = await resolveLegacyWatches(ctx);
+  // An explicit limit: the DEFAULT is deliberately small (resolution is
+  // CPU-heavy against a real registry and a big batch dies at the Worker CPU
+  // limit), so the invariant is checked over one deliberate full pass.
+  const report = await resolveLegacyWatches(ctx, { limit: 100 });
   ok(report.scanned === 4, 'every pending watch was visited');
   ok(report.stillPending === 0, 'and none was left in an ambiguous state');
 

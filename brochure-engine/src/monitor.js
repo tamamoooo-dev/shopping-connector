@@ -386,7 +386,18 @@ function mintLine(watch, product) {
   };
 }
 
-export async function resolveLegacyWatches(ctx, { limit = 100, dryRun = false } = {}) {
+// The default is deliberately SMALL. Measured in production 2026-07-29 against
+// a 7,082-product registry: resolving even a handful of watches in one
+// invocation exceeds the Worker CPU limit (error 1101), and the cost is
+// per-watch dependent — a watch whose tokens are common retrieves far more
+// blocking candidates than one whose tokens are rare, so limit=8 can succeed
+// where limit=5 fails. A fixed "safe" batch size does not exist.
+//
+// This is safe to run in a loop because progress is DURABLE PER WATCH: each
+// watch is settled with its own setAnchor inside the loop, and an already
+// settled watch is skipped on the next pass. A CPU death mid-batch loses only
+// the watch it was working on. Call repeatedly until `scanned` is 0.
+export async function resolveLegacyWatches(ctx, { limit = 3, dryRun = false, retry = false } = {}) {
   const report = {
     startedAt: new Date().toISOString(),
     dryRun,
@@ -396,7 +407,17 @@ export async function resolveLegacyWatches(ctx, { limit = 100, dryRun = false } 
   const watches = await ctx.watchStore.list({});
   for (const watch of watches) {
     if (report.scanned >= limit) break;
-    if (isMonitorable(watch)) continue; // already settled
+    // SETTLED means anchored OR already given a terminal explanation. Skipping
+    // only the anchored ones livelocks: a needs-confirmation watch is not
+    // monitorable, so every pass re-visits it, and with a small batch the run
+    // never advances past the first few stuck watches. Measured in production
+    // 2026-07-29 — 12 batches re-scanned the same 2 watches while 17 were
+    // never visited. Re-resolving them is also pointless: the outcome cannot
+    // change without a registry change or a human, and `retry` asks for that
+    // deliberately.
+    if (isMonitorable(watch)) continue;
+    if (!retry && UNANCHORED.has(watch.lastResolution)
+        && watch.lastResolution !== RESOLUTION.PENDING_MIGRATION) continue;
     report.scanned += 1;
     const line = { id: watch.id, label: watch.label };
 
