@@ -362,6 +362,7 @@ const post = (ctx, path, body, headers = {}) =>
     listDebris: async () => [],
     pruneOrphans: async () => 0,
     upsertMany: async () => ({ stored: 0 }),
+    saveVisionOutcome: async () => ({ stored: 1, queued: 0 }),
   };
   const idle = await (await post(ctx, '/api/enrich', { confirm: true }, auth)).json();
   check('empty queue -> nothingToDo, audited',

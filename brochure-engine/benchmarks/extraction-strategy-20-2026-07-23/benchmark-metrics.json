@@ -1,0 +1,2752 @@
+{
+  "schema_version": "human-adjudicated-mistral-benchmark-results-v1",
+  "generated_at": "2026-07-23T14:38:55.702Z",
+  "sample_digest": "a6a4e42e61c30fef8a93a9507270c3ce9264c4c0e9e74edf031cb538f22b209d",
+  "scoring_notes": {
+    "exact": "Case, whitespace, Unicode digit forms, Arabic alef/ya/kaf variants, and multiplication-sign formatting are ignored; visible wording must otherwise match.",
+    "partial": "A directly supported but incomplete/superset identity transcription. Partial receives half weight in the composite identity score but is not counted as exact field accuracy.",
+    "role_error": "A visible price was assigned to the wrong current/old role; it is inaccurate but not counted as invented.",
+    "hallucination_rate": "Wrong or unsupported populated main-field assignments divided by populated main-field assignments. Partial transcriptions and price-role errors are reported separately and are not labeled hallucinations.",
+    "missing_field_rate": "Null results divided by human-canonical applicable main fields.",
+    "weighted_identity_score": {
+      "name_en": 25,
+      "name_ar": 20,
+      "brand": 15,
+      "current_price": 15,
+      "unit": 10,
+      "package_size": 10,
+      "quantity": 5
+    }
+  },
+  "ranking": [
+    {
+      "rank": 1,
+      "id": "ocr_structured_annotation",
+      "label": "Mistral OCR — structured annotation",
+      "weighted_identity_score": 0.6387019585162002,
+      "hallucination_rate": 0.2421875,
+      "missing_field_rate": 0.11538461538461539,
+      "estimated_cost_usd": 0.1,
+      "avg_latency_ms": 2227.617
+    },
+    {
+      "rank": 2,
+      "id": "medium_expanded_json",
+      "label": "Mistral Medium — expanded literal JSON",
+      "weighted_identity_score": 0.5801882495729246,
+      "hallucination_rate": 0.21008403361344538,
+      "missing_field_rate": 0.13846153846153847,
+      "estimated_cost_usd": 0.037212,
+      "avg_latency_ms": 2521.9415000000004
+    },
+    {
+      "rank": 3,
+      "id": "ocr_current_parser",
+      "label": "Mistral OCR — current deterministic parser",
+      "weighted_identity_score": 0.5334560666371811,
+      "hallucination_rate": 0.3516483516483517,
+      "missing_field_rate": 0.35384615384615387,
+      "estimated_cost_usd": 0.08,
+      "avg_latency_ms": 2227.617
+    },
+    {
+      "rank": 4,
+      "id": "small_expanded_json",
+      "label": "Mistral Small — expanded literal JSON",
+      "weighted_identity_score": 0.4529470800097736,
+      "hallucination_rate": 0.3055555555555556,
+      "missing_field_rate": 0.25384615384615383,
+      "estimated_cost_usd": 0.00327015,
+      "avg_latency_ms": 1476.2785000000001
+    },
+    {
+      "rank": 5,
+      "id": "small_current",
+      "label": "Mistral Small — current production prompt",
+      "weighted_identity_score": 0.3752844175947891,
+      "hallucination_rate": 0.3875,
+      "missing_field_rate": 0.4230769230769231,
+      "estimated_cost_usd": 0.00406515,
+      "avg_latency_ms": 1187.647
+    }
+  ],
+  "summaries": {
+    "small_current": {
+      "id": "small_current",
+      "label": "Mistral Small — current production prompt",
+      "complete": 20,
+      "populated": 80,
+      "unsupported": 31,
+      "expected_present": 130,
+      "missing": 55,
+      "attributes": {
+        "useful": 0,
+        "unsupported": 0,
+        "returned": 0
+      },
+      "requests": 20,
+      "usage": {
+        "input": 21993,
+        "output": 1277,
+        "total": 23270,
+        "pages": 0
+      },
+      "field_accuracy": {
+        "name_en": {
+          "applicable": 19,
+          "exact_accuracy": 0.3684210526315789,
+          "usable_accuracy": 0.5789473684210527,
+          "exact": 7,
+          "partial": 4,
+          "missing": 6,
+          "wrong": 2,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 1
+        },
+        "name_ar": {
+          "applicable": 19,
+          "exact_accuracy": 0.05263157894736842,
+          "usable_accuracy": 0.21052631578947367,
+          "exact": 1,
+          "partial": 3,
+          "missing": 0,
+          "wrong": 15,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 1
+        },
+        "brand": {
+          "applicable": 17,
+          "exact_accuracy": 0.8235294117647058,
+          "usable_accuracy": 0.8235294117647058,
+          "exact": 14,
+          "partial": 0,
+          "missing": 1,
+          "wrong": 2,
+          "role_error": 0,
+          "correct_null": 2,
+          "unsupported": 1
+        },
+        "current_price": {
+          "applicable": 20,
+          "exact_accuracy": 0,
+          "usable_accuracy": 0,
+          "exact": 0,
+          "partial": 0,
+          "missing": 20,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 0
+        },
+        "old_price": {
+          "applicable": 19,
+          "exact_accuracy": 0,
+          "usable_accuracy": 0,
+          "exact": 0,
+          "partial": 0,
+          "missing": 19,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 1,
+          "unsupported": 0
+        },
+        "unit": {
+          "applicable": 16,
+          "exact_accuracy": 0.4375,
+          "usable_accuracy": 0.4375,
+          "exact": 7,
+          "partial": 0,
+          "missing": 3,
+          "wrong": 6,
+          "role_error": 0,
+          "correct_null": 4,
+          "unsupported": 0
+        },
+        "package_size": {
+          "applicable": 13,
+          "exact_accuracy": 0.6923076923076923,
+          "usable_accuracy": 0.8461538461538461,
+          "exact": 9,
+          "partial": 2,
+          "missing": 2,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 5,
+          "unsupported": 2
+        },
+        "quantity": {
+          "applicable": 5,
+          "exact_accuracy": 0.4,
+          "usable_accuracy": 0.4,
+          "exact": 2,
+          "partial": 0,
+          "missing": 2,
+          "wrong": 1,
+          "role_error": 0,
+          "correct_null": 15,
+          "unsupported": 0
+        },
+        "package_type": {
+          "applicable": 2,
+          "exact_accuracy": 0,
+          "usable_accuracy": 0,
+          "exact": 0,
+          "partial": 0,
+          "missing": 2,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 18,
+          "unsupported": 0
+        }
+      },
+      "weighted_identity_score": 0.3752844175947891,
+      "hallucination_rate": 0.3875,
+      "missing_field_rate": 0.4230769230769231,
+      "json_consistency": 1,
+      "avg_latency_ms": 1187.647,
+      "p95_latency_ms": 1529.4,
+      "estimated_cost_usd": 0.00406515
+    },
+    "small_expanded_json": {
+      "id": "small_expanded_json",
+      "label": "Mistral Small — expanded literal JSON",
+      "complete": 20,
+      "populated": 108,
+      "unsupported": 33,
+      "expected_present": 130,
+      "missing": 33,
+      "attributes": {
+        "useful": 24,
+        "unsupported": 3,
+        "returned": 27
+      },
+      "requests": 20,
+      "usage": {
+        "input": 13553,
+        "output": 2062,
+        "total": 15615,
+        "pages": 0
+      },
+      "field_accuracy": {
+        "name_en": {
+          "applicable": 19,
+          "exact_accuracy": 0.2631578947368421,
+          "usable_accuracy": 0.5263157894736842,
+          "exact": 5,
+          "partial": 5,
+          "missing": 5,
+          "wrong": 4,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 1
+        },
+        "name_ar": {
+          "applicable": 19,
+          "exact_accuracy": 0,
+          "usable_accuracy": 0.2631578947368421,
+          "exact": 0,
+          "partial": 5,
+          "missing": 0,
+          "wrong": 14,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 1
+        },
+        "brand": {
+          "applicable": 17,
+          "exact_accuracy": 0.7058823529411765,
+          "usable_accuracy": 0.7058823529411765,
+          "exact": 12,
+          "partial": 0,
+          "missing": 5,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 2,
+          "unsupported": 1
+        },
+        "current_price": {
+          "applicable": 20,
+          "exact_accuracy": 0.75,
+          "usable_accuracy": 0.75,
+          "exact": 15,
+          "partial": 0,
+          "missing": 1,
+          "wrong": 1,
+          "role_error": 3,
+          "correct_null": 0,
+          "unsupported": 0
+        },
+        "old_price": {
+          "applicable": 19,
+          "exact_accuracy": 0.5789473684210527,
+          "usable_accuracy": 0.5789473684210527,
+          "exact": 11,
+          "partial": 0,
+          "missing": 6,
+          "wrong": 0,
+          "role_error": 2,
+          "correct_null": 1,
+          "unsupported": 0
+        },
+        "unit": {
+          "applicable": 16,
+          "exact_accuracy": 0.1875,
+          "usable_accuracy": 0.1875,
+          "exact": 3,
+          "partial": 0,
+          "missing": 11,
+          "wrong": 2,
+          "role_error": 0,
+          "correct_null": 4,
+          "unsupported": 0
+        },
+        "package_size": {
+          "applicable": 13,
+          "exact_accuracy": 0.6923076923076923,
+          "usable_accuracy": 0.8461538461538461,
+          "exact": 9,
+          "partial": 2,
+          "missing": 1,
+          "wrong": 1,
+          "role_error": 0,
+          "correct_null": 6,
+          "unsupported": 1
+        },
+        "quantity": {
+          "applicable": 5,
+          "exact_accuracy": 0.2,
+          "usable_accuracy": 0.2,
+          "exact": 1,
+          "partial": 0,
+          "missing": 4,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 15,
+          "unsupported": 0
+        },
+        "package_type": {
+          "applicable": 2,
+          "exact_accuracy": 1,
+          "usable_accuracy": 1,
+          "exact": 2,
+          "partial": 0,
+          "missing": 0,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 11,
+          "unsupported": 7
+        }
+      },
+      "weighted_identity_score": 0.4529470800097736,
+      "hallucination_rate": 0.3055555555555556,
+      "missing_field_rate": 0.25384615384615383,
+      "json_consistency": 1,
+      "avg_latency_ms": 1476.2785000000001,
+      "p95_latency_ms": 1835.11,
+      "estimated_cost_usd": 0.00327015
+    },
+    "ocr_current_parser": {
+      "id": "ocr_current_parser",
+      "label": "Mistral OCR — current deterministic parser",
+      "complete": 20,
+      "populated": 91,
+      "unsupported": 32,
+      "expected_present": 130,
+      "missing": 46,
+      "attributes": {
+        "useful": 0,
+        "unsupported": 0,
+        "returned": 0
+      },
+      "requests": 20,
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "total": 0,
+        "pages": 20
+      },
+      "field_accuracy": {
+        "name_en": {
+          "applicable": 19,
+          "exact_accuracy": 0.7368421052631579,
+          "usable_accuracy": 0.8421052631578947,
+          "exact": 14,
+          "partial": 2,
+          "missing": 0,
+          "wrong": 3,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 1
+        },
+        "name_ar": {
+          "applicable": 19,
+          "exact_accuracy": 0.42105263157894735,
+          "usable_accuracy": 0.47368421052631576,
+          "exact": 8,
+          "partial": 1,
+          "missing": 0,
+          "wrong": 10,
+          "role_error": 0,
+          "correct_null": 1,
+          "unsupported": 0
+        },
+        "brand": {
+          "applicable": 17,
+          "exact_accuracy": 0.8823529411764706,
+          "usable_accuracy": 0.9411764705882353,
+          "exact": 15,
+          "partial": 1,
+          "missing": 0,
+          "wrong": 1,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 3
+        },
+        "current_price": {
+          "applicable": 20,
+          "exact_accuracy": 0,
+          "usable_accuracy": 0,
+          "exact": 0,
+          "partial": 0,
+          "missing": 20,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 0
+        },
+        "old_price": {
+          "applicable": 19,
+          "exact_accuracy": 0,
+          "usable_accuracy": 0,
+          "exact": 0,
+          "partial": 0,
+          "missing": 19,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 1,
+          "unsupported": 0
+        },
+        "unit": {
+          "applicable": 16,
+          "exact_accuracy": 0.5,
+          "usable_accuracy": 0.5,
+          "exact": 8,
+          "partial": 0,
+          "missing": 3,
+          "wrong": 5,
+          "role_error": 0,
+          "correct_null": 3,
+          "unsupported": 1
+        },
+        "package_size": {
+          "applicable": 13,
+          "exact_accuracy": 0.5384615384615384,
+          "usable_accuracy": 0.7692307692307693,
+          "exact": 7,
+          "partial": 3,
+          "missing": 0,
+          "wrong": 3,
+          "role_error": 0,
+          "correct_null": 6,
+          "unsupported": 1
+        },
+        "quantity": {
+          "applicable": 5,
+          "exact_accuracy": 0,
+          "usable_accuracy": 0,
+          "exact": 0,
+          "partial": 0,
+          "missing": 2,
+          "wrong": 3,
+          "role_error": 0,
+          "correct_null": 14,
+          "unsupported": 1
+        },
+        "package_type": {
+          "applicable": 2,
+          "exact_accuracy": 0,
+          "usable_accuracy": 0,
+          "exact": 0,
+          "partial": 0,
+          "missing": 2,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 18,
+          "unsupported": 0
+        }
+      },
+      "weighted_identity_score": 0.5334560666371811,
+      "hallucination_rate": 0.3516483516483517,
+      "missing_field_rate": 0.35384615384615387,
+      "json_consistency": 1,
+      "avg_latency_ms": 2227.617,
+      "p95_latency_ms": 3807.32,
+      "estimated_cost_usd": 0.08
+    },
+    "ocr_structured_annotation": {
+      "id": "ocr_structured_annotation",
+      "label": "Mistral OCR — structured annotation",
+      "complete": 20,
+      "populated": 128,
+      "unsupported": 31,
+      "expected_present": 130,
+      "missing": 15,
+      "attributes": {
+        "useful": 32,
+        "unsupported": 4,
+        "returned": 36
+      },
+      "requests": 20,
+      "usage": {
+        "input": 0,
+        "output": 0,
+        "total": 0,
+        "pages": 20
+      },
+      "field_accuracy": {
+        "name_en": {
+          "applicable": 19,
+          "exact_accuracy": 0.631578947368421,
+          "usable_accuracy": 0.8421052631578947,
+          "exact": 12,
+          "partial": 4,
+          "missing": 0,
+          "wrong": 3,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 1
+        },
+        "name_ar": {
+          "applicable": 19,
+          "exact_accuracy": 0.3684210526315789,
+          "usable_accuracy": 0.5263157894736842,
+          "exact": 7,
+          "partial": 3,
+          "missing": 0,
+          "wrong": 9,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 1
+        },
+        "brand": {
+          "applicable": 17,
+          "exact_accuracy": 0.9411764705882353,
+          "usable_accuracy": 0.9411764705882353,
+          "exact": 16,
+          "partial": 0,
+          "missing": 0,
+          "wrong": 1,
+          "role_error": 0,
+          "correct_null": 3,
+          "unsupported": 0
+        },
+        "current_price": {
+          "applicable": 20,
+          "exact_accuracy": 0.65,
+          "usable_accuracy": 0.65,
+          "exact": 13,
+          "partial": 0,
+          "missing": 0,
+          "wrong": 1,
+          "role_error": 6,
+          "correct_null": 0,
+          "unsupported": 0
+        },
+        "old_price": {
+          "applicable": 19,
+          "exact_accuracy": 0.5263157894736842,
+          "usable_accuracy": 0.5263157894736842,
+          "exact": 10,
+          "partial": 0,
+          "missing": 4,
+          "wrong": 0,
+          "role_error": 5,
+          "correct_null": 1,
+          "unsupported": 0
+        },
+        "unit": {
+          "applicable": 16,
+          "exact_accuracy": 0.25,
+          "usable_accuracy": 0.25,
+          "exact": 4,
+          "partial": 0,
+          "missing": 9,
+          "wrong": 3,
+          "role_error": 0,
+          "correct_null": 4,
+          "unsupported": 0
+        },
+        "package_size": {
+          "applicable": 13,
+          "exact_accuracy": 0.6923076923076923,
+          "usable_accuracy": 1,
+          "exact": 9,
+          "partial": 4,
+          "missing": 0,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 5,
+          "unsupported": 2
+        },
+        "quantity": {
+          "applicable": 5,
+          "exact_accuracy": 0.4,
+          "usable_accuracy": 0.4,
+          "exact": 2,
+          "partial": 0,
+          "missing": 2,
+          "wrong": 1,
+          "role_error": 0,
+          "correct_null": 15,
+          "unsupported": 0
+        },
+        "package_type": {
+          "applicable": 2,
+          "exact_accuracy": 1,
+          "usable_accuracy": 1,
+          "exact": 2,
+          "partial": 0,
+          "missing": 0,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 9,
+          "unsupported": 9
+        }
+      },
+      "weighted_identity_score": 0.6387019585162002,
+      "hallucination_rate": 0.2421875,
+      "missing_field_rate": 0.11538461538461539,
+      "json_consistency": 1,
+      "avg_latency_ms": 2227.617,
+      "p95_latency_ms": 3807.32,
+      "estimated_cost_usd": 0.1
+    },
+    "medium_expanded_json": {
+      "id": "medium_expanded_json",
+      "label": "Mistral Medium — expanded literal JSON",
+      "complete": 20,
+      "populated": 119,
+      "unsupported": 25,
+      "expected_present": 130,
+      "missing": 18,
+      "attributes": {
+        "useful": 16,
+        "unsupported": 5,
+        "returned": 21
+      },
+      "requests": 20,
+      "usage": {
+        "input": 13553,
+        "output": 2251,
+        "total": 15804,
+        "pages": 0
+      },
+      "field_accuracy": {
+        "name_en": {
+          "applicable": 19,
+          "exact_accuracy": 0.15789473684210525,
+          "usable_accuracy": 0.9473684210526315,
+          "exact": 3,
+          "partial": 15,
+          "missing": 0,
+          "wrong": 1,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 1
+        },
+        "name_ar": {
+          "applicable": 19,
+          "exact_accuracy": 0.05263157894736842,
+          "usable_accuracy": 0.47368421052631576,
+          "exact": 1,
+          "partial": 8,
+          "missing": 1,
+          "wrong": 9,
+          "role_error": 0,
+          "correct_null": 1,
+          "unsupported": 0
+        },
+        "brand": {
+          "applicable": 17,
+          "exact_accuracy": 0.7058823529411765,
+          "usable_accuracy": 0.7058823529411765,
+          "exact": 12,
+          "partial": 0,
+          "missing": 3,
+          "wrong": 2,
+          "role_error": 0,
+          "correct_null": 3,
+          "unsupported": 0
+        },
+        "current_price": {
+          "applicable": 20,
+          "exact_accuracy": 1,
+          "usable_accuracy": 1,
+          "exact": 20,
+          "partial": 0,
+          "missing": 0,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 0,
+          "unsupported": 0
+        },
+        "old_price": {
+          "applicable": 19,
+          "exact_accuracy": 0.8421052631578947,
+          "usable_accuracy": 0.8421052631578947,
+          "exact": 16,
+          "partial": 0,
+          "missing": 2,
+          "wrong": 1,
+          "role_error": 0,
+          "correct_null": 1,
+          "unsupported": 0
+        },
+        "unit": {
+          "applicable": 16,
+          "exact_accuracy": 0.1875,
+          "usable_accuracy": 0.1875,
+          "exact": 3,
+          "partial": 0,
+          "missing": 10,
+          "wrong": 3,
+          "role_error": 0,
+          "correct_null": 4,
+          "unsupported": 0
+        },
+        "package_size": {
+          "applicable": 13,
+          "exact_accuracy": 0.6923076923076923,
+          "usable_accuracy": 0.8461538461538461,
+          "exact": 9,
+          "partial": 2,
+          "missing": 0,
+          "wrong": 2,
+          "role_error": 0,
+          "correct_null": 6,
+          "unsupported": 1
+        },
+        "quantity": {
+          "applicable": 5,
+          "exact_accuracy": 0.6,
+          "usable_accuracy": 0.6,
+          "exact": 3,
+          "partial": 0,
+          "missing": 2,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 15,
+          "unsupported": 0
+        },
+        "package_type": {
+          "applicable": 2,
+          "exact_accuracy": 1,
+          "usable_accuracy": 1,
+          "exact": 2,
+          "partial": 0,
+          "missing": 0,
+          "wrong": 0,
+          "role_error": 0,
+          "correct_null": 13,
+          "unsupported": 5
+        }
+      },
+      "weighted_identity_score": 0.5801882495729246,
+      "hallucination_rate": 0.21008403361344538,
+      "missing_field_rate": 0.13846153846153847,
+      "json_consistency": 1,
+      "avg_latency_ms": 2521.9415000000004,
+      "p95_latency_ms": 4060.54,
+      "estimated_cost_usd": 0.037212
+    }
+  },
+  "per_image": [
+    {
+      "index": 1,
+      "store": "aljazera",
+      "category": "fresh-chicken-poultry",
+      "canonical": {
+        "name_en": "SADIA BREADED CHICKEN TENDERS / BREADED CHICKEN ESCALOPES 480G",
+        "name_ar": "ساديا تندر / اسكالوب دجاج بالبقسماط (٤٨٠ غم)",
+        "brand": "SADIA",
+        "current_price": 11.5,
+        "old_price": 21.95,
+        "unit": "g",
+        "package_size": "480G",
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "ocr_current_parser",
+      "strategies": {
+        "ocr_current_parser": {
+          "identity_score": 0.8421052631578947,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_structured_annotation": {
+          "identity_score": 0.6052631578947368,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "exact",
+            "brand": "exact",
+            "current_price": "role_error",
+            "old_price": "role_error",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 3,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.5526315789473685,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.5,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.39473684210526316,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "role_error",
+            "old_price": "role_error",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 2,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 2,
+      "store": "aljazera",
+      "category": "cheese-creame",
+      "canonical": {
+        "name_en": "GANEA AKAWI CHEESE (KG)",
+        "name_ar": "غنية جبنة عكاوي (كغم)",
+        "brand": "GANEA",
+        "current_price": 33.99,
+        "old_price": 48.99,
+        "unit": "kg",
+        "package_size": null,
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "ocr_current_parser",
+      "strategies": {
+        "ocr_current_parser": {
+          "identity_score": 0.47058823529411764,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_structured_annotation": {
+          "identity_score": 0.47058823529411764,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "exact",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 1
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.4411764705882353,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "wrong",
+            "brand": "missing",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "exact",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.29411764705882354,
+          "statuses": {
+            "name_en": "missing",
+            "name_ar": "wrong",
+            "brand": "missing",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "exact",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.17647058823529413,
+          "statuses": {
+            "name_en": "missing",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "unsupported",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 3,
+      "store": "almadina",
+      "category": "fresh-chicken-poultry",
+      "canonical": {
+        "name_en": "Seara Chicken Franks 3x340g Promo",
+        "name_ar": "نقانق دجاج سيارا ٣×٣٤٠ جم",
+        "brand": "Seara",
+        "current_price": 9.5,
+        "old_price": 12.95,
+        "unit": "g",
+        "package_size": "3x340g",
+        "quantity": "3",
+        "package_type": null
+      },
+      "best_strategy": "small_expanded_json",
+      "strategies": {
+        "small_expanded_json": {
+          "identity_score": 0.675,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "exact",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.675,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "exact",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.575,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "partial",
+            "quantity": "exact",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.55,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "partial",
+            "quantity": "wrong",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_structured_annotation": {
+          "identity_score": 0.5,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "role_error",
+            "old_price": "role_error",
+            "unit": "missing",
+            "package_size": "partial",
+            "quantity": "exact",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 4,
+      "store": "almadina",
+      "category": "mobiles",
+      "canonical": {
+        "name_en": "TECNO Pova Curve 2 5G",
+        "name_ar": null,
+        "brand": "TECNO",
+        "current_price": 1299,
+        "old_price": 1499,
+        "unit": null,
+        "package_size": null,
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "ocr_structured_annotation",
+      "strategies": {
+        "ocr_structured_annotation": {
+          "identity_score": 1,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "unsupported",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "missing",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 5,
+          "unsupported_attributes": 1
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.7727272727272727,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "correct_null",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 4,
+          "unsupported_attributes": 1
+        },
+        "small_expanded_json": {
+          "identity_score": 0.5454545454545454,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "unsupported",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 5,
+          "unsupported_attributes": 1
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.5,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "correct_null",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "unsupported",
+            "package_size": "unsupported",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.2727272727272727,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "unsupported",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 5,
+      "store": "alwafa",
+      "category": "yogurt-labneh",
+      "canonical": {
+        "name_en": "Nada Greek Yoghurt 160Gm Selected Flavors Only",
+        "name_ar": "نادا زبادي يوناني ١٦٠ جم نكهات مختارة فقط",
+        "brand": "Nada",
+        "current_price": 10,
+        "old_price": 11.5,
+        "unit": "g",
+        "package_size": "160Gm",
+        "quantity": "2",
+        "package_type": null
+      },
+      "best_strategy": "ocr_current_parser",
+      "strategies": {
+        "ocr_current_parser": {
+          "identity_score": 0.8,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "missing",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_structured_annotation": {
+          "identity_score": 0.65,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "exact",
+            "current_price": "role_error",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "partial",
+            "quantity": "missing",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 2,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.6,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "missing",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.575,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "partial",
+            "quantity": "missing",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 2
+        },
+        "small_expanded_json": {
+          "identity_score": 0.2,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "role_error",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "partial",
+            "quantity": "missing",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 2,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 6,
+      "store": "carrefour",
+      "category": "rice",
+      "canonical": {
+        "name_en": "SUNWHITE CALROSE RICE 10KG",
+        "name_ar": "صن وايت أرز كالروز ١٠ كجم",
+        "brand": "SUNWHITE",
+        "current_price": 71.99,
+        "old_price": 88.95,
+        "unit": "kg",
+        "package_size": "10KG",
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "ocr_structured_annotation",
+      "strategies": {
+        "ocr_structured_annotation": {
+          "identity_score": 0.6578947368421053,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.6578947368421053,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.5263157894736842,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.5,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.34210526315789475,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "missing",
+            "current_price": "wrong",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 7,
+      "store": "cityflower",
+      "category": "smart-watch",
+      "canonical": {
+        "name_en": "Smart Watch 7 In 1 HW-70",
+        "name_ar": "ساعة ذكية HW-70 (٧ في ١)",
+        "brand": null,
+        "current_price": 18,
+        "old_price": null,
+        "unit": null,
+        "package_size": null,
+        "quantity": "7",
+        "package_type": null
+      },
+      "best_strategy": "medium_expanded_json",
+      "strategies": {
+        "medium_expanded_json": {
+          "identity_score": 0.6153846153846154,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "correct_null",
+            "current_price": "exact",
+            "old_price": "correct_null",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "missing",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 2,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.23076923076923078,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "wrong",
+            "brand": "unsupported",
+            "current_price": "exact",
+            "old_price": "correct_null",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "missing",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 1
+        },
+        "ocr_structured_annotation": {
+          "identity_score": 0.23076923076923078,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "wrong",
+            "brand": "correct_null",
+            "current_price": "exact",
+            "old_price": "correct_null",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "missing",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "wrong",
+            "brand": "correct_null",
+            "current_price": "missing",
+            "old_price": "correct_null",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "missing",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "wrong",
+            "brand": "unsupported",
+            "current_price": "missing",
+            "old_price": "correct_null",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "missing",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 8,
+      "store": "danube",
+      "category": "laundry",
+      "canonical": {
+        "name_en": "Gento 2.25kg",
+        "name_ar": "جنتو ٢,٢٥ كيلو",
+        "brand": "Gento",
+        "current_price": 14.99,
+        "old_price": 31,
+        "unit": "kg",
+        "package_size": "2.25kg",
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "ocr_structured_annotation",
+      "strategies": {
+        "ocr_structured_annotation": {
+          "identity_score": 0.7894736842105263,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "exact",
+            "current_price": "wrong",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "partial",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.6578947368421053,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.631578947368421,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "wrong",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.5263157894736842,
+          "statuses": {
+            "name_en": "missing",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.3684210526315789,
+          "statuses": {
+            "name_en": "missing",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 9,
+      "store": "farm",
+      "category": "dried-fruits-dates",
+      "canonical": {
+        "name_en": "SIAFA DATES AJWA 800GR",
+        "name_ar": "سيافا تمر عجوة ٨٠٠ غرام",
+        "brand": "SIAFA",
+        "current_price": 79.99,
+        "old_price": 107.99,
+        "unit": "g",
+        "package_size": "800GR",
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "ocr_structured_annotation",
+      "strategies": {
+        "ocr_structured_annotation": {
+          "identity_score": 0.8421052631578947,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "partial",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 1
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.6842105263157895,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "partial",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.5526315789473685,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "missing",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "exact",
+            "package_size": "partial",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.21052631578947367,
+          "statuses": {
+            "name_en": "missing",
+            "name_ar": "wrong",
+            "brand": "missing",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "partial",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 1
+        },
+        "small_current": {
+          "identity_score": 0.15789473684210525,
+          "statuses": {
+            "name_en": "missing",
+            "name_ar": "wrong",
+            "brand": "missing",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "partial",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 10,
+      "store": "grandhyper",
+      "category": "gifts-toys",
+      "canonical": {
+        "name_en": "3D VIEWER SPACE THEME",
+        "name_ar": "لعبة ثلاثية الأبعاد",
+        "brand": null,
+        "current_price": 20,
+        "old_price": 25,
+        "unit": null,
+        "package_size": null,
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "small_expanded_json",
+      "strategies": {
+        "small_expanded_json": {
+          "identity_score": 0.6666666666666666,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "correct_null",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.6666666666666666,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "correct_null",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.4166666666666667,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "correct_null",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.3333333333333333,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "exact",
+            "brand": "unsupported",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "unsupported",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_structured_annotation": {
+          "identity_score": 0.16666666666666666,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "partial",
+            "brand": "correct_null",
+            "current_price": "role_error",
+            "old_price": "role_error",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 2,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 11,
+      "store": "hyperpanda",
+      "category": "dried-fruits-dates",
+      "canonical": {
+        "name_en": "Mazare Al Nakheel Local Sukkary Rotab (1Kg)",
+        "name_ar": "سكري رطب محلي مزارع النخيل (١ كيلو)",
+        "brand": "Mazare Al Nakheel",
+        "current_price": 15.99,
+        "old_price": 20.99,
+        "unit": "kg",
+        "package_size": "1Kg",
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "ocr_structured_annotation",
+      "strategies": {
+        "ocr_structured_annotation": {
+          "identity_score": 0.7894736842105263,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 3,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.4473684210526316,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "partial",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.39473684210526316,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "wrong",
+            "brand": "missing",
+            "current_price": "exact",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.10526315789473684,
+          "statuses": {
+            "name_en": "missing",
+            "name_ar": "wrong",
+            "brand": "wrong",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.10526315789473684,
+          "statuses": {
+            "name_en": "missing",
+            "name_ar": "wrong",
+            "brand": "missing",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 12,
+      "store": "lulu",
+      "category": "small-appliances",
+      "canonical": {
+        "name_en": "IKON Wall Fan",
+        "name_ar": "ايكون مروحة جدارية",
+        "brand": "IKON",
+        "current_price": 119,
+        "old_price": 159,
+        "unit": null,
+        "package_size": null,
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "ocr_structured_annotation",
+      "strategies": {
+        "ocr_structured_annotation": {
+          "identity_score": 1,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 2,
+          "unsupported_attributes": 1
+        },
+        "small_expanded_json": {
+          "identity_score": 0.7333333333333333,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "missing",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.6333333333333333,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "exact",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.5666666666666667,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.5333333333333333,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "correct_null",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 13,
+      "store": "marksave",
+      "category": "skin-face-care",
+      "canonical": {
+        "name_en": "Swissland Cotton Buds Round/Box 200s",
+        "name_ar": "سويسلاند أعواد قطن عبوة دائرية ٢٠٠ قطعة",
+        "brand": "Swissland",
+        "current_price": 1.99,
+        "old_price": 3.95,
+        "unit": "pcs",
+        "package_size": "200s",
+        "quantity": "1",
+        "package_type": "Box"
+      },
+      "best_strategy": "ocr_structured_annotation",
+      "strategies": {
+        "ocr_structured_annotation": {
+          "identity_score": 0.65,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "wrong",
+            "package_type": "exact"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.5,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "wrong",
+            "quantity": "wrong",
+            "package_type": "missing"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.35,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "wrong",
+            "quantity": "exact",
+            "package_type": "exact"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.3,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "wrong",
+            "quantity": "missing",
+            "package_type": "exact"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.15,
+          "statuses": {
+            "name_en": "missing",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "missing",
+            "quantity": "wrong",
+            "package_type": "missing"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 14,
+      "store": "nesto",
+      "category": "meat-fresh-chilled",
+      "canonical": {
+        "name_en": "Tanzanian Fresh Mutton",
+        "name_ar": "لحم غنم طازج تنزاني",
+        "brand": null,
+        "current_price": 46.99,
+        "old_price": 56.95,
+        "unit": "kg",
+        "package_size": null,
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "medium_expanded_json",
+      "strategies": {
+        "medium_expanded_json": {
+          "identity_score": 0.8571428571428571,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "correct_null",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "unsupported",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "ocr_structured_annotation": {
+          "identity_score": 0.7857142857142857,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "correct_null",
+            "current_price": "role_error",
+            "old_price": "role_error",
+            "unit": "exact",
+            "package_size": "unsupported",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 2,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.6428571428571429,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "unsupported",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.5,
+          "statuses": {
+            "name_en": "missing",
+            "name_ar": "partial",
+            "brand": "correct_null",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "exact",
+            "package_size": "unsupported",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.2857142857142857,
+          "statuses": {
+            "name_en": "missing",
+            "name_ar": "exact",
+            "brand": "unsupported",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "unsupported",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 15,
+      "store": "othaim",
+      "category": "other-frozen-food",
+      "canonical": {
+        "name_en": "ZOD Tortilla Wraps (White/Hot/Brown)",
+        "name_ar": "زود خبز تورتيلا (أبيض/حار/بني)",
+        "brand": "ZOD",
+        "current_price": 4.5,
+        "old_price": 7.5,
+        "unit": "kg",
+        "package_size": null,
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "small_expanded_json",
+      "strategies": {
+        "small_expanded_json": {
+          "identity_score": 0.6470588235294118,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "wrong",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 3,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.6176470588235294,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "wrong",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 3,
+          "unsupported_attributes": 0
+        },
+        "ocr_structured_annotation": {
+          "identity_score": 0.5,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "unsupported",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 3,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.47058823529411764,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.47058823529411764,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "correct_null",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 16,
+      "store": "prime",
+      "category": "facial-tissue",
+      "canonical": {
+        "name_en": "MALMAS SINGLE WHITE SOFT TISSUE (3 PLY) 10 X 500 SHEETS",
+        "name_ar": "مناديل مالماس البيضاء الناعمة (٣ طبقات) ١٠ × ٥٠٠ قطعة",
+        "brand": "MALMAS",
+        "current_price": 22.95,
+        "old_price": 30,
+        "unit": "sheets",
+        "package_size": "10 X 500 SHEETS",
+        "quantity": "10",
+        "package_type": "Pack"
+      },
+      "best_strategy": "ocr_structured_annotation",
+      "strategies": {
+        "ocr_structured_annotation": {
+          "identity_score": 0.7,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "exact",
+            "package_type": "exact"
+          },
+          "useful_attributes": 3,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.65,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "missing",
+            "package_type": "exact"
+          },
+          "useful_attributes": 3,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.45,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "missing",
+            "quantity": "exact",
+            "package_type": "missing"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.425,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "wrong",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "wrong",
+            "quantity": "exact",
+            "package_type": "exact"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.4,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "wrong",
+            "quantity": "wrong",
+            "package_type": "missing"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 17,
+      "store": "prime",
+      "category": "pasta-noodles",
+      "canonical": {
+        "name_en": "NARPA MACARONI/SPAGHETTI 400GM",
+        "name_ar": "ناربا مكرونة/سباغيتي ٤٠٠ جرام",
+        "brand": "NARPA",
+        "current_price": 1.75,
+        "old_price": 2.96,
+        "unit": "g",
+        "package_size": "400GM",
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "small_expanded_json",
+      "strategies": {
+        "small_expanded_json": {
+          "identity_score": 0.6578947368421053,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "missing",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.6578947368421053,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "wrong",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.5789473684210527,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "partial",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_structured_annotation": {
+          "identity_score": 0.5263157894736842,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "role_error",
+            "old_price": "role_error",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.5,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 18,
+      "store": "ramez",
+      "category": "sauces-spreads",
+      "canonical": {
+        "name_en": null,
+        "name_ar": "العلالي مربى مشكل ٤٠٠ جرام",
+        "brand": "العلالي",
+        "current_price": 8.95,
+        "old_price": 12.95,
+        "unit": "g",
+        "package_size": "400 g",
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "ocr_current_parser",
+      "strategies": {
+        "ocr_current_parser": {
+          "identity_score": 0.5,
+          "statuses": {
+            "name_en": "unsupported",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "ocr_structured_annotation": {
+          "identity_score": 0.35714285714285715,
+          "statuses": {
+            "name_en": "unsupported",
+            "name_ar": "wrong",
+            "brand": "wrong",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.35714285714285715,
+          "statuses": {
+            "name_en": "unsupported",
+            "name_ar": "wrong",
+            "brand": "wrong",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.2857142857142857,
+          "statuses": {
+            "name_en": "unsupported",
+            "name_ar": "wrong",
+            "brand": "wrong",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.14285714285714285,
+          "statuses": {
+            "name_en": "unsupported",
+            "name_ar": "wrong",
+            "brand": "missing",
+            "current_price": "role_error",
+            "old_price": "role_error",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 19,
+      "store": "ramez",
+      "category": "dental-care",
+      "canonical": {
+        "name_en": "AloeDent Triple Action",
+        "name_ar": "الودنت معجون أسنان ثلاثي التأثير بالصبار ١٠٠ مل",
+        "brand": "AloeDent",
+        "current_price": 17.95,
+        "old_price": 21.95,
+        "unit": "ml",
+        "package_size": "100 ml",
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "ocr_structured_annotation",
+      "strategies": {
+        "ocr_structured_annotation": {
+          "identity_score": 0.6578947368421053,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 2,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.6578947368421053,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "missing",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 2
+        },
+        "small_current": {
+          "identity_score": 0.631578947368421,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.5789473684210527,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "missing",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 2,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.42105263157894735,
+          "statuses": {
+            "name_en": "wrong",
+            "name_ar": "exact",
+            "brand": "wrong",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "exact",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    },
+    {
+      "index": 20,
+      "store": "tamimi",
+      "category": "sugar-sweetener",
+      "canonical": {
+        "name_en": "ALBAYT WHITE FINE SUGAR, 10 KILOS",
+        "name_ar": "سكر أبيض ناعم، البيت، ١٠ كيلو",
+        "brand": "ALBAYT",
+        "current_price": 24.99,
+        "old_price": 36.95,
+        "unit": "kg",
+        "package_size": "10 KILOS",
+        "quantity": null,
+        "package_type": null
+      },
+      "best_strategy": "ocr_structured_annotation",
+      "strategies": {
+        "ocr_structured_annotation": {
+          "identity_score": 0.8947368421052632,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 2,
+          "unsupported_attributes": 0
+        },
+        "ocr_current_parser": {
+          "identity_score": 0.7368421052631579,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "exact",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        },
+        "small_expanded_json": {
+          "identity_score": 0.6578947368421053,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "partial",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 2,
+          "unsupported_attributes": 0
+        },
+        "medium_expanded_json": {
+          "identity_score": 0.5526315789473685,
+          "statuses": {
+            "name_en": "partial",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "exact",
+            "old_price": "exact",
+            "unit": "missing",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "unsupported"
+          },
+          "useful_attributes": 1,
+          "unsupported_attributes": 0
+        },
+        "small_current": {
+          "identity_score": 0.5263157894736842,
+          "statuses": {
+            "name_en": "exact",
+            "name_ar": "wrong",
+            "brand": "exact",
+            "current_price": "missing",
+            "old_price": "missing",
+            "unit": "wrong",
+            "package_size": "exact",
+            "quantity": "correct_null",
+            "package_type": "correct_null"
+          },
+          "useful_attributes": 0,
+          "unsupported_attributes": 0
+        }
+      }
+    }
+  ],
+  "excluded_pilot": {
+    "id": "medium_two_pass",
+    "reason": "High-reasoning two-pass pilot did not complete all 20 samples and exhibited multi-minute per-crop latency; excluded from accuracy ranking.",
+    "successful_samples": 6
+  }
+}

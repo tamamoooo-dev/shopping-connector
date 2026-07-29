@@ -68,7 +68,7 @@ const fetchImpl = async () => ({
 });
 
 function collector(adapter) {
-  return createAggregatorCollector({ adapter, fetchImpl, maxPages: 36, maxTotalPages: 36 });
+  return createAggregatorCollector({ adapter, fetchImpl });
 }
 
 const heldRow = { id: 'store:central:2026-W27', checksum: 'sha256:x', storage_key: 'store/central/2026-W27' };

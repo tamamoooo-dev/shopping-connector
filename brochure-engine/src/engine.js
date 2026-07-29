@@ -17,18 +17,35 @@ import { rowToDoc } from './contract.js';
 import { getQueryPricesDoc, getLowestDoc, recordOfferHistory, deriveIdentity } from './priceHistory.js';
 import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offers/contract.js';
-import { drainEnrichment, applyEnrichment, DEFAULT_MODEL } from './offers/enrich.js';
+import { drainEnrichment, drainOcrEnrichment, applyEnrichment, DEFAULT_MODEL } from './offers/enrich.js';
 import { readVisionModelSetting } from './offers/visionModel.js';
+import { createKeyChain } from './offers/mistralKeys.js';
+import { drainRecovery } from './recovery/runner.js';
+import { readRecoveryPolicy } from './recovery/policy.js';
 import { drainResolution } from './registry/drain.js';
 import { runMaintenance } from './registry/lifecycle.js';
 import { applyReviewAction } from './registry/review.js';
 import { getRegistryPricesDoc } from './registry/history.js';
 import { queryFamily, offerFamily, productType, freshProduceIntent, isProcessedProduce, producePresence, matchStage } from './matching.js';
 import { pruneStoredBytes } from './retention.js';
-import { buildWatch, checkWatches, MAX_WATCHES, MAX_WATCHES_TOTAL } from './monitor.js';
+import {
+  anchorWatch,
+  buildWatch,
+  buildWatchSettingsUpdate,
+  checkWatches,
+  isMonitorable,
+  MAX_WATCHES,
+  MAX_WATCHES_TOTAL,
+  MAX_WATCH_ROWS,
+} from './monitor.js';
 import { getHotspotsDoc } from './hotspots.js';
 import { getBrowseSummaryDoc, getBrowseOffersDoc } from './browse/api.js';
 import { detectBrand } from './browse/brands.js';
+import {
+  collectD4dBatch,
+  isD4dRegion,
+  publishD4dCollection,
+} from './collectors/d4dResumable.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
 // extracts prices from flyer images; the flyer prevails on any mismatch).
@@ -47,7 +64,7 @@ function isTrustedCanonicalBand(band) {
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET, POST, DELETE, OPTIONS',
+  'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, X-Ingest-Secret',
 };
 
@@ -193,6 +210,82 @@ export async function ingestAll(ctx, { store } = {}) {
     { detected: 0, new: 0, deduped: 0, failed: 0 },
   );
   return report;
+}
+
+async function ingestD4dResumable(ctx, provider, region, mode) {
+  const startedAt = new Date().toISOString();
+  let result;
+  try {
+    // Persist the current source offers first, including unavailable rows. Their
+    // flyer_ref values are the candidate policy for the resumable collector,
+    // and null navigation fields revoke stale legacy/D4D links immediately.
+    let offers = null;
+    if (mode !== 'brochures' && ctx.offerStore && ctx.offersSource) {
+      offers = await ingestOffers(ctx, { store: provider.id });
+    }
+    result = await collectD4dBatch(ctx, { store: provider.id, region });
+
+    // Publication is atomic at brochure completion. Once the whole store's
+    // advertised flyer set is complete, repeat the cheap offers ingest so every
+    // exact page/hotspot mapping becomes navigable in the same invocation.
+    if (result.storeComplete && ctx.offerStore && ctx.offersSource) {
+      offers = await ingestOffers(ctx, { store: provider.id });
+      if (offers.totals.failed) {
+        throw new Error(
+          `Exact offer linkage refresh failed for ${offers.totals.failed} target(s)`,
+        );
+      }
+      await publishD4dCollection(ctx, result);
+    } else if (result.storeComplete) {
+      throw new Error('Exact offer linkage refresh is unavailable');
+    }
+    const status = result.complete
+      ? result.status === 'deduped'
+        ? 'deduped'
+        : 'new'
+      : null;
+    const target = {
+      store: provider.id,
+      region,
+      detected: result.complete ? 1 : 0,
+      new: status === 'new' ? 1 : 0,
+      deduped: status === 'deduped' ? 1 : 0,
+      failed: 0,
+      errors: [],
+    };
+    return {
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      targets: [target],
+      totals: {
+        detected: target.detected,
+        new: target.new,
+        deduped: target.deduped,
+        failed: 0,
+      },
+      resumable: result,
+      offers,
+    };
+  } catch (error) {
+    await ctx.collectionStore
+      ?.markPending(provider.id, region, { error: error.message })
+      .catch(() => {});
+    return {
+      startedAt,
+      finishedAt: new Date().toISOString(),
+      targets: [{
+        store: provider.id,
+        region,
+        detected: 0,
+        new: 0,
+        deduped: 0,
+        failed: 1,
+        errors: [error.message],
+      }],
+      totals: { detected: 0, new: 0, deduped: 0, failed: 1 },
+      resumable: { complete: false, error: error.message },
+    };
+  }
 }
 
 // --- HTTP router -------------------------------------------------------------
@@ -614,14 +707,112 @@ export async function handleRequest(request, ctx) {
     }
     const { watch, error } = buildWatch(body);
     if (error) return json({ error }, 400);
+    // The COMPUTE cap: monitored watches only. An unanchored watch does no
+    // daily work, so it never occupies one of these slots.
     if ((await ctx.watchStore.count(watch.profileId)) >= MAX_WATCHES) {
       return json({ error: `Watch limit reached (${MAX_WATCHES}). Delete one first.` }, 409);
     }
     if ((await ctx.watchStore.countActiveTotal()) >= MAX_WATCHES_TOTAL) {
       return json({ error: 'Watch service is at capacity. Try again later.' }, 409);
     }
-    await ctx.watchStore.create(watch);
-    return json({ watch }, 201);
+    // The STORAGE bound, which the compute cap deliberately does not enforce.
+    // The error names WHY the rows are there, so the pressure arrives with an
+    // explanation the user can act on rather than a bare refusal.
+    if (ctx.watchStore.countRows &&
+        (await ctx.watchStore.countRows(watch.profileId)) >= MAX_WATCH_ROWS) {
+      const pending = ctx.watchStore.countUnanchored
+        ? await ctx.watchStore.countUnanchored(watch.profileId)
+        : 0;
+      return json({
+        error: `${MAX_WATCH_ROWS} watches stored`
+          + (pending ? `, ${pending} awaiting confirmation` : '')
+          + '. Confirm or delete some first.',
+      }, 409);
+    }
+    // IDENTITY IS RESOLVED HERE — once, in the foreground, while the user is
+    // still looking at the product. That is the whole safety argument of the
+    // design: an ambiguous identity gets adjudicated by a human at the moment
+    // of creation, instead of by an unattended cron that could only choose
+    // between guessing and going quiet. The watch is still CREATED either way;
+    // an unconfirmed one simply holds an explicit state and monitors nothing.
+    const anchored = await anchorWatch(ctx, watch, body.listing || null);
+    await ctx.watchStore.create(anchored.watch);
+    return json({
+      watch: anchored.watch,
+      needsConfirmation: anchored.needsConfirmation === true,
+      candidates: anchored.candidates || [],
+      createdProduct: anchored.created ? anchored.created.id : null,
+    }, 201);
+  }
+
+  // Update only the v2 controls on an owned watch. Matching changes re-arm the
+  // crossing detector because they may select a different comparison pool.
+  if (path === '/watches' && request.method === 'PATCH') {
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    const id = (url.searchParams.get('id') || '').trim();
+    if (!id) return json({ error: "Missing required parameter 'id'." }, 400);
+    const watch = await ctx.watchStore.get(id);
+    if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'Body must be JSON.' }, 400);
+    }
+    // CONFIRMATION: the user answering "which product is this?" for a watch the
+    // resolver could not settle alone. One write, owner-scoped.
+    if (body && body.registryProductId != null) {
+      if (!ctx.registryStore) return json({ error: 'Registry unavailable.' }, 503);
+      const result = await confirmWatchProduct(ctx, watch, body.registryProductId);
+      if (result.error) return json({ error: result.error }, 400);
+      return json({ watch: await ctx.watchStore.get(id) });
+    }
+    const { fields, error } = buildWatchSettingsUpdate(body, watch);
+    if (error) return json({ error }, 400);
+    await ctx.watchStore.updateSettings(id, profileParam, fields);
+    return json({ watch: await ctx.watchStore.get(id) });
+  }
+
+  // The products a user may choose from when confirming an ambiguous watch.
+  // Read-only; picking is the PATCH above.
+  if (path === '/watches/candidates' && request.method === 'GET') {
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    const id = (url.searchParams.get('id') || '').trim();
+    const watch = id ? await ctx.watchStore.get(id) : null;
+    if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
+    return json({ candidates: await watchCandidates(ctx, watch) });
+  }
+
+  // "Why is this watch quiet?" — the real retrieval and the real identity
+  // decision, reported per candidate instead of selecting one. Read-only, so
+  // it is profile-scoped rather than secret-guarded: it exposes nothing the
+  // owner cannot already see, and it is the first thing to reach for when a
+  // watch reports not-found against a product that is visibly on sale.
+  if (path === '/watches/diagnose' && request.method === 'GET') {
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    const id = (url.searchParams.get('id') || '').trim();
+    const watch = id ? await ctx.watchStore.get(id) : null;
+    if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
+    return json(await diagnoseWatch(ctx, watch));
+  }
+
+  // The ONE-TIME legacy backfill: settle every pre-anchor watch into an
+  // explicit state. Guarded like the other maintenance routes; idempotent.
+  if (path === '/watches/resolve-legacy' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    if (!ctx.registryStore) return json({ error: 'Registry unavailable.' }, 503);
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 100, 500));
+    // ?dryRun=1 reports exactly what WOULD happen and writes nothing — no
+    // anchor, no mint. A minted product survives an engine rollback, so the
+    // operator gets to see the list before it exists rather than after.
+    const dryRun = url.searchParams.get('dryRun') === '1';
+    return json(await resolveLegacyWatches(ctx, { limit, dryRun }));
   }
 
   // Delete a watch (and its alerts) — only the owning profile's.
@@ -681,19 +872,37 @@ export async function handleRequest(request, ctx) {
       return json({ error: `Unknown mode '${mode}'.` }, 400);
     }
     const t0 = Date.now();
+    const resumableTarget =
+      store && mode !== 'offers'
+        ? Object.keys(ctx.registry[store].regions)
+            .map((region) => ({ provider: ctx.registry[store], region }))
+            .find(({ provider, region }) => isD4dRegion(provider, region))
+        : null;
     const report =
       mode === 'offers'
         ? { startedAt: new Date().toISOString(), targets: [], totals: { detected: 0, new: 0, deduped: 0, failed: 0 } }
-        : await ingestAll(ctx, { store });
-    if (mode !== 'brochures' && ctx.offerStore && ctx.offersSource && url.searchParams.get('offers') !== '0') {
+        : resumableTarget
+          ? await ingestD4dResumable(ctx, resumableTarget.provider, resumableTarget.region, mode)
+          : await ingestAll(ctx, { store });
+    if (
+      !resumableTarget &&
+      mode !== 'brochures' &&
+      ctx.offerStore &&
+      ctx.offersSource &&
+      url.searchParams.get('offers') !== '0'
+    ) {
       report.offers = await ingestOffers(ctx, { store });
       await purgeBrowseCache(url); // fresh offers reshape the market floor
+    }
+    if (resumableTarget && report.offers) {
+      await purgeBrowseCache(url);
     }
     // Audit (Ops Console timeline): every ingest run — cron child or manual —
     // records one row. Best-effort: a failed write never fails the ingest.
     if (ctx.opsStore) {
       const bt = report.totals;
       const ot = report.offers?.totals;
+      const navigation = ot?.navigation || null;
       const errors = [
         ...report.targets.flatMap((t) => t.errors || []),
         ...(report.offers?.targets || []).flatMap((t) => t.errors || []),
@@ -705,14 +914,22 @@ export async function handleRequest(request, ctx) {
           origin: request.headers.get('X-Ops-Origin') === 'ops' ? 'ops' : 'cron',
           store: store || null,
           stores: store ? 1 : Object.keys(ctx.registry).length,
-          ok: bt.failed === 0 && !(ot && ot.failed > 0),
+          ok:
+            bt.failed === 0 &&
+            !(ot && ot.failed > 0) &&
+            navigation?.failClosed !== true,
           detected: bt.detected,
           new: bt.new,
           deduped: bt.deduped,
           failed: bt.failed,
           offers: ot ? ot.stored : null,
           elapsed_ms: Date.now() - t0,
-          error: errors[0] || null,
+          error:
+            errors[0] ||
+            (navigation?.failClosed
+              ? `Navigation trust circuit open: ambiguity=${navigation.ambiguityRate}, disagreement=${navigation.disagreementRate}`
+              : null),
+          detail: navigation ? { navigation } : null,
         })
         .catch(() => {});
     }
@@ -743,7 +960,6 @@ export async function handleRequest(request, ctx) {
     // with ?strategy=vision-first|ocr-first|vision-only|ocr-only.
     const strategy = url.searchParams.get('strategy') || ctx.extractionStrategy;
     const identityNormalizationMode = url.searchParams.get('identityMode') || ctx.identityNormalizationMode;
-    const t0 = Date.now();
     // Vision Model Selection Policy (offers/visionModel.js). EVERY drain — the
     // enrich cron, the ops Vision Drain, and the background Vision job — reaches
     // Mistral through this one route, so reading the operator's selection here
@@ -757,6 +973,7 @@ export async function handleRequest(request, ctx) {
     // would silently move production onto a model/prompt pairing nobody has
     // measured. A read failure is inert too, by construction.
     const visionModel = await readVisionModelSetting(ctx.objectStore);
+    const t0 = Date.now();
     const report = await drainEnrichment(
       { enrichStore: ctx.enrichStore, mistralKey: ctx.mistralKey, mistralKeyBackup: ctx.mistralKeyBackup },
       {
@@ -815,6 +1032,107 @@ export async function handleRequest(request, ctx) {
           },
         })
         .catch(() => {});
+    }
+    return json(report);
+  }
+
+  // S5.7 · AUTO recovery drain (VISION-PIPELINE.md C-8). Machine-guarded like
+  // every other drain, and INERT by default: the execution policy resolves to
+  // Manual/disarmed unless an operator armed it, so this route is a cheap no-op
+  // that makes no provider call.
+  //
+  // NOT WIRED TO A CRON, deliberately. This is left as an operator decision
+  // rather than piled onto the enrich cron, whose per-invocation CPU and
+  // subrequest budget has been exhausted before (drainResolution, 2026-07-20) —
+  // adding a paid drain to that child is how you rediscover that limit. Manual
+  // dispatch and "Run Auto now" in the Operations Center both work without it.
+  if (path === '/recovery-drain' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.recoveryQueue || !ctx.recoveryRegistry) {
+      return json({ error: 'Recovery Queue unavailable.' }, 503);
+    }
+    const policy = await readRecoveryPolicy(ctx.objectStore, { registry: ctx.recoveryRegistry });
+    // Resolved PER PROCESSOR from the credential each descriptor declares, and
+    // a processor declaring none gets none. Built once for the run, it would
+    // hand every processor the first one's keys; defaulted to the vision chain,
+    // it would hand a provider-less rung (the human one) a live API key.
+    const chains = {
+      ocr: () => createKeyChain([ctx.mistralOcrKey, ctx.mistralOcrKeyBackup]),
+      vision: () => createKeyChain([ctx.mistralKey, ctx.mistralKeyBackup]),
+    };
+    const report = await drainRecovery(
+      {
+        queue: ctx.recoveryQueue,
+        registry: ctx.recoveryRegistry,
+        enrichStore: ctx.enrichStore,
+        policy,
+        contextFor: (processor) => ({
+          keyChain: processor.credential ? (chains[processor.credential]?.() ?? null) : null,
+          identityNormalizationMode: ctx.identityNormalizationMode,
+        }),
+      },
+      { currentOn: todayISO() },
+    );
+    if (ctx.opsStore && !report.skipped) {
+      await ctx.opsStore.record({
+        ts: report.startedAt,
+        action: 'recovery-drain',
+        origin: 'cron',
+        ok: true,
+        failed: report.runs.reduce((n, r) => n + (r.failed || 0), 0),
+        elapsed_ms: Date.parse(report.finishedAt) - Date.parse(report.startedAt),
+        detail: {
+          processors: [...policy.processors],
+          recovered: report.runs.reduce((n, r) => n + (r.recovered || 0), 0),
+        },
+      }).catch(() => {});
+    }
+    return json(report);
+  }
+
+  // Guarded asynchronous OCR escalation. This route never calls Vision and
+  // returns a successful unavailable report when no OCR credential is present,
+  // leaving all rejected offers durably marked ocr_pending.
+  if (path === '/ocr-enrich' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.enrichStore) return json({ error: 'OCR enrichment store unavailable.' }, 503);
+    if (ctx.ocrFallbackEnabled === false) {
+      return json({
+        skipped: true,
+        reason: 'ocr_disabled',
+        pending: await ctx.enrichStore.countPendingOcr(todayISO()),
+      });
+    }
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 5, 10));
+    const identityNormalizationMode = url.searchParams.get('identityMode') || ctx.identityNormalizationMode;
+    const report = await drainOcrEnrichment(
+      {
+        enrichStore: ctx.enrichStore,
+        mistralOcrKey: ctx.mistralOcrKey,
+        mistralOcrKeyBackup: ctx.mistralOcrKeyBackup,
+      },
+      { limit, currentOn: todayISO(), identityNormalizationMode },
+    );
+    if (ctx.opsStore) {
+      await ctx.opsStore.record({
+        ts: report.startedAt,
+        action: 'ocr-enrich',
+        origin: 'cron',
+        ok: report.failed === 0,
+        failed: report.failed,
+        elapsed_ms: Date.parse(report.finishedAt) - Date.parse(report.startedAt),
+        error: report.errors?.[0] || null,
+        detail: {
+          scanned: report.scanned,
+          completed: report.completed,
+          remaining: report.remaining ?? report.pending,
+          unavailable: report.unavailable || false,
+        },
+      }).catch(() => {});
     }
     return json(report);
   }

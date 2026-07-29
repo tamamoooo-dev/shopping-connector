@@ -53,6 +53,22 @@ check('unsupported optional specification does not trigger OCR by itself', speci
 const impossible = validateVisionOutput({ ...completeVision, name_en: 'Sadia ساديا', name_ar: 'Sadia ساديا' });
 check('impossible bilingual duplication is rejected', impossible.rejectedFields.includes('name_en') && impossible.rejectedFields.includes('name_ar'));
 
+// Expanded JSON schema (FROZEN production baseline, 2026-07-25): the same
+// validation rules, reached through the renamed observation fields.
+const expanded = validateVisionOutput({
+  name_en: 'Sadia Tender Chicken Breasts', name_ar: 'ساديا صدور دجاج طرية',
+  brand: 'Sadia', package_size: '900 g', quantity: '10+2',
+  unit: 'g', package_type: 'pack', attributes: ['frozen'], confidence: 0.01,
+});
+check('package_size validates as size', expanded.fields.size.value === '900 g');
+check('quantity validates as pack_count, expression preserved',
+  expanded.fields.pack_count.value === '10+2' && expanded.packCountEvidence.count === 12);
+check('Expanded JSON needs no OCR escalation', !expanded.ocrRequired);
+check('unmapped Expanded JSON fields are not extraction candidates',
+  !('unit' in expanded.fields) && !('package_type' in expanded.fields) && !('attributes' in expanded.fields));
+const legacyStillWins = validateVisionOutput({ ...completeVision, size: '900 g', package_size: '2 L' });
+check('a legacy size key still takes priority over its alias', legacyStillWins.fields.size.value === '900 g');
+
 console.log('visible package-count extraction:');
 check('6×200 ml multiplier is extracted', parseVisiblePackCount('6×200 ml')?.count === 6);
 check('10+2 bonus count is additive', parseVisiblePackCount('10+2')?.count === 12);

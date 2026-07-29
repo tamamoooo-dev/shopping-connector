@@ -55,3 +55,33 @@ export function createKvObjectStore(kv) {
     },
   };
 }
+
+// Migration-safe R2 primary with KV fallback. New writes land in R2. A legacy
+// KV hit is copied to R2 as it is read, so existing brochures migrate naturally
+// while remaining continuously readable.
+export function createTieredObjectStore(primary, fallback) {
+  return {
+    async put(key, bytes, options) {
+      await primary.put(key, bytes, options);
+    },
+    async get(key) {
+      const current = await primary.get(key);
+      if (current) return current;
+
+      const legacy = await fallback.get(key);
+      if (!legacy) return null;
+
+      // A failed promotion must not make a previously readable brochure
+      // unavailable. The next read will retry the migration.
+      try {
+        await primary.put(key, legacy.bytes, { contentType: legacy.contentType });
+      } catch (error) {
+        console.warn(`R2 promotion failed for ${key}: ${error?.message || error}`);
+      }
+      return legacy;
+    },
+    async delete(key) {
+      await Promise.all([primary.delete(key), fallback.delete(key)]);
+    },
+  };
+}

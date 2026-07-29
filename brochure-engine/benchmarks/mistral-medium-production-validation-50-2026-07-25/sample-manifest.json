@@ -1,0 +1,520 @@
+{
+  "schema_version": "frozen-production-crop-sample-v1",
+  "created_at": "2026-07-24T23:48:48.451Z",
+  "seed": "mistral-medium-production-validation-50-2026-07-25",
+  "selection": {
+    "source": "production D1 read-only query",
+    "current_on": "2026-07-25",
+    "method": "seeded deterministic shuffle; per-retailer quota (3 each, prime 2); category-diversity-first within each retailer",
+    "exclusion": "every image URL / offer id processed by any prior benchmark or validation run",
+    "excluded_url_count": 1613,
+    "excluded_id_count": 1613,
+    "eligible_pool": 13265,
+    "eligible_after_exclusion": 12305,
+    "sample_size": 50,
+    "stores": 17,
+    "declared_categories": 50
+  },
+  "samples": [
+    {
+      "index": 1,
+      "id": "aljazera:central:d4d:93631815",
+      "store": "aljazera",
+      "category": "tea-coffee",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/41f5ddb4a2bf954a8f65cb25dd7fca3a.jpg",
+      "production_price": 28.99,
+      "production_old_price": 45.95,
+      "production_name": null
+    },
+    {
+      "index": 2,
+      "id": "aljazera:central:d4d:93631419",
+      "store": "aljazera",
+      "category": "deli-speaclity-meats",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/a3fb71408158c04aff30e860ff0932c9.jpg",
+      "production_price": 36.99,
+      "production_old_price": 44.99,
+      "production_name": null
+    },
+    {
+      "index": 3,
+      "id": "aljazera:central:d4d:93632763",
+      "store": "aljazera",
+      "category": "facial-tissue",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/a054433928b1c2bc5744ca1c1453cf6f.jpg",
+      "production_price": 20.99,
+      "production_old_price": 34.99,
+      "production_name": null
+    },
+    {
+      "index": 4,
+      "id": "almadina:central:d4d:93669210",
+      "store": "almadina",
+      "category": "large-appliances",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/2a60da41513cccc4f018cf7a3a211dca.jpg",
+      "production_price": 349,
+      "production_old_price": 575,
+      "production_name": null
+    },
+    {
+      "index": 5,
+      "id": "almadina:central:d4d:93694737",
+      "store": "almadina",
+      "category": "kitchen-appliance",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/22/2b616e62555f70b23727d85871f2fa4b.jpg",
+      "production_price": 59,
+      "production_old_price": 85,
+      "production_name": null
+    },
+    {
+      "index": 6,
+      "id": "almadina:central:d4d:93668310",
+      "store": "almadina",
+      "category": "powdered-drinks-syrups",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/99b621b5543e3bcff8f6d035573a9730.jpg",
+      "production_price": 4.95,
+      "production_old_price": 19.95,
+      "production_name": null
+    },
+    {
+      "index": 7,
+      "id": "alwafa:central:d4d:93638412",
+      "store": "alwafa",
+      "category": "tabs",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/3b9f0010aa7d51b1135a4f9b6927d9e2.jpg",
+      "production_price": 179,
+      "production_old_price": 299,
+      "production_name": null
+    },
+    {
+      "index": 8,
+      "id": "alwafa:central:d4d:93643038",
+      "store": "alwafa",
+      "category": "baby-diapers",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/21/1108f4dfeb22e9f2aa68385313eacb23.jpg",
+      "production_price": 30,
+      "production_old_price": 44.99,
+      "production_name": "how s"
+    },
+    {
+      "index": 9,
+      "id": "alwafa:central:d4d:93643248",
+      "store": "alwafa",
+      "category": "shaving-hair-removal",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/def8632ca0213e34139feefdfbe78d53.jpg",
+      "production_price": 69.99,
+      "production_old_price": 99,
+      "production_name": null
+    },
+    {
+      "index": 10,
+      "id": "amarket:central:d4d:93808830",
+      "store": "amarket",
+      "category": "sauces-spreads",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/23/24860a566f869949963a152094542707.jpg",
+      "production_price": 8.95,
+      "production_old_price": 17.95,
+      "production_name": null
+    },
+    {
+      "index": 11,
+      "id": "amarket:central:d4d:93809022",
+      "store": "amarket",
+      "category": "dried-fruits-dates",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/23/3e49b04c2e27698655bb01cbdd7e39fa.jpg",
+      "production_price": 42.95,
+      "production_old_price": 49.95,
+      "production_name": null
+    },
+    {
+      "index": 12,
+      "id": "amarket:central:d4d:93808905",
+      "store": "amarket",
+      "category": "fresh-chicken-poultry",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/23/2e5d4d4a3aa891afd23ed9235e1172b4.jpg",
+      "production_price": 10.5,
+      "production_old_price": 14.95,
+      "production_name": null
+    },
+    {
+      "index": 13,
+      "id": "carrefour:central:d4d:93691650",
+      "store": "carrefour",
+      "category": "canned-packeted",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/22/2cb5f817f5939b6ba2d1a324aaec217e.jpg",
+      "production_price": 3.99,
+      "production_old_price": 6.5,
+      "production_name": null
+    },
+    {
+      "index": 14,
+      "id": "carrefour:central:d4d:93691947",
+      "store": "carrefour",
+      "category": "cleaning",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/22/8a59a3655faa4106b6755a4b9a7df7d8.jpg",
+      "production_price": 27.75,
+      "production_old_price": null,
+      "production_name": null
+    },
+    {
+      "index": 15,
+      "id": "carrefour:central:d4d:93692622",
+      "store": "carrefour",
+      "category": "cookware",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/22/85fc28fc5c9b21a212ecdc842ddf5822.jpg",
+      "production_price": 209,
+      "production_old_price": 499,
+      "production_name": null
+    },
+    {
+      "index": 16,
+      "id": "cityflower:central:d4d:92810718",
+      "store": "cityflower",
+      "category": "lighting",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/8/04991d81ad9410ae5c430d4973efee51.jpg",
+      "production_price": 135,
+      "production_old_price": 170,
+      "production_name": null
+    },
+    {
+      "index": 17,
+      "id": "cityflower:central:d4d:92715228",
+      "store": "cityflower",
+      "category": "skin-face-care",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/7/ee1c9f6f33a6b9f78b2a9126231bf556.jpg",
+      "production_price": 30,
+      "production_old_price": 42,
+      "production_name": null
+    },
+    {
+      "index": 18,
+      "id": "cityflower:central:d4d:92715321",
+      "store": "cityflower",
+      "category": "cosmetics",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/7/4b876d12c18e7a5dd1afc6d802b1275b.jpg",
+      "production_price": 35,
+      "production_old_price": 39,
+      "production_name": null
+    },
+    {
+      "index": 19,
+      "id": "danube:central:d4d:93264666",
+      "store": "danube",
+      "category": "biscuits",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/15/112da22b913dd0ca6a869fbc7fdbc1ac.jpg",
+      "production_price": 6.99,
+      "production_old_price": 10.5,
+      "production_name": "loacker wafer 4x19g"
+    },
+    {
+      "index": 20,
+      "id": "danube:central:d4d:93267450",
+      "store": "danube",
+      "category": "chocolates-candies",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/15/cb7c30e89ca659983c9f430bd055d3b2.jpg",
+      "production_price": 6.99,
+      "production_old_price": 9.5,
+      "production_name": "galaxy chocolates 80g"
+    },
+    {
+      "index": 21,
+      "id": "danube:central:d4d:93265158",
+      "store": "danube",
+      "category": "cheese-creame",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/15/b0060471bc964b0175ef10817a2b79b1.jpg",
+      "production_price": 13.5,
+      "production_old_price": 16.95,
+      "production_name": null
+    },
+    {
+      "index": 22,
+      "id": "farm:central:d4d:93613236",
+      "store": "farm",
+      "category": "other-frozen-food",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/e8f79c9842ff62c0a6313aa77210cd05.jpg",
+      "production_price": 16.99,
+      "production_old_price": 22.99,
+      "production_name": null
+    },
+    {
+      "index": 23,
+      "id": "farm:central:d4d:93611634",
+      "store": "farm",
+      "category": "snacks",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/814ef5f9422492354b741c09c0f6cd0f.jpg",
+      "production_price": 10.99,
+      "production_old_price": 12.99,
+      "production_name": null
+    },
+    {
+      "index": 24,
+      "id": "farm:central:d4d:93613620",
+      "store": "farm",
+      "category": null,
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/9aad64f42e2773b3e4e32b3bbbfc63da.jpg",
+      "production_price": 9.99,
+      "production_old_price": null,
+      "production_name": null
+    },
+    {
+      "index": 25,
+      "id": "grandhyper:central:d4d:93676923",
+      "store": "grandhyper",
+      "category": "kids-wear",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/509eae933e26cd0d2e9cae520ab693d9.jpg",
+      "production_price": 45,
+      "production_old_price": 69,
+      "production_name": null
+    },
+    {
+      "index": 26,
+      "id": "grandhyper:central:d4d:93678036",
+      "store": "grandhyper",
+      "category": "fresh-fruits",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/a08a7261ea2737ac23e47022d5d483d3.jpg",
+      "production_price": 8.95,
+      "production_old_price": 16.95,
+      "production_name": null
+    },
+    {
+      "index": 27,
+      "id": "grandhyper:central:d4d:93678657",
+      "store": "grandhyper",
+      "category": "bath-body",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/ff1b74266feaf5109d773cc884bdf6ec.jpg",
+      "production_price": 9.95,
+      "production_old_price": 19.5,
+      "production_name": null
+    },
+    {
+      "index": 28,
+      "id": "hyperpanda:central:d4d:93695634",
+      "store": "hyperpanda",
+      "category": "pets",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/22/1ceab790e7c3479fa4b01193012097de.jpg",
+      "production_price": 10.99,
+      "production_old_price": 20.99,
+      "production_name": "whiskas cat food with beef"
+    },
+    {
+      "index": 29,
+      "id": "hyperpanda:central:d4d:93696234",
+      "store": "hyperpanda",
+      "category": "laundry",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/22/9369e3419533419d278aee5e3bdd1280.jpg",
+      "production_price": 39.99,
+      "production_old_price": null,
+      "production_name": "downy concentrated"
+    },
+    {
+      "index": 30,
+      "id": "hyperpanda:central:d4d:93693444",
+      "store": "hyperpanda",
+      "category": "cakes-pastry",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/22/7190deece6161539d946427ae1cc70c1.jpg",
+      "production_price": 5,
+      "production_old_price": 7.95,
+      "production_name": null
+    },
+    {
+      "index": 31,
+      "id": "lulu:central:d4d:93682539",
+      "store": "lulu",
+      "category": "tv",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/d346b62966774cc691dacaa5b0f8e08b.jpg",
+      "production_price": 4499,
+      "production_old_price": 6299,
+      "production_name": null
+    },
+    {
+      "index": 32,
+      "id": "lulu:central:d4d:93328698",
+      "store": "lulu",
+      "category": "juices-drinks",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/15/86b081769610758623be606c359c2423.jpg",
+      "production_price": 11.95,
+      "production_old_price": 14.9,
+      "production_name": null
+    },
+    {
+      "index": 33,
+      "id": "lulu:central:d4d:93661134",
+      "store": "lulu",
+      "category": "rice",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/05b9ea7228777eaa3530dfba90575a87.jpg",
+      "production_price": 34.99,
+      "production_old_price": 39.95,
+      "production_name": null
+    },
+    {
+      "index": 34,
+      "id": "marksave:central:d4d:93630738",
+      "store": "marksave",
+      "category": "dishwasher",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/ff7dcfb77ef842568ba45d5123a49450.jpg",
+      "production_price": 12.95,
+      "production_old_price": 18.95,
+      "production_name": null
+    },
+    {
+      "index": 35,
+      "id": "marksave:central:d4d:93630615",
+      "store": "marksave",
+      "category": "fresh-vegetables",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/442b01141e646dba14e1b2383f0bd73b.jpg",
+      "production_price": 1.99,
+      "production_old_price": 4.99,
+      "production_name": null
+    },
+    {
+      "index": 36,
+      "id": "marksave:central:d4d:93625125",
+      "store": "marksave",
+      "category": "hair-care",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/eeebe74025d6d6aa00a100afc5f5267b.jpg",
+      "production_price": 5.95,
+      "production_old_price": 10.95,
+      "production_name": null
+    },
+    {
+      "index": 37,
+      "id": "nesto:central:d4d:93653649",
+      "store": "nesto",
+      "category": "sweets",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/f4612d8e1158c7204384a1a644eae3d7.jpg",
+      "production_price": 10,
+      "production_old_price": 15.99,
+      "production_name": null
+    },
+    {
+      "index": 38,
+      "id": "nesto:central:d4d:93658191",
+      "store": "nesto",
+      "category": "ice-ice-cream",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/8f4e8184ab7b25f7a07f2bdce3e93885.jpg",
+      "production_price": 13.99,
+      "production_old_price": 18.99,
+      "production_name": null
+    },
+    {
+      "index": 39,
+      "id": "nesto:central:d4d:93655824",
+      "store": "nesto",
+      "category": "home-furnishing-decor",
+      "image_url": "https://cdn.d4donline.com/u/i/26/07/21/d9b464f157f132b9db5ce672c39a06c3.jpg",
+      "production_price": 10,
+      "production_old_price": 18,
+      "production_name": "ceramic prayer mat sponge"
+    },
+    {
+      "index": 40,
+      "id": "othaim:central:d4d:93684717",
+      "store": "othaim",
+      "category": "soft-drinks",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/31fa1743dbf07d48e942216b25ce7284.jpg",
+      "production_price": 11.99,
+      "production_old_price": null,
+      "production_name": null
+    },
+    {
+      "index": 41,
+      "id": "othaim:central:d4d:93684540",
+      "store": "othaim",
+      "category": "salts-spices-paste",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/be03056dbf7f52cdbe48e47158eeaa77.jpg",
+      "production_price": 11.99,
+      "production_old_price": 16.25,
+      "production_name": null
+    },
+    {
+      "index": 42,
+      "id": "othaim:central:d4d:93684129",
+      "store": "othaim",
+      "category": "yogurt-labneh",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/5b9a7a12d25ea52480a1679b5a804f2e.jpg",
+      "production_price": 8.99,
+      "production_old_price": 15,
+      "production_name": null
+    },
+    {
+      "index": 43,
+      "id": "prime:central:d4d:93620529",
+      "store": "prime",
+      "category": "fragrance",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/26505d9b64c1696b40c55a1c48c364d4.jpg",
+      "production_price": 5.75,
+      "production_old_price": null,
+      "production_name": null
+    },
+    {
+      "index": 44,
+      "id": "prime:central:d4d:93552036",
+      "store": "prime",
+      "category": "oil-ghee",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/19/f16acd2465736edea95a765efda55c8f.jpg",
+      "production_price": 39.95,
+      "production_old_price": 45.51,
+      "production_name": null
+    },
+    {
+      "index": 45,
+      "id": "ramez:central:d4d:93686136",
+      "store": "ramez",
+      "category": "disposables",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/1271c8f8d5d68d8cf259c2f299b12d2e.jpg",
+      "production_price": 4.75,
+      "production_old_price": 5.75,
+      "production_name": null
+    },
+    {
+      "index": 46,
+      "id": "ramez:central:d4d:93685920",
+      "store": "ramez",
+      "category": "dental-care",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/af10e144ad22e173560949cb4752b09f.jpg",
+      "production_price": 15.95,
+      "production_old_price": 24.5,
+      "production_name": null
+    },
+    {
+      "index": 47,
+      "id": "ramez:central:d4d:93686313",
+      "store": "ramez",
+      "category": "luggage",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/6120fbb8e792206136de3ed5be6b251b.jpg",
+      "production_price": 157,
+      "production_old_price": 190,
+      "production_name": null
+    },
+    {
+      "index": 48,
+      "id": "tamimi:central:d4d:93619095",
+      "store": "tamimi",
+      "category": "pasta-noodles",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/fb3c96552c594cbff130203ea185ec3b.jpg",
+      "production_price": 4.99,
+      "production_old_price": 7.25,
+      "production_name": null
+    },
+    {
+      "index": 49,
+      "id": "tamimi:central:d4d:93618753",
+      "store": "tamimi",
+      "category": "cereals-bars",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/33c564e139853a34828b80946c9b7e39.jpg",
+      "production_price": 19.99,
+      "production_old_price": 23.95,
+      "production_name": null
+    },
+    {
+      "index": 50,
+      "id": "tamimi:central:d4d:93617868",
+      "store": "tamimi",
+      "category": "meat-fresh-chilled",
+      "image_url": "https://cdn.d4donline.com/u/a/26/07/21/426880352a5ebe357f0eaf91ebea2e3a.jpg",
+      "production_price": 49.99,
+      "production_old_price": 69.95,
+      "production_name": null
+    }
+  ]
+}

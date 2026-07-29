@@ -11,8 +11,14 @@
 //   • SIDE-CAR, never a mutation. Enrichment is a separate record keyed by
 //     offer id; the offer row's own fields are never overwritten. Deleting
 //     enrichments restores today's behavior exactly.
-//   • NAMES ONLY. The model is instructed not to read prices, and no price
-//     field exists in the record — the price path cannot be touched from here.
+//   • NAMES ONLY, still — but by CONSTRUCTION now, not by instruction. The
+//     frozen prompt (2026-07-25) DOES ask the model for current_price and
+//     old_price, because the schema it was validated under includes them. Those
+//     prices are stripped from every write any read path can serve
+//     (preservedObservation) and survive only in the audit journal, so the
+//     serving price path is still unreachable from here. They may not be USED
+//     until the deterministic price guard exists — the validation measured the
+//     crossed-out price returned as the selling price on 2/50 crops.
 //   • GATED. needsEnrichment() admits only offers deriveNames already gave up
 //     on (both names null) that still have a crop to read — ~1.1k of ~38k
 //     offers (measured 2026-07-18), so a full pass is a rounding error against
@@ -21,7 +27,8 @@
 //     (a paced post-ingest step) decides when and how fast. Pure fetch-based,
 //     Workers- and Node-compatible.
 //
-// Model: Mistral `mistral-small-latest` (vision-capable, free Experiment tier).
+// Model: Mistral `mistral-medium-latest` — the FROZEN production extraction
+// baseline adopted 2026-07-25 (see PRODUCTION_EXTRACTION_BASELINE below).
 // Configurable — swapping models or providers is a constructor argument, not a
 // code change downstream.
 
@@ -29,7 +36,12 @@ import { normalizeText } from '../matching.js';
 import { createKeyChain, withFailover, classifyMistralError } from './mistralKeys.js';
 import {
   DEFAULT_EXTRACTION_STRATEGY,
+  EXTRACTION_PROVENANCE,
+  EXTRACTION_STRATEGIES,
+  finalizeValidatedExtraction,
+  isSelfEvidencingProvenance,
   normalizeExtractionStrategy,
+  readObservationField,
   runSmartExtraction,
 } from './smartExtraction.js';
 import {
@@ -37,6 +49,16 @@ import {
   DEFAULT_IDENTITY_NORMALIZATION_MODE,
   normalizeIdentityMode,
 } from './identityBuilder.js';
+import { resolveBrand } from '../lexicon/brands.js';
+import {
+  BUSINESS_ACCEPTANCE_VERSION,
+  MANDATORY_CONDITIONS,
+  evaluateBusinessAcceptance,
+} from './businessAcceptance.js';
+import {
+  buildArabicShadow,
+  withArabicBuilderShadow,
+} from '../lexicon/arabicRollout.js';
 
 // --- the enrichment record -----------------------------------------------------
 // Enrichment:
@@ -59,6 +81,49 @@ export const CORROBORATION_FLOOR = 0.3;
 export function servable(row) {
   return !!row && (row.name != null || row.name_ar != null) &&
     Number(row.corroboration) >= CORROBORATION_FLOOR;
+}
+
+// --- S5 · RECOVERY QUEUE ADMISSION (C-9) ---------------------------------------
+// THE ONE ADMISSION RULE, in one place. A product enters the Recovery Queue
+// whenever it fails to produce a SERVABLE CANONICAL PRODUCT. The cause is
+// irrelevant to admission and is recorded as metadata only — Business
+// Acceptance, the Quality Gate and any future mandatory rule all produce the
+// same verdict here and differ solely in what `reasons` says.
+//
+// "Servable canonical product" is the CONJUNCTION of every mandatory rule:
+//
+//     complete  =  servable(canonicalRow)  ∧  S4.accepted
+//
+// `servable()` above keeps its exact meaning — the 2026-07-21 canonical-identity
+// gate — and is one conjunct rather than the whole test. This is deliberately
+// NOT a redefinition of `servable()` and touches no read path: whether an
+// S4-rejected offer should also vanish from Search is a separate question with
+// a live production effect, and it is not settled here (C-9).
+//
+// A MANDATORY RULE THAT DID NOT RUN CANNOT FAIL. When `acceptance` is absent —
+// the legacy drain has no verdict to give — admission degrades to the conjuncts
+// that were actually evaluated rather than assuming the worst and queueing the
+// whole catalogue. That keeps the rule honest under partial evidence instead of
+// making "no verdict" a silent third outcome.
+//
+// A FUTURE MANDATORY RULE ADDS A CONJUNCT HERE and needs no queue change, no
+// migration and no new status value. That is the property C-9 exists to buy.
+export function recoveryAdmission({ canonicalRow = null, acceptance = null, triggerReasons = [] } = {}) {
+  const isServable = !!canonicalRow && servable(canonicalRow);
+  const accepted = acceptance ? acceptance.accepted === true : null;
+  const complete = isServable && accepted !== false;
+  return {
+    complete,
+    // Metadata, never admission logic. Nothing reads this to decide whether the
+    // offer belongs in the queue — `complete` already did.
+    reasons: {
+      servable: isServable,
+      ...(acceptance
+        ? { acceptance: { version: acceptance.version, missing: [...acceptance.missing] } }
+        : {}),
+      ...(triggerReasons?.length ? { qualityGate: [...triggerReasons] } : {}),
+    },
+  };
 }
 
 // --- the ONE canonical-identity gate, JS side -----------------------------------
@@ -126,73 +191,91 @@ export function needsEnrichment(offer) {
 
 const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions';
 const MISTRAL_OCR_URL = 'https://api.mistral.ai/v1/ocr';
-export const DEFAULT_MODEL = 'mistral-small-latest';
+export const DEFAULT_MODEL = 'mistral-medium-latest';
 export const DEFAULT_OCR_MODEL = 'mistral-ocr-latest';
 
-// English-first LITERAL-EXTRACTION contract (Vision Milestone 2, 2026-07-19).
-// Vision is an EXTRACTION engine, not an editor: it copies what the tile prints,
-// verbatim, and does NOT normalize, translate, infer, or "improve" anything —
-// the Registry owns all normalization / identity / matching downstream. English
-// is the canonical identity (Vision reads it far more reliably than Arabic);
-// Arabic is an INDEPENDENT literal extraction that never modifies English and is
-// never translated to fill a gap. Product-boundary isolation stops the model
-// borrowing words from adjacent tiles. `pack_count` is an additive extraction
-// observation and is kept inside the enrichment/identity boundary, so existing
-// public offer fields and downstream APIs remain unchanged.
+// --- the FROZEN production extraction baseline (2026-07-25) --------------------
+// Adopted by engineering decision after the 50-crop production validation
+// (benchmarks/mistral-medium-production-validation-50-2026-07-25/). The prompt
+// below is the "Verbatim Prompt" — the exact string that was validated, byte for
+// byte; PRODUCTION-PROMPT.md in that folder is its frozen record and
+// production-prompt.txt its canonical copy.
+//
+// ⚠️ PROMPT OPTIMIZATION IS CLOSED. Do not edit, reword, reflow, merge or "tidy"
+// this string, and do not run prompt experiments against it, unless the user
+// explicitly asks. Replacing it requires a larger production validation plus an
+// explicit decision. Quality work now belongs DOWNSTREAM of extraction (brand
+// lexicon, phrase lexicon, canonicalization, product identity, search).
+//
+// The array-of-lines form is deliberate: joining with an explicit '\n' makes the
+// string independent of this file's own line endings, so the frozen sha256 below
+// cannot drift when a tool rewrites CRLF/LF. enrich.test.mjs asserts the hash.
+export const VISION_PROMPT_SHA256 =
+  'e643b2a1b833d12256e0e3806b04c28bc5fd042bf3a86b647b989df9be7c3557';
+
 export const VISION_PROMPT = [
-  'This image is ONE product tile cropped from a Saudi supermarket flyer.',
-  'The pixels in the attached crop are your ONLY source of truth.',
-  'You have no product title, OCR, description, category, brand metadata, prior',
-  'enrichment, registry record, or previously extracted fields. Do not use or',
-  'assume any external context.',
+  'You are extracting one advertised product from one Saudi retail flyer crop.',
+  'The pixels are the only source of truth. Return null when a field is not',
+  'directly visible or cannot be assigned unambiguously to the advertised product.',
   '',
-  'You are a literal visual OBSERVER, not an editor. Copy only directly visible',
-  'text exactly as printed in this crop.',
-  'Reply with ONLY a JSON object:',
-  '{"name_en": string|null, "name_ar": string|null, "brand": string|null,',
-  ' "size": string|null, "pack_count": string|null, "confidence": number}',
+  'For name_en, follow these rules exactly:',
+  'Copy the complete English product title exactly as printed on the package.',
+  'Do not remove the brand.',
+  'Do not remove the size.',
+  'Do not normalize.',
+  'Do not correct spelling.',
+  'Do not abbreviate.',
+  'Return the exact visible text.',
   '',
-  'ENGLISH: Copy the directly visible printed English product',
-  'name into name_en VERBATIM. Do NOT rewrite, normalize, summarize, translate,',
-  'transliterate, reorder words, expand abbreviations, correct spelling, infer',
-  'missing words, repair OCR-like spelling, or replace words with synonyms.',
-  'If several English names appear, choose the one for the product actually sold.',
-  'If that cannot be determined from the crop alone, set name_en to null.',
+  'Arabic is an independent literal display caption, not a translation. Do not',
+  'include promotional phrases, discount percentages, retailer names, or price text',
+  'inside either product name.',
   '',
-  'ARABIC is an independent literal extraction. Copy the printed Arabic product',
-  'name into name_ar VERBATIM. Do NOT paraphrase, rewrite, summarize, translate,',
-  'transliterate, normalize, repair spelling, or replace words with synonyms.',
+  'For price: current_price is the visibly promoted selling price. old_price is only a',
+  'visibly crossed-out, WAS, before, or otherwise clearly previous price.',
   '',
-  'The two languages are INDEPENDENT: never translate between them and never',
-  '"repair" one language using the other. If one language is absent, set it null',
-  '(never translate the other language to fill it).',
+  'Return exactly one JSON object with:',
+  '{',
+  '  "name_en": string|null,',
+  '  "name_ar": string|null,',
+  '  "brand": string|null,',
+  '  "current_price": number|null,',
+  '  "old_price": number|null,',
+  '  "unit": string|null,',
+  '  "package_size": string|null,',
+  '  "quantity": string|null,',
+  '  "package_type": string|null,',
+  '  "attributes": string[],',
+  '  "confidence": number|null',
+  '}',
   '',
-  'FIELD INDEPENDENCE: Observe every field independently from pixels. Never use',
-  'name_en to fill name_ar, name_ar to fill name_en, a product name to guess the',
-  'brand or size, or brand/size to complete a product name. If a field is not',
-  'directly legible in the crop, set that field to null.',
+  'The brand and the size must ALSO be repeated in their own fields. Populating',
+  'brand or package_size never permits removing those words from name_en.',
   '',
-  'PRODUCT BOUNDARIES: treat this tile as one isolated product. Never combine or',
-  'borrow text from a different product, and never complete a name using text',
-  'from an adjacent offer. Every field must belong to THIS tile only.',
-  '',
-  '- brand: the brand name exactly as printed, or null if unbranded/unclear.',
-  '  Do not guess a brand that is not visible. Null beats a guess.',
-  '- size: pack size as printed, e.g. "1.5L", "400g", "2pcs", or null.',
-  '- pack_count: copy the directly visible count-bearing package expression,',
-  '  e.g. "6×", "X24", "10+2", "3 Pack", "30s", or "Buy 2 Get 1".',
-  '  Inspect the entire product caption for a multiplier on either side of the',
-  '  size (for example "6×200 ml", "360mlX24", or "90g*8pcs"). Observe this',
-  '  field independently even when size is already populated. Keep it null when',
-  '  no multiplier, bonus, or explicit package count is directly visible.',
-  '  A price, model number, power/dimension, or usage duration such as "30 NIGHTS"',
-  '  is not a package count. Never copy or reinterpret those as pack_count.',
-  '- confidence: 0..1, based only on direct visual legibility in this crop.',
-  '- NEVER include prices, discounts, or currency anywhere in any field.',
-  '- Literal wording is always preferred over interpretation. When uncertain,',
-  '  keep the printed wording as seen or leave the field null — never invent,',
-  '  hallucinate, or generate marketing language.',
+  'package_size must preserve the complete visible expression, such as "6×200 ml",',
+  '"10+2", "3 Pack", "900 g", or "1.5 L". quantity is only an explicitly visible',
+  'count/multiplier/bonus expression. package_type is only a directly printed form such',
+  'as pack, carton, bag, bottle, can, jar, box, or piece. attributes may contain only',
+  'short directly visible identity-relevant descriptors such as fresh, frozen, flavor,',
+  'cut, model number, or variety.',
 ].join('\n');
+
+// The request settings the baseline was validated under, kept beside the prompt
+// so "the configuration" is one object rather than scattered literals. Changing
+// any of these changes what was measured — treat them as frozen too.
+export const PRODUCTION_EXTRACTION_BASELINE = Object.freeze({
+  adoptedOn: '2026-07-25',
+  model: DEFAULT_MODEL,
+  promptSha256: VISION_PROMPT_SHA256,
+  schema: 'expanded-json-v1',
+  temperature: 0,
+  topP: 1,
+  reasoningEffort: 'none',
+  responseFormat: 'json_object',
+  ocr: false,
+  requestsPerCrop: 1,
+  record: 'benchmarks/mistral-medium-production-validation-50-2026-07-25/PRODUCTION-PROMPT.md',
+});
 
 // bytes -> base64 without Buffer (Workers-safe; chunked to dodge arg limits).
 function toBase64(bytes) {
@@ -261,32 +344,80 @@ export function parseEnrichReply(text) {
     return null;
   }
   if (!obj || typeof obj !== 'object' || Array.isArray(obj)) return null;
-  const name = literalField(obj.name_en);
-  const nameAr = literalField(obj.name_ar);
+  const name = literalField(readObservationField(obj, 'name_en'));
+  const nameAr = literalField(readObservationField(obj, 'name_ar'));
   if (!name && !nameAr) return null; // nothing extracted -> no record
   return {
     name,
     nameAr,
-    brand: literalField(obj.brand),
-    size: literalField(obj.size),
-    packCount: literalField(obj.pack_count ?? obj.packCount),
+    brand: literalField(readObservationField(obj, 'brand')),
+    // Expanded JSON: package_size -> size, quantity -> pack_count. The alias
+    // reader keeps legacy replies parsing identically.
+    size: literalField(readObservationField(obj, 'size')),
+    packCount: literalField(readObservationField(obj, 'pack_count')),
     confidence: literalConfidence(obj.confidence),
   };
 }
 
+// --- Expanded JSON: what is kept, and what is deliberately quarantined ---------
+// The frozen baseline's schema returns eleven fields. Five map onto the existing
+// validated extraction contract (name_en, name_ar, brand, package_size -> size,
+// quantity -> pack_count) and confidence is stored as before. The rest — unit,
+// package_type, attributes — are real observations that nothing consumes YET, so
+// they are preserved verbatim beside the record rather than dropped; downstream
+// identity/canonicalization work is expected to use them.
+//
+// PRICES ARE THE EXCEPTION. The side-car has never held a price and still must
+// not: the validation measured a current-price ROLE INVERSION on 2/50 crops (the
+// crossed-out price returned as the selling price, at 0.99+ self-reported
+// confidence, identically under both prompts). A deterministic price guard is
+// mandatory before any extracted price may reach a shopper and that guard does
+// not exist yet, so no price may enter a row any read path can serve. The full
+// unedited model reply — prices included — is still journaled per offer in
+// offer_extraction_attempts.output, so nothing the model returned is lost.
+export const QUARANTINED_OBSERVATION_FIELDS = Object.freeze([
+  'current_price', 'old_price', 'new_price', 'price', 'prices', 'unit_price',
+  'discount', 'currency',
+]);
+
+// The servable-side copy of one model observation: everything it returned except
+// the quarantined price fields, with empty values dropped (the schema is fixed,
+// so an absent key means the model returned null). Returns null when nothing
+// survives, so the column stays NULL rather than holding an empty object.
+export function preservedObservation(output) {
+  if (!output || typeof output !== 'object' || Array.isArray(output)) return null;
+  const kept = {};
+  for (const [key, value] of Object.entries(output)) {
+    if (QUARANTINED_OBSERVATION_FIELDS.includes(key)) continue;
+    if (value == null || value === '') continue;
+    if (Array.isArray(value) && value.length === 0) continue;
+    kept[key] = value;
+  }
+  return Object.keys(kept).length ? kept : null;
+}
+
 // Construct the provider payload from crop bytes only. Keeping this pure and
 // exported lets tests prove no D4D/offer/registry text can enter the request.
+//
+// Every field here is the FROZEN baseline's validated request (2026-07-25):
+// temperature 0, top_p 1, reasoning_effort 'none', json_object, exactly one
+// user message carrying the prompt and one image. `image_url` is the bare
+// data-URL string, which is the form the 50-crop validation actually ran — the
+// OpenAI-compatible `{ url }` object is equivalent for Mistral, but only the
+// string form is measured, so that is what production sends.
 export function buildVisionRequest({ model = DEFAULT_MODEL, contentType = 'image/jpeg', base64 }) {
   return {
     model,
     temperature: 0,
+    top_p: 1,
+    reasoning_effort: 'none',
     response_format: { type: 'json_object' },
     messages: [
       {
         role: 'user',
         content: [
           { type: 'text', text: VISION_PROMPT },
-          { type: 'image_url', image_url: { url: `data:${contentType};base64,${base64}` } },
+          { type: 'image_url', image_url: `data:${contentType};base64,${base64}` },
         ],
       },
     ],
@@ -372,8 +503,10 @@ async function observeOcrBytes(crop, { apiKey, model = DEFAULT_OCR_MODEL, fetchI
 }
 
 function extractionModel(diagnostics, visionModel, ocrModel) {
-  if (diagnostics?.visionRequests && diagnostics?.ocrRequests) return `${visionModel}+${ocrModel}`;
-  if (diagnostics?.ocrRequests) return ocrModel;
+  const hasVision = diagnostics?.visionAttemptPresent || diagnostics?.visionRequests;
+  const hasOcr = diagnostics?.ocrAttemptPresent || diagnostics?.ocrRequests;
+  if (hasVision && hasOcr) return `${visionModel}+${ocrModel}`;
+  if (hasOcr) return ocrModel;
   return visionModel;
 }
 
@@ -382,6 +515,78 @@ function identityFromExtraction(result, mode) {
     { ...result.extraction, confidence: result.confidence },
     { mode },
   );
+}
+
+// The post-extraction lexicon layers (HISTORY §47), run over ONE observation.
+//
+// English-primary by directive: the structured record is built from `name_en`,
+// and the Arabic name is GENERATED from that structure — the observed Arabic
+// OCR text is a fallback source, never an input. Everything here is pure, so
+// like the Brand Lexicon (§45) it is derivable on read and nothing is
+// persisted; `enrichStore` binds columns explicitly, so it cannot reach D1.
+//
+// STAGED ROLLOUT (user directive, 2026-07-26): `name_ar` below permanently
+// carries the model's observed Arabic. The built name and its diagnostics are
+// persisted inside extraction_json; the global read-path flag decides which
+// presentation to expose and can never mutate this source record.
+export function productKnowledge(extracted, observation, commerceContext = {}) {
+  return buildArabicShadow({
+    name_en: extracted.productName,
+    name_ar: extracted.arabicName,
+    brand: extracted.brand,
+    size: extracted.size,
+    pack_count: extracted.packCount,
+    // Expanded JSON fields (§44) that until now nothing read.
+    package_type: observation?.package_type ?? null,
+    attributes: observation?.attributes ?? null,
+    // Commerce Score reads the authoritative offer row only. Quarantined model
+    // price fields never enter preservedObservation and cannot reach this path.
+    price: commerceContext?.price ?? null,
+    currency: commerceContext?.currency ?? null,
+  });
+}
+
+export function canonicalRowFromResult(offerId, crop, result, {
+  model = DEFAULT_MODEL,
+  ocrModel = DEFAULT_OCR_MODEL,
+  identityNormalizationMode = DEFAULT_IDENTITY_NORMALIZATION_MODE,
+  enrichedAt = new Date().toISOString(),
+  commerceContext = {},
+} = {}) {
+  const extracted = result.extraction;
+  const hasName = !!(extracted.productName || extracted.arabicName);
+  const identity = hasName ? identityFromExtraction(result, identityNormalizationMode) : null;
+  const observation = preservedObservation(result?.diagnostics?.visionOutput);
+  const knowledge = productKnowledge(extracted, observation, commerceContext);
+  return {
+    id: offerId,
+    name: extracted.productName,
+    name_ar: extracted.arabicName,
+    brand: extracted.brand,
+    size: extracted.size,
+    confidence: result.confidence,
+    corroboration: validatedExtractionCorroboration(result),
+    model: extractionModel(result.diagnostics, model, ocrModel),
+    crop_url: crop?.cropUrl ?? null,
+    enriched_at: enrichedAt,
+    // Expanded JSON fields nothing consumes yet (unit, package_type,
+    // attributes, and the verbatim observed names/size), price-free.
+    extraction_json: withArabicBuilderShadow(observation, knowledge.arabicBuilder),
+    // Structured Product + Arabic Builder (HISTORY §47) — additive runtime
+    // values; the compact rollout shadow above is persisted without a schema
+    // migration.
+    structured_product: knowledge.structuredProduct,
+    arabic_name: knowledge.arabicName,
+    arabic_builder: knowledge.arabicBuilder,
+    identity_candidate: identity?.identityCandidate ?? null,
+    identityDiagnostics: identity?.diagnostics ?? null,
+    // Brand Lexicon (HISTORY §45): the canonical brand identity for the brand
+    // the model observed. ADDITIVE and NOT PERSISTED — `brand` above still
+    // stores the verbatim observation, and because resolveBrand() is pure,
+    // `brand_id` is derivable from that column on read at any time. No column,
+    // no migration; persistence is a later phase's denormalization decision.
+    brand_identity: resolveBrand(extracted.brand),
+  };
 }
 
 // The serving gate historically stored OCR-overlap corroboration. Smart
@@ -398,8 +603,8 @@ export function validatedExtractionCorroboration(result) {
   if (!extraction.productName && !extraction.arabicName) return null;
   if (diagnostics.visionRequests > 0 && diagnostics.acceptedVisionFieldsOverwritten !== 0) return null;
   const accepted = {
-    Vision: new Set(diagnostics.validationResult?.acceptedFields || []),
-    OCR: new Set(diagnostics.ocrValidationResult?.acceptedFields || []),
+    [EXTRACTION_PROVENANCE.VISION]: new Set(diagnostics.validationResult?.acceptedFields || []),
+    [EXTRACTION_PROVENANCE.OCR]: new Set(diagnostics.ocrValidationResult?.acceptedFields || []),
   };
   const fields = [
     ['productName', 'name_en'],
@@ -408,6 +613,12 @@ export function validatedExtractionCorroboration(result) {
   for (const [outputField, validationField] of fields) {
     if (!extraction[outputField]) continue;
     const source = provenance[outputField];
+    // A human edit is self-evidencing (R1, C-7). Requiring validator agreement
+    // here is what made a reviewed row NON-SERVABLE: `accepted.Human` did not
+    // exist, so a developer-approved name failed the gate and the review tool
+    // silently accomplished nothing. The reviewer looked at the crop, which is
+    // strictly more evidence than any validator had.
+    if (isSelfEvidencingProvenance(source)) continue;
     if (!accepted[source]?.has(validationField)) return null;
   }
   return 1;
@@ -460,6 +671,8 @@ export async function enrichOffer(
   const identity = identityFromExtraction(result, identityNormalizationMode);
   const extracted = result.extraction;
   if (!extracted.productName && !extracted.arabicName) return null;
+  const observation = preservedObservation(result.diagnostics.visionOutput);
+  const knowledge = productKnowledge(extracted, observation, offer);
   return {
     offerId: offer.id,
     name: extracted.productName,
@@ -472,10 +685,16 @@ export async function enrichOffer(
     model: extractionModel(result.diagnostics, model, ocrModel),
     cropUrl: crop.cropUrl,
     enrichedAt: new Date().toISOString(),
+    observation: withArabicBuilderShadow(observation, knowledge.arabicBuilder),
     provenance: result.provenance,
     diagnostics: result.diagnostics,
     identityCandidate: identity.identityCandidate,
     identityDiagnostics: identity.diagnostics,
+    // Brand Lexicon (HISTORY §45) — additive; `brand` above stays verbatim.
+    brandIdentity: resolveBrand(extracted.brand),
+    // Structured Product + Arabic Builder (HISTORY §47) — additive; `nameAr`
+    // above stays the model's observed Arabic. Serving selection is downstream.
+    ...knowledge,
   };
 }
 
@@ -510,6 +729,63 @@ export async function enrichWithFailover(
     ...failover
   } = {},
 ) {
+  const extractedAttempt = await extractWithFailover(offer, {
+    keyChain,
+    model,
+    ocrModel,
+    strategy,
+    fetchImpl,
+    onCrop,
+    ...failover,
+  });
+  if (!extractedAttempt) return null;
+  const { crop, result } = extractedAttempt;
+  if (onDiagnostics) await onDiagnostics(result.diagnostics);
+  const identity = identityFromExtraction(result, identityNormalizationMode);
+  if (onIdentityDiagnostics) await onIdentityDiagnostics(identity.diagnostics);
+  const extracted = result.extraction;
+  if (!extracted.productName && !extracted.arabicName) return null;
+  const observation = preservedObservation(result.diagnostics.visionOutput);
+  const knowledge = productKnowledge(extracted, observation, offer);
+  return {
+    offerId: offer.id,
+    name: extracted.productName,
+    nameAr: extracted.arabicName,
+    brand: extracted.brand,
+    size: extracted.size,
+    confidence: result.confidence,
+    corroboration: validatedExtractionCorroboration(result),
+    source: extractionSource(result),
+    model: extractionModel(result.diagnostics, model, ocrModel),
+    cropUrl: crop.cropUrl,
+    enrichedAt: new Date().toISOString(),
+    observation: withArabicBuilderShadow(observation, knowledge.arabicBuilder),
+    provenance: result.provenance,
+    diagnostics: result.diagnostics,
+    identityCandidate: identity.identityCandidate,
+    identityDiagnostics: identity.diagnostics,
+    // Brand Lexicon (HISTORY §45) — additive; `brand` above stays verbatim.
+    brandIdentity: resolveBrand(extracted.brand),
+    // Structured Product + Arabic Builder (HISTORY §47) — additive; `nameAr`
+    // above stays the model's observed Arabic. Serving selection is downstream.
+    ...knowledge,
+  };
+}
+
+// Exported for the S5 recovery processors, which run the same extraction path
+// the drains do. Additive — no caller changes, no behaviour changes.
+export async function extractWithFailover(
+  offer,
+  {
+    keyChain,
+    model = DEFAULT_MODEL,
+    ocrModel = DEFAULT_OCR_MODEL,
+    strategy = DEFAULT_EXTRACTION_STRATEGY,
+    fetchImpl = fetch,
+    onCrop = null,
+    ...failover
+  } = {},
+) {
   const crop = await fetchOfferCrop(offer, { fetchImpl, onCrop });
   if (!crop) return null;
   const result = await runSmartExtraction({
@@ -525,28 +801,23 @@ export async function enrichWithFailover(
       failover,
     ),
   });
-  if (onDiagnostics) await onDiagnostics(result.diagnostics);
-  const identity = identityFromExtraction(result, identityNormalizationMode);
-  if (onIdentityDiagnostics) await onIdentityDiagnostics(identity.diagnostics);
-  const extracted = result.extraction;
-  if (!extracted.productName && !extracted.arabicName) return null;
-  return {
-    offerId: offer.id,
-    name: extracted.productName,
-    nameAr: extracted.arabicName,
-    brand: extracted.brand,
-    size: extracted.size,
-    confidence: result.confidence,
-    corroboration: validatedExtractionCorroboration(result),
-    source: extractionSource(result),
-    model: extractionModel(result.diagnostics, model, ocrModel),
-    cropUrl: crop.cropUrl,
-    enrichedAt: new Date().toISOString(),
-    provenance: result.provenance,
-    diagnostics: result.diagnostics,
-    identityCandidate: identity.identityCandidate,
-    identityDiagnostics: identity.diagnostics,
-  };
+  return { crop, result };
+}
+
+function finishDrainReport(report, chain) {
+  report.failedOver = chain?.failedOver?.() || false;
+  const completedExtractions = report.enriched + report.declined + (report.ocrPending || 0);
+  report.extraction.averageProcessingTimeMs = completedExtractions
+    ? Math.round((report.extraction.processingTimeMs / completedExtractions) * 100) / 100
+    : 0;
+  report.extraction.averageRequestsPerOffer = completedExtractions
+    ? Math.round(((report.extraction.visionRequests + report.extraction.ocrRequests) / completedExtractions) * 1000) / 1000
+    : 0;
+  report.identityBuilder.averageProcessingTimeMs = report.identityBuilder.built
+    ? Math.round((report.identityBuilder.processingTimeMs / report.identityBuilder.built) * 1000) / 1000
+    : 0;
+  report.finishedAt = new Date().toISOString();
+  return report;
 }
 
 // --- the drain -----------------------------------------------------------------
@@ -578,7 +849,8 @@ export async function drainEnrichment(
   const selectedIdentityMode = normalizeIdentityMode(identityNormalizationMode);
   const report = {
     startedAt: new Date().toISOString(),
-    scanned: 0, enriched: 0, declined: 0, failed: 0, pruned: 0, failedOver: false,
+    scanned: 0, enriched: 0, declined: 0, ocrPending: 0,
+    failed: 0, pruned: 0, stored: 0, failedOver: false,
     // The provider rate-limit signal observed this batch (429 headers), or null.
     // Surfaced so the Operations Center shows the real limit/usage/reset instead
     // of a silent stall (Vision Milestone 2 §3).
@@ -599,6 +871,22 @@ export async function drainEnrichment(
       unresolvedFields: 0,
       processingTimeMs: 0,
     },
+    // S4 Business Acceptance, per batch (R5, R6). Reported alongside queue depth
+    // because queue depth alone cannot tell a well-tuned gate from one that
+    // rejects everything for a single reason. `missing` is per-condition and the
+    // buckets OVERLAP by design — never summarise it to a count of rejects.
+    acceptance: {
+      version: BUSINESS_ACCEPTANCE_VERSION,
+      judged: 0,
+      accepted: 0,
+      rejected: 0,
+      persisted: 0,
+      missing: Object.fromEntries(MANDATORY_CONDITIONS.map((c) => [c, 0])),
+    },
+    // S5 Recovery Queue admission (C-9). `admitted` is the pipeline's verdict,
+    // `queued` is what was durably written; they diverge only when the
+    // migration is missing, which is the intended signal.
+    recovery: { admitted: 0, queued: 0 },
   };
   // Cold-standby key chain: primary then optional backup (MISTRAL_API_KEY /
   // MISTRAL_API_KEY_BACKUP in the Worker). A single-key chain = today's exact
@@ -614,13 +902,26 @@ export async function drainEnrichment(
     : await enrichStore.listDebris({ currentOn, limit, scope });
   report.scanned = debris.length;
   const rows = [];
-  const recordDiagnostics = (diag) => {
+  const recordDiagnostics = (diag, { recordReasons = true } = {}) => {
     report.extraction.visionRequests += diag?.visionRequests || 0;
     report.extraction.ocrRequests += diag?.ocrRequests || 0;
     report.extraction.ocrTriggered += diag?.ocrTriggered ? 1 : 0;
     report.extraction.processingTimeMs += diag?.processingTimeMs || 0;
-    for (const reason of diag?.triggerReason || []) {
-      report.extraction.triggerReasons[reason] = (report.extraction.triggerReasons[reason] || 0) + 1;
+    if (recordReasons) {
+      for (const reason of diag?.triggerReason || []) {
+        report.extraction.triggerReasons[reason] = (report.extraction.triggerReasons[reason] || 0) + 1;
+      }
+    }
+  };
+  // Per-condition tallies, straight off the verdict (R6). No aggregation into a
+  // single "reasons" count: `missing.comparable_quantity = 40` is a decision an
+  // operator can act on, `rejected = 40` is not.
+  const recordAcceptance = (verdict) => {
+    report.acceptance.judged += 1;
+    if (verdict.accepted) report.acceptance.accepted += 1;
+    else report.acceptance.rejected += 1;
+    for (const condition of verdict.missing) {
+      report.acceptance.missing[condition] = (report.acceptance.missing[condition] || 0) + 1;
     }
   };
   const recordIdentityDiagnostics = (diag) => {
@@ -630,10 +931,139 @@ export async function drainEnrichment(
     report.identityBuilder.unresolvedFields += diag?.unresolvedFields?.length || 0;
     report.identityBuilder.processingTimeMs += diag?.processingTimeMs || 0;
   };
+
+  // Production Vision First is deliberately two-stage. This drain performs
+  // exactly one Vision request per offer and never calls OCR. Quality Gate
+  // failures are durably marked ocr_pending for the independent OCR drain.
+  if (selectedStrategy === EXTRACTION_STRATEGIES.VISION_FIRST) {
+    if (typeof enrichStore.saveVisionOutcome !== 'function') {
+      throw new Error('Vision-first queue migration is not applied (saveVisionOutcome unavailable)');
+    }
+    for (const d of debris) {
+      try {
+        const observed = await extractWithFailover(
+          { id: d.id, name: null, nameAr: null, imageUrl: d.image_url },
+          {
+            keyChain: chain,
+            model,
+            strategy: EXTRACTION_STRATEGIES.VISION_ONLY,
+            fetchImpl,
+            maxRateRetries,
+          },
+        );
+        if (!observed) throw new Error('Offer crop was unavailable');
+        const { crop, result } = observed;
+        recordDiagnostics(result.diagnostics, { recordReasons: false });
+        const validation = result.diagnostics.validationResult;
+        const passed = !validation.ocrRequired;
+        const attemptedAt = new Date().toISOString();
+        const canonicalRow = passed
+          ? canonicalRowFromResult(d.id, crop, result, {
+              model,
+              ocrModel,
+              identityNormalizationMode: selectedIdentityMode,
+              enrichedAt: attemptedAt,
+              commerceContext: d,
+            })
+          : null;
+        if (canonicalRow?.identityDiagnostics) recordIdentityDiagnostics(canonicalRow.identityDiagnostics);
+        // S4 runs on EVERY extraction, not only the ones that cleared the
+        // Quality Gate (R5). The two branches differ only in where Comparable
+        // Quantity comes from: a passed row already has a Structured Product,
+        // while a rejected one has none — so the gate falls back to the
+        // preserved observation, which is precisely why that fallback exists.
+        // Skipping rejects here would hide the population most in need of
+        // calibration, since a Quality Gate reject is the likeliest S4 reject.
+        const acceptance = evaluateBusinessAcceptance({
+          offer: d,
+          acceptedFields: validation.acceptedFields || [],
+          structured: canonicalRow?.structured_product ?? null,
+          observation: canonicalRow
+            ? null
+            : preservedObservation(result.diagnostics.visionOutput),
+        });
+        recordAcceptance(acceptance);
+        // S5 admission (C-9), decided HERE because the rule needs both
+        // conjuncts — `servable()` and the S4 verdict — and must have exactly
+        // one definition. The store commits the decision; it never re-derives it.
+        const recovery = recoveryAdmission({
+          canonicalRow,
+          acceptance,
+          triggerReasons: validation.triggerReasons || [],
+        });
+        const outcome = await enrichStore.saveVisionOutcome({
+          attempt: {
+            offerId: d.id,
+            source: 'vision',
+            output: result.diagnostics.visionOutput,
+            validation,
+            confidence: result.confidence,
+            model,
+            cropUrl: crop.cropUrl,
+            accepted: passed,
+            attemptedAt,
+          },
+          canonicalRow,
+          triggerReasons: validation.triggerReasons || [],
+          acceptance,
+          recovery,
+        });
+        // Distinguishes "the gate judged it" from "the judgement was stored".
+        // Before the migration is applied the two diverge, and an operator
+        // reading a zero here should see the cause is a missing table, not a
+        // gate that stopped running.
+        if (outcome?.verdictStored) report.acceptance.persisted += 1;
+        // Separates "the pipeline judged it incomplete" from "a queue row was
+        // written", exactly as `judged` vs `persisted` does for the verdict.
+        // Before the migration the two diverge, and an operator reading a zero
+        // should see a missing table rather than a queue that stopped filling.
+        if (!recovery.complete) report.recovery.admitted += 1;
+        if (outcome?.recoveryQueued) report.recovery.queued += 1;
+        report.stored += 1;
+        if (passed) report.enriched += 1;
+        else {
+          report.ocrPending += 1;
+          report.extraction.ocrTriggered += 1;
+          for (const reason of validation.triggerReasons || []) {
+            report.extraction.triggerReasons[reason] = (report.extraction.triggerReasons[reason] || 0) + 1;
+          }
+        }
+      } catch (err) {
+        report.failed += 1;
+        report.errors.push(String(err.message).slice(0, 200));
+        if (err.rateLimit) report.providerLimit = err.rateLimit;
+        const kind = classifyMistralError(err);
+        if (kind === 'auth' || kind === 'rate' || kind === 'transient') break;
+      }
+    }
+    return finishDrainReport(report, chain);
+  }
+
+  // LEGACY / OCR-first drain. Reached only by a runtime `strategy` override or a
+  // changed EXTRACTION_STRATEGY — production is `vision-first` above.
+  //
+  // ⚠️ SCOPE BOUNDARY, recorded rather than left to be discovered: S4 verdicts
+  // are NOT persisted on this path (R5 covers the vision-first drain only). This
+  // path commits through `upsertMany`, which has no atomic attempt+verdict batch
+  // to join — the property that makes the verdict write safe above. Wiring it
+  // here means restructuring a legacy write path, which is a larger and riskier
+  // change than this increment should make silently, so it is left for the S5
+  // Recovery Queue work that will touch this area deliberately (C-8).
+  //
+  // Consequence while this stands: if an operator overrides the strategy, the
+  // batch enriches normally but contributes no calibration data. It is visible,
+  // not silent — `report.acceptance.judged` stays 0 for such a batch.
   for (const d of debris) {
     try {
       const rec = await enrichWithFailover(
-        { id: d.id, name: null, nameAr: null, imageUrl: d.image_url },
+        {
+          id: d.id,
+          name: null,
+          nameAr: null,
+          imageUrl: d.image_url,
+          price: d.price,
+          currency: d.currency,
+        },
         {
           keyChain: chain,
           model,
@@ -666,6 +1096,9 @@ export async function drainEnrichment(
         model: rec.model,
         crop_url: rec.cropUrl,
         enriched_at: rec.enrichedAt,
+        // Expanded JSON fields nothing consumes yet, price-free (see
+        // preservedObservation): the legacy write path preserves them too.
+        extraction_json: rec.observation,
         // Persist the already-built contract because extraction and Registry
         // resolution run in separate Worker invocations. Registry never
         // reconstructs it from these raw observation columns.
@@ -691,17 +1124,110 @@ export async function drainEnrichment(
   }
   if (rows.length) await enrichStore.upsertMany(rows);
   report.stored = rows.length;
+  return finishDrainReport(report, chain);
+}
+
+// Independent OCR escalation drain. It consumes only persisted Quality Gate
+// rejects, never invokes Vision, and leaves failures as ocr_pending with a
+// bounded retry delay. Canonical output is written only after OCR validation
+// and the existing immutable-Vision merge have completed.
+export async function drainOcrEnrichment(
+  { enrichStore, mistralOcrKey, mistralOcrKeyBackup, keyChain },
+  {
+    limit = 5,
+    currentOn,
+    model = DEFAULT_MODEL,
+    ocrModel = DEFAULT_OCR_MODEL,
+    identityNormalizationMode = DEFAULT_IDENTITY_NORMALIZATION_MODE,
+    fetchImpl = fetch,
+    maxRateRetries = 0,
+  } = {},
+) {
+  const startedAt = new Date().toISOString();
+  const report = {
+    startedAt,
+    scanned: 0,
+    completed: 0,
+    failed: 0,
+    pending: await enrichStore.countPendingOcr(currentOn),
+    ocrRequests: 0,
+    failedOver: false,
+    providerLimit: null,
+    errors: [],
+  };
+  const chain = keyChain || createKeyChain([mistralOcrKey, mistralOcrKeyBackup]);
+  if (!mistralOcrKey && !keyChain) {
+    report.unavailable = true;
+    report.finishedAt = new Date().toISOString();
+    return report;
+  }
+  const selectedIdentityMode = normalizeIdentityMode(identityNormalizationMode);
+  const pending = await enrichStore.listPendingOcr({ currentOn, limit });
+  report.scanned = pending.length;
+  for (const d of pending) {
+    try {
+      const observed = await extractWithFailover(
+        { id: d.id, name: null, nameAr: null, imageUrl: d.image_url },
+        {
+          keyChain: chain,
+          ocrModel,
+          strategy: EXTRACTION_STRATEGIES.OCR_ONLY,
+          fetchImpl,
+          maxRateRetries,
+        },
+      );
+      if (!observed) throw new Error('Offer crop was unavailable');
+      const { crop, result: ocrResult } = observed;
+      report.ocrRequests += ocrResult.diagnostics.ocrRequests || 0;
+      const result = finalizeValidatedExtraction({
+        strategy: EXTRACTION_STRATEGIES.VISION_FIRST,
+        visionOutput: d.vision_output,
+        visionValidation: d.vision_validation,
+        ocrOutput: ocrResult.diagnostics.ocrOutput,
+        ocrValidation: ocrResult.diagnostics.ocrValidationResult,
+        visionRequests: 0,
+        ocrRequests: ocrResult.diagnostics.ocrRequests || 0,
+        visionAttemptPresent: true,
+        ocrAttemptPresent: true,
+        processingTimeMs: ocrResult.diagnostics.processingTimeMs,
+      });
+      const attemptedAt = new Date().toISOString();
+      const canonicalRow = canonicalRowFromResult(d.id, crop, result, {
+        model: d.vision_model || model,
+        ocrModel,
+        identityNormalizationMode: selectedIdentityMode,
+        enrichedAt: attemptedAt,
+        commerceContext: d,
+      });
+      await enrichStore.saveOcrOutcome({
+        attempt: {
+          offerId: d.id,
+          source: 'ocr',
+          output: ocrResult.diagnostics.ocrOutput,
+          validation: ocrResult.diagnostics.ocrValidationResult,
+          confidence: ocrResult.confidence,
+          model: ocrModel,
+          cropUrl: crop.cropUrl,
+          accepted: ocrResult.diagnostics.ocrValidationResult.acceptedFields.length > 0,
+          attemptedAt,
+        },
+        canonicalRow,
+      });
+      report.completed += 1;
+    } catch (err) {
+      report.failed += 1;
+      report.errors.push(String(err.message).slice(0, 200));
+      if (err.rateLimit) report.providerLimit = err.rateLimit;
+      const attempts = Number(d.attempts) || 0;
+      const retryMinutes = Math.min(360, 2 ** Math.min(attempts, 8));
+      const retryAt = new Date(Date.now() + retryMinutes * 60_000).toISOString();
+      await enrichStore.markOcrPending(d.id, err.message, { retryAt });
+      const kind = classifyMistralError(err);
+      if (kind === 'auth' || kind === 'rate' || kind === 'transient') break;
+    }
+  }
   report.failedOver = chain.failedOver();
-  const completedExtractions = report.enriched + report.declined;
-  report.extraction.averageProcessingTimeMs = completedExtractions
-    ? Math.round((report.extraction.processingTimeMs / completedExtractions) * 100) / 100
-    : 0;
-  report.extraction.averageRequestsPerOffer = completedExtractions
-    ? Math.round(((report.extraction.visionRequests + report.extraction.ocrRequests) / completedExtractions) * 1000) / 1000
-    : 0;
-  report.identityBuilder.averageProcessingTimeMs = report.identityBuilder.built
-    ? Math.round((report.identityBuilder.processingTimeMs / report.identityBuilder.built) * 1000) / 1000
-    : 0;
+  report.remaining = await enrichStore.countPendingOcr(currentOn);
   report.finishedAt = new Date().toISOString();
   return report;
 }

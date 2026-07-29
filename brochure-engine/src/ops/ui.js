@@ -58,6 +58,33 @@ button.ghost{background:transparent;border:1px solid var(--line)}
 button:disabled{opacity:.5}
 .btnGrid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .btnGrid .wide{grid-column:1/-1}
+/* --- S7 Human review ------------------------------------------------------
+   THE CROP IS THE EVIDENCE, so it is sticky rather than scroll-away: a reviewer
+   types the size while LOOKING at the pack, and a form that pushes the image
+   off-screen makes the correction a memory test. On a wide screen the two sit
+   side by side and the image sticks in its own column. On a phone the grid is
+   ONE column, so sticky would pin the crop on top of the fields it exists to
+   help fill in -- there it scrolls with the form. */
+.rvWrap{display:grid;gap:12px}
+@media(min-width:720px){.rvWrap{grid-template-columns:minmax(0,260px) minmax(0,1fr);align-items:start}}
+.rvCrop{background:var(--card);
+  border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center}
+@media(min-width:720px){.rvCrop{position:sticky;top:64px;z-index:2}}
+.rvCrop img{width:100%;max-height:44vh;object-fit:contain;border-radius:8px;background:#0b1220;display:block}
+@media(min-width:720px){.rvCrop img{max-height:60vh}}
+.rvCrop .mut{margin-top:6px}
+.rvNoCrop{padding:24px 8px;color:var(--mut);font-size:12px}
+.rvField{margin-bottom:10px}
+.rvField label{display:block;font-size:12px;font-weight:700;margin-bottom:4px}
+.rvField .mut{margin-bottom:4px}
+.rvField input{width:100%;font:inherit;padding:11px;border-radius:10px;
+  background:var(--card2);border:1px solid var(--line);color:var(--text)}
+.rvField input:focus{outline:none;border-color:var(--acc)}
+.rvBlock{border-left:3px solid var(--warn);padding:8px 10px;margin-bottom:10px;
+  background:rgba(245,158,11,.08);border-radius:0 8px 8px 0;font-size:12px}
+.rvStop{border-left:3px solid var(--bad);background:rgba(239,68,68,.08)}
+.rvAdvBtn{background:transparent;border:1px dashed var(--line);padding:9px;font-size:12px;
+  color:var(--mut);margin-bottom:10px}
 input[type=text],input[type=password]{font:inherit;width:100%;padding:13px;
   border-radius:12px;border:1px solid var(--line);background:var(--card2);color:var(--text)}
 label.chk{display:flex;align-items:center;gap:10px;padding:10px 4px;border-bottom:1px solid var(--line);font-size:14px}
@@ -233,6 +260,24 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
     </div>
 
     <div class="card">
+      <h2>Recovery Queue <span id="rqTag" class="tag">…</span></h2>
+      <div class="mut" style="margin-bottom:10px">Offers that did not become a servable canonical product. Recovery costs more per offer than the primary read, so nothing runs until you choose to spend.</div>
+      <div id="rqDepth"><span class="spin"></span></div>
+      <div id="rqProcWrap" style="display:none;margin-top:12px">
+        <div class="mut" style="margin-bottom:6px">Processor</div>
+        <div class="seg" id="rqProcSeg"></div>
+        <div id="rqProcNote" class="mut" style="margin-top:6px"></div>
+        <div class="btnGrid" style="margin-top:10px">
+          <button class="primary" id="rqDispatchBtn">▶ Process next…</button>
+          <button class="ghost" id="rqItemsBtn">Review queue</button>
+        </div>
+      </div>
+      <div id="rqItems" style="margin-top:12px"></div>
+      <div id="rqEff" style="margin-top:14px"></div>
+      <div id="rqAuto" style="margin-top:14px"></div>
+    </div>
+
+    <div class="card">
       <h2>Queue Monitor</h2>
       <div id="queueOut"><span class="spin"></span></div>
       <div class="btnGrid" style="margin-top:10px">
@@ -363,7 +408,7 @@ document.querySelectorAll("nav button").forEach(function (b) {
     $("#v-" + b.dataset.v).classList.add("active");
     stopPoll();
     if (b.dataset.v === "home" || b.dataset.v === "stores") loadOverview();
-    if (b.dataset.v === "vision") { loadQueue(); loadVisionJob(); loadVisionModel(); startPoll(function () { loadProgress(); loadVisionJob(); }, 5000); }
+    if (b.dataset.v === "vision") { loadQueue(); loadRecovery(); loadVisionJob(); loadVisionModel(); startPoll(function () { loadProgress(); loadVisionJob(); }, 5000); }
     if (b.dataset.v === "more") { loadMore(); loadMoreOps(); }
   };
 });
@@ -1037,6 +1082,437 @@ function renderProduct(d) {
 }
 
 /* ---------- Vision tab: Queue Monitor (§4) ---------- */
+/* ---------- Vision tab: Recovery Queue (S5.7 — C-8, C-9) ---------- */
+/* The panel is deliberately processor-AGNOSTIC: every processor button, its
+   cost line and its effectiveness row are rendered FROM the registry payload,
+   so a processor added tomorrow appears here with no change to this file. There
+   is no hard-coded processor name below, and there must never be one. */
+var rqState = null;
+var rqProc = null;
+var rqBusy = false;
+
+function loadRecovery() { return api("recovery").then(renderRecovery).catch(function () {}); }
+
+function rqProcessor(id) {
+  return (rqState && rqState.processors || []).filter(function (p) { return p.id === id; })[0] || null;
+}
+
+function renderRecovery(r) {
+  rqState = r;
+  var tag = $("#rqTag");
+  if (!r.available) {
+    /* A missing migration is a normal state to SHOW, not zeros that read as an
+       empty queue. */
+    tag.textContent = r.reason === "migration_missing" ? "migration owed" : "unavailable";
+    tag.className = "tag warnTag";
+    $("#rqDepth").innerHTML = '<div class="mut">' + esc(r.message || "Recovery Queue is not available.") + "</div>";
+    $("#rqProcWrap").style.display = "none";
+    $("#rqEff").innerHTML = "";
+    $("#rqAuto").innerHTML = "";
+    return;
+  }
+  var d = r.depth || {};
+  var byStatus = d.byStatus || {};
+  var cond = d.byMissingCondition || {};
+  var queued = (byStatus.queued || 0) + (byStatus.claimed || 0);
+  var p = r.policy || {};
+  tag.textContent = p.armed ? "auto" : "manual";
+  tag.className = "tag" + (p.armed ? " warnTag" : "");
+
+  var condKeys = Object.keys(cond).sort(function (a, b) { return cond[b] - cond[a]; });
+  $("#rqDepth").innerHTML =
+    '<div class="qgrid">' +
+      kpiBox(queued, "awaiting recovery") +
+      kpiBox(byStatus.resolved || 0, "recovered") +
+      kpiBox((byStatus.exhausted || 0) + (byStatus.dismissed || 0), "closed") +
+    "</div><div style='height:8px'></div>" +
+    (condKeys.length
+      ? '<div class="mut" style="margin-bottom:4px">Missing conditions — these OVERLAP, so they do not sum to the queue.</div>' +
+        condKeys.map(function (k) { return kvl("· " + k.replace(/_/g, " "), cond[k]); }).join("")
+      : '<div class="mut">Nothing is waiting for recovery.</div>') +
+    (r.acceptance && r.acceptance.onlyCondition
+      ? '<div class="mut" style="margin-top:8px">Kept out by a SINGLE condition: ' +
+        esc(Object.keys(r.acceptance.onlyCondition)
+          .filter(function (k) { return r.acceptance.onlyCondition[k]; })
+          .map(function (k) { return k.replace(/_/g, " ") + " " + r.acceptance.onlyCondition[k]; })
+          .join(" · ") || "none") + "</div>"
+      : "");
+
+  /* Processor selection, straight from the registry. */
+  var procs = r.processors || [];
+  $("#rqProcWrap").style.display = procs.length ? "block" : "none";
+  if (!rqProc || !rqProcessor(rqProc)) rqProc = procs.length ? procs[0].id : null;
+  $("#rqProcSeg").innerHTML = procs.map(function (x) {
+    return '<button data-proc="' + esc(x.id) + '"' + (x.id === rqProc ? ' class="on"' : "") + ">" +
+      esc(x.label) + '<br><span class="segSub">' + esc(x.kind) + "</span></button>";
+  }).join("");
+  var sel = rqProcessor(rqProc);
+  $("#rqProcNote").innerHTML = sel
+    ? esc(sel.description || "") +
+      (sel.addresses && sel.addresses.length
+        ? '<br><span class="mut">Addresses: ' + esc(sel.addresses.join(", ").replace(/_/g, " ")) + "</span>"
+        : "") +
+      (sel.kind === "human" ? '<br><span class="mut">Human review — may correct fields a machine accepted.</span>' : "")
+    : "";
+  $("#rqProcSeg").querySelectorAll("button").forEach(function (b) {
+    b.disabled = rqBusy;
+    b.onclick = function () { rqProc = b.dataset.proc; renderRecovery(rqState); };
+  });
+  // AN INTERACTIVE PROCESSOR HAS NO BULK BUTTON. Firing the human rung at N
+  // items would decline all N — run() refuses without a submitted decision — so
+  // offering the button would advertise work that cannot happen. The item list
+  // IS the entry point for review, and the label says so.
+  // (No backticks in this file: it is one big template literal.)
+  var rvMode = !!(sel && sel.interactive);
+  $("#rqDispatchBtn").style.display = rvMode ? "none" : "block";
+  $("#rqDispatchBtn").disabled = rqBusy || !queued || !sel;
+  $("#rqItemsBtn").textContent = rvMode ? "Review queued items" : "Show queued items";
+
+  /* Effectiveness — the number that should drive spend. Rows appear per
+     processor id as they run; nothing is listed until it has attempted work. */
+  var eff = r.effectiveness || {};
+  var ids = Object.keys(eff);
+  $("#rqEff").innerHTML = ids.length
+    ? "<h3 style='margin:0 0 6px'>Processor effectiveness</h3>" +
+      '<div class="mut" style="margin-bottom:6px">Recovered = the offer became a servable canonical product. Only S4 decides that; a processor cannot report its own success.</div>' +
+      ids.map(function (id) {
+        var e = eff[id];
+        var rate = e.attempts ? Math.round(((e.recovered || 0) / e.attempts) * 100) : 0;
+        return kvl(id, (e.recovered || 0) + " / " + e.attempts + " recovered (" + rate + "%)" +
+          (e.failed ? " · " + e.failed + " failed" : "") +
+          (e.declined ? " · " + e.declined + " declined" : ""));
+      }).join("")
+    : '<div class="mut">No recovery has been attempted yet.</div>';
+
+  /* Auto arming. Manual is the default and every read failure lands there. */
+  $("#rqAuto").innerHTML =
+    "<h3 style='margin:0 0 6px'>Execution</h3>" +
+    kvl("Mode", p.armed ? "Auto — the queue drains itself" : "Manual — nothing runs unless you press a button") +
+    (p.processors && p.processors.length ? kvl("Armed processors", p.processors.join(", ")) : "") +
+    (p.unknownProcessors && p.unknownProcessors.length
+      ? '<div class="warnBox" style="margin-top:6px">Policy names processors that no longer exist: ' +
+        esc(p.unknownProcessors.join(", ")) + ". Auto is disarmed until this is fixed.</div>"
+      : "") +
+    (p.armed ? kvl("Per run", p.maxItemsPerRun + " items · " + p.maxAttemptsPerItem + " attempts each") : "") +
+    '<div class="btnGrid" style="margin-top:10px">' +
+      '<button class="' + (p.armed ? "ghost" : "primary") + '" id="rqArmBtn">' +
+        (p.armed ? "Disarm Auto" : "Arm Auto…") + "</button>" +
+      '<button class="ghost" id="rqDrainBtn"' + (p.armed ? "" : " disabled") + ">Run Auto now</button>" +
+    "</div>";
+  $("#rqArmBtn").onclick = function () { rqToggleAuto(p); };
+  $("#rqDrainBtn").onclick = function () { rqRunAuto(); };
+}
+
+function rqToggleAuto(p) {
+  var sel = rqProcessor(rqProc);
+  var ask = p.armed
+    ? confirmSheet("Disarm Auto", "The queue stops draining itself. Queued items stay queued and nothing is lost.", false)
+    : confirmSheet(
+        "Arm Auto recovery",
+        "The queue will drain itself using " + (sel ? sel.label : "the selected processor") +
+        ", up to " + (rqState.maxDispatch || 10) + " items per run, WITHOUT asking again. " +
+        "Recovery costs materially more per offer than the primary read. Disarm to stop.",
+        true);
+  ask.then(function (ok) {
+    if (!ok) return;
+    api("recovery/policy", {
+      body: {
+        confirm: true,
+        mode: p.armed ? "manual" : "auto",
+        processors: p.armed ? [] : [rqProc],
+      },
+    }).then(function () {
+      toast(p.armed ? "Auto disarmed" : "Auto armed");
+      loadRecovery();
+    }).catch(function (e) { toast(e.message || "error", true); });
+  });
+}
+
+function rqRunAuto() {
+  var b = $("#rqDrainBtn");
+  b.disabled = true; b.innerHTML = '<span class="spin"></span>';
+  api("recovery/drain", { body: { confirm: true } }).then(function (r) {
+    var runs = (r.report && r.report.runs) || [];
+    var rec = runs.reduce(function (n, x) { return n + (x.recovered || 0); }, 0);
+    toast(r.report && r.report.skipped ? "Not armed — nothing ran" : "Recovered " + rec);
+    loadRecovery();
+  }).catch(function (e) { toast(e.message || "error", true); loadRecovery(); });
+}
+
+$("#rqDispatchBtn").onclick = function () {
+  var sel = rqProcessor(rqProc);
+  if (!sel) return;
+  var max = (rqState && rqState.maxDispatch) || 10;
+  var cost = sel.costHint && sel.costHint.requests
+    ? " Roughly " + (sel.costHint.requests * max) + " model call(s) at " + max + " items."
+    : "";
+  confirmSheet(
+    "Process next " + max + " with " + sel.label,
+    "Runs " + sel.label + " over the next " + max + " queued offers." + cost +
+    " Each offer is judged again by Business Acceptance afterwards — only that closes an item.",
+    false
+  ).then(function (ok) {
+    if (!ok) return;
+    var b = $("#rqDispatchBtn");
+    rqBusy = true; b.disabled = true; b.innerHTML = '<span class="spin"></span>';
+    api("recovery/dispatch", { body: { confirm: true, processor: sel.id, limit: max } })
+      .then(function (r) {
+        rqBusy = false;
+        var rep = r.report || {};
+        toast("Recovered " + (rep.recovered || 0) + " of " + (rep.attempted || 0) + " attempted" +
+          (rep.blockedByImmutability ? " · " + rep.blockedByImmutability + " blocked" : ""));
+        loadRecovery();
+      })
+      .catch(function (e) { rqBusy = false; toast(e.message || "error", true); loadRecovery(); });
+  });
+};
+
+$("#rqItemsBtn").onclick = function () {
+  var box = $("#rqItems");
+  if (box.dataset.open === "1") { box.dataset.open = "0"; box.innerHTML = ""; return; }
+  box.dataset.open = "1";
+  box.innerHTML = '<span class="spin"></span>';
+  api("recovery/items?limit=25" + (rqProc ? "&processor=" + encodeURIComponent(rqProc) : ""))
+    .then(function (r) {
+      box.innerHTML = r.items.length
+        ? r.items.map(function (it) {
+            return '<div class="row" style="align-items:flex-start">' +
+              '<div style="flex:1"><b dir="auto">' + esc(it.name || it.nameAr || it.offerId) + "</b>" +
+              '<div class="mut">' + esc((it.missing || []).join(", ").replace(/_/g, " ") || "not servable") +
+              (it.attempts ? " · " + it.attempts + " attempt(s)" : "") +
+              (it.supported === false ? " · not supported by this processor" : "") +
+              "</div></div>" +
+              (rqProcessor(rqProc) && rqProcessor(rqProc).interactive
+                ? '<button class="ghost" style="width:auto;padding:9px 14px" data-review="'
+                  + esc(it.offerId) + '">Review</button>'
+                : '<button class="ghost" data-dismiss="' + esc(it.offerId) + '">Dismiss</button>') +
+              "</div>";
+          }).join("")
+        : '<div class="mut">Nothing queued for this processor.</div>';
+      box.querySelectorAll("[data-review]").forEach(function (b) {
+        b.onclick = function () { openReview(b.dataset.review); };
+      });
+      box.querySelectorAll("[data-dismiss]").forEach(function (b) {
+        b.onclick = function () {
+          confirmSheet("Dismiss offer",
+            "Terminal: this offer leaves the queue and no automatic path brings it back. Re-opening it is an explicit act.",
+            true, "DISMISS").then(function (ok) {
+            if (!ok) return;
+            api("recovery/dismiss", { body: { confirm: "DISMISS", offerIds: [b.dataset.dismiss] } })
+              .then(function () { toast("Dismissed"); $("#rqItemsBtn").onclick(); $("#rqItemsBtn").onclick(); loadRecovery(); })
+              .catch(function (e) { toast(e.message || "error", true); });
+          });
+        };
+      });
+    })
+    .catch(function (e) { box.innerHTML = '<div class="mut">' + esc(e.message || "error") + "</div>"; });
+};
+
+/* --- S7 · Human review -------------------------------------------------------
+   Built around one question: what is stopping THIS offer from being servable?
+   Everything the reviewer needs to answer it is on screen at once — crop,
+   reasons, and the blocking fields prefilled — and everything else is behind
+   Advanced. Approve is a single tap with no confirmation sheet, because the
+   review IS the deliberation; Reject is terminal, so that one does confirm. */
+var rvInitial = {};
+
+function rvFieldHtml(f, blocking) {
+  var v = f.value == null ? "" : String(f.value);
+  rvInitial[f.field] = v;
+  return '<div class="rvField">' +
+    '<label for="rv_' + esc(f.field) + '">' + esc(f.label) +
+      (blocking ? ' <span class="badge b-warn" style="margin-left:6px">blocking</span>' : "") +
+    "</label>" +
+    (f.hint ? '<div class="mut">' + esc(f.hint) + "</div>" : "") +
+    '<input id="rv_' + esc(f.field) + '" data-rvf="' + esc(f.field) + '"' +
+      (blocking ? ' data-rvb="1"' : "") +
+      ' dir="auto" value="' + esc(v) + '" placeholder="' +
+      (v ? "" : "read it off the crop") + '">' +
+    "</div>";
+}
+
+function reviewHtml(r) {
+  var p = r.plan || {};
+  rvInitial = {};
+  var qg = (p.reasons && p.reasons.qualityGate) || [];
+  var blocking = (p.blocking || []).map(function (c) { return c.replace(/_/g, " "); });
+
+  var crop = p.imageUrl
+    ? '<img src="' + esc(p.imageUrl) + '" alt="product crop">'
+    : '<div class="rvNoCrop">No crop stored for this offer — there is nothing to review against. ' +
+      "Send it back or reject it.</div>";
+
+  var head = '<div class="row" style="padding-top:0">' +
+    '<div style="flex:1"><b dir="auto">' + esc(p.context && (p.context.name || p.context.nameAr) || p.offerId) + "</b>" +
+    '<div class="mut">' + esc(p.offerId) +
+    (p.context && p.context.price != null
+      ? " · " + esc(String(p.context.price)) + " " + esc(p.context.currency || "")
+      : " · no price") +
+    (p.context && p.context.attempts ? " · " + p.context.attempts + " attempt(s)" : "") +
+    "</div></div>" +
+    '<button class="ghost" style="width:auto;padding:9px 14px" id="rvClose">Back</button></div>';
+
+  var why = '<div class="rvBlock"><b>Why it is here</b><br>' +
+    (blocking.length ? "Blocking: " + esc(blocking.join(", ")) : "Not a servable canonical product") +
+    (qg.length ? '<br><span class="mut">Quality gate: ' + esc(qg.join(", ").replace(/_/g, " ")) + "</span>" : "") +
+    "</div>";
+
+  // Blocking but unfixable here — price is the one that matters, and the reason
+  // is spelled out so a reviewer does not go hunting for a field that is
+  // deliberately absent.
+  var stops = (p.readOnly || []).map(function (b) {
+    return '<div class="rvBlock rvStop"><b>' + esc(b.condition.replace(/_/g, " ")) +
+      " cannot be fixed by review</b><br>" + esc(b.why) + "</div>";
+  }).join("");
+
+  var fields = (p.fields || []).map(function (f) { return rvFieldHtml(f, true); }).join("");
+  var adv = (p.advanced || []).map(function (f) { return rvFieldHtml(f, false); }).join("");
+  var advBlock = adv
+    ? '<button class="rvAdvBtn" id="rvAdvBtn">Advanced — other editable fields</button>' +
+      '<div id="rvAdv" style="display:none">' + adv + "</div>"
+    : "";
+
+  var hist = (r.history || []).length
+    ? '<div class="mut" style="margin-top:10px">Tried: ' +
+      esc(r.history.map(function (h) { return h.processor + " → " + h.outcome; }).join(" · ")) + "</div>"
+    : "";
+
+  // APPROVE IS ALWAYS OFFERED. It used to be replaced by a "nothing here can make
+  // this servable" note whenever no BLOCKING field was editable — but Advanced
+  // stays editable in exactly that case, so the reviewer got a form they could
+  // fill in and no way to submit it, and their work could only be thrown away.
+  // Approving is safe on an unfixable item precisely because it is not a
+  // resolution: the runner re-runs S4, which still refuses, and the reviewer is
+  // told "saved, but still blocked". The edit is kept, the item stays queued, and
+  // C-9 holds — a reviewer still cannot declare an item resolved. The readOnly
+  // note above already explains what review cannot fix, so the steer survives
+  // without disabling the one action that completes the workflow.
+  var actions = '<div class="btnGrid" style="margin-top:12px">' +
+    '<button class="primary wide" id="rvApprove">Approve</button>' +
+    '<button class="ghost" id="rvSend">Send back</button>' +
+    '<button class="danger" id="rvReject">Reject</button>' +
+    "</div>";
+
+  return head +
+    '<div class="rvWrap">' +
+      '<div class="rvCrop">' + crop +
+        '<div class="mut">The evidence. Read values off this image.</div></div>' +
+      "<div>" + why + stops + fields + advBlock + actions + hist + "</div>" +
+    "</div>";
+}
+
+/**
+ * Collect the submission. A BLOCKING field is sent whenever it holds a value —
+ * submitting the form is the reviewer vouching for it, which is what flips its
+ * provenance to Human and lets S4 admit it. An ADVANCED field is sent only when
+ * actually changed, so opening the section and closing it again edits nothing.
+ * An empty blocking field is OMITTED, never sent as null: "I did not fill this
+ * in" must not be recorded as "delete what was there".
+ */
+function rvCollect(box) {
+  var out = {};
+  box.querySelectorAll("[data-rvf]").forEach(function (el) {
+    var name = el.dataset.rvf;
+    var cur = String(el.value || "").trim();
+    var init = rvInitial[name] == null ? "" : String(rvInitial[name]).trim();
+    if (el.dataset.rvb === "1") {
+      if (cur !== "") out[name] = cur;
+    } else if (cur !== init) {
+      out[name] = cur === "" ? null : cur;
+    }
+  });
+  return out;
+}
+
+function rvSubmit(box, offerId, decision, fields, note) {
+  box.querySelectorAll("button").forEach(function (b) { b.disabled = true; });
+  return api("recovery/review", {
+    body: {
+      confirm: true,
+      offerId: offerId,
+      processor: rqProc,
+      decision: decision,
+      fields: fields || {},
+      note: note || null,
+    },
+  })
+    .then(function (r) {
+      if (decision === "approve") {
+        toast(r.resolved
+          ? "Approved — servable, item closed"
+          : "Saved, but still blocked: " + ((r.stillMissing || []).join(", ").replace(/_/g, " ") || "not servable"));
+      } else {
+        toast(decision === "reject" ? "Rejected" : "Sent back to the queue");
+      }
+      // Straight back to the list so the next item is one tap away.
+      var btn = $("#rqItemsBtn");
+      box.dataset.open = "0";
+      btn.onclick();
+      loadRecovery();
+    })
+    .catch(function (e) {
+      toast(e.message || "error", true);
+      box.querySelectorAll("button").forEach(function (b) { b.disabled = false; });
+    });
+}
+
+function openReview(offerId) {
+  var box = $("#rqItems");
+  box.dataset.open = "1";
+  box.innerHTML = '<span class="spin"></span>';
+  api("recovery/review?id=" + encodeURIComponent(offerId) +
+      (rqProc ? "&processor=" + encodeURIComponent(rqProc) : ""))
+    .then(function (r) {
+      box.innerHTML = reviewHtml(r);
+      var back = $("#rvClose");
+      if (back) back.onclick = function () { box.dataset.open = "0"; $("#rqItemsBtn").onclick(); };
+      var advBtn = $("#rvAdvBtn");
+      if (advBtn) {
+        advBtn.onclick = function () {
+          var a = $("#rvAdv");
+          var open = a.style.display !== "none";
+          a.style.display = open ? "none" : "block";
+          advBtn.textContent = open
+            ? "Advanced — other editable fields"
+            : "Advanced — hide";
+        };
+      }
+      var ap = $("#rvApprove");
+      if (ap) {
+        ap.onclick = function () {
+          var fields = rvCollect(box);
+          if (!Object.keys(fields).length) {
+            // Wording follows the form the reviewer is actually looking at: with
+            // no blocking field there is nothing to "fill in", only Advanced to
+            // change, and naming a section that is not on screen reads as a bug.
+            toast((r.plan.fields || []).length
+              ? "Fill in at least one blocking field"
+              : "Change at least one field before approving", true);
+            return;
+          }
+          // NO CONFIRMATION SHEET, deliberately. Approving costs nothing, is not
+          // terminal, and S4 still has to agree — so the sheet would buy no
+          // safety and would tax the one action meant to be fast.
+          rvSubmit(box, r.plan.offerId, "approve", fields, null);
+        };
+      }
+      $("#rvSend").onclick = function () {
+        rvSubmit(box, r.plan.offerId, "sendback", null, null);
+      };
+      $("#rvReject").onclick = function () {
+        confirmSheet("Reject this product",
+          "Terminal: it leaves the queue as Human Rejected and no automatic path brings it back. " +
+          "Re-opening it is an explicit act.", true, "DISMISS").then(function (ok) {
+          if (!ok) return;
+          rvSubmit(box, r.plan.offerId, "reject", null, null);
+        });
+      };
+    })
+    .catch(function (e) {
+      box.innerHTML = '<div class="mut">' + esc(e.message || "error") + "</div>";
+    });
+}
+
 function loadQueue() { return api("queue").then(renderQueue).catch(function () {}); }
 function renderQueue(q) {
   var r = q.resolution;

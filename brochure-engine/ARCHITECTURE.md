@@ -1,5 +1,10 @@
 # Brochure Engine — Architecture (Phase 2 Design)
 
+> Permanent score-governance contract: [`QUALITY-SCORES.md`](QUALITY-SCORES.md).
+> Product identity ownership: [`IDENTITY-OWNERSHIP.md`](IDENTITY-OWNERSHIP.md).
+> Vision ingestion pipeline — stage boundaries, routing, recovery, ownership:
+> [`VISION-PIPELINE.md`](VISION-PIPELINE.md).
+
 > **Status:** Design only. **No code written.** This document is the source of
 > truth for the Brochure Engine's architecture, to be reviewed/approved before
 > implementation begins (Phase 3).

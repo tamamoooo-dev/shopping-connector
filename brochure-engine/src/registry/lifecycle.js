@@ -209,12 +209,75 @@ export async function healDanglingSightings(
 // One call = the registry's full §5 upkeep: dormancy sweep (§5.1), duplicate
 // consolidation (§5.4), dangling-sighting healing. Weekly from the daily cron
 // (index.js gates on the day), manual via POST /registry/maintain.
+export const REGISTRY_MERGE_KEY = 'ops/settings/registry-merge.json';
+
+// Read the merge kill switch. Same shape and same store as the other operator
+// settings (offers/visionModel.js, recovery/policy.js): a JSON object under
+// ops/settings/. Absent or unreadable = ENABLED, i.e. today's behaviour — a
+// storage blip must never silently stop maintenance, only an operator may.
+export async function readMergeSetting(objectStore) {
+  if (!objectStore || typeof objectStore.get !== 'function') return { enabled: true, source: 'default' };
+  const rec = await objectStore.get(REGISTRY_MERGE_KEY).catch(() => null);
+  if (!rec) return { enabled: true, source: 'default' };
+  try {
+    const text = typeof rec === 'string' ? rec : new TextDecoder().decode(await rec.arrayBuffer());
+    const raw = JSON.parse(text);
+    return {
+      enabled: raw?.enabled !== false,
+      reason: typeof raw?.reason === 'string' ? raw.reason : null,
+      source: 'stored',
+    };
+  } catch {
+    return { enabled: true, source: 'unreadable' };
+  }
+}
+
+// Move the switch. The ONLY writer — merges are never disabled automatically,
+// by policy, for the same reason they are never enabled automatically: an
+// operator decides when the corpus is stable enough to consolidate.
+export async function writeMergeSetting(objectStore, enabled, { reason = null, by = 'ops' } = {}) {
+  if (!objectStore || typeof objectStore.put !== 'function') {
+    throw new Error('no object store bound');
+  }
+  const record = {
+    enabled: enabled !== false,
+    reason: reason ? String(reason).slice(0, 200) : null,
+    by,
+    at: new Date().toISOString(),
+  };
+  await objectStore.put(
+    REGISTRY_MERGE_KEY,
+    new TextEncoder().encode(JSON.stringify(record)),
+    { httpMetadata: { contentType: 'application/json' } },
+  );
+  return record;
+}
+
 export async function runMaintenance(
-  { registryStore, enrichStore, opsStore },
+  { registryStore, enrichStore, opsStore, objectStore },
   { today = new Date().toISOString().slice(0, 10), tuning = LIFECYCLE_TUNING } = {},
 ) {
   const report = { startedAt: new Date().toISOString(), today };
   report.dormant = await registryStore.sweepDormancy(isoDaysAgo(today, tuning.dormantAfterDays));
+
+  // MERGE KILL SWITCH (`ops/settings/registry-merge.json`, `{"enabled":false}`).
+  // Merge is the one registry operation that is irreversible in practice: undoing
+  // one is N per-sighting splits, and a split needs the sighting's Identity
+  // Candidate to still exist. It is also AUTOMATED and unattended. That is an
+  // acceptable trade against a stable corpus and a bad one while the input
+  // distribution is changing — which is exactly what a migration does. The
+  // switch lets an operator freeze merges for the duration and re-arm after,
+  // without a deploy. Absent setting = enabled (today's behaviour, unchanged).
+  const mergeSetting = await readMergeSetting(objectStore);
+  if (!mergeSetting.enabled) {
+    report.consolidation = {
+      pairs: 0, merges: 0, log: [], skipped: true,
+      reason: mergeSetting.reason || 'Automated merge is disabled by an operator setting.',
+    };
+    Object.assign(report, await healDanglingSightings({ registryStore, enrichStore }));
+    report.finishedAt = new Date().toISOString();
+    return report;
+  }
   report.consolidation = await consolidate(registryStore, { tuning });
   Object.assign(report, await healDanglingSightings({ registryStore, enrichStore }));
   report.finishedAt = new Date().toISOString();

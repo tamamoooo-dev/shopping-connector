@@ -1,5 +1,10 @@
 # Production identity ownership
 
+Quality scores are governed by [`QUALITY-SCORES.md`](QUALITY-SCORES.md). In particular,
+Builder Score is never commercial identity evidence, and Commerce Score is diagnostic
+commercial-completeness metadata rather than authority to mint, attach, or merge a
+registry identity.
+
 ## Authoritative path
 
 `Smart Extraction -> Identity Builder -> Product Registry -> pr_* Product ID`

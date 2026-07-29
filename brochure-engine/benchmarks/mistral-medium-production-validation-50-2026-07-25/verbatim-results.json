@@ -1,0 +1,1863 @@
+{
+  "schema_version": "mistral-medium-production-validation-v1",
+  "started_at": "2026-07-25T00:49:16.128Z",
+  "sample_digest": "32c2c00166e1e839fbfaebfdb7b61329cc7fc29e8ee99ffa80f917913eea70e9",
+  "model": "mistral-medium-latest",
+  "strategy": "medium_expanded_json_verbatim_name",
+  "prompt_sha256": "e643b2a1b833d12256e0e3806b04c28bc5fd042bf3a86b647b989df9be7c3557",
+  "prompt_source": "run-prompt-b.mjs PROMPT_B, read verbatim, unmodified",
+  "settings": {
+    "temperature": 0,
+    "top_p": 1,
+    "response_format": "json_object",
+    "reasoning_effort": "none",
+    "ocr": false,
+    "requests_per_crop": 1
+  },
+  "samples": [
+    {
+      "index": 1,
+      "id": "aljazera:central:d4d:93631815",
+      "store": "aljazera",
+      "category": "tea-coffee",
+      "file": "assets/01.jpg",
+      "sha256": "94ab108e2f93a2389eabc1a12d416419dccba420cab1b4ccae61b92952e2bbc8",
+      "ok": true,
+      "structured": {
+        "name_en": "NAJJAR INSTANT COFFEE RED / GOLD 190G",
+        "name_ar": "نجار قهوة مركز أحمر/ ذهبي (190 غم)",
+        "brand": "NAJJAR",
+        "current_price": null,
+        "old_price": null,
+        "unit": null,
+        "package_size": "190G",
+        "quantity": null,
+        "package_type": "jar",
+        "attributes": [
+          "INSTANT COFFEE",
+          "RED",
+          "GOLD"
+        ],
+        "confidence": null
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"NAJJAR INSTANT COFFEE RED / GOLD 190G\",\n  \"name_ar\": \"نجار قهوة مركز أحمر/ ذهبي (190 غم)\",\n  \"brand\": \"NAJJAR\",\n  \"current_price\": null,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"190G\",\n  \"quantity\": null,\n  \"package_type\": \"jar\",\n  \"attributes\": [\"INSTANT COFFEE\", \"RED\", \"GOLD\"],\n  \"confidence\": null\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 749,
+        "total_tokens": 883,
+        "completion_tokens": 134,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 3064.95,
+      "retries": 0
+    },
+    {
+      "index": 2,
+      "id": "aljazera:central:d4d:93631419",
+      "store": "aljazera",
+      "category": "deli-speaclity-meats",
+      "file": "assets/02.jpg",
+      "sha256": "a25f3da2aa1d2a2b8c26e323d8fadb105ab327631063e2928d021da6dff34467",
+      "ok": true,
+      "structured": {
+        "name_en": "SINIORA BEEF MORTADELLA (KG) ASSORTED",
+        "name_ar": "سينيورة مرتديلا بقري متوعة (كغم)",
+        "brand": "SINIORA",
+        "current_price": 36.99,
+        "old_price": 44.99,
+        "unit": "KG",
+        "package_size": null,
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "ASSORTED"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"SINIORA BEEF MORTADELLA (KG) ASSORTED\",\n  \"name_ar\": \"سينيورة مرتديلا بقري متوعة (كغم)\",\n  \"brand\": \"SINIORA\",\n  \"current_price\": 36.99,\n  \"old_price\": 44.99,\n  \"unit\": \"KG\",\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"ASSORTED\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 769,
+        "total_tokens": 903,
+        "completion_tokens": 134,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1894.66,
+      "retries": 0
+    },
+    {
+      "index": 3,
+      "id": "aljazera:central:d4d:93632763",
+      "store": "aljazera",
+      "category": "facial-tissue",
+      "file": "assets/03.jpg",
+      "sha256": "575633d7a62d3b802254b114410edd98eca7ede8a696ccd0cd15535c091a67bb",
+      "ok": true,
+      "structured": {
+        "name_en": "KLEENEX FACIAL TISSUES ORIGINAL / DECOR",
+        "name_ar": "كلينكس مناديل للوجه الاصلي/ديكور المنزل",
+        "brand": "Kleenex",
+        "current_price": 20.99,
+        "old_price": 34.99,
+        "unit": "PER PACK",
+        "package_size": "8 + 2",
+        "quantity": "8 + 2 FREE",
+        "package_type": "pack",
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"KLEENEX FACIAL TISSUES ORIGINAL / DECOR\",\n  \"name_ar\": \"كلينكس مناديل للوجه الاصلي/ديكور المنزل\",\n  \"brand\": \"Kleenex\",\n  \"current_price\": 20.99,\n  \"old_price\": 34.99,\n  \"unit\": \"PER PACK\",\n  \"package_size\": \"8 + 2\",\n  \"quantity\": \"8 + 2 FREE\",\n  \"package_type\": \"pack\",\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 789,
+        "total_tokens": 925,
+        "completion_tokens": 136,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1278.82,
+      "retries": 0
+    },
+    {
+      "index": 4,
+      "id": "almadina:central:d4d:93669210",
+      "store": "almadina",
+      "category": "large-appliances",
+      "file": "assets/04.jpg",
+      "sha256": "73f9d91b41e7ee56dccca43db5e4d680ca64211f441390e173fb237bd9312811",
+      "ok": true,
+      "structured": {
+        "name_en": "Refrigerator NRF110N26S",
+        "name_ar": "ثلاجة نيكاي صغيرة",
+        "brand": "NIKAI",
+        "current_price": 349,
+        "old_price": 575,
+        "unit": null,
+        "package_size": null,
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "NRF110N26S"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Refrigerator NRF110N26S\",\n  \"name_ar\": \"ثلاجة نيكاي صغيرة\",\n  \"brand\": \"NIKAI\",\n  \"current_price\": 349,\n  \"old_price\": 575,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"NRF110N26S\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 770,
+        "total_tokens": 885,
+        "completion_tokens": 115,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2419.13,
+      "retries": 0
+    },
+    {
+      "index": 5,
+      "id": "almadina:central:d4d:93694737",
+      "store": "almadina",
+      "category": "kitchen-appliance",
+      "file": "assets/05.jpg",
+      "sha256": "40eb8161926ceaf7ba8067d85d5274193235f36397284a6255c539833b61a5cd",
+      "ok": true,
+      "structured": {
+        "name_en": "CLIKON BREAD TOASTER 2 CK-2436",
+        "name_ar": "محمصة خبز كليكون",
+        "brand": "CLIKON",
+        "current_price": 59,
+        "old_price": 85,
+        "unit": null,
+        "package_size": null,
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "CK-2436"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"CLIKON BREAD TOASTER 2 CK-2436\",\n  \"name_ar\": \"محمصة خبز كليكون\",\n  \"brand\": \"CLIKON\",\n  \"current_price\": 59,\n  \"old_price\": 85,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"CK-2436\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 770,
+        "total_tokens": 886,
+        "completion_tokens": 116,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1081.38,
+      "retries": 0
+    },
+    {
+      "index": 6,
+      "id": "almadina:central:d4d:93668310",
+      "store": "almadina",
+      "category": "powdered-drinks-syrups",
+      "file": "assets/06.jpg",
+      "sha256": "57aed3057358b9acb9a975a3bf1fc1e9d6249f9cda4eeac884d32f35f054e614",
+      "ok": true,
+      "structured": {
+        "name_en": "Hershey's Strawberry Syrup 623g",
+        "name_ar": "شراب الفراولة من هيرشي 623 غرام",
+        "brand": "Hershey's",
+        "current_price": 4.95,
+        "old_price": 19.95,
+        "unit": null,
+        "package_size": "623g",
+        "quantity": null,
+        "package_type": "bottle",
+        "attributes": [
+          "Strawberry"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Hershey's Strawberry Syrup 623g\",\n  \"name_ar\": \"شراب الفراولة من هيرشي 623 غرام\",\n  \"brand\": \"Hershey's\",\n  \"current_price\": 4.95,\n  \"old_price\": 19.95,\n  \"unit\": null,\n  \"package_size\": \"623g\",\n  \"quantity\": null,\n  \"package_type\": \"bottle\",\n  \"attributes\": [\"Strawberry\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 862,
+        "completion_tokens": 130,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 3763.73,
+      "retries": 0
+    },
+    {
+      "index": 7,
+      "id": "alwafa:central:d4d:93638412",
+      "store": "alwafa",
+      "category": "tabs",
+      "file": "assets/07.jpg",
+      "sha256": "704c0df4fe2991c44e9e24991976d427ed70e26438898574c04df9cb5138d171",
+      "ok": true,
+      "structured": {
+        "name_en": "Tiny Tunes KidsTab 8GB/256/5G 7In TS500",
+        "name_ar": "تابليت تونز جهاز لوحي للأطفال 8 جيجابايت",
+        "brand": "Tiny Tunes",
+        "current_price": 179,
+        "old_price": 299,
+        "unit": null,
+        "package_size": "7 Inch",
+        "quantity": "1 PC",
+        "package_type": null,
+        "attributes": [
+          "8GB Ram",
+          "256GB Memory",
+          "5G"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Tiny Tunes KidsTab 8GB/256/5G 7In TS500\",\n  \"name_ar\": \"تابليت تونز جهاز لوحي للأطفال 8 جيجابايت\",\n  \"brand\": \"Tiny Tunes\",\n  \"current_price\": 179,\n  \"old_price\": 299,\n  \"unit\": null,\n  \"package_size\": \"7 Inch\",\n  \"quantity\": \"1 PC\",\n  \"package_type\": null,\n  \"attributes\": [\"8GB Ram\", \"256GB Memory\", \"5G\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 749,
+        "total_tokens": 895,
+        "completion_tokens": 146,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1325.49,
+      "retries": 0
+    },
+    {
+      "index": 8,
+      "id": "alwafa:central:d4d:93643038",
+      "store": "alwafa",
+      "category": "baby-diapers",
+      "file": "assets/08.jpg",
+      "sha256": "867a1832a3930b1aad382291fb446426853446cb0eb8fde9e8ecdb49909ad5c2",
+      "ok": true,
+      "structured": {
+        "name_en": "Fine Baby Diaper5Maxi Jumbo Pk40's11-18kg",
+        "name_ar": "حفاضات اطفال ماكسى كيس جامبو 40 قطعة 11-18 كجم",
+        "brand": "Fine Baby",
+        "current_price": 44.99,
+        "old_price": null,
+        "unit": null,
+        "package_size": "40's",
+        "quantity": "30",
+        "package_type": "pack",
+        "attributes": [
+          "Maxi",
+          "Jumbo",
+          "11-18kg"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Fine Baby Diaper5Maxi Jumbo Pk40's11-18kg\",\n  \"name_ar\": \"حفاضات اطفال ماكسى كيس جامبو 40 قطعة 11-18 كجم\",\n  \"brand\": \"Fine Baby\",\n  \"current_price\": 44.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"40's\",\n  \"quantity\": \"30\",\n  \"package_type\": \"pack\",\n  \"attributes\": [\"Maxi\", \"Jumbo\", \"11-18kg\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 751,
+        "total_tokens": 904,
+        "completion_tokens": 153,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 5681.42,
+      "retries": 0
+    },
+    {
+      "index": 9,
+      "id": "alwafa:central:d4d:93643248",
+      "store": "alwafa",
+      "category": "shaving-hair-removal",
+      "file": "assets/09.jpg",
+      "sha256": "331a67839ceec033b2a3c81361e2b81bc791a98584637a1b6979d4a51d42d68c",
+      "ok": true,
+      "structured": {
+        "name_en": "Geepas Rech.7in1 Precision Trimmer/600 Mah",
+        "name_ar": "جيباس ماكينة حلاقة كاملة للشحن 7 في 1",
+        "brand": "Geepas",
+        "current_price": 69.99,
+        "old_price": null,
+        "unit": null,
+        "package_size": "600 Mah",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "Rech.",
+          "7in1",
+          "Precision Trimmer"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Geepas Rech.7in1 Precision Trimmer/600 Mah\",\n  \"name_ar\": \"جيباس ماكينة حلاقة كاملة للشحن 7 في 1\",\n  \"brand\": \"Geepas\",\n  \"current_price\": 69.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"600 Mah\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"Rech.\", \"7in1\", \"Precision Trimmer\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 869,
+        "completion_tokens": 137,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1462.61,
+      "retries": 0
+    },
+    {
+      "index": 10,
+      "id": "amarket:central:d4d:93808830",
+      "store": "amarket",
+      "category": "sauces-spreads",
+      "file": "assets/10.jpg",
+      "sha256": "99024fefabd1fc718c34ff2718a5ef106b08df5e63dd3a94d9a72ccbb1e5d4b1",
+      "ok": true,
+      "structured": {
+        "name_en": "ZAIQA PURE BEE HONEY 500 GM",
+        "name_ar": "عسل نحل زائقة النقي",
+        "brand": "ZAIQA",
+        "current_price": 8.95,
+        "old_price": 17.95,
+        "unit": null,
+        "package_size": "500 GM",
+        "quantity": null,
+        "package_type": "jar",
+        "attributes": [
+          "PURE"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"ZAIQA PURE BEE HONEY 500 GM\",\n  \"name_ar\": \"عسل نحل زائقة النقي\",\n  \"brand\": \"ZAIQA\",\n  \"current_price\": 8.95,\n  \"old_price\": 17.95,\n  \"unit\": null,\n  \"package_size\": \"500 GM\",\n  \"quantity\": null,\n  \"package_type\": \"jar\",\n  \"attributes\": [\"PURE\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 709,
+        "total_tokens": 834,
+        "completion_tokens": 125,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1274.5,
+      "retries": 0
+    },
+    {
+      "index": 11,
+      "id": "amarket:central:d4d:93809022",
+      "store": "amarket",
+      "category": "dried-fruits-dates",
+      "file": "assets/11.jpg",
+      "sha256": "fd97469fa52b1e74723c4965f4f005d06b890a66a4f136a13fd9234bdaa01228",
+      "ok": true,
+      "structured": {
+        "name_en": "ALMOND SALTED",
+        "name_ar": "لوز مالح",
+        "brand": null,
+        "current_price": 42.95,
+        "old_price": 49.95,
+        "unit": "Per Kg",
+        "package_size": null,
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "SALTED"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"ALMOND SALTED\",\n  \"name_ar\": \"لوز مالح\",\n  \"brand\": null,\n  \"current_price\": 42.95,\n  \"old_price\": 49.95,\n  \"unit\": \"Per Kg\",\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"SALTED\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 669,
+        "total_tokens": 776,
+        "completion_tokens": 107,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1016.65,
+      "retries": 0
+    },
+    {
+      "index": 12,
+      "id": "amarket:central:d4d:93808905",
+      "store": "amarket",
+      "category": "fresh-chicken-poultry",
+      "file": "assets/12.jpg",
+      "sha256": "c35f3a4cf05981dd74df488ef743c429b80ba34fb011831e250fb959cd0cbc84",
+      "ok": true,
+      "structured": {
+        "name_en": "ENTAJ FRESH WHOLE CHICKEN CUT UP 800 GM",
+        "name_ar": "انتاج قطع دجاج مشكل ٨٠٠ جرام",
+        "brand": "entaj",
+        "current_price": 10.5,
+        "old_price": 14.95,
+        "unit": "Each",
+        "package_size": "800 GM",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "FRESH",
+          "WHOLE CHICKEN",
+          "CUT UP"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"ENTAJ FRESH WHOLE CHICKEN CUT UP 800 GM\",\n  \"name_ar\": \"انتاج قطع دجاج مشكل ٨٠٠ جرام\",\n  \"brand\": \"entaj\",\n  \"current_price\": 10.5,\n  \"old_price\": 14.95,\n  \"unit\": \"Each\",\n  \"package_size\": \"800 GM\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"FRESH\", \"WHOLE CHICKEN\", \"CUT UP\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 669,
+        "total_tokens": 810,
+        "completion_tokens": 141,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2995.78,
+      "retries": 0
+    },
+    {
+      "index": 13,
+      "id": "carrefour:central:d4d:93691650",
+      "store": "carrefour",
+      "category": "canned-packeted",
+      "file": "assets/13.jpg",
+      "sha256": "84f48b89096d5c9768725ae1dfafe3dc40538f74a449ee21e578902e68581488",
+      "ok": true,
+      "structured": {
+        "name_en": "REEM SWEET KERNEL CORN 425G",
+        "name_ar": "ذرة حلوة ريم",
+        "brand": "REEM",
+        "current_price": 3.99,
+        "old_price": 6.5,
+        "unit": null,
+        "package_size": "425G",
+        "quantity": null,
+        "package_type": "can",
+        "attributes": [
+          "SWEET KERNEL"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"REEM SWEET KERNEL CORN 425G\",\n  \"name_ar\": \"ذرة حلوة ريم\",\n  \"brand\": \"REEM\",\n  \"current_price\": 3.99,\n  \"old_price\": 6.5,\n  \"unit\": null,\n  \"package_size\": \"425G\",\n  \"quantity\": null,\n  \"package_type\": \"can\",\n  \"attributes\": [\"SWEET KERNEL\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 769,
+        "total_tokens": 890,
+        "completion_tokens": 121,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1183.05,
+      "retries": 0
+    },
+    {
+      "index": 14,
+      "id": "carrefour:central:d4d:93691947",
+      "store": "carrefour",
+      "category": "cleaning",
+      "file": "assets/14.jpg",
+      "sha256": "2f7471f0bf1d6da47fa3709623532012fb6708cfef59403c8c7e8d3b93bdd3ca",
+      "ok": true,
+      "structured": {
+        "name_en": "Zoflora Disinfectant Spray 800ml",
+        "name_ar": "زوفلورا بخاخ مطهر ٨٠٠ مل",
+        "brand": "Zoflora",
+        "current_price": 27.75,
+        "old_price": 41.5,
+        "unit": "AED",
+        "package_size": "800ml",
+        "quantity": null,
+        "package_type": "bottle",
+        "attributes": [
+          "Disinfectant",
+          "Spray",
+          "Midnight Blooms"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Zoflora Disinfectant Spray 800ml\",\n  \"name_ar\": \"زوفلورا بخاخ مطهر ٨٠٠ مل\",\n  \"brand\": \"Zoflora\",\n  \"current_price\": 27.75,\n  \"old_price\": 41.5,\n  \"unit\": \"AED\",\n  \"package_size\": \"800ml\",\n  \"quantity\": null,\n  \"package_type\": \"bottle\",\n  \"attributes\": [\"Disinfectant\", \"Spray\", \"Midnight Blooms\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 789,
+        "total_tokens": 933,
+        "completion_tokens": 144,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1415.27,
+      "retries": 0
+    },
+    {
+      "index": 15,
+      "id": "carrefour:central:d4d:93692622",
+      "store": "carrefour",
+      "category": "cookware",
+      "file": "assets/15.jpg",
+      "sha256": "5e5d698eca60db3eeea072402d05430d88064eb3dda5531dd19867bb28a0d53d",
+      "ok": true,
+      "structured": {
+        "name_en": "ROYALFORD GRANITE COOKING SET 9PCS",
+        "name_ar": "مجموعة طهي جرانيت رويال فورد 9 قطع",
+        "brand": "ROYALFORD",
+        "current_price": 209,
+        "old_price": 499,
+        "unit": null,
+        "package_size": null,
+        "quantity": "9PCS",
+        "package_type": "set",
+        "attributes": [
+          "GRANITE"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"ROYALFORD GRANITE COOKING SET 9PCS\",\n  \"name_ar\": \"مجموعة طهي جرانيت رويال فورد 9 قطع\",\n  \"brand\": \"ROYALFORD\",\n  \"current_price\": 209.0,\n  \"old_price\": 499.0,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": \"9PCS\",\n  \"package_type\": \"set\",\n  \"attributes\": [\"GRANITE\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 609,
+        "total_tokens": 742,
+        "completion_tokens": 133,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1226.52,
+      "retries": 0
+    },
+    {
+      "index": 16,
+      "id": "cityflower:central:d4d:92810718",
+      "store": "cityflower",
+      "category": "lighting",
+      "file": "assets/16.jpg",
+      "sha256": "696179b9281d32f53a3154dd899fcea746d988ce0752e566923477e1c80c8d96",
+      "ok": true,
+      "structured": {
+        "name_en": "Strong Lite Emerg. Light+2 Hand Torch Sgl 646 Combo",
+        "name_ar": "مصباح طوارئ فوي + مصباح يدوي",
+        "brand": "Strong Lite",
+        "current_price": 135,
+        "old_price": 170,
+        "unit": null,
+        "package_size": null,
+        "quantity": "3 IN 1 COMBO",
+        "package_type": null,
+        "attributes": [
+          "RECHARGEABLE",
+          "LED LANTERN & FLASH LIGHT SET"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Strong Lite Emerg. Light+2 Hand Torch Sgl 646 Combo\",\n  \"name_ar\": \"مصباح طوارئ فوي + مصباح يدوي\",\n  \"brand\": \"Strong Lite\",\n  \"current_price\": 135,\n  \"old_price\": 170,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": \"3 IN 1 COMBO\",\n  \"package_type\": null,\n  \"attributes\": [\"RECHARGEABLE\", \"LED LANTERN & FLASH LIGHT SET\"],\n  \"confidence\": 0.98\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 694,
+        "total_tokens": 834,
+        "completion_tokens": 140,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1322.63,
+      "retries": 0
+    },
+    {
+      "index": 17,
+      "id": "cityflower:central:d4d:92715228",
+      "store": "cityflower",
+      "category": "skin-face-care",
+      "file": "assets/17.jpg",
+      "sha256": "d16497cb06a297d98ec844390b53910749ecda81d6711137bba24a6a128b6762",
+      "ok": true,
+      "structured": {
+        "name_en": "Olay Natural White Face Cream 2X50ml + Facewash 100ml",
+        "name_ar": "كريم أولاي للوجه 2×50 مل + غسول وجه 100 مل",
+        "brand": "Olay",
+        "current_price": 30,
+        "old_price": 42,
+        "unit": null,
+        "package_size": "2X50ml + 100ml",
+        "quantity": "2X50ml + 100ml",
+        "package_type": null,
+        "attributes": [
+          "Natural White"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Olay Natural White Face Cream 2X50ml + Facewash 100ml\",\n  \"name_ar\": \"كريم أولاي للوجه 2×50 مل + غسول وجه 100 مل\",\n  \"brand\": \"Olay\",\n  \"current_price\": 30.0,\n  \"old_price\": 42.0,\n  \"unit\": null,\n  \"package_size\": \"2X50ml + 100ml\",\n  \"quantity\": \"2X50ml + 100ml\",\n  \"package_type\": null,\n  \"attributes\": [\"Natural White\"],\n  \"confidence\": 0.98\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 890,
+        "completion_tokens": 158,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1340.09,
+      "retries": 0
+    },
+    {
+      "index": 18,
+      "id": "cityflower:central:d4d:92715321",
+      "store": "cityflower",
+      "category": "cosmetics",
+      "file": "assets/18.jpg",
+      "sha256": "a6e28b83437151b25e8c65e1383adbab0e5563b892407c4bfa012fd376115fd3",
+      "ok": true,
+      "structured": {
+        "name_en": "Nebo Makeup Kit -9090",
+        "name_ar": "مجموعة مكياج نيبو -9090",
+        "brand": "Nebo",
+        "current_price": 35,
+        "old_price": 39,
+        "unit": null,
+        "package_size": null,
+        "quantity": null,
+        "package_type": "Kit",
+        "attributes": [
+          "9090"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Nebo Makeup Kit -9090\",\n  \"name_ar\": \"مجموعة مكياج نيبو -9090\",\n  \"brand\": \"Nebo\",\n  \"current_price\": 35.0,\n  \"old_price\": 39.0,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": \"Kit\",\n  \"attributes\": [\"9090\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 694,
+        "total_tokens": 812,
+        "completion_tokens": 118,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1078.19,
+      "retries": 0
+    },
+    {
+      "index": 19,
+      "id": "danube:central:d4d:93264666",
+      "store": "danube",
+      "category": "biscuits",
+      "file": "assets/19.jpg",
+      "sha256": "afa85fbc67cad90fa128a4a4bdb73eea4de77c56f839a8de3c55ed8a8a67eb0b",
+      "ok": true,
+      "structured": {
+        "name_en": "Loacker Wafer 4x19g",
+        "name_ar": "ويفر لوكر 4×19غ",
+        "brand": "Loacker",
+        "current_price": 6.99,
+        "old_price": 10.5,
+        "unit": null,
+        "package_size": "4x19g",
+        "quantity": "4",
+        "package_type": "box",
+        "attributes": [
+          "Hazelnut",
+          "Break 3"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Loacker Wafer 4x19g\",\n  \"name_ar\": \"ويفر لوكر 4×19غ\",\n  \"brand\": \"Loacker\",\n  \"current_price\": 6.99,\n  \"old_price\": 10.5,\n  \"unit\": null,\n  \"package_size\": \"4x19g\",\n  \"quantity\": \"4\",\n  \"package_type\": \"box\",\n  \"attributes\": [\"Hazelnut\", \"Break 3\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 769,
+        "total_tokens": 895,
+        "completion_tokens": 126,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1264.5,
+      "retries": 0
+    },
+    {
+      "index": 20,
+      "id": "danube:central:d4d:93267450",
+      "store": "danube",
+      "category": "chocolates-candies",
+      "file": "assets/20.jpg",
+      "sha256": "3e0d6f420c2c8cf802607f2d51098d97458a1cb1e1ee9a9f7d1f14ad7e564af2",
+      "ok": true,
+      "structured": {
+        "name_en": "Galaxy Chocolates 80g",
+        "name_ar": "شوكولاتة جلاكسي ٨٠ج",
+        "brand": "Galaxy",
+        "current_price": 6.99,
+        "old_price": 9.5,
+        "unit": "EACH",
+        "package_size": "80g",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Galaxy Chocolates 80g\",\n  \"name_ar\": \"شوكولاتة جلاكسي ٨٠ج\",\n  \"brand\": \"Galaxy\",\n  \"current_price\": 6.99,\n  \"old_price\": 9.5,\n  \"unit\": \"EACH\",\n  \"package_size\": \"80g\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 769,
+        "total_tokens": 882,
+        "completion_tokens": 113,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2972.44,
+      "retries": 0
+    },
+    {
+      "index": 21,
+      "id": "danube:central:d4d:93265158",
+      "store": "danube",
+      "category": "cheese-creame",
+      "file": "assets/21.jpg",
+      "sha256": "2a8ebe9137059393434a95890b1e3fac1269976d5db92b4fb07555802d5d6077",
+      "ok": true,
+      "structured": {
+        "name_en": "Almarai Halloumi Cheese 200g",
+        "name_ar": "جبنة حلومي المراعي ٢٠٠ غ",
+        "brand": "Almarai",
+        "current_price": 13.5,
+        "old_price": 16.75,
+        "unit": "EACH",
+        "package_size": "200g",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Almarai Halloumi Cheese 200g\",\n  \"name_ar\": \"جبنة حلومي المراعي ٢٠٠ غ\",\n  \"brand\": \"Almarai\",\n  \"current_price\": 13.5,\n  \"old_price\": 16.75,\n  \"unit\": \"EACH\",\n  \"package_size\": \"200g\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 769,
+        "total_tokens": 891,
+        "completion_tokens": 122,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1921.11,
+      "retries": 0
+    },
+    {
+      "index": 22,
+      "id": "farm:central:d4d:93613236",
+      "store": "farm",
+      "category": "other-frozen-food",
+      "file": "assets/22.jpg",
+      "sha256": "bf2bc86273c4f4d2e0ade229a9723f76dc8d622bef137118001327f7c1f4e668",
+      "ok": true,
+      "structured": {
+        "name_en": "EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA 415 GR",
+        "name_ar": "بيتزا سبانخ وجبن",
+        "brand": "EL CORTE INGLES SELECTION",
+        "current_price": 16.99,
+        "old_price": 22.99,
+        "unit": "PC",
+        "package_size": "415 GR",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA 415 GR\",\n  \"name_ar\": \"بيتزا سبانخ وجبن\",\n  \"brand\": \"EL CORTE INGLES SELECTION\",\n  \"current_price\": 16.99,\n  \"old_price\": 22.99,\n  \"unit\": \"PC\",\n  \"package_size\": \"415 GR\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 709,
+        "total_tokens": 843,
+        "completion_tokens": 134,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 3298.88,
+      "retries": 0
+    },
+    {
+      "index": 23,
+      "id": "farm:central:d4d:93611634",
+      "store": "farm",
+      "category": "snacks",
+      "file": "assets/23.jpg",
+      "sha256": "d34a042e7d5af5f41ecdc889e1c85beace076da340b983cb237db440961d95c1",
+      "ok": true,
+      "structured": {
+        "name_en": "CRISPY CHIPS LETTERS / RINGS 12 *18GR",
+        "name_ar": "كرسبي شيبس الحروف / حلقات",
+        "brand": "CRISPY",
+        "current_price": 10.99,
+        "old_price": 12.99,
+        "unit": null,
+        "package_size": "12 *18GR",
+        "quantity": "12",
+        "package_type": "box",
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"CRISPY CHIPS LETTERS / RINGS 12 *18GR\",\n  \"name_ar\": \"كرسبي شيبس الحروف / حلقات\",\n  \"brand\": \"CRISPY\",\n  \"current_price\": 10.99,\n  \"old_price\": 12.99,\n  \"unit\": null,\n  \"package_size\": \"12 *18GR\",\n  \"quantity\": \"12\",\n  \"package_type\": \"box\",\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 863,
+        "completion_tokens": 131,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1258.42,
+      "retries": 0
+    },
+    {
+      "index": 24,
+      "id": "farm:central:d4d:93613620",
+      "store": "farm",
+      "category": null,
+      "file": "assets/24.jpg",
+      "sha256": "11c7fc9551239be98613c78c0b244d2d57080c42471925f286a0c7249d2a2fac",
+      "ok": true,
+      "structured": {
+        "name_en": "BARHY RUTAB",
+        "name_ar": "رطب برحي",
+        "brand": null,
+        "current_price": 9.99,
+        "old_price": null,
+        "unit": "KG",
+        "package_size": null,
+        "quantity": null,
+        "package_type": null,
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"BARHY RUTAB\",\n  \"name_ar\": \"رطب برحي\",\n  \"brand\": null,\n  \"current_price\": 9.99,\n  \"old_price\": null,\n  \"unit\": \"KG\",\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 713,
+        "total_tokens": 808,
+        "completion_tokens": 95,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 980.69,
+      "retries": 0
+    },
+    {
+      "index": 25,
+      "id": "grandhyper:central:d4d:93676923",
+      "store": "grandhyper",
+      "category": "kids-wear",
+      "file": "assets/25.jpg",
+      "sha256": "7f63e59d5d03a6f6b1b3071f7c348471d405c76b745c05dbaf87fc6ab99a6cf3",
+      "ok": true,
+      "structured": {
+        "name_en": "DERIK MARK BOYS BAGGY JEANS",
+        "name_ar": "ديريك مارك بنطال جينز واسع للاولاد",
+        "brand": "DERIK MARK",
+        "current_price": 45,
+        "old_price": 69,
+        "unit": null,
+        "package_size": null,
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "BOYS",
+          "BAGGY"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"DERIK MARK BOYS BAGGY JEANS\",\n  \"name_ar\": \"ديريك مارك بنطال جينز واسع للاولاد\",\n  \"brand\": \"DERIK MARK\",\n  \"current_price\": 45.0,\n  \"old_price\": 69.0,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"BOYS\", \"BAGGY\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 694,
+        "total_tokens": 818,
+        "completion_tokens": 124,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2212.18,
+      "retries": 0
+    },
+    {
+      "index": 26,
+      "id": "grandhyper:central:d4d:93678036",
+      "store": "grandhyper",
+      "category": "fresh-fruits",
+      "file": "assets/26.jpg",
+      "sha256": "1a0167b453b1c39077400306d48c70b1c9bd0703e4ae224c4e6358308edec3e8",
+      "ok": true,
+      "structured": {
+        "name_en": "PINEAPPLE (KENYA)/PC",
+        "name_ar": "أناناس (كينيا)/حبة",
+        "brand": null,
+        "current_price": 8.95,
+        "old_price": 16.95,
+        "unit": null,
+        "package_size": null,
+        "quantity": null,
+        "package_type": "PC",
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"PINEAPPLE (KENYA)/PC\",\n  \"name_ar\": \"أناناس (كينيا)/حبة\",\n  \"brand\": null,\n  \"current_price\": 8.95,\n  \"old_price\": 16.95,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": \"PC\",\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 770,
+        "total_tokens": 878,
+        "completion_tokens": 108,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1110.71,
+      "retries": 0
+    },
+    {
+      "index": 27,
+      "id": "grandhyper:central:d4d:93678657",
+      "store": "grandhyper",
+      "category": "bath-body",
+      "file": "assets/27.jpg",
+      "sha256": "cc197b14a6518b87e7f1ae2d473f33f47f2bdda14e8a3207c7254788aecff3da",
+      "ok": true,
+      "structured": {
+        "name_en": "GODREJ CINTHOL SOAP 125GM 6PCS (ASSORTED)",
+        "name_ar": "صابون سينثول بالليمون",
+        "brand": "CINTHOL",
+        "current_price": 9.95,
+        "old_price": 19.5,
+        "unit": null,
+        "package_size": "125GM 6PCS",
+        "quantity": "6PCS",
+        "package_type": null,
+        "attributes": [
+          "ASSORTED"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"GODREJ CINTHOL SOAP 125GM 6PCS (ASSORTED)\",\n  \"name_ar\": \"صابون سينثول بالليمون\",\n  \"brand\": \"CINTHOL\",\n  \"current_price\": 9.95,\n  \"old_price\": 19.5,\n  \"unit\": null,\n  \"package_size\": \"125GM 6PCS\",\n  \"quantity\": \"6PCS\",\n  \"package_type\": null,\n  \"attributes\": [\"ASSORTED\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 870,
+        "completion_tokens": 138,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2560.66,
+      "retries": 0
+    },
+    {
+      "index": 28,
+      "id": "hyperpanda:central:d4d:93695634",
+      "store": "hyperpanda",
+      "category": "pets",
+      "file": "assets/28.jpg",
+      "sha256": "062a53f281ebb5aa93786a206f9eeaf2d4c67641436edaa2184d0c83d5099174",
+      "ok": true,
+      "structured": {
+        "name_en": "Whiskas Cat Food With Beef Flavour (4 x 85g)",
+        "name_ar": "طعم الفطاط بنكهة اللحم ويسكاس ٨٠ × ٤ جرام",
+        "brand": "Whiskas",
+        "current_price": 10.99,
+        "old_price": null,
+        "unit": null,
+        "package_size": "4 x 85g",
+        "quantity": "4",
+        "package_type": "can",
+        "attributes": [
+          "Beef Flavour"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Whiskas Cat Food With Beef Flavour (4 x 85g)\",\n  \"name_ar\": \"طعم الفطاط بنكهة اللحم ويسكاس ٨٠ × ٤ جرام\",\n  \"brand\": \"Whiskas\",\n  \"current_price\": 10.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"4 x 85g\",\n  \"quantity\": \"4\",\n  \"package_type\": \"can\",\n  \"attributes\": [\"Beef Flavour\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 769,
+        "total_tokens": 907,
+        "completion_tokens": 138,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1365.58,
+      "retries": 0
+    },
+    {
+      "index": 29,
+      "id": "hyperpanda:central:d4d:93696234",
+      "store": "hyperpanda",
+      "category": "laundry",
+      "file": "assets/29.jpg",
+      "sha256": "0b01580c7b6809fb8817d7fd22df76c8f0ceccc7ed5e53f7b3f0cf710d4cdc70",
+      "ok": true,
+      "structured": {
+        "name_en": "Downy Concentrated Fabric Softener (3L)",
+        "name_ar": "منعم الألياف مركز داوني 3 لتر",
+        "brand": "Downy",
+        "current_price": 39.99,
+        "old_price": null,
+        "unit": null,
+        "package_size": "3L",
+        "quantity": null,
+        "package_type": "bottle",
+        "attributes": [
+          "Concentrated",
+          "Fabric Softener"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Downy Concentrated Fabric Softener (3L)\",\n  \"name_ar\": \"منعم الألياف مركز داوني 3 لتر\",\n  \"brand\": \"Downy\",\n  \"current_price\": 39.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"3L\",\n  \"quantity\": null,\n  \"package_type\": \"bottle\",\n  \"attributes\": [\"Concentrated\", \"Fabric Softener\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 656,
+        "total_tokens": 779,
+        "completion_tokens": 123,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2339.88,
+      "retries": 0
+    },
+    {
+      "index": 30,
+      "id": "hyperpanda:central:d4d:93693444",
+      "store": "hyperpanda",
+      "category": "cakes-pastry",
+      "file": "assets/30.jpg",
+      "sha256": "82b8b3da81fdade1a95a07da7a7eb8d5ddf4e697c2b9d162a21f0067b202dfe9",
+      "ok": true,
+      "structured": {
+        "name_en": "St Michel Mini Madeleines Traditional French Sponge Cakes (85g)",
+        "name_ar": "سبونج كيك فرنسي تقليدي ميني مادلينس",
+        "brand": "St Michel",
+        "current_price": null,
+        "old_price": null,
+        "unit": null,
+        "package_size": "85g",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "Traditional French Sponge Cakes"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"St Michel Mini Madeleines Traditional French Sponge Cakes (85g)\",\n  \"name_ar\": \"سبونج كيك فرنسي تقليدي ميني مادلينس\",\n  \"brand\": \"St Michel\",\n  \"current_price\": null,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"85g\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"Traditional French Sponge Cakes\"],\n  \"confidence\": 0.98\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 649,
+        "total_tokens": 772,
+        "completion_tokens": 123,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1109.74,
+      "retries": 0
+    },
+    {
+      "index": 31,
+      "id": "lulu:central:d4d:93682539",
+      "store": "lulu",
+      "category": "tv",
+      "file": "assets/31.jpg",
+      "sha256": "8303128e22ff8e69f67dd5fe003cfd0dc0c84ed61f25bb47bdeca923195e77a1",
+      "ok": true,
+      "structured": {
+        "name_en": "TCL 4K SQD Mini LED 98C79L 98inch 2026 MODEL",
+        "name_ar": "TCL 4K SQD Mini LED 98C79L 98 بوصة 2026 موديل",
+        "brand": "TCL",
+        "current_price": 9499,
+        "old_price": null,
+        "unit": null,
+        "package_size": "98inch",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "4K",
+          "SQD",
+          "Mini LED",
+          "144Hz",
+          "2026 MODEL"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"TCL 4K SQD Mini LED 98C79L 98inch 2026 MODEL\",\n  \"name_ar\": \"TCL 4K SQD Mini LED 98C79L 98 بوصة 2026 موديل\",\n  \"brand\": \"TCL\",\n  \"current_price\": 9499,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"98inch\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"4K\", \"SQD\", \"Mini LED\", \"144Hz\", \"2026 MODEL\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 689,
+        "total_tokens": 859,
+        "completion_tokens": 170,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1356.79,
+      "retries": 0
+    },
+    {
+      "index": 32,
+      "id": "lulu:central:d4d:93328698",
+      "store": "lulu",
+      "category": "juices-drinks",
+      "file": "assets/32.jpg",
+      "sha256": "98ac6df4b079bba4bb18c014aa8b79b9b110396e4ae8e52c136e34658017243c",
+      "ok": true,
+      "structured": {
+        "name_en": "Chia Kiwi Cooler 500ml",
+        "name_ar": "منتوب الشيا والكيوي المنعش",
+        "brand": null,
+        "current_price": 11.95,
+        "old_price": 14.9,
+        "unit": "SAR",
+        "package_size": "500ml",
+        "quantity": null,
+        "package_type": "bottle",
+        "attributes": [
+          "fresh"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Chia Kiwi Cooler 500ml\",\n  \"name_ar\": \"منتوب الشيا والكيوي المنعش\",\n  \"brand\": null,\n  \"current_price\": 11.95,\n  \"old_price\": 14.9,\n  \"unit\": \"SAR\",\n  \"package_size\": \"500ml\",\n  \"quantity\": null,\n  \"package_type\": \"bottle\",\n  \"attributes\": [\"fresh\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 854,
+        "completion_tokens": 122,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2322.86,
+      "retries": 0
+    },
+    {
+      "index": 33,
+      "id": "lulu:central:d4d:93661134",
+      "store": "lulu",
+      "category": "rice",
+      "file": "assets/33.jpg",
+      "sha256": "c73b2f9aecc371efe23ed9e0aa5fb097c3484e63d721f75a4bf16b98889778c2",
+      "ok": true,
+      "structured": {
+        "name_en": "Mughal ROYAL DIAMOND STEAMED 1121 BASMATI RICE XXL EXTRA LONG GRAIN 5kg",
+        "name_ar": "أرز بسمتي 1121 مغلي",
+        "brand": "Mughal",
+        "current_price": 34.99,
+        "old_price": 39.95,
+        "unit": "SAR",
+        "package_size": "5kg",
+        "quantity": null,
+        "package_type": "bag",
+        "attributes": [
+          "STEAMED",
+          "1121 BASMATI",
+          "XXL EXTRA LONG GRAIN"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Mughal ROYAL DIAMOND STEAMED 1121 BASMATI RICE XXL EXTRA LONG GRAIN 5kg\",\n  \"name_ar\": \"أرز بسمتي 1121 مغلي\",\n  \"brand\": \"Mughal\",\n  \"current_price\": 34.99,\n  \"old_price\": 39.95,\n  \"unit\": \"SAR\",\n  \"package_size\": \"5kg\",\n  \"quantity\": null,\n  \"package_type\": \"bag\",\n  \"attributes\": [\"STEAMED\", \"1121 BASMATI\", \"XXL EXTRA LONG GRAIN\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 789,
+        "total_tokens": 961,
+        "completion_tokens": 172,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1480.88,
+      "retries": 0
+    },
+    {
+      "index": 34,
+      "id": "marksave:central:d4d:93630738",
+      "store": "marksave",
+      "category": "dishwasher",
+      "file": "assets/34.jpg",
+      "sha256": "bb24d79a9b827e1224a3d49c864edef956db9d22f73588a2276d7663711fe2e3",
+      "ok": true,
+      "structured": {
+        "name_en": "Fairy Dish Washing Liquid Lemon/Original 1Ltr",
+        "name_ar": "فيري سائل غسيل الأطباق بالليمون / الأصلي لتر",
+        "brand": "Fairy",
+        "current_price": 12.95,
+        "old_price": 18.95,
+        "unit": null,
+        "package_size": "1Ltr",
+        "quantity": "1 pc",
+        "package_type": "bottle",
+        "attributes": [
+          "Lemon",
+          "Original"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Fairy Dish Washing Liquid Lemon/Original 1Ltr\",\n  \"name_ar\": \"فيري سائل غسيل الأطباق بالليمون / الأصلي لتر\",\n  \"brand\": \"Fairy\",\n  \"current_price\": 12.95,\n  \"old_price\": 18.95,\n  \"unit\": null,\n  \"package_size\": \"1Ltr\",\n  \"quantity\": \"1 pc\",\n  \"package_type\": \"bottle\",\n  \"attributes\": [\"Lemon\", \"Original\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 694,
+        "total_tokens": 830,
+        "completion_tokens": 136,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1303.15,
+      "retries": 0
+    },
+    {
+      "index": 35,
+      "id": "marksave:central:d4d:93630615",
+      "store": "marksave",
+      "category": "fresh-vegetables",
+      "file": "assets/35.jpg",
+      "sha256": "2e839935694345053691eb04c32e0ea98484ded81d2503931eadfae8fa5e55d1",
+      "ok": true,
+      "structured": {
+        "name_en": "Pumpkin Small (Ashguard)",
+        "name_ar": "قرع صغير (القرع الأبيض)",
+        "brand": null,
+        "current_price": 1.99,
+        "old_price": 4.99,
+        "unit": "Per KG",
+        "package_size": null,
+        "quantity": null,
+        "package_type": null,
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Pumpkin Small (Ashguard)\",\n  \"name_ar\": \"قرع صغير (القرع الأبيض)\",\n  \"brand\": null,\n  \"current_price\": 1.99,\n  \"old_price\": 4.99,\n  \"unit\": \"Per KG\",\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 713,
+        "total_tokens": 817,
+        "completion_tokens": 104,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1061.53,
+      "retries": 0
+    },
+    {
+      "index": 36,
+      "id": "marksave:central:d4d:93625125",
+      "store": "marksave",
+      "category": "hair-care",
+      "file": "assets/36.jpg",
+      "sha256": "a8424d85e3c1209ddd1cf3bfc60ebc566878717d11ac7c826827f5e2c56c0496",
+      "ok": true,
+      "structured": {
+        "name_en": "Dear Love Amla Hair Oil 250ml",
+        "name_ar": "زيت الشعر املا",
+        "brand": "Dear Love",
+        "current_price": 5.95,
+        "old_price": 10.95,
+        "unit": "SAR",
+        "package_size": "250ml",
+        "quantity": "1 pc",
+        "package_type": "bottle",
+        "attributes": [
+          "25% FREE"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Dear Love Amla Hair Oil 250ml\",\n  \"name_ar\": \"زيت الشعر املا\",\n  \"brand\": \"Dear Love\",\n  \"current_price\": 5.95,\n  \"old_price\": 10.95,\n  \"unit\": \"SAR\",\n  \"package_size\": \"250ml\",\n  \"quantity\": \"1 pc\",\n  \"package_type\": \"bottle\",\n  \"attributes\": [\"25% FREE\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 789,
+        "total_tokens": 911,
+        "completion_tokens": 122,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2440.5,
+      "retries": 0
+    },
+    {
+      "index": 37,
+      "id": "nesto:central:d4d:93653649",
+      "store": "nesto",
+      "category": "sweets",
+      "file": "assets/37.jpg",
+      "sha256": "aa6d91ca22174d6a78e859048c209732d81a5d2f31af35a8c5291a6671b551bd",
+      "ok": true,
+      "structured": {
+        "name_en": null,
+        "name_ar": "بلح الشام",
+        "brand": null,
+        "current_price": 15.99,
+        "old_price": null,
+        "unit": "GM",
+        "package_size": "500 GM",
+        "quantity": "10",
+        "package_type": null,
+        "attributes": [],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": null,\n  \"name_ar\": \"بلح الشام\",\n  \"brand\": null,\n  \"current_price\": 15.99,\n  \"old_price\": null,\n  \"unit\": \"GM\",\n  \"package_size\": \"500 GM\",\n  \"quantity\": \"10\",\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 0.98\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 689,
+        "total_tokens": 784,
+        "completion_tokens": 95,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1043.31,
+      "retries": 0
+    },
+    {
+      "index": 38,
+      "id": "nesto:central:d4d:93658191",
+      "store": "nesto",
+      "category": "ice-ice-cream",
+      "file": "assets/38.jpg",
+      "sha256": "10a2da27f8e3a93db3154f6101eb988134d0f5e14ce66d6a12d4bf839a2e4c72",
+      "ok": true,
+      "structured": {
+        "name_en": "Saudia Ice Cream 1Ltr",
+        "name_ar": "السعودية ايس كريم منوع الطعم",
+        "brand": "Saudia",
+        "current_price": 13.99,
+        "old_price": 18.99,
+        "unit": null,
+        "package_size": "1Ltr",
+        "quantity": "1 PCS",
+        "package_type": null,
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Saudia Ice Cream 1Ltr\",\n  \"name_ar\": \"السعودية ايس كريم منوع الطعم\",\n  \"brand\": \"Saudia\",\n  \"current_price\": 13.99,\n  \"old_price\": 18.99,\n  \"unit\": null,\n  \"package_size\": \"1Ltr\",\n  \"quantity\": \"1 PCS\",\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 751,
+        "total_tokens": 867,
+        "completion_tokens": 116,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1129.52,
+      "retries": 0
+    },
+    {
+      "index": 39,
+      "id": "nesto:central:d4d:93655824",
+      "store": "nesto",
+      "category": "home-furnishing-decor",
+      "file": "assets/39.jpg",
+      "sha256": "481f2825e4e82079b83089eb24e18af0ad83649b7d47436d7b02c365c821b1dc",
+      "ok": true,
+      "structured": {
+        "name_en": "Ceramic prayer mat sponge",
+        "name_ar": "سجادة صلاة للسجاد السيراميك إسفنجية",
+        "brand": null,
+        "current_price": 10,
+        "old_price": 18,
+        "unit": null,
+        "package_size": null,
+        "quantity": "1 PC",
+        "package_type": "PC",
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Ceramic prayer mat sponge\",\n  \"name_ar\": \"سجادة صلاة للسجاد السيراميك إسفنجية\",\n  \"brand\": null,\n  \"current_price\": 10,\n  \"old_price\": 18,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": \"1 PC\",\n  \"package_type\": \"PC\",\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 749,
+        "total_tokens": 854,
+        "completion_tokens": 105,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1394.35,
+      "retries": 0
+    },
+    {
+      "index": 40,
+      "id": "othaim:central:d4d:93684717",
+      "store": "othaim",
+      "category": "soft-drinks",
+      "file": "assets/40.jpg",
+      "sha256": "08388d22fc242e167d3d26a1bcfbc5e4c843e77417f5b3ad4a3a34fabf08ee3d",
+      "ok": true,
+      "structured": {
+        "name_en": "Pepsi Bottles",
+        "name_ar": "بيبسي زجاج",
+        "brand": "Pepsi",
+        "current_price": 11.99,
+        "old_price": null,
+        "unit": null,
+        "package_size": "6x250ml",
+        "quantity": "6",
+        "package_type": "pack",
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Pepsi Bottles\",\n  \"name_ar\": \"بيبسي زجاج\",\n  \"brand\": \"Pepsi\",\n  \"current_price\": 11.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"6x250ml\",\n  \"quantity\": \"6\",\n  \"package_type\": \"pack\",\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 836,
+        "completion_tokens": 104,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1130.29,
+      "retries": 0
+    },
+    {
+      "index": 41,
+      "id": "othaim:central:d4d:93684540",
+      "store": "othaim",
+      "category": "salts-spices-paste",
+      "file": "assets/41.jpg",
+      "sha256": "119459267ab9834133c9705e8f1ef180b392037079fa6c8bc93d74071ab43ab2",
+      "ok": true,
+      "structured": {
+        "name_en": "Freshco Tomato Paste",
+        "name_ar": "معجون طماطم فرشكو",
+        "brand": "Freshco",
+        "current_price": 11.99,
+        "old_price": 16.25,
+        "unit": null,
+        "package_size": "6x140g",
+        "quantity": "6",
+        "package_type": "Pack",
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Freshco Tomato Paste\",\n  \"name_ar\": \"معجون طماطم فرشكو\",\n  \"brand\": \"Freshco\",\n  \"current_price\": 11.99,\n  \"old_price\": 16.25,\n  \"unit\": null,\n  \"package_size\": \"6x140g\",\n  \"quantity\": \"6\",\n  \"package_type\": \"Pack\",\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 844,
+        "completion_tokens": 112,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1310.87,
+      "retries": 0
+    },
+    {
+      "index": 42,
+      "id": "othaim:central:d4d:93684129",
+      "store": "othaim",
+      "category": "yogurt-labneh",
+      "file": "assets/42.jpg",
+      "sha256": "e2b750882b69a02b5698d606be09089a60b49da71aa5492d2389ffdd44d59c00",
+      "ok": true,
+      "structured": {
+        "name_en": "Alsafi Greek Yoghurt",
+        "name_ar": "زبادي الصافي يوناني",
+        "brand": "Alsafi",
+        "current_price": 8.99,
+        "old_price": null,
+        "unit": null,
+        "package_size": "150g",
+        "quantity": "3 PCS",
+        "package_type": "cup",
+        "attributes": [
+          "Greek"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Alsafi Greek Yoghurt\",\n  \"name_ar\": \"زبادي الصافي يوناني\",\n  \"brand\": \"Alsafi\",\n  \"current_price\": 8.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"150g\",\n  \"quantity\": \"3 PCS\",\n  \"package_type\": \"cup\",\n  \"attributes\": [\"Greek\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 840,
+        "completion_tokens": 108,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2536.45,
+      "retries": 0
+    },
+    {
+      "index": 43,
+      "id": "prime:central:d4d:93620529",
+      "store": "prime",
+      "category": "fragrance",
+      "file": "assets/43.jpg",
+      "sha256": "c6b01511b5a29723f2ca592406aaac6299c173b089dfd89089f17196d9d9043c",
+      "ok": true,
+      "structured": {
+        "name_en": "Vielle Deo Roll On - Specific Items 50ml",
+        "name_ar": "فيل مزيل عرق رول - اصناف محددة 50 مل",
+        "brand": "Vielle",
+        "current_price": 5.75,
+        "old_price": 16.95,
+        "unit": null,
+        "package_size": "50ml",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Vielle Deo Roll On - Specific Items 50ml\",\n  \"name_ar\": \"فيل مزيل عرق رول - اصناف محددة 50 مل\",\n  \"brand\": \"Vielle\",\n  \"current_price\": 5.75,\n  \"old_price\": 16.95,\n  \"unit\": null,\n  \"package_size\": \"50ml\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 709,
+        "total_tokens": 831,
+        "completion_tokens": 122,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1273.51,
+      "retries": 0
+    },
+    {
+      "index": 44,
+      "id": "prime:central:d4d:93552036",
+      "store": "prime",
+      "category": "oil-ghee",
+      "file": "assets/44.jpg",
+      "sha256": "2af5e74c317e00fb47a5ab5a38ed30838cebd35e8d4ee7b8aaf4122eb82a3bf1",
+      "ok": true,
+      "structured": {
+        "name_en": "NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)",
+        "name_ar": "زيت دوار الشمس نور",
+        "brand": "NOOR",
+        "current_price": 39.95,
+        "old_price": 45.5,
+        "unit": null,
+        "package_size": "2 X 1.5 LTR + 500 ML",
+        "quantity": "2 X 1.5 LTR + 500 ML",
+        "package_type": "PACK",
+        "attributes": [
+          "SUN FLOWER OIL",
+          "PET"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)\",\n  \"name_ar\": \"زيت دوار الشمس نور\",\n  \"brand\": \"NOOR\",\n  \"current_price\": 39.95,\n  \"old_price\": 45.5,\n  \"unit\": null,\n  \"package_size\": \"2 X 1.5 LTR + 500 ML\",\n  \"quantity\": \"2 X 1.5 LTR + 500 ML\",\n  \"package_type\": \"PACK\",\n  \"attributes\": [\"SUN FLOWER OIL\", \"PET\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 729,
+        "total_tokens": 895,
+        "completion_tokens": 166,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1583.55,
+      "retries": 0
+    },
+    {
+      "index": 45,
+      "id": "ramez:central:d4d:93686136",
+      "store": "ramez",
+      "category": "disposables",
+      "file": "assets/45.jpg",
+      "sha256": "c3de44219867560b04593b76ef5ca8aef537c5cfe62036b552b519e5d8c5640f",
+      "ok": true,
+      "structured": {
+        "name_en": "Premium Colour Paper",
+        "name_ar": null,
+        "brand": null,
+        "current_price": 4.75,
+        "old_price": 5.75,
+        "unit": null,
+        "package_size": null,
+        "quantity": "100",
+        "package_type": null,
+        "attributes": [],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Premium Colour Paper\",\n  \"name_ar\": null,\n  \"brand\": null,\n  \"current_price\": 4.75,\n  \"old_price\": 5.75,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": \"100\",\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 0.98\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 769,
+        "total_tokens": 864,
+        "completion_tokens": 95,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2179.24,
+      "retries": 0
+    },
+    {
+      "index": 46,
+      "id": "ramez:central:d4d:93685920",
+      "store": "ramez",
+      "category": "dental-care",
+      "file": "assets/46.jpg",
+      "sha256": "6094b2dfaa13f1bb1330817dcf41a0aa358945fc35fea4678020a203e4c8321a",
+      "ok": true,
+      "structured": {
+        "name_en": "LISTERINE TOTAL CARE",
+        "name_ar": null,
+        "brand": "LISTERINE",
+        "current_price": 15.95,
+        "old_price": 24.5,
+        "unit": "مل",
+        "package_size": "500 ml",
+        "quantity": null,
+        "package_type": "bottle",
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"LISTERINE TOTAL CARE\",\n  \"name_ar\": null,\n  \"brand\": \"LISTERINE\",\n  \"current_price\": 15.95,\n  \"old_price\": 24.5,\n  \"unit\": \"مل\",\n  \"package_size\": \"500 ml\",\n  \"quantity\": null,\n  \"package_type\": \"bottle\",\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 789,
+        "total_tokens": 895,
+        "completion_tokens": 106,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1095.58,
+      "retries": 0
+    },
+    {
+      "index": 47,
+      "id": "ramez:central:d4d:93686313",
+      "store": "ramez",
+      "category": "luggage",
+      "file": "assets/47.jpg",
+      "sha256": "c7d2d353783afe9eeea83b33a09285c886304ae21cc397698f02e7d027c571e5",
+      "ok": true,
+      "structured": {
+        "name_en": null,
+        "name_ar": null,
+        "brand": "RAIN",
+        "current_price": 157,
+        "old_price": 190,
+        "unit": null,
+        "package_size": null,
+        "quantity": "3",
+        "package_type": "set",
+        "attributes": [
+          "20 inch",
+          "24 inch",
+          "28 inch"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": null,\n  \"name_ar\": null,\n  \"brand\": \"RAIN\",\n  \"current_price\": 157.0,\n  \"old_price\": 190.0,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": \"3\",\n  \"package_type\": \"set\",\n  \"attributes\": [\"20 inch\", \"24 inch\", \"28 inch\"],\n  \"confidence\": 0.98\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 789,
+        "total_tokens": 897,
+        "completion_tokens": 108,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2054.51,
+      "retries": 0
+    },
+    {
+      "index": 48,
+      "id": "tamimi:central:d4d:93619095",
+      "store": "tamimi",
+      "category": "pasta-noodles",
+      "file": "assets/48.jpg",
+      "sha256": "454a977501c4f2e5e857644119ddd53fa6c9ac2bd1c299836febf1fcd231e1f1",
+      "ok": true,
+      "structured": {
+        "name_en": "NONGSHIM CUP NOODLES, ASSORTED ITEMS, 68 - 114 GRAMS",
+        "name_ar": "كوب شعيرية نونجشيم، أصناف متنوعة 68 - 114 جرام",
+        "brand": "NONGSHIM",
+        "current_price": 4.99,
+        "old_price": 7.25,
+        "unit": "EACH",
+        "package_size": "68 - 114 GRAMS",
+        "quantity": null,
+        "package_type": "CUP",
+        "attributes": [
+          "ASSORTED"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"NONGSHIM CUP NOODLES, ASSORTED ITEMS, 68 - 114 GRAMS\",\n  \"name_ar\": \"كوب شعيرية نونجشيم، أصناف متنوعة 68 - 114 جرام\",\n  \"brand\": \"NONGSHIM\",\n  \"current_price\": 4.99,\n  \"old_price\": 7.25,\n  \"unit\": \"EACH\",\n  \"package_size\": \"68 - 114 GRAMS\",\n  \"quantity\": null,\n  \"package_type\": \"CUP\",\n  \"attributes\": [\"ASSORTED\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 751,
+        "total_tokens": 913,
+        "completion_tokens": 162,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 4012.69,
+      "retries": 0
+    },
+    {
+      "index": 49,
+      "id": "tamimi:central:d4d:93618753",
+      "store": "tamimi",
+      "category": "cereals-bars",
+      "file": "assets/49.jpg",
+      "sha256": "dd835b968dabe7bdf6027888d1116ced3e895949a963773046b5a852793b5c48",
+      "ok": true,
+      "structured": {
+        "name_en": "NESTLE COUNTRY CORNFLAKES, 500 GRAMS OR 1 KILO",
+        "name_ar": "كورن فليكس كاونتري, نستله",
+        "brand": "Nestle",
+        "current_price": 19.99,
+        "old_price": 23.95,
+        "unit": null,
+        "package_size": "500 GRAMS OR 1 KILO",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"NESTLE COUNTRY CORNFLAKES, 500 GRAMS OR 1 KILO\",\n  \"name_ar\": \"كورن فليكس كاونتري, نستله\",\n  \"brand\": \"Nestle\",\n  \"current_price\": 19.99,\n  \"old_price\": 23.95,\n  \"unit\": null,\n  \"package_size\": \"500 GRAMS OR 1 KILO\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 751,
+        "total_tokens": 892,
+        "completion_tokens": 141,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1418.77,
+      "retries": 0
+    },
+    {
+      "index": 50,
+      "id": "tamimi:central:d4d:93617868",
+      "store": "tamimi",
+      "category": "meat-fresh-chilled",
+      "file": "assets/50.jpg",
+      "sha256": "d0eeac4aba2941c098a96982c383f3b0c177e9890e7f890d80fb2997c060a241",
+      "ok": true,
+      "structured": {
+        "name_en": "FRESH VEAL - BONE IN",
+        "name_ar": "لحم عجل طازج, بالعظم",
+        "brand": null,
+        "current_price": 49.99,
+        "old_price": 69.95,
+        "unit": "KILO",
+        "package_size": null,
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "FRESH",
+          "BONE IN"
+        ],
+        "confidence": 1
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"FRESH VEAL - BONE IN\",\n  \"name_ar\": \"لحم عجل طازج, بالعظم\",\n  \"brand\": null,\n  \"current_price\": 49.99,\n  \"old_price\": 69.95,\n  \"unit\": \"KILO\",\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"FRESH\", \"BONE IN\"],\n  \"confidence\": 1.0\n}",
+      "response_model": "mistral-medium-latest",
+      "usage": {
+        "prompt_tokens": 770,
+        "total_tokens": 888,
+        "completion_tokens": 118,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2241.65,
+      "retries": 0
+    }
+  ],
+  "finished_at": "2026-07-25T00:51:08.555Z"
+}

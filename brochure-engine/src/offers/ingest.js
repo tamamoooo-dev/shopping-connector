@@ -11,6 +11,12 @@
 import { buildOffer, offerToRow } from './contract.js';
 import { deriveIdentity, recordOfferHistory } from '../priceHistory.js';
 import { detectBrand } from '../browse/brands.js';
+import {
+  acceptedNavigation,
+  addPageEvidence,
+  aggregateNavigationHealth,
+  assessNavigation,
+} from './navigationPolicy.js';
 
 // The provider's offers addressing:
 //   regionConfig.offers = { company: <id> }   (explicit — e.g. a PDF-collector
@@ -44,9 +50,89 @@ function flyerIdFromSourceUrl(sourceUrl) {
   return m ? m[1] : null;
 }
 
+function decodeJson(obj) {
+  if (!obj || !obj.bytes) return null;
+  try {
+    return JSON.parse(new TextDecoder().decode(obj.bytes));
+  } catch {
+    return null;
+  }
+}
+
+// Build the exact source-offer -> downloaded-page linkage from COMPLETE local
+// snapshots. meta.json is the publication commit marker: partial/resumable
+// page objects are deliberately invisible until every advertised page and the
+// matching hotspots snapshot have been stored.
+async function localNavigationByFlyer(ctx, store, region) {
+  const out = new Map();
+  if (!ctx.metadataStore || !ctx.objectStore) return out;
+
+  for (const row of await ctx.metadataStore.getCurrent(store, region)) {
+    if (row.source_type !== 'images' || row.pruned_at || !row.storage_key) continue;
+    const flyerRef = flyerIdFromSourceUrl(row.source_url);
+    if (!flyerRef) continue;
+    const base = `brochures/${row.storage_key}`;
+    const [metaObj, hotspotsObj] = await Promise.all([
+      ctx.objectStore.get(`${base}/meta.json`),
+      ctx.objectStore.get(`${base}/hotspots.json`),
+    ]);
+    const meta = decodeJson(metaObj);
+    if (
+      !meta ||
+      meta.complete !== true ||
+      !Number.isInteger(meta.advertisedPageCount) ||
+      !Array.isArray(meta.pages) ||
+      meta.pages.length !== meta.advertisedPageCount ||
+      !meta.pages.length
+    ) continue;
+    const indexes = new Set(meta.pages.map((page) => page.index));
+    if (
+      indexes.size !== meta.advertisedPageCount ||
+      !meta.pages.every((page, index) => page.index === index && page.imageUrl)
+    ) continue;
+    // Both source identifiers are represented as SETS of stored pages. A plain
+    // Map<id,page> is last-write-wins and silently converts a future duplicate
+    // into a trusted answer. Policy B requires us to observe and reject that
+    // ambiguity instead.
+    const byPageRef = new Map();
+    for (const page of meta.pages) {
+      if (page.pageId != null && Number.isInteger(page.index)) {
+        addPageEvidence(byPageRef, page.pageId, page.index);
+      }
+    }
+    const byOfferId = new Map();
+    const hotspots = decodeJson(hotspotsObj);
+    if (!hotspots || !Array.isArray(hotspots.pages)) continue;
+    for (const page of hotspots?.pages || []) {
+      if (!Number.isInteger(page.index) || !indexes.has(page.index)) continue;
+      for (const spot of page.spots || []) {
+        addPageEvidence(byOfferId, spot.offerId, page.index);
+      }
+    }
+    out.set(String(flyerRef), {
+      brochureId: row.id,
+      edition: row.edition,
+      byPageRef,
+      byOfferId,
+    });
+  }
+  return out;
+}
+
 // Ingest one provider/region's offers. Returns a report line.
 export async function ingestOffersForTarget(ctx, provider, region) {
-  const line = { store: provider.id, region, fetched: 0, stored: 0, dropped: 0, linked: 0, skipped: false, errors: [] };
+  const line = {
+    store: provider.id,
+    region,
+    fetched: 0,
+    stored: 0,
+    dropped: 0,
+    linked: 0,
+    unbacked: 0,
+    mappingAnomalies: 0,
+    skipped: false,
+    errors: [],
+  };
   const regionConfig = provider.regions[region];
   const cfg = offersConfigFor(regionConfig);
   if (!cfg || !ctx.offersSource || !ctx.offerStore) {
@@ -61,17 +147,9 @@ export async function ingestOffersForTarget(ctx, provider, region) {
     });
     line.fetched = raws.length;
 
-    // Link map: offers-source flyer id -> held brochure edition (provenance).
-    const editionByFlyer = new Map();
-    if (ctx.metadataStore) {
-      for (const row of await ctx.metadataStore.getCurrent(provider.id, region)) {
-        const fid = flyerIdFromSourceUrl(row.source_url);
-        if (fid) editionByFlyer.set(fid, row.edition);
-      }
-    }
+    const navigationByFlyer = await localNavigationByFlyer(ctx, provider.id, region);
 
     const detectedAt = new Date().toISOString();
-    const rows = [];
     const offers = [];
     for (const raw of raws) {
       const offer = buildOffer(raw, {
@@ -83,11 +161,6 @@ export async function ingestOffersForTarget(ctx, provider, region) {
       if (!offer) {
         line.dropped += 1; // failed the sanity gates (no usable price/id)
         continue;
-      }
-      const edition = offer.flyerRef ? editionByFlyer.get(offer.flyerRef) : null;
-      if (edition) {
-        offer.edition = edition;
-        line.linked += 1;
       }
       // Stamp the derived cross-week identity (the SAME derivation the price
       // history harvest uses) so Browse can join an offer to its history with
@@ -101,10 +174,94 @@ export async function ingestOffersForTarget(ctx, provider, region) {
       // CURRENT offer on the next ingest with no backfill.
       offer.brandSlug = detectBrand(offer);
       offers.push(offer);
+    }
+
+    // Fetch the still-current stored rows once, before writing. They are part
+    // of the trust assessment even when D4D omitted them from today's response,
+    // and the same snapshot/decision is reused by the relinker below.
+    const currentOn = new Date().toISOString().slice(0, 10);
+    const storedByFlyer = new Map();
+    if (typeof ctx.offerStore.byFlyer === 'function') {
+      for (const flyerRef of navigationByFlyer.keys()) {
+        const stored = (await ctx.offerStore.byFlyer(provider.id, region, flyerRef))
+          .filter((row) => row.valid_to && row.valid_to >= currentOn);
+        storedByFlyer.set(flyerRef, stored);
+      }
+    }
+
+    const candidates = new Map(offers.map((offer) => [offer.id, offer]));
+    for (const stored of storedByFlyer.values()) {
+      for (const row of stored) {
+        if (!candidates.has(row.id)) candidates.set(row.id, row);
+      }
+    }
+    const assessment = assessNavigation(
+      navigationByFlyer,
+      [...candidates.values()],
+      ctx.navigationPolicy,
+    );
+    line.navigation = assessment.health;
+
+    // Stamp Policy B on fresh rows. Dual evidence always wins. The fallback is
+    // accepted only when the exact hotspot occurs on one page AND the target's
+    // ambiguity/disagreement circuit remains closed.
+    const rows = [];
+    for (const offer of offers) {
+      const nav = offer.flyerRef
+        ? navigationByFlyer.get(String(offer.flyerRef))
+        : null;
+      const resolution = assessment.resolutions.get(offer.id);
+      const accepted = acceptedNavigation(resolution, assessment.health);
+      if (!nav || !accepted) {
+        line.unbacked += 1;
+        if (nav) line.mappingAnomalies += 1;
+        // Keep the raw offer (and exact flyer_ref) as unavailable data. This
+        // clears stale links while preserving the source evidence for recovery.
+        offer.brochureId = null;
+        offer.pageIndex = null;
+        offer.navigationProvenance = null;
+        offer.edition = null;
+      } else {
+        offer.brochureId = nav.brochureId;
+        offer.pageIndex = accepted.pageIndex;
+        offer.navigationProvenance = accepted.provenance;
+        offer.edition = nav.edition;
+        line.linked += 1;
+      }
       rows.push(offerToRow(offer));
     }
     if (rows.length) await ctx.offerStore.upsertMany(rows);
     line.stored = rows.length;
+
+    // Relink every still-current stored row for each completed flyer, not only
+    // rows returned by this particular D4D response. D4D's current response can
+    // omit offers that remain valid and indexed; those rows must recover their
+    // exact local page when the brochure becomes complete.
+    if (
+      typeof ctx.offerStore.byFlyer === 'function' &&
+      typeof ctx.offerStore.updateNavigation === 'function'
+    ) {
+      const updates = [];
+      let restored = 0;
+      for (const [flyerRef, nav] of navigationByFlyer) {
+        const storedOffers = storedByFlyer.get(flyerRef) || [];
+        for (const stored of storedOffers) {
+          const resolution = assessment.resolutions.get(stored.id);
+          const accepted = acceptedNavigation(resolution, assessment.health);
+          if (accepted && !stored.brochure_id) restored += 1;
+          updates.push({
+            id: stored.id,
+            brochureId: accepted ? nav.brochureId : null,
+            pageIndex: accepted ? accepted.pageIndex : null,
+            navigationProvenance: accepted ? accepted.provenance : null,
+            edition: accepted ? nav.edition : null,
+          });
+        }
+      }
+      if (updates.length) await ctx.offerStore.updateNavigation(updates);
+      line.relinked = updates.length;
+      line.restored = restored;
+    }
 
     // Price History (Pillar 3): every offer is a price observation. Derive
     // identities and record first-sighting/price-change points — D1-only work,
@@ -135,9 +292,24 @@ export async function ingestOffers(ctx, { store } = {}) {
       stored: t.stored + l.stored,
       dropped: t.dropped + l.dropped,
       linked: t.linked + l.linked,
+      restored: t.restored + (l.restored || 0),
+      unbacked: t.unbacked + l.unbacked,
+      mappingAnomalies: t.mappingAnomalies + l.mappingAnomalies,
       failed: t.failed + (l.errors.length ? 1 : 0),
     }),
-    { fetched: 0, stored: 0, dropped: 0, linked: 0, failed: 0 },
+    {
+      fetched: 0,
+      stored: 0,
+      dropped: 0,
+      linked: 0,
+      restored: 0,
+      unbacked: 0,
+      mappingAnomalies: 0,
+      failed: 0,
+    },
+  );
+  report.totals.navigation = aggregateNavigationHealth(
+    report.targets.map((target) => target.navigation),
   );
   return report;
 }

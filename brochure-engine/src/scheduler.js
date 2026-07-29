@@ -196,3 +196,22 @@ export function createEnrichDispatcher({ self, ingestSecret, origin = 'https://b
     return body;
   };
 }
+
+export function createOcrEnrichDispatcher({ self, ingestSecret, origin = 'https://brochure-engine.internal' } = {}) {
+  if (!self || typeof self.fetch !== 'function') {
+    throw new Error('scheduler: a SELF service binding (env.SELF) is required for the OCR enrich dispatcher');
+  }
+  return async function dispatchBatch(limit) {
+    const res = await self.fetch(`${origin}/ocr-enrich?limit=${encodeURIComponent(limit)}`, {
+      method: 'POST',
+      headers: { 'X-Ingest-Secret': ingestSecret || '' },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(`ocr enrich drain -> HTTP ${res.status}`);
+      err.body = body;
+      throw err;
+    }
+    return body;
+  };
+}

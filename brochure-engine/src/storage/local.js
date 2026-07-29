@@ -11,7 +11,16 @@ import { dirname, join } from 'node:path';
 import { queryTokens, offerRelevance, relevanceScore, rowToOffer } from '../offers/contract.js';
 import { expandToken } from '../matching.js';
 import { applyEnrichment, servable } from '../offers/enrich.js';
+import { hasUsableCommercePrice } from '../offers/commerceScore.js';
 import { visionMatchText } from './enrichStore.js';
+import {
+  BUILDER_SCORE_VERSION,
+  buildArabicShadow,
+  readArabicBuilderShadow,
+  selectArabicName,
+  withArabicBuilderShadow,
+} from '../lexicon/arabicRollout.js';
+import { COMMERCE_SCORE_VERSION } from '../offers/commerceScore.js';
 
 // --- ObjectStore: files under a data directory --------------------------------
 export function createFsObjectStore(rootDir) {
@@ -107,14 +116,26 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
   const rows = new Map(); // id -> enrichment row (snake_case, like D1)
   const isDebris = (o, scope) =>
     scope === 'debris' ? o.name == null && o.name_ar == null : true;
+  // S1 Extraction Admission (R4). The D1 twin spells this out as
+  // enrichStore.USABLE_PRICE_SQL; here the shared JS predicate is called
+  // directly, which is the point — one definition, two bindings, and the
+  // differential test proves the SQL matches this.
+  const visionEligible = (o, scope) =>
+    o.image_url && isDebris(o, scope) && hasUsableCommercePrice(o);
   return {
     _rows: rows, // test/dev seam
     async listDebris({ currentOn, limit = 15, scope = 'all' } = {}) {
       return (await listOffers())
-        .filter((o) => !rows.has(o.id) && o.image_url && (!currentOn || (o.valid_to && o.valid_to >= currentOn)) && isDebris(o, scope))
+        .filter((o) => !rows.has(o.id) && (!currentOn || (o.valid_to && o.valid_to >= currentOn)) && visionEligible(o, scope))
         .sort((a, b) => String(b.detected_at).localeCompare(String(a.detected_at)))
         .slice(0, Math.max(1, Math.min(Number(limit) || 15, 50)))
-        .map((o) => ({ id: o.id, image_url: o.image_url, search_text: o.search_text }));
+        .map((o) => ({
+          id: o.id,
+          image_url: o.image_url,
+          search_text: o.search_text,
+          price: o.price,
+          currency: o.currency,
+        }));
     },
     async listSelected({ ids, currentOn } = {}) {
       const selected = new Set((ids || []).map(String));
@@ -122,14 +143,20 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
         .filter((o) => selected.has(o.id) && o.image_url &&
           (!currentOn || (o.valid_to && o.valid_to >= currentOn)))
         .slice(0, 50)
-        .map((o) => ({ id: o.id, image_url: o.image_url }));
+        .map((o) => ({
+          id: o.id,
+          image_url: o.image_url,
+          price: o.price,
+          currency: o.currency,
+        }));
     },
     async countDebris(currentOn, scope = 'all') {
       return (await this.listDebris({ currentOn, limit: 50, scope })).length;
     },
     async coverage(currentOn) {
+      // Denominator tracks S1 admission, exactly as the D1 twin does (R4).
       const withCropRows = (await listOffers())
-        .filter((o) => o.image_url && (!currentOn || (o.valid_to && o.valid_to >= currentOn)));
+        .filter((o) => (!currentOn || (o.valid_to && o.valid_to >= currentOn)) && visionEligible(o, 'all'));
       const attempted = withCropRows.filter((o) => rows.has(o.id));
       const enriched = attempted.filter((o) => {
         const e = rows.get(o.id);
@@ -155,6 +182,9 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
           confidence: r.confidence ?? null, corroboration: r.corroboration ?? null,
           model: r.model ?? null, crop_url: r.crop_url ?? null,
           enriched_at: r.enriched_at, match_text: visionMatchText(r),
+          extraction_json: r.extraction_json == null
+            ? null
+            : JSON.stringify(r.extraction_json),
           identity_candidate: r.identity_candidate == null
             ? null
             : JSON.stringify(r.identity_candidate),
@@ -169,6 +199,34 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
       const map = new Map();
       for (const id of ids) if (rows.has(id)) map.set(id, rows.get(id));
       return map;
+    },
+    async backfillArabicBuilderShadows(limit = 200) {
+      let updated = 0;
+      const offersById = new Map((await listOffers()).map((offer) => [offer.id, offer]));
+      for (const row of rows.values()) {
+        if (updated >= Math.max(1, Math.min(Number(limit) || 200, 500))) break;
+        const existingShadow = readArabicBuilderShadow(row.extraction_json);
+        if (existingShadow?.builder_score_version === BUILDER_SCORE_VERSION
+            && existingShadow?.commerce_score_version === COMMERCE_SCORE_VERSION) continue;
+        let observation = {};
+        try {
+          observation = row.extraction_json ? JSON.parse(row.extraction_json) : {};
+        } catch {
+          continue;
+        }
+        const { arabicBuilder } = buildArabicShadow({
+          ...observation,
+          name_en: row.name,
+          name_ar: row.name_ar,
+          brand: row.brand,
+          size: row.size,
+          price: offersById.get(row.id)?.price ?? null,
+          currency: offersById.get(row.id)?.currency ?? null,
+        });
+        row.extraction_json = JSON.stringify(withArabicBuilderShadow(observation, arabicBuilder));
+        updated += 1;
+      }
+      return updated;
     },
     async pruneOrphans() {
       const live = new Set((await listOffers()).map((o) => o.id));
@@ -314,17 +372,43 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
 // `enrichStore` (optional, a createMemoryEnrichStore) makes search() the local
 // twin of the D1 vision-canonical query: rows carry the aliased e_* columns and
 // match on the canonical haystack via the ONE gate (offers/enrich.js).
-export function createMemoryOfferStore({ enrichStore = null } = {}) {
+export function createMemoryOfferStore({
+  enrichStore = null,
+  builtArabicNamesEnabled = false,
+} = {}) {
   const rows = new Map(); // id -> row (snake_case, like D1)
   return {
     async upsertMany(newRows) {
       for (const r of newRows) {
-        const prior = rows.get(r.id);
-        // Same COALESCE semantics as D1: a link to a held edition, once made,
-        // is never overwritten by a later null.
-        rows.set(r.id, { ...r, edition: r.edition ?? prior?.edition ?? null });
+        const hasNavigationShape =
+          Object.hasOwn(r, 'brochure_id') ||
+          Object.hasOwn(r, 'page_index') ||
+          Object.hasOwn(r, 'navigation_provenance');
+        rows.set(
+          r.id,
+          hasNavigationShape
+            ? {
+                ...r,
+                brochure_id: r.brochure_id ?? null,
+                page_index: r.page_index ?? null,
+                navigation_provenance: r.navigation_provenance ?? null,
+                edition: r.edition ?? null,
+              }
+            : { ...r },
+        );
       }
       return { stored: newRows.length };
+    },
+    async updateNavigation(updates) {
+      for (const update of updates) {
+        const row = rows.get(update.id);
+        if (!row) continue;
+        row.brochure_id = update.brochureId ?? null;
+        row.page_index = Number.isInteger(update.pageIndex) ? update.pageIndex : null;
+        row.navigation_provenance = update.navigationProvenance ?? null;
+        row.edition = update.edition ?? null;
+      }
+      return { updated: updates.length };
     },
     async search({ q = '', store = '', region = '', currentOn = null, limit = 60 } = {}) {
       const tokens = queryTokens(q);
@@ -332,7 +416,9 @@ export function createMemoryOfferStore({ enrichStore = null } = {}) {
         (r) =>
           (!currentOn || (r.valid_to && r.valid_to >= currentOn)) &&
           (!store || r.store === store) &&
-          (!region || r.region === region),
+          (!region || r.region === region) &&
+          (!Object.hasOwn(r, 'brochure_id') && !Object.hasOwn(r, 'page_index') ||
+            r.brochure_id != null && Number.isInteger(r.page_index)),
       );
       // Decorate with the aliased enrichment columns (ENRICH_ROW_COLS twin),
       // then match relevance over the canonical haystack applyEnrichment
@@ -343,10 +429,21 @@ export function createMemoryOfferStore({ enrichStore = null } = {}) {
       return scoped
         .map((r) => {
           const e = enr.get(r.id);
+          const selectedArabic = selectArabicName({
+            observedArabic: e?.name_ar ?? null,
+            shadow: readArabicBuilderShadow(e?.extraction_json),
+            enabled: builtArabicNamesEnabled,
+          });
           return {
             ...r,
             e_name: e?.name ?? null,
-            e_name_ar: e?.name_ar ?? null,
+            e_name_ar: selectedArabic.nameAr,
+            // The D1 search projects the enrichment's brand and size too, and
+            // consumers read them (monitor.js offerAsListing turns a flyer row
+            // into a listing for the shared extractor). Omitting them here made
+            // the twin quietly weaker than production.
+            e_brand: e?.brand ?? null,
+            e_size: e?.size ?? null,
             e_match_text: e?.match_text ?? null,
             e_corroboration: e?.corroboration ?? null,
           };
@@ -365,8 +462,37 @@ export function createMemoryOfferStore({ enrichStore = null } = {}) {
         .filter((r) => r.store === store && r.region === region && String(r.flyer_ref) === String(flyerRef))
         .slice(0, 2000);
     },
+    async requiredFlyerRefs(store, region, currentOn) {
+      return [...new Set(
+        [...rows.values()]
+          .filter(
+            (r) =>
+              r.store === store &&
+              r.region === region &&
+              r.valid_to >= currentOn &&
+              r.flyer_ref != null &&
+              String(r.flyer_ref) !== '',
+          )
+          .map((r) => String(r.flyer_ref)),
+      )];
+    },
     async listAll({ store = '' } = {}) {
       return [...rows.values()].filter((r) => !store || r.store === store);
+    },
+    async navigationMetrics(currentOn) {
+      const current = [...rows.values()].filter((r) => r.valid_to && r.valid_to >= currentOn);
+      return {
+        current: current.length,
+        unlinked: current.filter((r) => r.brochure_id == null || !Number.isInteger(r.page_index)).length,
+        dual: current.filter((r) => r.navigation_provenance === 'dual').length,
+        hotspotUnique: current.filter((r) => r.navigation_provenance === 'hotspot_unique').length,
+        missingProvenance: current.filter(
+          (r) =>
+            r.brochure_id != null &&
+            Number.isInteger(r.page_index) &&
+            r.navigation_provenance == null,
+        ).length,
+      };
     },
     async counts(currentOn) {
       const all = [...rows.values()];
@@ -448,12 +574,24 @@ export function createMemoryWatchStore() {
       for (const [aid, a] of alerts) if (a.watchId === id) alerts.delete(aid);
       return watches.delete(id);
     },
+    // MONITORED = active AND anchored. Same boundary as the D1 impl: the cap
+    // this feeds bounds the daily cron's work, and an unanchored watch does no
+    // work, so it must not occupy a slot.
     async count(profileId = null) {
-      return [...watches.values()]
-        .filter((w) => w.active && (!profileId || w.profileId === profileId)).length;
+      return [...watches.values()].filter(
+        (w) => w.active && (w.registryProductId || w.spec) && (!profileId || w.profileId === profileId),
+      ).length;
+    },
+    async countRows(profileId = null) {
+      return [...watches.values()].filter((w) => !profileId || w.profileId === profileId).length;
+    },
+    async countUnanchored(profileId = null) {
+      return [...watches.values()].filter(
+        (w) => w.active && !(w.registryProductId || w.spec) && (!profileId || w.profileId === profileId),
+      ).length;
     },
     async countActiveTotal() {
-      return [...watches.values()].filter((w) => w.active).length;
+      return [...watches.values()].filter((w) => w.active && (w.registryProductId || w.spec)).length;
     },
     async adoptOrphans(profileId) {
       let n = 0;
@@ -468,9 +606,45 @@ export function createMemoryWatchStore() {
     async updateState(id, fields) {
       const w = watches.get(id);
       if (!w) return;
-      for (const key of ['isBelow', 'checkedAt', 'lastPrice', 'lastStore', 'lastSource', 'lastName', 'lastLink']) {
-        if (key in fields) w[key] = key === 'isBelow' ? !!fields[key] : fields[key] ?? null;
+      for (const key of [
+        'isBelow', 'isClose', 'checkedAt', 'lastPrice', 'lastPurchasePrice',
+        'lastUnitLabel', 'lastStore', 'lastSource', 'lastName', 'lastLink',
+        'lastResolution', 'lastResolutionReason', 'resolvedAt',
+      ]) {
+        if (key in fields) {
+          w[key] = key === 'isBelow' || key === 'isClose' ? !!fields[key] : fields[key] ?? null;
+        }
       }
+    },
+    // The anchor moved because the REGISTRY merged it — same boundary as D1.
+    async rebindProduct(id, registryProductId) {
+      const w = watches.get(id);
+      if (!w || !registryProductId) return false;
+      w.registryProductId = registryProductId;
+      return true;
+    },
+    // Set the ANCHOR and the state explaining it — same boundary as D1.
+    async setAnchor(id, { registryProductId, spec, lastResolution, lastResolutionReason } = {}) {
+      const w = watches.get(id);
+      if (!w) return false;
+      w.registryProductId = registryProductId ?? null;
+      w.spec = spec ?? null;
+      w.lastResolution = lastResolution ?? null;
+      w.lastResolutionReason = lastResolutionReason ?? null;
+      return true;
+    },
+    async updateSettings(id, profileId, fields) {
+      const w = watches.get(id);
+      if (!w || w.profileId !== profileId) return false;
+      for (const key of [
+        'matchBrand', 'matchSize', 'matchVariant', 'closeThreshold',
+        'targetUnitPrice', 'unitLabel',
+      ]) {
+        if (key in fields) w[key] = fields[key] ?? null;
+      }
+      w.isBelow = false;
+      w.isClose = false;
+      return true;
     },
     async insertAlert(alert) {
       alerts.set(alert.id, { ...alert, seen: false });

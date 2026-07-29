@@ -11,9 +11,9 @@ export function createServiceBindingSearchClient({
     throw new Error('search client: a CONNECTOR service binding (env.CONNECTOR) is required');
   }
   return {
-    async search(provider, query) {
+    async search(provider, query, limit = 50) {
       const res = await connector.fetch(
-        `${origin}/search?provider=${encodeURIComponent(provider)}&q=${encodeURIComponent(query)}`,
+        `${origin}/search?provider=${encodeURIComponent(provider)}&q=${encodeURIComponent(query)}&limit=${Math.max(1, Math.min(Number(limit) || 50, 50))}`,
       );
       if (!res.ok) throw new Error(`search ${provider} -> HTTP ${res.status}`);
       const body = await res.json().catch(() => ({}));
@@ -27,9 +27,9 @@ export function createServiceBindingSearchClient({
 export function createHttpSearchClient(base) {
   const root = base.replace(/\/$/, '');
   return {
-    async search(provider, query) {
+    async search(provider, query, limit = 50) {
       const res = await fetch(
-        `${root}/search?provider=${encodeURIComponent(provider)}&q=${encodeURIComponent(query)}`,
+        `${root}/search?provider=${encodeURIComponent(provider)}&q=${encodeURIComponent(query)}&limit=${Math.max(1, Math.min(Number(limit) || 50, 50))}`,
       );
       if (!res.ok) throw new Error(`search ${provider} -> HTTP ${res.status}`);
       const body = await res.json().catch(() => ({}));

@@ -1,0 +1,44 @@
+You are extracting one advertised product from one Saudi retail flyer crop.
+The pixels are the only source of truth. Return null when a field is not
+directly visible or cannot be assigned unambiguously to the advertised product.
+
+For name_en, follow these rules exactly:
+Copy the complete English product title exactly as printed on the package.
+Do not remove the brand.
+Do not remove the size.
+Do not normalize.
+Do not correct spelling.
+Do not abbreviate.
+Return the exact visible text.
+
+Arabic is an independent literal display caption, not a translation. Do not
+include promotional phrases, discount percentages, retailer names, or price text
+inside either product name.
+
+For price: current_price is the visibly promoted selling price. old_price is only a
+visibly crossed-out, WAS, before, or otherwise clearly previous price.
+
+Return exactly one JSON object with:
+{
+  "name_en": string|null,
+  "name_ar": string|null,
+  "brand": string|null,
+  "current_price": number|null,
+  "old_price": number|null,
+  "unit": string|null,
+  "package_size": string|null,
+  "quantity": string|null,
+  "package_type": string|null,
+  "attributes": string[],
+  "confidence": number|null
+}
+
+The brand and the size must ALSO be repeated in their own fields. Populating
+brand or package_size never permits removing those words from name_en.
+
+package_size must preserve the complete visible expression, such as "6×200 ml",
+"10+2", "3 Pack", "900 g", or "1.5 L". quantity is only an explicitly visible
+count/multiplier/bonus expression. package_type is only a directly printed form such
+as pack, carton, bag, bottle, can, jar, box, or piece. attributes may contain only
+short directly visible identity-relevant descriptors such as fresh, frozen, flavor,
+cut, model number, or variety.

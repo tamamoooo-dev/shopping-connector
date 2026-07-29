@@ -203,6 +203,49 @@ export async function subsystemChecks(ctx, { storeRows, now = new Date() } = {})
     return { detail: `${c.current} current offers across ${c.stores} stores` };
   });
 
+  // Policy B navigation trust: persisted provenance gives the current serving
+  // mix; the latest ingest audit supplies the ambiguity/disagreement rates that
+  // cannot be reconstructed after rejected mappings are discarded.
+  if (
+    ctx.offerStore &&
+    typeof ctx.offerStore.navigationMetrics === 'function' &&
+    ctx.opsStore
+  ) {
+    const [metrics, navRuns] = await Promise.all([
+      ctx.offerStore.navigationMetrics(today),
+      ctx.opsStore.list({ limit: 300 }),
+    ]);
+    const latest = navRuns
+      .map((run) => ({ run, navigation: parseDetail(run).navigation }))
+      .find((item) => item.navigation);
+    if (!latest) {
+      checks.push({
+        name: 'Navigation Trust',
+        status: 'UNKNOWN',
+        detail: `${metrics.dual} dual · ${metrics.hotspotUnique} hotspot_unique · no policy audit yet`,
+      });
+    } else {
+      const nav = latest.navigation;
+      checks.push({
+        name: 'Navigation Trust',
+        status: nav.failClosed ? 'FAIL' : 'PASS',
+        detail:
+          `${metrics.dual} dual · ${metrics.hotspotUnique} hotspot_unique · ` +
+          `ambiguity ${(Number(nav.ambiguityRate || 0) * 100).toFixed(4)}% · ` +
+          `disagreement ${(Number(nav.disagreementRate || 0) * 100).toFixed(4)}%` +
+          (nav.hotspotUniqueSuppressed
+            ? ` · ${nav.hotspotUniqueSuppressed} fallback links suppressed`
+            : ''),
+      });
+    }
+  } else {
+    checks.push({
+      name: 'Navigation Trust',
+      status: 'UNKNOWN',
+      detail: 'navigation provenance metrics unavailable',
+    });
+  }
+
   const totalSpots = rows.reduce((n, r) => n + r.hotspots, 0);
   const totalClickable = rows.reduce((n, r) => n + r.clickable, 0);
   checks.push({
@@ -225,9 +268,24 @@ export async function subsystemChecks(ctx, { storeRows, now = new Date() } = {})
 
   await timed('Watch System', async () => {
     if (!ctx.watchStore) throw new Error('no watch store bound');
-    const active = await ctx.watchStore.count();
+    const monitored = await ctx.watchStore.count();
     const unseen = await ctx.watchStore.countUnseen();
-    return { detail: `${active} active watches · ${unseen} unseen alerts` };
+    // MONITORED (anchored) and UNANCHORED are different facts and are reported
+    // as such. A watch awaiting confirmation is not a failure — but it is also
+    // not being watched, and a status line that added the two together would
+    // recreate exactly the ambiguity this subsystem was rebuilt to remove.
+    const unanchored = ctx.watchStore.countUnanchored
+      ? await ctx.watchStore.countUnanchored()
+      : 0;
+    const rows = ctx.watchStore.countRows ? await ctx.watchStore.countRows() : monitored;
+    // Unanchored watches are expected DURING the migration and a smell after
+    // it, so the count is always shown rather than folded into a total. It is
+    // not a FAIL (the watches are fine, they are waiting on a person) and this
+    // grid has no WARN, so the number itself is the signal.
+    return {
+      detail: `${monitored} monitored · ${unanchored} awaiting anchor · `
+        + `${rows} rows · ${unseen} unseen alerts`,
+    };
   });
 
   checks.push(
@@ -559,6 +617,57 @@ export async function queueSnapshot(ctx, { now = new Date() } = {}) {
       deferred,
     },
     bands: rstats.bands || {},
+    generatedAt: now.toISOString(),
+  };
+}
+
+// --- S5.7 · Recovery Queue snapshot (C-8, C-9) ------------------------------
+// THE ONE READ the Recovery panel needs, and the number C-8 hands the operator.
+//
+// Everything here is processor-agnostic by construction: the processor list
+// comes from the REGISTRY (so a processor added tomorrow appears with no change
+// to this function), and the effectiveness table comes from the attempt history
+// keyed by opaque id (so it gains a row the first time an unknown processor
+// runs). Nothing in this file names a processor.
+//
+// WHY PER-CONDITION AND NOT A TOTAL. Queue depth alone cannot distinguish a
+// well-tuned gate from one rejecting everything for a single reason, which is
+// exactly the judgement an operator has to make before authorising spend. The
+// buckets OVERLAP — an offer missing two conditions is counted in both — so
+// they must never be summed. `onlyCondition` (from acceptanceSummary) is the
+// actionable companion: offers a SINGLE condition is keeping out.
+export async function recoverySnapshot(ctx, { now = new Date() } = {}) {
+  const today = todayISO(now);
+  const queue = ctx.recoveryQueue;
+  if (!queue) {
+    return { available: false, reason: 'recovery_queue_unavailable', generatedAt: now.toISOString() };
+  }
+  // A missing migration is a NORMAL state to render, not an error: the feature
+  // ships ahead of the migration by design, and the panel must say so plainly
+  // rather than showing zeros that look like an empty queue.
+  if (!(await queue.ready().catch(() => false))) {
+    return {
+      available: false,
+      reason: 'migration_missing',
+      message: 'Recovery Queue migration has not been applied — nothing is being queued yet.',
+      generatedAt: now.toISOString(),
+    };
+  }
+  const [depth, effectiveness, acceptance] = await Promise.all([
+    queue.depth({ currentOn: today }).catch(() => ({ byStatus: {}, byMissingCondition: {}, total: 0 })),
+    queue.effectiveness().catch(() => ({})),
+    ctx.enrichStore?.acceptanceSummary
+      ? ctx.enrichStore.acceptanceSummary().catch(() => null)
+      : Promise.resolve(null),
+  ]);
+  return {
+    available: true,
+    depth,
+    // Per processor: attempts, and how many of them actually produced a
+    // servable canonical product. THE number that should drive recovery spend —
+    // and the reason a processor cannot be judged by its own self-report.
+    effectiveness,
+    acceptance,
     generatedAt: now.toISOString(),
   };
 }

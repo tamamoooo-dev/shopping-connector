@@ -136,32 +136,42 @@ function parseLeaflet(html, offer) {
 export const d4dAdapter = {
   name: 'd4d',
 
+  async listBrochureRefs(storeKey, { region, regionConfig = {}, fetchText } = {}) {
+    if (!storeKey) throw new Error(`d4d: region '${region}' has no store slug configured`);
+    if (typeof fetchText !== 'function') throw new Error('d4d: fetchText is required');
+    const city = regionConfig.city || DEFAULT_CITY;
+    const html = await fetchText(`${HOST}/en/saudi-arabia/${city}/offers/${storeKey}`);
+    const cutoff = todayISO();
+    return extractOffers(html, storeKey, city)
+      .filter((offer) => !offer.expiry || offer.expiry >= cutoff)
+      .sort((a, b) => b.id - a.id);
+  },
+
+  async loadBrochure(offer, { fetchText } = {}) {
+    if (!offer?.url) throw new Error('d4d: brochure reference URL is required');
+    if (typeof fetchText !== 'function') throw new Error('d4d: fetchText is required');
+    const parsed = parseLeaflet(await fetchText(offer.url), offer);
+    return parsed.pages.length ? parsed : null;
+  },
+
   async listBrochures(storeKey, { region, regionConfig = {}, fetchText, maxCandidates = 4 } = {}) {
     if (!storeKey) throw new Error(`d4d: region '${region}' has no store slug configured`);
     if (typeof fetchText !== 'function') throw new Error('d4d: fetchText is required');
 
-    const city = regionConfig.city || DEFAULT_CITY;
-    const html = await fetchText(`${HOST}/en/saudi-arabia/${city}/offers/${storeKey}`);
-
-    // Currency (§ rule "confirm dates are current"): keep only offers that are
-    // NOT expired. D4D scopes offers to the city in the URL, so — unlike the
-    // OffersInMe adapter — no per-store slug include/exclude is needed for
-    // region selection; the region IS the city path.
-    const cutoff = todayISO();
-    let offers = extractOffers(html, storeKey, city).filter(
-      (o) => !o.expiry || o.expiry >= cutoff,
-    );
-
-    // Newest first (higher offer id == more recently published), then cap the
-    // number of leaflet pages we fetch — gentle on the aggregator (§10.F).
-    offers.sort((a, b) => b.id - a.id);
+    // Compatibility path for the legacy synchronous collector. Production
+    // uses listBrochureRefs/loadBrochure through d4dResumable.js.
+    let offers = await this.listBrochureRefs(storeKey, {
+      region,
+      regionConfig,
+      fetchText,
+    });
     offers = offers.slice(0, maxCandidates);
 
     const out = [];
     for (const offer of offers) {
       try {
-        const parsed = parseLeaflet(await fetchText(offer.url), offer);
-        if (parsed.pages.length) out.push(parsed);
+        const parsed = await this.loadBrochure(offer, { fetchText });
+        if (parsed?.pages.length) out.push(parsed);
       } catch {
         /* skip a leaflet that fails to fetch/parse; others still count */
       }

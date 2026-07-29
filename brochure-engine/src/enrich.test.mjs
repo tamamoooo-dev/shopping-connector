@@ -3,6 +3,12 @@
 //   node brochure-engine/src/enrich.test.mjs   (repo root)
 //
 // Guards the milestone's promises:
+//  • the FROZEN production baseline (2026-07-25) is what production actually
+//    sends — model, prompt bytes/sha256, and request settings — checked against
+//    the benchmark's own frozen record so the two cannot drift apart,
+//  • the Expanded JSON schema maps onto the stored contract (package_size ->
+//    size, quantity -> pack_count), preserves the fields nothing consumes yet,
+//    and lets NO price into the enrichment side-car,
 //  • the gate admits only deriveNames-defeated offers that still have a crop,
 //  • the parser survives fenced/garbage replies and rejects contaminated fields
 //    without editing the model's literal observation,
@@ -13,6 +19,8 @@
 //  • /offers overlays servable names (they feed ranking + display, flagged
 //    `enriched`) and never serves uncorroborated ones.
 
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import {
   needsEnrichment,
   parseEnrichReply,
@@ -20,11 +28,18 @@ import {
   corroboration,
   servable,
   drainEnrichment,
+  drainOcrEnrichment,
   enrichOffer,
   applyEnrichment,
+  preservedObservation,
   CORROBORATION_FLOOR,
+  DEFAULT_MODEL,
+  PRODUCTION_EXTRACTION_BASELINE,
+  QUARANTINED_OBSERVATION_FIELDS,
   VISION_PROMPT,
+  VISION_PROMPT_SHA256,
 } from './offers/enrich.js';
+import { validateVisionOutput } from './offers/smartExtraction.js';
 import { handleRequest } from './engine.js';
 
 let failures = 0;
@@ -62,10 +77,73 @@ console.log('crop-only request:');
 {
   const req = buildVisionRequest({ contentType: 'image/jpeg', base64: 'AQID' });
   check('one user message, one image', req.messages.length === 1 && req.messages[0].content.filter((x) => x.type === 'image_url').length === 1);
-  check('complete observer prompt is present', req.messages[0].content[0].text === VISION_PROMPT && /ONLY source of truth/.test(VISION_PROMPT));
+  check('complete observer prompt is present', req.messages[0].content[0].text === VISION_PROMPT && /only source of truth/.test(VISION_PROMPT));
   check('request has no metadata-bearing fields',
-    Object.keys(req).sort().join(',') === 'messages,model,response_format,temperature' &&
+    Object.keys(req).sort().join(',') === 'messages,model,reasoning_effort,response_format,temperature,top_p' &&
     Object.keys(req.messages[0]).sort().join(',') === 'content,role');
+  check('crop rides as a bare data-URL string, exactly as validated',
+    req.messages[0].content[1].image_url === 'data:image/jpeg;base64,AQID');
+}
+
+// --- the FROZEN production baseline (2026-07-25) -------------------------------
+// These assertions exist so the adopted configuration cannot drift silently.
+// The prompt is compared against its own frozen record on disk, not against a
+// copy in this file, so a reworded prompt fails here even if someone updates
+// both the source and a restated expectation.
+console.log('frozen baseline:');
+{
+  const frozen = readFileSync(
+    new URL('../benchmarks/mistral-medium-production-validation-50-2026-07-25/production-prompt.txt', import.meta.url),
+    'utf8',
+  );
+  check('production model is mistral-medium-latest', DEFAULT_MODEL === 'mistral-medium-latest');
+  check('prompt is byte-identical to the frozen record', VISION_PROMPT === frozen);
+  check('prompt sha256 matches the frozen decision',
+    createHash('sha256').update(VISION_PROMPT).digest('hex') === VISION_PROMPT_SHA256 &&
+    VISION_PROMPT_SHA256 === 'e643b2a1b833d12256e0e3806b04c28bc5fd042bf3a86b647b989df9be7c3557');
+  const req = buildVisionRequest({ contentType: 'image/jpeg', base64: 'AQID' });
+  check('validated settings are what production sends',
+    req.model === 'mistral-medium-latest' && req.temperature === 0 && req.top_p === 1 &&
+    req.reasoning_effort === 'none' && req.response_format.type === 'json_object');
+  check('the baseline record matches the code it describes',
+    PRODUCTION_EXTRACTION_BASELINE.model === DEFAULT_MODEL &&
+    PRODUCTION_EXTRACTION_BASELINE.promptSha256 === VISION_PROMPT_SHA256 &&
+    PRODUCTION_EXTRACTION_BASELINE.requestsPerCrop === 1);
+}
+
+// --- Expanded JSON -> stored schema mapping ------------------------------------
+console.log('expanded JSON:');
+{
+  const expanded = JSON.stringify({
+    name_en: 'Almarai Fresh Laban 1.5 L', name_ar: 'لبن المراعي الطازج',
+    brand: 'Almarai', current_price: 6.95, old_price: 8.5, unit: 'L',
+    package_size: '1.5 L', quantity: '2 Pack', package_type: 'bottle',
+    attributes: ['fresh'], confidence: 0.98,
+  });
+  const rec = parseEnrichReply(expanded);
+  check('package_size maps onto size', rec.size === '1.5 L');
+  check('quantity maps onto pack_count', rec.packCount === '2 Pack');
+  check('names, brand and confidence are unchanged',
+    rec.name === 'Almarai Fresh Laban 1.5 L' && rec.brand === 'Almarai' && rec.confidence === 0.98);
+  const legacy = parseEnrichReply('{"name_en":"Milk 1 L","name_ar":"حليب","brand":"Nadec","size":"1 L","pack_count":"6×","confidence":0.9}');
+  check('the legacy 6-field reply still parses identically',
+    legacy.size === '1 L' && legacy.packCount === '6×');
+
+  const validated = validateVisionOutput(JSON.parse(expanded));
+  check('the validator accepts Expanded JSON through the same rules',
+    validated.fields.size.value === '1.5 L' && validated.fields.name_en.value === 'Almarai Fresh Laban 1.5 L');
+
+  // Prices are observed, never carried into anything servable.
+  const kept = preservedObservation(JSON.parse(expanded));
+  check('unit, package_type and attributes are preserved',
+    kept.unit === 'L' && kept.package_type === 'bottle' && kept.attributes[0] === 'fresh');
+  check('preserved observation keeps the verbatim names the model reported',
+    kept.name_en === 'Almarai Fresh Laban 1.5 L' && kept.package_size === '1.5 L' && kept.quantity === '2 Pack');
+  check('no price field survives into the preserved observation',
+    QUARANTINED_OBSERVATION_FIELDS.every((f) => !(f in kept)) &&
+    !JSON.stringify(kept).includes('6.95') && !JSON.stringify(kept).includes('8.5'));
+  check('an all-empty observation stores NULL rather than {}',
+    preservedObservation({ name_en: null, attributes: [] }) === null && preservedObservation(null) === null);
 }
 
 // --- corroboration + servable --------------------------------------------------
@@ -84,25 +162,77 @@ check('high confidence alone never serves', !servable({ name: 'X', name_ar: null
 // --- in-memory twins -----------------------------------------------------------
 function memEnrichStore(seed = []) {
   const rows = new Map(seed.map((r) => [r.id, r]));
+  const attempts = new Map();
+  const queue = new Map();
+  const verdicts = new Map(); // offer_id -> S4 verdict (R5)
   let debris = [];
   return {
     rows,
+    attempts,
+    queue,
+    verdicts,
     setDebris(d) {
       debris = d;
     },
     async listDebris({ limit = 15 } = {}) {
-      return debris.filter((d) => !rows.has(d.id)).slice(0, limit);
+      return debris.filter((d) => !rows.has(d.id) && !attempts.has(`${d.id}:vision`)).slice(0, limit);
     },
     async listSelected({ ids } = {}) {
       const selected = new Set(ids || []);
       return debris.filter((d) => selected.has(d.id));
     },
     async countDebris() {
-      return debris.filter((d) => !rows.has(d.id)).length;
+      return debris.filter((d) => !rows.has(d.id) && !attempts.has(`${d.id}:vision`)).length;
     },
     async upsertMany(list) {
       for (const r of list) rows.set(r.id, r);
       return { stored: list.length };
+    },
+    async saveVisionOutcome({ attempt, canonicalRow, triggerReasons, acceptance = null }) {
+      attempts.set(`${attempt.offerId}:vision`, attempt);
+      if (canonicalRow) {
+        rows.set(attempt.offerId, canonicalRow);
+        queue.delete(attempt.offerId);
+      } else {
+        queue.set(attempt.offerId, {
+          status: 'ocr_pending', attempts: 0, trigger_reasons: triggerReasons,
+        });
+      }
+      // Mirrors the D1 store: the verdict is recorded for accepted AND rejected
+      // rows alike (R5), and `verdictStored` reports whether it landed.
+      if (acceptance) verdicts.set(attempt.offerId, acceptance);
+      return { stored: 1, queued: canonicalRow ? 0 : 1, verdictStored: !!acceptance };
+    },
+    async listPendingOcr({ limit = 10 } = {}) {
+      return debris.filter((d) => queue.get(d.id)?.status === 'ocr_pending' && !rows.has(d.id))
+        .slice(0, limit)
+        .map((d) => {
+          const vision = attempts.get(`${d.id}:vision`);
+          return {
+            ...d,
+            attempts: queue.get(d.id).attempts,
+            trigger_reasons: queue.get(d.id).trigger_reasons,
+            vision_output: vision.output,
+            vision_validation: vision.validation,
+            vision_confidence: vision.confidence,
+            vision_model: vision.model,
+            vision_crop_url: vision.cropUrl,
+          };
+        });
+    },
+    async countPendingOcr() {
+      return [...queue.values()].filter((q) => q.status === 'ocr_pending').length;
+    },
+    async saveOcrOutcome({ attempt, canonicalRow }) {
+      attempts.set(`${attempt.offerId}:ocr`, attempt);
+      rows.set(attempt.offerId, canonicalRow);
+      const q = queue.get(attempt.offerId);
+      queue.set(attempt.offerId, { ...q, status: 'completed', attempts: (q?.attempts || 0) + 1 });
+      return { stored: 1 };
+    },
+    async markOcrPending(id, error) {
+      const q = queue.get(id);
+      queue.set(id, { ...q, status: 'ocr_pending', attempts: (q?.attempts || 0) + 1, last_error: error });
     },
     async getForIds(ids) {
       const m = new Map();
@@ -156,8 +286,8 @@ console.log('drain:');
     { id: 'a:2', image_url: 'http://cdn/b.jpg', search_text: 'D4D TEXT MUST BE IGNORED' },
   ]);
   const replies = {
-    'http://cdn/a.jpg': '{"name_en":"Tanzanian Mutton","name_ar":"خروف تنزاني","brand":null,"size":"7-9kg","confidence":0.98}',
-    'http://cdn/b.jpg': '{"name_en":null,"name_ar":null,"confidence":0}',
+    'http://cdn/a.jpg': '{"name_en":"Tanzanian Mutton","name_ar":"خروف تنزاني","brand":"Nesto","size":"7-9kg","confidence":0.98}',
+    'http://cdn/b.jpg': { vision: '{"name_en":null,"name_ar":null,"confidence":0}', ocr: '# Sadia Chicken\n# دجاج ساديا\n900 g' },
   };
   const f = fakeFetch(replies);
   globalThis.fetch = f; // drain -> enrichOffer uses global fetch by default
@@ -165,19 +295,182 @@ console.log('drain:');
     { enrichStore: store, mistralKey: 'k' },
     { currentOn: '2026-07-18', limit: 15 },
   );
-  check('one enriched, one declined', report.enriched === 1 && report.declined === 1);
-  check('both verdicts stored', store.rows.size === 2);
+  check('one Vision PASS and one asynchronous OCR escalation', report.enriched === 1 && report.ocrPending === 1);
+  check('Vision and queue state are stored without a premature canonical reject',
+    store.rows.size === 1 && store.attempts.size === 2 && store.queue.get('a:2')?.status === 'ocr_pending');
   check('drain reports extraction request diagnostics',
     report.extraction.strategy === 'vision-first' &&
-    report.extraction.visionRequests === 2 && report.extraction.ocrRequests === 2 &&
-    report.extraction.averageRequestsPerOffer === 2);
+    report.extraction.visionRequests === 2 && report.extraction.ocrRequests === 0 &&
+    report.extraction.averageRequestsPerOffer === 1);
   check('drain persists the already-built candidate for the Registry invocation',
-    report.identityBuilder.mode === 'strict' && report.identityBuilder.built === 2
+    report.identityBuilder.mode === 'strict' && report.identityBuilder.built === 1
       && store.rows.get('a:1').identity_candidate?.family === 'Lamb');
   check('validated crop extraction clears the canonical serving gate', store.rows.get('a:1').corroboration === 1);
-  check('declined row has null names', store.rows.get('a:2').name == null && store.rows.get('a:2').name_ar == null);
+  const ocrReport = await drainOcrEnrichment(
+    { enrichStore: store, mistralOcrKey: 'ocr-key' },
+    { currentOn: '2026-07-18' },
+  );
+  check('OCR worker finalizes only the queued reject',
+    ocrReport.completed === 1 && store.rows.get('a:2')?.name === 'Sadia Chicken');
+  check('both source attempts remain separately auditable',
+    store.attempts.has('a:2:vision') && store.attempts.has('a:2:ocr'));
   const again = await drainEnrichment({ enrichStore: store, mistralKey: 'k' }, { currentOn: '2026-07-18' });
-  check('attempted offers never re-drain (incl. declines)', again.scanned === 0 && f.calls.api === 4);
+  check('attempted offers never re-drain', again.scanned === 0 && f.calls.api === 3);
+}
+
+// --- S4 Business Acceptance in the drain (R5, R6) -----------------------------
+// The gate must judge EVERY extraction, not only the ones that cleared the
+// Quality Gate. A Quality Gate reject is the likeliest S4 reject, so scoring
+// only the passes would blind the calibration data to the population that
+// matters most. Both branches are exercised here in one drain.
+console.log('S4 acceptance in the drain:');
+{
+  const store = memEnrichStore();
+  store.setDebris([
+    // Passes the Quality Gate AND all three mandatory conditions.
+    { id: 's4:pass', image_url: 'http://cdn/pass.jpg', price: 5.99, currency: 'SAR' },
+    // FAILS the Quality Gate (no names) — must still receive a verdict.
+    { id: 's4:reject', image_url: 'http://cdn/reject.jpg', price: 7.5, currency: 'SAR' },
+    // Passes the Quality Gate but has NO usable price, so S4 must reject it on
+    // exactly one condition. (Post-R4 the SQL queue would not surface this
+    // offer at all; the fake store is deliberately permissive so the gate's own
+    // behaviour is observable here.)
+    { id: 's4:noprice', image_url: 'http://cdn/noprice.jpg', price: 0, currency: 'SAR' },
+  ]);
+  globalThis.fetch = fakeFetch({
+    'http://cdn/pass.jpg': '{"name_en":"Arwa Water","name_ar":"مياه أروى","brand":"Arwa","size":"330 ml","confidence":0.9}',
+    'http://cdn/reject.jpg': { vision: '{"name_en":null,"name_ar":null,"confidence":0}', ocr: '# x' },
+    'http://cdn/noprice.jpg': '{"name_en":"Nadec Milk","name_ar":"حليب نادك","brand":"Nadec","size":"1 L","confidence":0.9}',
+  });
+  const report = await drainEnrichment(
+    { enrichStore: store, mistralKey: 'k' },
+    { currentOn: '2026-07-18', limit: 15 },
+  );
+
+  check('every extraction is judged, passes and Quality Gate rejects alike',
+    report.acceptance.judged === 3 && store.verdicts.size === 3);
+  check('the verdict for a Quality Gate REJECT is persisted (R5)',
+    store.verdicts.has('s4:reject') && store.verdicts.get('s4:reject').accepted === false);
+  check('a fully-resolved priced offer is ACCEPTED',
+    store.verdicts.get('s4:pass').accepted === true &&
+    store.verdicts.get('s4:pass').missing.length === 0);
+  check('the drain report tallies acceptance both ways',
+    report.acceptance.accepted === 1 && report.acceptance.rejected === 2);
+  check('a missing price is named as the ONLY failed condition (R6)',
+    store.verdicts.get('s4:noprice').accepted === false &&
+    store.verdicts.get('s4:noprice').missing.length === 1 &&
+    store.verdicts.get('s4:noprice').missing[0] === 'price');
+  // s4:noprice fails on price alone; s4:reject fails on the two fields the
+  // Quality Gate reject left unresolved. Three rejected conditions across two
+  // offers — which a single "rejected: 2" could never have told an operator.
+  check('per-condition tallies are reported, never a bare reject count (R6)',
+    report.acceptance.missing.price === 1 &&
+    report.acceptance.missing.english_name === 1 &&
+    report.acceptance.missing.comparable_quantity === 1);
+  check('the verdict carries the gate version it was produced by (R3)',
+    report.acceptance.version === 'business-acceptance-v1' &&
+    store.verdicts.get('s4:pass').version === 'business-acceptance-v1');
+  check('persisted count tracks verdicts that actually landed',
+    report.acceptance.persisted === 3);
+  check('S4 changes no existing outcome: the same rows enrich and escalate',
+    report.enriched === 2 && report.ocrPending === 1 && store.rows.size === 2);
+}
+
+// End-to-end under the FROZEN baseline: an Expanded JSON reply drains into the
+// stored row with package_size/quantity mapped, the unconsumed fields preserved,
+// and both prices absent from everything the row exposes.
+{
+  const store = memEnrichStore();
+  store.setDebris([{
+    id: 'exp:1',
+    image_url: 'http://cdn/expanded.jpg',
+    price: 19.95,
+    currency: 'SAR',
+  }]);
+  globalThis.fetch = fakeFetch({
+    'http://cdn/expanded.jpg': JSON.stringify({
+      name_en: 'Sadia Frozen Chicken Breast 900 g', name_ar: 'صدور دجاج ساديا المجمدة',
+      brand: 'Sadia', current_price: 21.95, old_price: 27.5, unit: 'g',
+      package_size: '900 g', quantity: null, package_type: 'pack',
+      attributes: ['frozen'], confidence: 0.99,
+    }),
+  });
+  const report = await drainEnrichment(
+    { enrichStore: store, mistralKey: 'k' },
+    { currentOn: '2026-07-18' },
+  );
+  const row = store.rows.get('exp:1');
+  check('Expanded JSON drains to a servable canonical row',
+    report.enriched === 1 && row.name === 'Sadia Frozen Chicken Breast 900 g' &&
+    row.size === '900 g' && row.corroboration === 1);
+  check('stored row preserves the unconsumed Expanded JSON fields',
+    row.extraction_json.unit === 'g' && row.extraction_json.package_type === 'pack' &&
+    row.extraction_json.attributes[0] === 'frozen');
+  check('shadow mode stores observed and built Arabic with rollout metadata',
+    row.name_ar === row.extraction_json._arabic_builder.observed_arabic &&
+    row.extraction_json._arabic_builder.built_arabic &&
+    row.extraction_json._arabic_builder.status === 'BUILT' &&
+    row.extraction_json._arabic_builder.path === 'BUILT_CANDIDATE' &&
+    row.extraction_json._arabic_builder.lexicon_version &&
+    row.extraction_json._arabic_builder.builder_score_version === 'builder-score-v1' &&
+    typeof row.extraction_json._arabic_builder.builder_score === 'number' &&
+    row.extraction_json._arabic_builder.commerce_score_version === 'commerce-score-v1' &&
+    row.extraction_json._arabic_builder.commerce_score_breakdown.price.resolved === true &&
+    row.extraction_json._arabic_builder.commerce_score_breakdown.price.source === 'authoritative_offer' &&
+    typeof row.extraction_json._arabic_builder.coverage_score === 'number');
+  check('NO price reaches the enrichment side-car',
+    !JSON.stringify(row).includes('19.95') &&
+    !JSON.stringify(row).includes('21.95') &&
+    !JSON.stringify(row).includes('27.5'));
+  check('the full reply INCLUDING prices stays auditable in the attempt journal',
+    store.attempts.get('exp:1:vision').output.current_price === 21.95 &&
+    store.attempts.get('exp:1:vision').output.old_price === 27.5);
+}
+
+// OCR quota/rate failure is isolated from the Vision critical path.
+{
+  const store = memEnrichStore();
+  store.setDebris([{ id: 'async:reject', image_url: 'http://cdn/reject.jpg' }]);
+  globalThis.fetch = fakeFetch({
+    'http://cdn/reject.jpg': { vision: '{"name_en":"Milk","name_ar":null,"brand":null,"size":"1 l"}' },
+  });
+  const vision = await drainEnrichment(
+    { enrichStore: store, mistralKey: 'vision-key' },
+    { currentOn: '2026-07-18', maxRateRetries: 0 },
+  );
+  check('Quality Gate reject completes Vision ingestion as ocr_pending',
+    vision.failed === 0 && vision.ocrPending === 1 && store.queue.get('async:reject')?.status === 'ocr_pending');
+
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith('/ocr')) {
+      return { ok: false, status: 429, text: async () => 'quota exhausted', headers: { get: () => null } };
+    }
+    return {
+      ok: true,
+      headers: { get: () => 'image/jpeg' },
+      arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer,
+    };
+  };
+  const ocr = await drainOcrEnrichment(
+    { enrichStore: store, mistralOcrKey: 'ocr-key' },
+    { currentOn: '2026-07-18', maxRateRetries: 0 },
+  );
+  check('OCR 429 leaves the offer pending without a canonical overwrite',
+    ocr.failed === 1 && !store.rows.has('async:reject') && store.queue.get('async:reject')?.status === 'ocr_pending');
+
+  store.setDebris([
+    { id: 'async:reject', image_url: 'http://cdn/reject.jpg' },
+    { id: 'async:pass', image_url: 'http://cdn/pass.jpg' },
+  ]);
+  globalThis.fetch = fakeFetch({
+    'http://cdn/pass.jpg': '{"name_en":"Fresh Milk","name_ar":"حليب طازج","brand":"Nadec","size":"1 l","confidence":0.9}',
+  });
+  const continued = await drainEnrichment(
+    { enrichStore: store, mistralKey: 'vision-key' },
+    { currentOn: '2026-07-18' },
+  );
+  check('new Vision PASS continues while an older OCR escalation is rate-limited',
+    continued.enriched === 1 && store.rows.has('async:pass') && store.queue.get('async:reject')?.status === 'ocr_pending');
 }
 
 // Runtime strategy integration: the guarded production route can override the
@@ -256,7 +549,7 @@ console.log('drain:');
   const store = memEnrichStore();
   store.setDebris([{ id: 'a:no-ocr', image_url: 'http://cdn/no-ocr.jpg', search_text: 'halah oil' }]);
   globalThis.fetch = fakeFetch({
-    'http://cdn/no-ocr.jpg': '{"name_en":"Halah Oil","name_ar":null,"brand":"Halah","confidence":0.9}',
+    'http://cdn/no-ocr.jpg': '{"name_en":"Halah Oil","name_ar":"زيت هالة","brand":"Halah","confidence":0.9}',
   });
   await drainEnrichment({ enrichStore: store, mistralKey: 'k' }, { currentOn: '2026-07-18' });
   check('D4D OCR cannot influence validated serving eligibility',
@@ -302,7 +595,7 @@ console.log('drain:');
     const u = String(url);
     if (u === 'http://cdn/bad.jpg') return { ok: false, status: 404, text: async () => 'gone', headers: { get: () => null } };
     if (u.startsWith('https://api.mistral.ai/')) {
-      return { ok: true, json: async () => ({ choices: [{ message: { content: '{"name_en":"Tanzanian Mutton","name_ar":"خروف تنزاني","confidence":0.9}' } }] }) };
+      return { ok: true, json: async () => ({ choices: [{ message: { content: '{"name_en":"Tanzanian Mutton","name_ar":"خروف تنزاني","brand":"Nesto","size":"7 kg","confidence":0.9}' } }] }) };
     }
     return { ok: true, headers: { get: () => 'image/jpeg' }, arrayBuffer: async () => new Uint8Array([1, 2, 3]).buffer };
   };
@@ -331,6 +624,50 @@ console.log('drain:');
   check('Identity Candidate is diagnostic-only beside the unchanged enrichment fields',
     res.name === 'Fresh Chicken Breast' && res.nameAr === 'صدور دجاج طازجة' &&
     res.identityDiagnostics.extractionInput.productName === 'Fresh Chicken Breast');
+  // Brand Lexicon (HISTORY §45): resolution rides along with the observation
+  // and never replaces it — `brand` stays the model's verbatim string.
+  check('production enrichment carries the canonical brand identity',
+    res.brandIdentity.brand_id === 'sadia' && res.brandIdentity.canonical_brand === 'Sadia' &&
+    res.brandIdentity.display_ar === 'ساديا');
+  check('the observed brand is preserved untouched beside it',
+    res.brand === 'Sadia' && res.brandIdentity.observed_brand === 'Sadia');
+}
+{
+  // An unknown brand must reach the record unresolved rather than guessed at.
+  const fetchImpl = fakeFetch({
+    'http://c/unknown.jpg': '{"name_en":"Instant Coffee","name_ar":"قهوة سريعة الذوبان","brand":"NAJJAR","size":"190g","confidence":0.9}',
+  });
+  const res = await enrichOffer(
+    { id: 'unknown', name: null, nameAr: null, imageUrl: 'http://c/unknown.jpg' },
+    { apiKey: 'k', fetchImpl },
+  );
+  check('an unknown brand stays unresolved and unmodified',
+    res.brand === 'NAJJAR' && res.brandIdentity.brand_id === null &&
+    res.brandIdentity.canonical_brand === 'NAJJAR' && res.brandIdentity.status === 'unknown');
+  // Structured Product + Arabic Builder (HISTORY §47): built from the ENGLISH
+  // name, additive, and never replacing the observed Arabic.
+  check('the structured product is built from the English name',
+    res.structuredProduct.source === 'english' && res.structuredProduct.category.id === 'instant-coffee');
+  check('the Arabic name is GENERATED, not the observed OCR Arabic',
+    res.arabicName.status === 'built' && res.arabicName.name === 'قهوة سريعة التحضير 190 جم');
+  check('the observed Arabic is still what the record carries as nameAr',
+    res.nameAr === 'قهوة سريعة الذوبان' && res.structuredProduct.observed.name_ar === 'قهوة سريعة الذوبان');
+  check('the in-memory record carries the same persisted shadow contract',
+    res.observation._arabic_builder.status === 'BUILT' &&
+    res.observation._arabic_builder.observed_arabic === res.nameAr &&
+    res.observation._arabic_builder.built_arabic === res.arabicName.name);
+}
+{
+  // The Arabic Builder must refuse rather than name a product it cannot read.
+  const fetchImpl = fakeFetch({
+    'http://c/opaque.jpg': '{"name_en":"Keqiwear KW86 3in1","name_ar":"كيكيوير","brand":"Keqiwear","confidence":0.9}',
+  });
+  const res = await enrichOffer(
+    { id: 'opaque', name: null, nameAr: null, imageUrl: 'http://c/opaque.jpg' },
+    { apiKey: 'k', fetchImpl },
+  );
+  check('an unrecognised product yields no built Arabic name, never a guess',
+    res.arabicName.status === 'no_category' && res.arabicName.name === null);
 }
 
 // --- applyEnrichment (the ONE shared overlay) -----------------------------------

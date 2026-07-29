@@ -1,0 +1,34 @@
+-- migrate-2026-07-25-expanded-extraction.sql — one-time migration for the LIVE
+-- database, part of adopting the FROZEN production extraction baseline
+-- (mistral-medium-latest + Verbatim Prompt + Expanded JSON, decision
+-- 2026-07-25). Fresh installs get this column from schema.sql; the live DB
+-- needs the delta. Apply ONCE, BEFORE deploying the Worker:
+--   npx wrangler d1 execute brochure-engine --remote --file=./migrate-2026-07-25-expanded-extraction.sql
+--
+-- SQLite has no ADD COLUMN IF NOT EXISTS: re-running this errors harmlessly
+-- with "duplicate column name: extraction_json". That error means the migration
+-- is already applied; nothing else happens.
+--
+-- WHAT THIS COLUMN HOLDS
+-- The adopted prompt returns eleven fields instead of six. Five map onto the
+-- existing validated contract (name_en, name_ar, brand, package_size -> size,
+-- quantity -> pack_count) and confidence is stored as before. The additions —
+-- unit, package_type, attributes — have no consumer yet but are real
+-- observations, so they are preserved verbatim here rather than dropped.
+-- Downstream identity/canonicalization work is expected to read them.
+--
+-- WHAT THIS COLUMN NEVER HOLDS: PRICES.
+-- The Expanded JSON also returns current_price/old_price. The enrichment
+-- side-car has never held a price and still must not — the 50-crop validation
+-- measured a current-price ROLE INVERSION on 2/50 crops (the crossed-out price
+-- returned as the selling price at 0.99+ self-reported confidence, identically
+-- under both prompts), so a deterministic price guard is mandatory before any
+-- extracted price may reach a shopper, and that guard does not exist yet.
+-- offers/enrich.js preservedObservation() strips price fields on every write.
+-- The complete unedited reply, prices included, is still journaled per offer in
+-- offer_extraction_attempts.output for audit.
+--
+-- BACKWARD COMPATIBILITY: additive and nullable. Existing rows keep NULL and
+-- every read path behaves exactly as before; nothing reads this column yet.
+
+ALTER TABLE offer_enrichments ADD COLUMN extraction_json TEXT;

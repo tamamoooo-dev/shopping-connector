@@ -7,7 +7,11 @@
   "scripts": {
     "dev": "node dev.mjs",
     "selftest": "node dev.mjs selftest",
-    "deploy": "wrangler deploy"
+    "test": "node run-tests.mjs",
+    "predeploy": "npm test",
+    "deploy": "wrangler deploy --env=\"\"",
+    "predeploy:staging": "npm test",
+    "deploy:staging": "wrangler deploy --env staging"
   },
   "devDependencies": {
     "wrangler": "^3.60.0"

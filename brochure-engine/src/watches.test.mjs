@@ -13,7 +13,7 @@
 //  • the cron's unscoped list({activeOnly}) still sees every profile's watches.
 
 import { handleRequest } from './engine.js';
-import { buildWatch, MAX_WATCHES, MAX_WATCHES_TOTAL } from './monitor.js';
+import { buildWatch, MAX_WATCHES, MAX_WATCHES_TOTAL, MAX_WATCH_ROWS } from './monitor.js';
 import { createMemoryWatchStore } from './storage/local.js';
 
 let pass = 0, fail = 0;
@@ -33,6 +33,15 @@ const post = (ctx, path, body) =>
     }),
     ctx,
   );
+const patch = (ctx, path, body) =>
+  handleRequest(
+    new Request(`${BASE}${path}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+    ctx,
+  );
 const del = (ctx, path) => handleRequest(new Request(`${BASE}${path}`, { method: 'DELETE' }), ctx);
 const watchBody = (profileId, query, targetPrice = 10) => ({ kind: 'grocery', query, targetPrice, profileId });
 
@@ -42,6 +51,40 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
 {
   const { watch, error } = buildWatch(watchBody(A, 'milk'));
   ok('buildWatch accepts a valid profileId', !error && watch && watch.profileId === A);
+}
+
+// --- v2 settings update: owned, strict by default, category-level when all off ---
+{
+  const ctx = { watchStore: createMemoryWatchStore() };
+  const created = await (await post(ctx, '/watches', {
+    ...watchBody(A, 'Sadia Chicken Breast 900 g', 20),
+    label: 'Sadia Chicken Breast 900 g',
+    sizeText: '900 g',
+  })).json();
+  // A Flexible Watch is now created with a SPEC — a declared class — rather
+  // than by relaxing per-attribute gates after the fact. Loosening a watch's
+  // identity post-creation would silently change which product it alerts on.
+  const flexible = await (await post(ctx, '/watches', {
+    ...watchBody(A, 'chicken breast', 30),
+    label: 'Any chicken breast',
+    targetUnitPrice: 30,
+    unitLabel: 'SAR/kg',
+    spec: { family: 'chicken', cut: 'breast' },
+  })).json();
+  ok('a spec-anchored watch is created and is immediately monitorable',
+    JSON.parse(flexible.watch.spec).family === 'chicken' && flexible.needsConfirmation === false);
+
+  const owned = `/watches?id=${created.watch.id}&profile=${A}`;
+  const rejected = await patch(ctx, owned, { matchBrand: false });
+  ok('the removed match toggles are refused with an explanation, not ignored',
+    rejected.status === 400 && /specification/.test((await rejected.json()).error));
+
+  const threshold = await patch(ctx, owned, { closeThreshold: 10 });
+  ok('the close threshold is still editable',
+    threshold.status === 200 && (await threshold.json()).watch.closeThreshold === 10);
+
+  ok('another profile cannot update the watch',
+    (await patch(ctx, `/watches?id=${created.watch.id}&profile=${B}`, { closeThreshold: 5 })).status === 404);
 }
 
 // --- isolation: list / create / delete ---
@@ -103,16 +146,28 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
   ok("B's alert stays unseen", (await (await get(ctx, `/alerts?profile=${B}`)).json()).unseen === 1);
 }
 
-// --- caps: per profile, plus the global backstop ---
+// --- caps: COMPUTE (monitored) and STORAGE (rows) are separate bounds ---------
+// MAX_WATCHES bounds the daily cron's fan-out, so it counts MONITORED watches
+// only. An unanchored watch is skipped by the check and costs nothing, so it
+// must not occupy a slot — otherwise the cap would refuse a real watch to make
+// room for one that does no work. Rows are bounded separately.
 {
   const ctx = { watchStore: createMemoryWatchStore() };
+  // A spec makes a watch monitorable immediately, with no registry needed.
+  const monitored = (profileId, query) => ({
+    ...watchBody(profileId, query),
+    targetUnitPrice: 10,
+    unitLabel: 'SAR/kg',
+    spec: { family: 'chicken', cut: 'breast' },
+  });
+
   for (let i = 0; i < MAX_WATCHES; i++) {
-    await post(ctx, '/watches', watchBody(A, `item ${i}`));
+    await post(ctx, '/watches', monitored(A, `item ${i}`));
   }
-  ok(`A is capped at MAX_WATCHES (${MAX_WATCHES})`,
-    (await post(ctx, '/watches', watchBody(A, 'one too many'))).status === 409);
+  ok(`A is capped at MAX_WATCHES (${MAX_WATCHES}) monitored watches`,
+    (await post(ctx, '/watches', monitored(A, 'one too many'))).status === 409);
   ok('B still creates freely under its own cap',
-    (await post(ctx, '/watches', watchBody(B, 'water'))).status === 201);
+    (await post(ctx, '/watches', monitored(B, 'water'))).status === 201);
 
   // Fill to the global backstop with more profiles, then verify capacity 409.
   let created = MAX_WATCHES + 1;
@@ -120,13 +175,39 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
   while (created < MAX_WATCHES_TOTAL) {
     const pid = `filler-profile-${String(p).padStart(4, '0')}`;
     for (let i = 0; i < MAX_WATCHES && created < MAX_WATCHES_TOTAL; i++, created++) {
-      await post(ctx, '/watches', watchBody(pid, `bulk ${created}`));
+      await post(ctx, '/watches', monitored(pid, `bulk ${created}`));
     }
     p += 1;
   }
   ok('store sits at the global backstop', (await ctx.watchStore.countActiveTotal()) === MAX_WATCHES_TOTAL);
-  const overflow = await post(ctx, '/watches', watchBody('fresh-profile-zzzz', 'anything'));
+  const overflow = await post(ctx, '/watches', monitored('fresh-profile-zzzz', 'anything'));
   ok('global backstop refuses with 409 capacity', overflow.status === 409);
+}
+
+// An UNANCHORED watch consumes no compute slot — but rows are still bounded,
+// or watches awaiting confirmation could accumulate forever.
+{
+  const ctx = { watchStore: createMemoryWatchStore() };
+  for (let i = 0; i < MAX_WATCHES + 5; i++) {
+    await post(ctx, '/watches', watchBody(A, `unanchored ${i}`));
+  }
+  ok('unanchored watches never occupy a monitoring slot',
+    (await ctx.watchStore.count(A)) === 0);
+  ok('but they are counted as rows',
+    (await ctx.watchStore.countRows(A)) === MAX_WATCHES + 5);
+  ok('and reported as awaiting an anchor',
+    (await ctx.watchStore.countUnanchored(A)) === MAX_WATCHES + 5);
+  ok('so the compute cap does not fire on them',
+    (await post(ctx, '/watches', watchBody(A, 'still fine'))).status === 201);
+
+  while ((await ctx.watchStore.countRows(A)) < MAX_WATCH_ROWS) {
+    await post(ctx, '/watches', watchBody(A, `fill ${await ctx.watchStore.countRows(A)}`));
+  }
+  const capped = await post(ctx, '/watches', watchBody(A, 'over the row bound'));
+  const body = await capped.json();
+  ok('the STORAGE bound refuses at MAX_WATCH_ROWS', capped.status === 409);
+  ok('and the error names why the rows are there',
+    /awaiting confirmation/.test(body.error), body.error);
 }
 
 // --- legacy adoption (pre-profile watches) ---
@@ -217,11 +298,17 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
   }]);
   await enrichStore.upsertMany([{
     id: 'lulu:riyadh:d4d:v1', name: 'Tanzanian Mutton', name_ar: null,
-    brand: null, size: null, confidence: 0.9, corroboration: 0.8,
+    brand: null, size: '1 kg', confidence: 0.9, corroboration: 0.8,
     model: 'test', crop_url: null, enriched_at: 'now',
   }]);
   const ctx = { watchStore: createMemoryWatchStore(), offerStore: offerStoreRef, searchClient: null };
-  const { watch } = buildWatch(watchBody(A, 'tanzanian mutton', 10));
+  // The watch is anchored to a CLASS (meat) — the vision read is what lets a
+  // debris-named offer be classified at all, which is the point of this test.
+  const { watch } = buildWatch({
+    ...watchBody(A, 'tanzanian mutton', 10),
+    targetUnitPrice: 10, unitLabel: 'SAR/kg',
+    spec: { family: 'meat' },
+  });
   await ctx.watchStore.create(watch);
   const line = await checkWatch(ctx, watch);
   ok('grocery watch matches via the vision read and alerts', line.alerted === true && line.price === 8.5);

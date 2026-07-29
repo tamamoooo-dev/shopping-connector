@@ -30,6 +30,7 @@ import {
 } from './src/storage/local.js';
 import { deriveIdentity, recordOfferHistory, getQueryPricesDoc } from './src/priceHistory.js';
 import { createHttpSearchClient } from './src/searchClient.js';
+import { createMemRegistryStore } from './src/registry/memstore.js';
 import { createD4dOffersSource } from './src/offers/d4dOffers.js';
 import { ingestOffers } from './src/offers/ingest.js';
 import {
@@ -116,6 +117,11 @@ function buildContext() {
     })(),
     offersSource: createD4dOffersSource(),
     watchStore: createMemoryWatchStore(),
+    // The in-memory registry twin. Without it, POST /watches cannot resolve an
+    // anchor locally and every watch created in dev would land in
+    // 'unresolvable' — which would look like a bug in the feature rather than a
+    // gap in the harness. Same semantics as D1 (registry/memstore.js).
+    registryStore: createMemRegistryStore(),
     notifier: null,
     searchClient,
     ingestSecret: 'dev',
@@ -482,7 +488,7 @@ async function selftestOffers() {
     name: 'test',
     async listOffers() {
       return [
-        { offerId: '101', flyerRef: '738954', price: '13.50', wasPrice: '15.00', description: 'activia kefir 850ml\n15.00', validFrom: today, validTo: inWeek },
+        { offerId: '101', flyerRef: '738954', pageRef: 'page-101', price: '13.50', wasPrice: '15.00', description: 'activia kefir 850ml\n15.00', validFrom: today, validTo: inWeek },
         { offerId: '102', flyerRef: '999999', price: '5.25', description: 'nadec laban 1l', validFrom: today, validTo: inWeek },
         { offerId: '103', price: '0', description: 'broken row' }, // must be gated out
       ];
@@ -490,15 +496,39 @@ async function selftestOffers() {
   };
   const provider = { id: 'teststore', label: 'Test', regions: { central: { store: 'teststore-9', city: 'riyadh' } } };
   const historyStore = createMemoryHistoryStore();
-  const ictx = { registry: { teststore: provider }, metadataStore, offerStore, offersSource: scriptedSource, historyStore };
+  const navObjects = new Map([
+    [
+      'brochures/teststore/central/2026-W27/meta.json',
+      { pages: [{ index: 0, pageId: 'page-101', imageUrl: 'page00.webp' }] },
+    ],
+    [
+      'brochures/teststore/central/2026-W27/hotspots.json',
+      { pages: [{ index: 0, spots: [{ offerId: '101', x: 0, y: 0, w: 1, h: 1 }] }] },
+    ],
+  ]);
+  const objectStore = {
+    async get(key) {
+      const value = navObjects.get(key);
+      return value ? { bytes: new TextEncoder().encode(JSON.stringify(value)) } : null;
+    },
+  };
+  const ictx = {
+    registry: { teststore: provider },
+    metadataStore,
+    objectStore,
+    offerStore,
+    offersSource: scriptedSource,
+    historyStore,
+  };
   const r1 = await ingestOffers(ictx, { store: 'teststore' });
   console.log('ingest run1:', JSON.stringify(r1.totals), 'history:', JSON.stringify(r1.targets[0].history));
-  if (r1.totals.fetched !== 3 || r1.totals.stored !== 2 || r1.totals.dropped !== 1) fail('offers ingest counts wrong');
+  if (r1.totals.fetched !== 3 || r1.totals.stored !== 1 || r1.totals.dropped !== 2) fail('offers ingest counts wrong');
   if (r1.totals.linked !== 1) fail('offer was not linked to the held brochure edition');
+  if (r1.totals.unbacked !== 1) fail('unbacked offer was not excluded');
   // The ingest hook harvests Price History from the same run (Pillar 3).
   if (!r1.targets[0].history || r1.targets[0].history.identities < 1) fail('offers ingest did not record price history');
   const r2 = await ingestOffers(ictx, { store: 'teststore' });
-  if (r2.totals.stored !== 2) fail('offers re-ingest not idempotent (upsert)');
+  if (r2.totals.stored !== 1) fail('offers re-ingest not idempotent (upsert)');
   if (r2.targets[0].history.points !== 0) fail('offers re-ingest added duplicate history points');
 
   // (d) read path via the engine router (search + currency filter).

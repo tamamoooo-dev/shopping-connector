@@ -48,6 +48,14 @@ function imageExt(contentType, url) {
   return m ? m[1].toLowerCase().replace('jpeg', 'jpg') : 'img';
 }
 
+function imagePageEntry(storageKey, page) {
+  const base = `brochures/${storageKey}`;
+  const key = `${base}/page${String(page.index).padStart(2, '0')}.${imageExt(page.contentType, page.url)}`;
+  const entry = { index: page.index, imageUrl: key };
+  if (page.pageId) entry.pageId = String(page.pageId);
+  return entry;
+}
+
 export function createPipeline({ objectStore, metadataStore }) {
   const encoder = new TextEncoder();
   const writeMeta = (base, finalDoc) =>
@@ -113,6 +121,41 @@ export function createPipeline({ objectStore, metadataStore }) {
 
   return {
     ensureHotspots,
+    async putImagePage(storageKey, page) {
+      const entry = imagePageEntry(storageKey, page);
+      await objectStore.put(entry.imageUrl, page.bytes, { contentType: page.contentType });
+      return entry;
+    },
+    async finalizeImageSet(candidate) {
+      return ingestImageSet(
+        candidate,
+        { objectStore, metadataStore, writeMeta, writeHotspots, ensureHotspots },
+        { storePages: false, forceMeta: true },
+      );
+    },
+    // Resumable image-set commit path. Page bytes are already durably stored
+    // and were verified one at a time by the collector, so final publication
+    // never has to load an arbitrarily large brochure into Worker memory.
+    async finalizeStoredImageSet({ doc, pages, hotspots, checksum }) {
+      if (!checksum || !Array.isArray(pages) || !pages.length) {
+        throw new Error('Stored image-set finalization requires pages and checksum');
+      }
+      const ordered = [...pages].sort((a, b) => a.index - b.index);
+      if (!ordered.every((page, index) => page.index === index && page.imageUrl)) {
+        throw new Error('Stored image-set page mapping is incomplete');
+      }
+      const prior = metadataStore.getById ? await metadataStore.getById(doc.id) : null;
+      const finalDoc = { ...doc, checksum, pages: ordered };
+      const base = `brochures/${doc.storageKey}`;
+      // hotspots first, then meta as the object-store commit marker, then D1.
+      await writeHotspots(base, hotspots || []);
+      await writeMeta(base, finalDoc);
+      await metadataStore.upsert(docToRow(finalDoc));
+      return {
+        status: prior?.checksum === checksum ? 'deduped' : 'new',
+        doc: finalDoc,
+      };
+    },
     // Persist one candidate. Returns { status, doc } where status is
     // 'new' | 'deduped'.
     async ingest(candidate) {
@@ -183,6 +226,7 @@ async function ingestLink({ doc }, { metadataStore }) {
 async function ingestImageSet(
   { doc, pages, hotspots },
   { objectStore, metadataStore, writeMeta, writeHotspots, ensureHotspots },
+  { storePages = true, forceMeta = false } = {},
 ) {
   const ordered = [...pages].sort((a, b) => a.index - b.index);
 
@@ -197,14 +241,7 @@ async function ingestImageSet(
   const checksum = `sha256:${await sha256Hex(concat)}`;
 
   const base = `brochures/${doc.storageKey}`;
-  const buildPageEntry = (p) => {
-    const key = `${base}/page${String(p.index).padStart(2, '0')}.${imageExt(p.contentType, p.url)}`;
-    // pageId (the aggregator's deep-link page id) rides into meta.json so a
-    // flyer offer can open the in-app viewer on its own page; omitted when null.
-    const entry = { index: p.index, imageUrl: key };
-    if (p.pageId) entry.pageId = String(p.pageId);
-    return entry;
-  };
+  const buildPageEntry = (page) => imagePageEntry(doc.storageKey, page);
 
   // 2. dedupe: identical page set already held? Byte-identical pages can still
   // carry NEW deep-link page ids (the aggregator can add them to the leaflet
@@ -214,7 +251,7 @@ async function ingestImageSet(
   // staleness trigger goes quiet on the next run.
   if (await metadataStore.existsByChecksum(checksum)) {
     const finalDoc = { ...doc, checksum, pages: ordered.map(buildPageEntry) };
-    if (ordered.some((p) => p.pageId)) await writeMeta(base, finalDoc);
+    if (forceMeta || ordered.some((p) => p.pageId)) await writeMeta(base, finalDoc);
     // Byte-identical pages = the same rendering, so the freshly parsed
     // geometry is valid for the stored copy too — reconcile it (heals editions
     // ingested before capture, or legacy caches from the old on-demand path).
@@ -226,7 +263,9 @@ async function ingestImageSet(
   const pageMeta = [];
   for (const p of ordered) {
     const entry = buildPageEntry(p);
-    await objectStore.put(entry.imageUrl, p.bytes, { contentType: p.contentType });
+    if (storePages) {
+      await objectStore.put(entry.imageUrl, p.bytes, { contentType: p.contentType });
+    }
     pageMeta.push(entry);
   }
 

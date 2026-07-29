@@ -22,6 +22,12 @@ export const CANDIDATE_VERDICT = Object.freeze({
 
 const TEXT_FIELDS = ['brand', 'family', 'cut', 'processing', 'variety'];
 const DISCRIMINATING_FIELDS = ['family', 'cut', 'processing', 'variety'];
+
+// Every dimension an Identity Candidate carries. THE single source of truth for
+// "what can be said about a product" — consumers that need to enumerate
+// dimensions (identity/spec.js, which lets a Flexible Watch pin a subset) read
+// this rather than keeping a parallel list that would drift.
+export const CANDIDATE_DIMENSIONS = Object.freeze([...TEXT_FIELDS, 'package', 'size', 'count']);
 const UNITS = new Set(['g', 'kg', 'ml', 'l']);
 
 function textValue(value, field, errors) {

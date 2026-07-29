@@ -1,0 +1,485 @@
+{
+  "schema_version": "name-failure-diagnostic-v1",
+  "exact_caption_matches": 12,
+  "failures": 38,
+  "classification_counts": {
+    "decomposition_only": 24,
+    "truncated_lost_tokens": 6,
+    "wrong_wording": 6,
+    "decomposition_plus_extra_wording": 2
+  },
+  "fusible_without_loss": 36,
+  "fusible_without_loss_pct": 72,
+  "note": "decomposition_only = every printed caption token is still present somewhere in the model output (name_en + brand + package_size + quantity + attributes), so the exact caption is reconstructible by deterministic fusion. It is still scored as a name_en failure in the headline.",
+  "failures_detail": [
+    {
+      "index": 1,
+      "store": "aljazera",
+      "classification": "decomposition_only",
+      "expected": "NAJJAR INSTANT COFFEE RED / GOLD 190G",
+      "model_name_en": "NAJJAR INSTANT COFFEE",
+      "model_brand": "NAJJAR",
+      "model_package_size": "190G",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 2,
+      "store": "aljazera",
+      "classification": "truncated_lost_tokens",
+      "expected": "SINIORA BEEF MORTADELLA (KG) ASSORTED",
+      "model_name_en": "SINIORA BEEF MORTADELLA",
+      "model_brand": "Siniora",
+      "model_package_size": null,
+      "missing_tokens": [
+        "kg"
+      ],
+      "invented_tokens": []
+    },
+    {
+      "index": 3,
+      "store": "aljazera",
+      "classification": "decomposition_only",
+      "expected": "KLEENEX FACIAL TISSUES ORIGINAL / DECOR 8 + 2 FREE",
+      "model_name_en": "FACIAL TISSUES",
+      "model_brand": "Kleenex",
+      "model_package_size": null,
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 5,
+      "store": "almadina",
+      "classification": "decomposition_only",
+      "expected": "CLIKON BREAD TOASTER 2 CK-2436",
+      "model_name_en": "BREAD TOASTER 2 CK-2436",
+      "model_brand": "CLIKON",
+      "model_package_size": null,
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 6,
+      "store": "almadina",
+      "classification": "decomposition_only",
+      "expected": "Hershey's Strawberry Syrup 623g",
+      "model_name_en": "Strawberry Syrup",
+      "model_brand": "Hershey's",
+      "model_package_size": "623g",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 8,
+      "store": "alwafa",
+      "classification": "wrong_wording",
+      "expected": "Fine Baby Diaper5Maxi Jmbo Pk40's11-18kg",
+      "model_name_en": "Fine Baby Diaper5Maxi Jumbo",
+      "model_brand": "Fine Baby",
+      "model_package_size": "Pk40's11-18kg",
+      "missing_tokens": [
+        "jmbo"
+      ],
+      "invented_tokens": [
+        "jumbo"
+      ]
+    },
+    {
+      "index": 9,
+      "store": "alwafa",
+      "classification": "decomposition_only",
+      "expected": "Geepas Rech.7in1 Precision Trimmer/600 Mah",
+      "model_name_en": "Rech.7in1 Precision Trimmer",
+      "model_brand": "Geepas",
+      "model_package_size": null,
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 10,
+      "store": "amarket",
+      "classification": "decomposition_only",
+      "expected": "ZAIQA PURE BEE HONEY 500 GM",
+      "model_name_en": "PURE BEE HONEY",
+      "model_brand": "ZAIQA",
+      "model_package_size": "500 GM",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 12,
+      "store": "amarket",
+      "classification": "truncated_lost_tokens",
+      "expected": "ENTAJ FRESH WHOLE CHICKEN CUT UP 800 GM",
+      "model_name_en": "FRESH WHOLE CHICKEN CUT UP",
+      "model_brand": "entaj",
+      "model_package_size": "800 جرام",
+      "missing_tokens": [
+        "gm"
+      ],
+      "invented_tokens": []
+    },
+    {
+      "index": 13,
+      "store": "carrefour",
+      "classification": "decomposition_only",
+      "expected": "REEM SWEET KERNEL CORN 425G",
+      "model_name_en": "SWEET KERNEL CORN",
+      "model_brand": "reem",
+      "model_package_size": "425G",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 14,
+      "store": "carrefour",
+      "classification": "wrong_wording",
+      "expected": "ZOFLORA DISINFICTANT SPRAY 800ML",
+      "model_name_en": "Zoflora Disinfectant Spray",
+      "model_brand": "Zoflora",
+      "model_package_size": "800ml",
+      "missing_tokens": [
+        "disinfictant"
+      ],
+      "invented_tokens": [
+        "disinfectant"
+      ]
+    },
+    {
+      "index": 15,
+      "store": "carrefour",
+      "classification": "decomposition_only",
+      "expected": "ROYALFORD GRANITE COOKING SET 9PCS",
+      "model_name_en": "GRANITE COOKING SET",
+      "model_brand": "ROYALFORD",
+      "model_package_size": "9PCS",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 16,
+      "store": "cityflower",
+      "classification": "decomposition_plus_extra_wording",
+      "expected": "Strong Lite Emerg. Light+2 Hand Torch Sgl 646 Combo",
+      "model_name_en": "RECHARGEABLE LED LANTERN & FLASH LIGHT STROBE",
+      "model_brand": "Strong Lite",
+      "model_package_size": "3 IN 1 COMBO",
+      "missing_tokens": [],
+      "invented_tokens": [
+        "rechargeable",
+        "led",
+        "lantern",
+        "flash",
+        "strobe"
+      ]
+    },
+    {
+      "index": 17,
+      "store": "cityflower",
+      "classification": "wrong_wording",
+      "expected": "Olay Face Cream 2X50ml+Facewash 100ml",
+      "model_name_en": "Natural White",
+      "model_brand": "OLAY",
+      "model_package_size": "2X50ml + 100ml",
+      "missing_tokens": [
+        "face",
+        "cream",
+        "facewash"
+      ],
+      "invented_tokens": [
+        "natural",
+        "white"
+      ]
+    },
+    {
+      "index": 18,
+      "store": "cityflower",
+      "classification": "decomposition_only",
+      "expected": "Nebo Makeup Kit -9090",
+      "model_name_en": "Nebo Makeup Kit",
+      "model_brand": "Nebo",
+      "model_package_size": null,
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 19,
+      "store": "danube",
+      "classification": "wrong_wording",
+      "expected": "Loacker Wafer 4x19g",
+      "model_name_en": "Break 3",
+      "model_brand": "Loacker",
+      "model_package_size": "4x19g",
+      "missing_tokens": [
+        "wafer"
+      ],
+      "invented_tokens": [
+        "break",
+        "3"
+      ]
+    },
+    {
+      "index": 20,
+      "store": "danube",
+      "classification": "wrong_wording",
+      "expected": "Galaxy Chocolates 80g",
+      "model_name_en": "Galaxy Smooth Milk",
+      "model_brand": "Galaxy",
+      "model_package_size": "80g",
+      "missing_tokens": [
+        "chocolates"
+      ],
+      "invented_tokens": [
+        "smooth",
+        "milk"
+      ]
+    },
+    {
+      "index": 21,
+      "store": "danube",
+      "classification": "decomposition_only",
+      "expected": "Almarai Halloumi Cheese 200g",
+      "model_name_en": "Halloumi Cheese",
+      "model_brand": "Almarai",
+      "model_package_size": "200g",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 22,
+      "store": "farm",
+      "classification": "decomposition_only",
+      "expected": "EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA 415 GR",
+      "model_name_en": "SPINACH & CHEESE PIZZA",
+      "model_brand": "EL CORTE INGLES SELECTION",
+      "model_package_size": "415 GR",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 23,
+      "store": "farm",
+      "classification": "decomposition_only",
+      "expected": "CRISPY CHIPS LETTERS / RINGS 12 *18GR",
+      "model_name_en": "CRISPY CHIPS LETTERS / RINGS",
+      "model_brand": null,
+      "model_package_size": "12 *18GR",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 25,
+      "store": "grandhyper",
+      "classification": "decomposition_only",
+      "expected": "DERIK MARK BOYS BAGGY JEANS",
+      "model_name_en": "BOYS BAGGY JEANS",
+      "model_brand": "DERIK MARK",
+      "model_package_size": null,
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 27,
+      "store": "grandhyper",
+      "classification": "truncated_lost_tokens",
+      "expected": "GODREJ CINTHOL SOAP 125GM 6PCS (ASSORTED)",
+      "model_name_en": "CINTHOL SOAP",
+      "model_brand": "CINTHOL",
+      "model_package_size": "125GM",
+      "missing_tokens": [
+        "godrej"
+      ],
+      "invented_tokens": []
+    },
+    {
+      "index": 28,
+      "store": "hyperpanda",
+      "classification": "decomposition_only",
+      "expected": "Whiskas Cat Food With Beef Flavour (4 x 85g)",
+      "model_name_en": "Whiskas Cat Food With Beef Flavour",
+      "model_brand": "Whiskas",
+      "model_package_size": "80 x 4 جرام",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 29,
+      "store": "hyperpanda",
+      "classification": "decomposition_only",
+      "expected": "Downy Concentrated Fabric Softener (3L)",
+      "model_name_en": "Downy Concentrated Fabric Softener",
+      "model_brand": "Downy",
+      "model_package_size": "3L",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 30,
+      "store": "hyperpanda",
+      "classification": "decomposition_only",
+      "expected": "Mini Madeleines Traditional French Sponge Cakes (85g)",
+      "model_name_en": "Mini Madeleines Traditional French Sponge Cakes",
+      "model_brand": "St Michel",
+      "model_package_size": "85g",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 31,
+      "store": "lulu",
+      "classification": "wrong_wording",
+      "expected": "TCL 4KSQD Mini LED 98C79L 98inch",
+      "model_name_en": "4K SQD Mini LED 98C79L",
+      "model_brand": "TCL",
+      "model_package_size": "98 inch",
+      "missing_tokens": [
+        "4ksqd",
+        "98in"
+      ],
+      "invented_tokens": [
+        "4k",
+        "sqd"
+      ]
+    },
+    {
+      "index": 32,
+      "store": "lulu",
+      "classification": "decomposition_only",
+      "expected": "Chia Kiwi Cooler 500ml",
+      "model_name_en": "Chia Kiwi Cooler",
+      "model_brand": "LuLu FRESH",
+      "model_package_size": "500ml",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 33,
+      "store": "lulu",
+      "classification": "decomposition_plus_extra_wording",
+      "expected": "Mughal Basmati Rice 1121 5kg",
+      "model_name_en": "Steamed 1121 Basmati Rice",
+      "model_brand": "Mughal",
+      "model_package_size": "5kg",
+      "missing_tokens": [],
+      "invented_tokens": [
+        "steamed"
+      ]
+    },
+    {
+      "index": 34,
+      "store": "marksave",
+      "classification": "decomposition_only",
+      "expected": "Fairy Dish Washing Liquid Lemon/Original 1Ltr",
+      "model_name_en": "Dish Washing Liquid Lemon/Original",
+      "model_brand": "Fairy",
+      "model_package_size": "1Ltr",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 36,
+      "store": "marksave",
+      "classification": "decomposition_only",
+      "expected": "Dear Love Amla Hair Oil 250Ml",
+      "model_name_en": "Amla Hair Oil",
+      "model_brand": "Dear love",
+      "model_package_size": "250ml",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 37,
+      "store": "nesto",
+      "classification": "truncated_lost_tokens",
+      "expected": "Balasham",
+      "model_name_en": null,
+      "model_brand": null,
+      "model_package_size": "500 GM",
+      "missing_tokens": [
+        "balasham"
+      ],
+      "invented_tokens": []
+    },
+    {
+      "index": 38,
+      "store": "nesto",
+      "classification": "decomposition_only",
+      "expected": "Saudia Ice Cream 1Ltr",
+      "model_name_en": "Saudia Ice Cream",
+      "model_brand": "Saudia",
+      "model_package_size": "1Ltr",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 40,
+      "store": "othaim",
+      "classification": "truncated_lost_tokens",
+      "expected": "Pepsi Bottles",
+      "model_name_en": "Pepsi",
+      "model_brand": "Pepsi",
+      "model_package_size": "6x250ml",
+      "missing_tokens": [
+        "bottles"
+      ],
+      "invented_tokens": []
+    },
+    {
+      "index": 42,
+      "store": "othaim",
+      "classification": "decomposition_only",
+      "expected": "Alsafi Greek Yoghurt",
+      "model_name_en": "Greek Yoghurt",
+      "model_brand": "Alsafi",
+      "model_package_size": "150g",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 43,
+      "store": "prime",
+      "classification": "truncated_lost_tokens",
+      "expected": "VIELLE DEO ROLL ON - SPECIFIC ITEMS 50ML",
+      "model_name_en": "Vielle Deo Roll On - Specific Items",
+      "model_brand": "Vielle",
+      "model_package_size": "50 ml",
+      "missing_tokens": [
+        "50ml"
+      ],
+      "invented_tokens": []
+    },
+    {
+      "index": 44,
+      "store": "prime",
+      "classification": "decomposition_only",
+      "expected": "NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)",
+      "model_name_en": "NOOR SUN FLOWER OIL (PET)",
+      "model_brand": "NOOR",
+      "model_package_size": "2 X 1.5 LTR + 500 ML",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 48,
+      "store": "tamimi",
+      "classification": "decomposition_only",
+      "expected": "NONGSHIM CUP NOODLES, ASSORTED ITEMS, 68 - 114 GRAMS",
+      "model_name_en": "NONGSHIM CUP NOODLES, ASSORTED ITEMS",
+      "model_brand": "NONGSHIM",
+      "model_package_size": "68 - 114 GRAMS",
+      "missing_tokens": [],
+      "invented_tokens": []
+    },
+    {
+      "index": 49,
+      "store": "tamimi",
+      "classification": "decomposition_only",
+      "expected": "NESTLE COUNTRY CORNFLAKES, 500 GRAMS OR 1 KILO",
+      "model_name_en": "COUNTRY CORNFLAKES",
+      "model_brand": "Nestle",
+      "model_package_size": "500 GRAMS OR 1 KILO",
+      "missing_tokens": [],
+      "invented_tokens": []
+    }
+  ]
+}

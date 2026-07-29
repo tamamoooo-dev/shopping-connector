@@ -4,6 +4,7 @@
 //
 // Interface:
 //   upsertMany(rows)                  -> Promise<{ stored }>   (idempotent)
+//   updateNavigation(rows)            -> Promise<{ updated }>  (exact local relink)
 //   search({ q?, store?, region?, currentOn?, limit? }) -> Promise<row[]>
 //   counts(currentOn)                 -> Promise<{ total, current, stores }>
 //   pruneExpiredBefore(cutoffISO)     -> Promise<number>  (retention)
@@ -14,19 +15,22 @@
 import { queryTokens } from '../offers/contract.js';
 import { expandToken } from '../matching.js';
 import { CORROBORATION_FLOOR } from '../offers/enrich.js';
-import { ENRICH_JOIN, ENRICH_ROW_COLS, CANON_HAYSTACK_SQL } from './enrichStore.js';
+import { ENRICH_JOIN, enrichRowCols, CANON_HAYSTACK_SQL } from './enrichStore.js';
 
-export function createD1OfferStore(db) {
+export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {}) {
+  const enrichmentColumns = enrichRowCols(builtArabicNamesEnabled);
   const upsertStmt = `
     INSERT INTO offers
-      (id, store, region, source, offer_id, flyer_ref, page_ref, edition,
+      (id, store, region, source, offer_id, flyer_ref, page_ref,
+       brochure_id, page_index, navigation_provenance, edition,
        name, name_ar, price, old_price, currency, category_id, category,
        image_url, source_url, valid_from, valid_to, detected_at, search_text,
        identity, brand_slug)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
       flyer_ref=excluded.flyer_ref, page_ref=excluded.page_ref,
-      edition=COALESCE(excluded.edition, offers.edition),
+      brochure_id=excluded.brochure_id, page_index=excluded.page_index,
+      navigation_provenance=excluded.navigation_provenance, edition=excluded.edition,
       name=excluded.name, name_ar=excluded.name_ar,
       price=excluded.price, old_price=excluded.old_price,
       currency=excluded.currency, category_id=excluded.category_id,
@@ -38,7 +42,8 @@ export function createD1OfferStore(db) {
   const bindRow = (r) =>
     db.prepare(upsertStmt).bind(
       r.id, r.store, r.region, r.source, r.offer_id, r.flyer_ref, r.page_ref,
-      r.edition, r.name, r.name_ar, r.price, r.old_price, r.currency,
+      r.brochure_id, r.page_index, r.navigation_provenance ?? null, r.edition,
+      r.name, r.name_ar, r.price, r.old_price, r.currency,
       r.category_id, r.category, r.image_url, r.source_url, r.valid_from,
       r.valid_to, r.detected_at, r.search_text, r.identity ?? null,
       r.brand_slug ?? null,
@@ -53,6 +58,29 @@ export function createD1OfferStore(db) {
         await db.batch(rows.slice(i, i + 40).map(bindRow));
       }
       return { stored: rows.length };
+    },
+
+    async updateNavigation(rows) {
+      for (let i = 0; i < rows.length; i += 40) {
+        await db.batch(
+          rows.slice(i, i + 40).map((row) =>
+            db
+              .prepare(
+                `UPDATE offers
+                    SET brochure_id = ?, page_index = ?,
+                        navigation_provenance = ?, edition = ?
+                  WHERE id = ?`,
+              )
+              .bind(
+                row.brochureId ?? null,
+                Number.isInteger(row.pageIndex) ? row.pageIndex : null,
+                row.navigationProvenance ?? null,
+                row.edition ?? null,
+                row.id,
+              )),
+        );
+      }
+      return { updated: rows.length };
     },
 
     // Vision-canonical search (2026-07-21): every row is matched against its
@@ -80,6 +108,16 @@ export function createD1OfferStore(db) {
         where.push(`${col('region')} = ?`);
         binds.push(region);
       }
+      // Public/search consumers only see offers with an exact, unpruned local
+      // brochure and stored page. Raw unbacked D4D rows may remain as history,
+      // but they are not browseable products.
+      where.push(`${col('brochure_id')} IS NOT NULL AND ${col('page_index')} IS NOT NULL`);
+      where.push(`EXISTS (
+        SELECT 1 FROM brochures b
+         WHERE b.id = ${col('brochure_id')}
+           AND b.pruned_at IS NULL
+           AND b.source_type = 'images'
+      )`);
       // Broad SQL prefilter only — final word-boundary relevance runs in JS
       // (engine.js). Each token ORs across its bilingual synonym variants so an
       // English query can reach Arabic-only OCR rows (and vice versa); rows the
@@ -114,7 +152,7 @@ export function createD1OfferStore(db) {
       const orderBy = boundaryParts.length
         ? `ORDER BY (${boundaryParts.join(' + ')}) DESC, ${col('price')} ASC`
         : `ORDER BY ${col('price')} ASC`;
-      const sql = `SELECT o.*, ${ENRICH_ROW_COLS} FROM offers o ${ENRICH_JOIN}
+      const sql = `SELECT o.*, ${enrichmentColumns} FROM offers o ${ENRICH_JOIN}
         ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
         ${orderBy} LIMIT ?`;
       binds.push(...boundaryBinds);
@@ -145,9 +183,16 @@ export function createD1OfferStore(db) {
           where.push('o.region = ?');
           binds.push(region);
         }
+        where.push('o.brochure_id IS NOT NULL AND o.page_index IS NOT NULL');
+        where.push(`EXISTS (
+          SELECT 1 FROM brochures b
+           WHERE b.id = o.brochure_id
+             AND b.pruned_at IS NULL
+             AND b.source_type = 'images'
+        )`);
         const { results } = await db
           .prepare(
-            `SELECT o.*, ${ENRICH_ROW_COLS} FROM offers o ${ENRICH_JOIN}
+            `SELECT o.*, ${enrichmentColumns} FROM offers o ${ENRICH_JOIN}
               WHERE ${where.join(' AND ')}`,
           )
           .bind(...binds)
@@ -169,18 +214,61 @@ export function createD1OfferStore(db) {
       return results || [];
     },
 
+    // Exact D4D flyer references required by current indexed offers. These
+    // rows include unavailable offers, so collection can restore their local
+    // navigation rather than requiring an already-published brochure first.
+    async requiredFlyerRefs(store, region, currentOn) {
+      const { results } = await db
+        .prepare(
+          `SELECT DISTINCT flyer_ref
+             FROM offers
+            WHERE store = ? AND region = ? AND valid_to >= ?
+              AND flyer_ref IS NOT NULL AND flyer_ref != ''`,
+        )
+        .bind(store, region, currentOn)
+        .all();
+      return (results || []).map((row) => String(row.flyer_ref));
+    },
+
     // Every stored offer row of one store (or all) WITHOUT search_text — the
     // price-history backfill's read path (search_text is matching payload the
     // backfill doesn't need; leaving it out keeps the result set small).
     async listAll({ store = '' } = {}) {
       const sql = `SELECT id, store, region, source, offer_id, flyer_ref, page_ref,
-          edition, name, name_ar, price, old_price, currency, category_id,
+          brochure_id, page_index, navigation_provenance, edition,
+          name, name_ar, price, old_price, currency, category_id,
           category, image_url, source_url, valid_from, valid_to, detected_at,
           identity, brand_slug
         FROM offers ${store ? 'WHERE store = ?' : ''} LIMIT 20000`;
       const stmt = store ? db.prepare(sql).bind(store) : db.prepare(sql);
       const { results } = await stmt.all();
       return results || [];
+    },
+
+    async navigationMetrics(currentOn) {
+      const row = await db
+        .prepare(
+          `SELECT
+             COUNT(*) AS current,
+             SUM(CASE WHEN brochure_id IS NULL OR page_index IS NULL THEN 1 ELSE 0 END) AS unlinked,
+             SUM(CASE WHEN brochure_id IS NOT NULL AND page_index IS NOT NULL
+                       AND navigation_provenance = 'dual' THEN 1 ELSE 0 END) AS dual,
+             SUM(CASE WHEN brochure_id IS NOT NULL AND page_index IS NOT NULL
+                       AND navigation_provenance = 'hotspot_unique' THEN 1 ELSE 0 END) AS hotspot_unique,
+             SUM(CASE WHEN brochure_id IS NOT NULL AND page_index IS NOT NULL
+                       AND navigation_provenance IS NULL THEN 1 ELSE 0 END) AS missing_provenance
+           FROM offers
+           WHERE valid_to >= ?`,
+        )
+        .bind(currentOn)
+        .first();
+      return {
+        current: Number(row?.current) || 0,
+        unlinked: Number(row?.unlinked) || 0,
+        dual: Number(row?.dual) || 0,
+        hotspotUnique: Number(row?.hotspot_unique) || 0,
+        missingProvenance: Number(row?.missing_provenance) || 0,
+      };
     },
 
     // Backfill: stamp the ingest-derived columns (identity, brand) onto rows

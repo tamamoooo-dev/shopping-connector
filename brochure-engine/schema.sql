@@ -29,6 +29,24 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_checksum ON brochures(checksum);
 -- O(1) "latest brochure for this store+region" reads while retaining history.
 CREATE INDEX IF NOT EXISTS ix_store_region_current ON brochures(store, region, is_current);
 
+-- Resumable D4D collection queue. The object-store manifest owns exact
+-- page-level progress; this table is the small durable pending-job index.
+CREATE TABLE IF NOT EXISTS brochure_collection_jobs (
+  store               TEXT NOT NULL,
+  region              TEXT NOT NULL,
+  status              TEXT NOT NULL CHECK(status IN ('pending', 'complete')),
+  advertised_flyers   INTEGER,
+  advertised_pages    INTEGER,
+  collected_pages     INTEGER,
+  last_error          TEXT,
+  updated_at          TEXT NOT NULL,
+  completed_at        TEXT,
+  PRIMARY KEY (store, region)
+);
+
+CREATE INDEX IF NOT EXISTS ix_brochure_collection_pending
+  ON brochure_collection_jobs(status, updated_at);
+
 -- ---------------------------------------------------------------------------
 -- Price History (Pillar 3) — CATALOG-WIDE, harvested from the structured-offers
 -- ingest (redesigned 2026-07-04; the old watchlist-based `price_points` table
@@ -102,6 +120,11 @@ CREATE TABLE IF NOT EXISTS offers (
   offer_id    TEXT NOT NULL,      -- the source's per-product id
   flyer_ref   TEXT,               -- the source's flyer id (links to a brochure)
   page_ref    TEXT,               -- the source's flyer-page id
+  brochure_id TEXT,               -- exact downloaded brochures.id
+  page_index  INTEGER,            -- exact stored page index (zero-based)
+  navigation_provenance TEXT      -- trust basis for the local page link
+    CHECK(navigation_provenance IS NULL
+      OR navigation_provenance IN ('dual', 'hotspot_unique')),
   edition     TEXT,               -- held brochure edition this offer came from
   name        TEXT,               -- best-effort display name (EN), from OCR
   name_ar     TEXT,               -- best-effort display name (AR), from OCR
@@ -128,6 +151,10 @@ CREATE UNIQUE INDEX IF NOT EXISTS ux_offer ON offers(store, region, source, offe
 -- "Current offers for a store" and global currency filters.
 CREATE INDEX IF NOT EXISTS ix_offers_store_valid ON offers(store, region, valid_to);
 CREATE INDEX IF NOT EXISTS ix_offers_valid ON offers(valid_to);
+CREATE INDEX IF NOT EXISTS ix_offers_local_navigation
+  ON offers(brochure_id, page_index, valid_to);
+CREATE INDEX IF NOT EXISTS ix_offers_navigation_provenance
+  ON offers(navigation_provenance, valid_to);
 
 -- Browse (BROWSE-DESIGN.md): the history join + canonical-aisle prefilters.
 CREATE INDEX IF NOT EXISTS ix_offers_identity ON offers(identity);
@@ -149,33 +176,81 @@ CREATE TABLE IF NOT EXISTS watches (
                                   -- facing read/write is scoped to it. NULL
                                   -- only on pre-profile rows, claimed by the
                                   -- first profile to list (adoptOrphans).
-  kind         TEXT NOT NULL,      -- 'product' | 'grocery'
+  kind         TEXT NOT NULL,      -- 'product' | 'grocery' | 'registry'
   label        TEXT,
   query        TEXT NOT NULL,      -- the search query that re-finds the product
   provider     TEXT,               -- kind=product: search-connector provider id
-  product_id   TEXT,               -- kind=product: the stable result id (ASIN…)
+  -- THE CATALOG-ID CACHE (monitor.js "catalog references"). kind=product: where
+  -- this identity currently sits in the retailer's catalog — transient, rotated
+  -- by retailers, refreshed automatically by the check (never the identity).
+  -- kind=registry: the registry's own pr_ id, which IS stable identity.
+  product_id   TEXT,
+  -- THE ANCHOR: the registry product this watch is about. Resolved ONCE, in the
+  -- foreground, when the watch is created; a check only ever asks "is this
+  -- listing that product?" (identity/verify.js). Moved only by a registry merge.
+  registry_product_id TEXT,
+  -- THE OTHER ANCHOR: a Flexible Watch is bound to a CLASS, not an instance —
+  -- JSON of pinned identity dimensions ({"family":"chicken","cut":"breast"} =
+  -- any chicken breast, any brand, any size, compared per kg). Keys present are
+  -- pinned; keys absent are free. Exactly one of registry_product_id / spec is
+  -- set on a resolved watch.
+  spec         TEXT,
+  scope        TEXT,               -- 'store' (one retailer) | 'market' (all + flyers)
   link         TEXT,
   image        TEXT,
   target_price REAL NOT NULL,
   currency     TEXT NOT NULL DEFAULT 'SAR',
-  size_unit    TEXT,               -- kind=grocery: reference size (the size gate)
+  size_unit    TEXT,               -- reference size, for a per-unit target
   size_total   REAL,               --   e.g. 'ml' + 2000 for a 2 L milk
+  size_source  TEXT,
+  -- VESTIGIAL (Price Watch v2, superseded 2026-07-29). These held the derived
+  -- attribute tuple a watch used to be anchored to. They exist in every live
+  -- database, so the canonical schema must still declare them — dropping a
+  -- column is neither additive nor reversible. New rows leave them NULL; the
+  -- only remaining reader is the one-time legacy backfill, which maps them to a
+  -- spec (identity/spec.js specFromLegacyWatch).
+  identity_query TEXT,
+  identity_family TEXT,
+  identity_type TEXT,
+  brand_id     TEXT,
+  variant_key  TEXT,
+  -- Also vestigial: match_brand/match_variant were matching relaxations, and
+  -- matching is the resolver's job now. What they expressed is a spec.
+  match_brand  INTEGER NOT NULL DEFAULT 1,
+  match_size   INTEGER NOT NULL DEFAULT 1,
+  match_variant INTEGER NOT NULL DEFAULT 1,
+  target_unit_price REAL,
+  unit_label   TEXT,
+  close_threshold REAL,            -- optional percent above target
   active       INTEGER NOT NULL DEFAULT 1,
   is_below     INTEGER NOT NULL DEFAULT 0, -- crossing detector state
+  is_close     INTEGER NOT NULL DEFAULT 0,
   created_at   TEXT NOT NULL,
   checked_at   TEXT,
   last_price   REAL,               -- best trustworthy price at the last check
+  last_purchase_price REAL,
+  last_unit_label TEXT,
   last_store   TEXT,
   last_source  TEXT,               -- 'online' | 'flyer'
   last_name    TEXT,
-  last_link    TEXT
+  last_link    TEXT,
+  -- OBSERVABILITY. Written on every check, including the ones that find
+  -- nothing: 'ok' | 'not-found' | 'no-price' | 'not-resolved' | 'provider-error'
+  -- plus the resolver's own reason. checked_at says a check RAN; resolved_at
+  -- says it SUCCEEDED. Keeping them apart is what makes a dead watch visible.
+  last_resolution TEXT,
+  last_resolution_reason TEXT,
+  resolved_at  TEXT
 );
 
 CREATE TABLE IF NOT EXISTS alerts (
   id           TEXT PRIMARY KEY,   -- a_<random>
   watch_id     TEXT NOT NULL,
   price        REAL NOT NULL,
+  purchase_price REAL,
   target_price REAL NOT NULL,
+  unit_label   TEXT,
+  alert_type   TEXT NOT NULL DEFAULT 'target', -- 'target' | 'close'
   currency     TEXT,
   store        TEXT,
   source       TEXT,               -- 'online' | 'flyer'
@@ -190,6 +265,7 @@ CREATE INDEX IF NOT EXISTS ix_alerts_seen ON alerts(seen);
 
 -- Profile-scoped reads and the per-profile cap gate (Local Profile milestone).
 CREATE INDEX IF NOT EXISTS ix_watches_profile ON watches(profile_id, active);
+CREATE INDEX IF NOT EXISTS ix_watches_registry_product ON watches(registry_product_id);
 
 -- ---------------------------------------------------------------------------
 -- Operations Console (ops/ subsystem) — the audit timeline. One row per
@@ -238,6 +314,14 @@ CREATE TABLE IF NOT EXISTS offer_enrichments (
   match_text    TEXT,               -- normalized vision haystack (name+name_ar+
                                     -- brand through normalizeText) — the vision
                                     -- pipeline's SQL-retrieval substrate
+  extraction_json TEXT,             -- JSON: the model's own Expanded JSON
+                                    -- observation, PRICE-FREE (unit,
+                                    -- package_type, attributes + the verbatim
+                                    -- names/size it reported). Preserved for
+                                    -- downstream identity work; nothing reads
+                                    -- it yet. Prices are deliberately excluded
+                                    -- — see offers/enrich.js
+                                    -- preservedObservation().
   identity_candidate TEXT,          -- JSON Identity Builder output; Registry input
   identity_candidate_version TEXT,  -- deterministic candidate contract version
   mint_verdict  TEXT                -- registry resolution verdict (IDENTITY-V2
@@ -245,6 +329,130 @@ CREATE TABLE IF NOT EXISTS offer_enrichments (
                                     -- | too_few_tokens). NULL = not yet resolved;
                                     -- the resolution drain processes NULLs once.
 );
+
+-- Source attempts are retained independently from the canonical enrichment.
+-- A rejected Vision attempt is a completed critical-path operation even when
+-- OCR is unavailable; the queue below records the asynchronous escalation.
+CREATE TABLE IF NOT EXISTS offer_extraction_attempts (
+  offer_id       TEXT NOT NULL,
+  -- OPAQUE PROCESSOR ID — no CHECK, by decision (VISION-PIPELINE.md C-9). One
+  -- LATEST row per processor per offer; append-only history lives in
+  -- offer_recovery_attempts. A CHECK here would be a schema-level enumeration
+  -- of processors, making "add a processor" a migration — the exact coupling
+  -- C-9 removes. The registry (src/recovery/registry.js) is the authority on
+  -- what may run; the database just stores what did.
+  -- Today: 'vision' (primary extractor), 'ocr' (recovery processor).
+  source         TEXT NOT NULL,
+  output         TEXT,               -- JSON observation (Vision object/OCR text)
+  validation     TEXT NOT NULL,      -- JSON deterministic validation result
+  confidence     REAL,
+  model          TEXT,
+  crop_url       TEXT,
+  accepted       INTEGER NOT NULL DEFAULT 0,
+  attempted_at   TEXT NOT NULL,
+  PRIMARY KEY (offer_id, source)
+);
+
+CREATE TABLE IF NOT EXISTS offer_ocr_queue (
+  offer_id        TEXT PRIMARY KEY,
+  status          TEXT NOT NULL DEFAULT 'ocr_pending'
+                  CHECK (status IN ('ocr_pending', 'completed')),
+  trigger_reasons TEXT NOT NULL,     -- JSON Quality Gate reasons
+  attempts        INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at TEXT,
+  last_error      TEXT,
+  created_at      TEXT NOT NULL,
+  updated_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_offer_ocr_queue_pending
+  ON offer_ocr_queue(status, next_attempt_at, updated_at);
+
+-- ---------------------------------------------------------------------------
+-- S4 Business Acceptance verdicts (VISION-PIPELINE.md §6 S4, R5/R6).
+--
+-- DDL IDENTICAL to migrate-2026-07-26-acceptance-verdicts.sql, which carries the
+-- full rationale; a test compares the two and fails if they drift. It is
+-- REPEATED here rather than left to the migration alone because this file is
+-- what a fresh database is built from — production, staging and every test —
+-- and a table that exists only in a migration is a table a clean deployment
+-- does not have. Recovery joins this one, so its absence takes the whole
+-- Recovery Platform down with it.
+CREATE TABLE IF NOT EXISTS offer_acceptance_verdicts (
+  offer_id        TEXT PRIMARY KEY,
+  version         TEXT NOT NULL,
+  accepted        INTEGER NOT NULL CHECK (accepted IN (0, 1)),
+  missing         TEXT NOT NULL,
+  mandatory       TEXT NOT NULL,
+  quantity_status TEXT,
+  quantity_basis  TEXT,
+  decided_at      TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_offer_acceptance_accepted
+  ON offer_acceptance_verdicts(accepted, decided_at);
+
+CREATE INDEX IF NOT EXISTS ix_offer_acceptance_version
+  ON offer_acceptance_verdicts(version, accepted);
+
+-- ---------------------------------------------------------------------------
+-- S5 Recovery Platform (VISION-PIPELINE.md §6 S5, C-8, C-9).
+--
+-- DDL IDENTICAL to migrate-2026-07-27-recovery-queue.sql (same parity test, same
+-- reason as above). The migration additionally folds offer_ocr_queue rows into
+-- the new queue; that backfill is migration-only and has no place here, since a
+-- fresh database has nothing to fold.
+--
+-- Processor-agnostic by construction: no CHECK enumerates a processor, no column
+-- names one. Read C-9 before adding anything to either table.
+CREATE TABLE IF NOT EXISTS offer_recovery_queue (
+  offer_id     TEXT PRIMARY KEY,
+  status       TEXT NOT NULL DEFAULT 'queued'
+               CHECK (status IN ('queued', 'claimed', 'resolved', 'exhausted', 'dismissed')),
+  reasons      TEXT NOT NULL,
+  attempts     INTEGER NOT NULL DEFAULT 0,
+  claimed_by   TEXT,
+  claim_until  TEXT,
+  -- Fencing token, fresh per claim. Every post-claim write re-asserts ownership
+  -- against it; see recoveryQueue.js claimFenceStatements.
+  claim_token  TEXT,
+  next_attempt_at TEXT,
+  last_error   TEXT,
+  meta         TEXT,
+  created_at   TEXT NOT NULL,
+  updated_at   TEXT NOT NULL,
+  -- Evidence generation: when the item last (re-)entered the queue. Attempts
+  -- older than this were made against a superseded observation.
+  queued_at    TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ix_recovery_queue_ready
+  ON offer_recovery_queue(status, next_attempt_at, updated_at);
+
+CREATE TABLE IF NOT EXISTS offer_recovery_attempts (
+  id             INTEGER PRIMARY KEY AUTOINCREMENT,
+  offer_id       TEXT NOT NULL,
+  processor      TEXT NOT NULL,
+  attempt_no     INTEGER NOT NULL,
+  outcome        TEXT NOT NULL
+                 CHECK (outcome IN ('recovered', 'no_change', 'failed', 'declined')),
+  missing_before TEXT,
+  missing_after  TEXT,
+  cost           TEXT,
+  actor          TEXT,
+  error          TEXT,
+  started_at     TEXT NOT NULL,
+  finished_at    TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ix_recovery_attempts_offer
+  ON offer_recovery_attempts(offer_id, id);
+
+CREATE INDEX IF NOT EXISTS ix_recovery_attempts_processor
+  ON offer_recovery_attempts(processor, outcome);
+
+CREATE INDEX IF NOT EXISTS ix_recovery_attempts_selection
+  ON offer_recovery_attempts(offer_id, processor, outcome, started_at);
 
 -- Background Manual Vision jobs (Vision Milestone 2 §2). One durable row per
 -- operator-launched "Run Vision" job (id 'active' = the single live job); the

@@ -84,6 +84,7 @@ export async function handleRequest(request, registry) {
 
   const providerId = (url.searchParams.get('provider') || '').trim();
   const query = (url.searchParams.get('q') || url.searchParams.get('query') || '').trim();
+  const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 50, 50));
 
   if (!providerId) return json({ error: "Missing required parameter 'provider'." }, 400);
   if (!query) return json({ error: "Missing required parameter 'q'." }, 400);
@@ -99,7 +100,8 @@ export async function handleRequest(request, registry) {
   try {
     const { strategy, results } = await runProvider(provider, query);
     // Envelope wraps the SAME normalized result objects the frontend expects.
-    return json({ provider: provider.id, query, strategy, count: results.length, results });
+    const window = results.slice(0, limit);
+    return json({ provider: provider.id, query, strategy, count: window.length, results: window });
   } catch (err) {
     return json(
       { provider: providerId, query, error: err.message, failures: err.failures || [] },

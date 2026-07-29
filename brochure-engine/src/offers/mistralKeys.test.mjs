@@ -169,7 +169,7 @@ console.log('drain integration:');
     }
     return {
       ok: true,
-      json: async () => ({ choices: [{ message: { content: '{"name_en":"Halah Oil","name_ar":null,"brand":"Halah","size":"1.5L","confidence":0.9}' } }] }),
+      json: async () => ({ choices: [{ message: { content: '{"name_en":"Halah Oil","name_ar":"زيت هالة","brand":"Halah","size":"1.5L","confidence":0.9}' } }] }),
     };
   };
 
@@ -189,6 +189,10 @@ console.log('drain integration:');
     pruneOrphans: async () => 0,
     listDebris: async () => debris,
     upsertMany: async (rows) => { stored.push(...rows); return { stored: rows.length }; },
+    saveVisionOutcome: async ({ canonicalRow }) => {
+      if (canonicalRow) stored.push(canonicalRow);
+      return { stored: 1, queued: canonicalRow ? 0 : 1 };
+    },
   };
   const drainChain = createKeyChain(['dead', 'live'], { log: noLog });
   // Inject the fake fetch by temporarily swapping global fetch (enrichOffer

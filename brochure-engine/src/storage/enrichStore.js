@@ -7,6 +7,10 @@
 //   listSelected({ ids, currentOn }) -> Promise<{id, image_url}[]>
 //   countDebris(currentOn, scope)    -> Promise<number>
 //   upsertMany(rows)                 -> Promise<{ stored }>   (idempotent)
+//   saveVisionOutcome(...)           -> persist Vision + canonical PASS/queue
+//   listPendingOcr(...)              -> queued Quality Gate rejects
+//   saveOcrOutcome(...)              -> persist OCR + canonical + complete queue
+//   markOcrPending(...)              -> non-blocking retry state
 //   getForIds(ids)                   -> Promise<Map<id, row>>
 //   pruneOrphans()                   -> Promise<number>
 //   listUnresolved({ currentOn, limit }) -> Promise<candidate + context rows>
@@ -28,6 +32,28 @@
 
 import { normalizeText } from '../matching.js';
 import { CORROBORATION_FLOOR } from '../offers/enrich.js';
+import {
+  BUILDER_STATUS,
+  BUILDER_SCORE_VERSION,
+  buildArabicShadow,
+  builtArabicNamesEnabled,
+  withArabicBuilderShadow,
+} from '../lexicon/arabicRollout.js';
+import { COMMERCE_SCORE_VERSION } from '../offers/commerceScore.js';
+// The mandatory set is imported, never restated: the calibration query below is
+// generated from it so a v2 condition cannot be silently missing from reports.
+import { MANDATORY_CONDITIONS } from '../offers/businessAcceptance.js';
+// S5 Recovery Queue (C-9). Only the two batch statements and the readiness
+// probe are needed here — the queue's own surface is used by the recovery
+// runner, not by the extraction store.
+import {
+  createRecoveryQueue,
+  enqueueStatement,
+  resolveStatement,
+  releaseStatement,
+  attemptStatements,
+  claimFenceStatements,
+} from './recoveryQueue.js';
 
 export const IDENTITY_CANDIDATE_STORAGE_VERSION = 'identity-candidate-v1';
 
@@ -42,15 +68,78 @@ export const SERVABLE_SQL =
   `((e.name IS NOT NULL OR e.name_ar IS NOT NULL) AND e.corroboration >= ${CORROBORATION_FLOOR})`;
 // Canonical display names: the vision reading when servable, OCR otherwise.
 export const CANON_NAME_SQL = `(CASE WHEN ${SERVABLE_SQL} THEN e.name ELSE o.name END)`;
-export const CANON_NAME_AR_SQL = `(CASE WHEN ${SERVABLE_SQL} THEN e.name_ar ELSE o.name_ar END)`;
+
+// --- S1 Extraction Admission, SQL side (R4) -----------------------------------
+// VISION-PIPELINE.md §6 S1 / C-2. The SQL TWIN of offers/commerceScore.js
+// `hasUsableCommercePrice`, exactly as SERVABLE_SQL above is the twin of
+// `servable()`. It belongs in the WHERE clause and not in JS after selection for
+// two reasons: a priceless offer can never be accepted at S4, so a model call on
+// it is pure waste; and excluding it from the queue makes the queue depth an
+// honest number. Filtering after selection would fix neither.
+//
+// FAITHFULNESS IS THE WHOLE RISK HERE, so the two divergences SQLite introduces
+// are closed deliberately and pinned by a differential test over real SQLite
+// (storage/extractionCandidate.test.mjs):
+//
+//   1. `typeof(price) IN ('integer','real')` — NOT `CAST(price AS REAL) > 0`.
+//      SQLite columns are dynamically typed, so a non-numeric string can sit in
+//      a REAL column; `CAST('12abc' AS REAL)` is 12.0 while `Number('12abc')` is
+//      NaN. CAST would admit a row JS calls priceless. typeof matches
+//      `Number.isFinite` because REAL affinity has already converted anything
+//      genuinely numeric on write.
+//   2. The `TRIM` character set is spelled out, because SQLite's bare `TRIM`
+//      strips ASCII SPACE ONLY while JS `String.trim()` strips all Unicode
+//      whitespace. Left bare, `'SAR '` would be dropped by SQL and kept by
+//      JS — the dangerous direction, silently starving an extractable offer.
+//      ±Inf is excluded for the same parity reason (`Number.isFinite(Inf)` is
+//      false, but `typeof(Inf)` is 'real'); it is unreachable through the
+//      sanity-gated ingest path and asserted anyway so the twin stays exact.
+//
+// Residual, recorded rather than hidden: the trim set covers ASCII whitespace
+// plus NBSP and BOM, not the full Unicode space (U+2000–200A et al). Those
+// cannot occur in a currency code from the aggregator payload.
+const CURRENCY_WS_SQL =
+  `' '||char(9)||char(10)||char(13)||char(11)||char(12)||char(160)||char(65279)`;
+export const USABLE_PRICE_SQL =
+  `(typeof(o.price) IN ('integer','real') AND o.price > 0` +
+  ` AND CAST(o.price AS TEXT) NOT IN ('Inf','-Inf')` +
+  ` AND UPPER(TRIM(o.currency, ${CURRENCY_WS_SQL})) GLOB '[A-Z][A-Z][A-Z]')`;
+
+const SHADOW_STATUS_SQL =
+  `(CASE WHEN json_valid(e.extraction_json) ` +
+  `THEN json_extract(e.extraction_json, '$._arabic_builder.status') ELSE NULL END)`;
+const SHADOW_BUILT_ARABIC_SQL =
+  `(CASE WHEN json_valid(e.extraction_json) ` +
+  `THEN json_extract(e.extraction_json, '$._arabic_builder.built_arabic') ELSE NULL END)`;
+
+// The only production switch. When disabled (the default), this is byte-for-
+// byte the historical observed-Arabic expression. When enabled, a built name
+// is eligible only if the persisted shadow status is exactly BUILT; legacy
+// rows, refusals, and missing metadata all fall back automatically.
+export function enrichmentNameArSql(enabled = false) {
+  if (!builtArabicNamesEnabled(enabled)) return 'e.name_ar';
+  return `(CASE WHEN ${SHADOW_STATUS_SQL} = '${BUILDER_STATUS.BUILT}' ` +
+    `AND ${SHADOW_BUILT_ARABIC_SQL} IS NOT NULL ` +
+    `THEN ${SHADOW_BUILT_ARABIC_SQL} ELSE e.name_ar END)`;
+}
+
+export function canonicalNameArSql(enabled = false) {
+  return `(CASE WHEN ${SERVABLE_SQL} THEN ${enrichmentNameArSql(enabled)} ELSE o.name_ar END)`;
+}
+
+export const CANON_NAME_AR_SQL = canonicalNameArSql(false);
 // Canonical match haystack: the vision match_text when servable (legacy rows
 // not yet reindexed have match_text NULL and fall back to OCR), else OCR.
 export const CANON_HAYSTACK_SQL =
   `(CASE WHEN ${SERVABLE_SQL} AND e.match_text IS NOT NULL THEN e.match_text ELSE o.search_text END)`;
 // The enrichment columns a search row must carry so offers/enrich.js
 // applyEnrichment() can overlay without a second query.
-export const ENRICH_ROW_COLS =
-  'e.name AS e_name, e.name_ar AS e_name_ar, e.match_text AS e_match_text, e.corroboration AS e_corroboration';
+export function enrichRowCols(enabled = false) {
+  return `e.name AS e_name, ${enrichmentNameArSql(enabled)} AS e_name_ar, ` +
+    'e.match_text AS e_match_text, e.corroboration AS e_corroboration';
+}
+
+export const ENRICH_ROW_COLS = enrichRowCols(false);
 
 const SCOPE_WHERE = {
   debris: 'AND o.name IS NULL AND o.name_ar IS NULL',
@@ -66,29 +155,136 @@ export function createD1EnrichStore(db) {
   const upsertStmt = `
     INSERT INTO offer_enrichments
       (id, name, name_ar, brand, size, confidence, corroboration, model,
-       crop_url, enriched_at, match_text, identity_candidate,
+       crop_url, enriched_at, match_text, extraction_json, identity_candidate,
        identity_candidate_version, mint_verdict)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,NULL)
     ON CONFLICT(id) DO UPDATE SET
       name=excluded.name, name_ar=excluded.name_ar, brand=excluded.brand,
       size=excluded.size, confidence=excluded.confidence,
       corroboration=excluded.corroboration, model=excluded.model,
       crop_url=excluded.crop_url, enriched_at=excluded.enriched_at,
       match_text=excluded.match_text,
+      extraction_json=excluded.extraction_json,
       identity_candidate=excluded.identity_candidate,
       identity_candidate_version=excluded.identity_candidate_version,
       mint_verdict=NULL`; // a re-enrichment is re-resolved (idempotent: the
                           // sighting PK makes a re-resolve of a sighted offer
                           // a verdict re-stamp and nothing else)
 
+  const attemptStmt = `
+    INSERT INTO offer_extraction_attempts
+      (offer_id, source, output, validation, confidence, model, crop_url,
+       accepted, attempted_at)
+    VALUES (?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(offer_id, source) DO UPDATE SET
+      output=excluded.output, validation=excluded.validation,
+      confidence=excluded.confidence, model=excluded.model,
+      crop_url=excluded.crop_url, accepted=excluded.accepted,
+      attempted_at=excluded.attempted_at`;
+
+  const canonicalStatement = (r) => db
+    .prepare(upsertStmt)
+    .bind(
+      r.id, r.name ?? null, r.name_ar ?? null, r.brand ?? null,
+      r.size ?? null, r.confidence ?? null, r.corroboration ?? null,
+      r.model ?? null, r.crop_url ?? null, r.enriched_at,
+      visionMatchText(r),
+      // Expanded JSON observation, price-free (offers/enrich.js
+      // preservedObservation). Already an object here; stringify for D1.
+      r.extraction_json == null ? null : JSON.stringify(r.extraction_json),
+      r.identity_candidate == null ? null : JSON.stringify(r.identity_candidate),
+      r.identity_candidate_version ?? (r.identity_candidate == null
+        ? null
+        : IDENTITY_CANDIDATE_STORAGE_VERSION),
+    );
+
+  // S4 verdict persistence (R5, R6). Keyed by offer, upserted: the recovery
+  // ladder re-judges the same offer after each rung, and the CURRENT verdict is
+  // what calibration reads. `missing` and `mandatory` are both derived from the
+  // one verdict object below, so the per-condition record and the summary can
+  // never drift apart.
+  const acceptanceStmt = `
+    INSERT INTO offer_acceptance_verdicts
+      (offer_id, version, accepted, missing, mandatory, quantity_status,
+       quantity_basis, decided_at)
+    VALUES (?,?,?,?,?,?,?,?)
+    ON CONFLICT(offer_id) DO UPDATE SET
+      version=excluded.version, accepted=excluded.accepted,
+      missing=excluded.missing, mandatory=excluded.mandatory,
+      quantity_status=excluded.quantity_status,
+      quantity_basis=excluded.quantity_basis,
+      decided_at=excluded.decided_at`;
+
+  const acceptanceStatement = (offerId, verdict, decidedAt) => db
+    .prepare(acceptanceStmt)
+    .bind(
+      offerId,
+      verdict.version,
+      verdict.accepted ? 1 : 0,
+      JSON.stringify([...(verdict.missing || [])]),
+      JSON.stringify(verdict.mandatory || {}),
+      verdict.comparableQuantity?.status ?? null,
+      verdict.comparableQuantity?.basis ?? null,
+      decidedAt,
+    );
+
+  // MIGRATION TOLERANCE, memoized per store instance. The verdict is a
+  // calibration record, so it must never be able to fail an extraction: if the
+  // table is absent the statement is simply not added to the batch. This is
+  // probed rather than try/caught because the write rides INSIDE the atomic
+  // batch — a failure there would roll back the attempt and the canonical row
+  // with it, turning a missing migration into lost extraction work.
+  //
+  // One `sqlite_master` read per Worker instance, not per offer: D1 queries
+  // count against the per-invocation subrequest budget, which this pipeline has
+  // already exhausted once (drainResolution, 2026-07-20).
+  // Owns only the readiness probe and the batch statements used below; the
+  // full queue surface belongs to the recovery runner.
+  const recoveryStore = createRecoveryQueue(db);
+
+  let acceptanceReady = null;
+  const acceptanceVerdictsReady = async () => {
+    if (acceptanceReady !== null) return acceptanceReady;
+    try {
+      const row = await db
+        .prepare(
+          `SELECT name FROM sqlite_master
+            WHERE type = 'table' AND name = 'offer_acceptance_verdicts'`,
+        )
+        .first();
+      acceptanceReady = !!row;
+    } catch {
+      acceptanceReady = false;
+    }
+    return acceptanceReady;
+  };
+
+  const attemptStatement = (attempt) => db
+    .prepare(attemptStmt)
+    .bind(
+      attempt.offerId,
+      attempt.source,
+      attempt.output == null ? null : JSON.stringify(attempt.output),
+      JSON.stringify(attempt.validation),
+      attempt.confidence ?? null,
+      attempt.model ?? null,
+      attempt.cropUrl ?? null,
+      attempt.accepted ? 1 : 0,
+      attempt.attemptedAt,
+    );
+
   return {
     async listDebris({ currentOn, limit = 15, scope = 'all' } = {}) {
       const { results } = await db
         .prepare(
-          `SELECT o.id, o.image_url
-             FROM offers o LEFT JOIN offer_enrichments e ON e.id = o.id
-            WHERE e.id IS NULL ${SCOPE_WHERE[scope] ?? SCOPE_WHERE.all}
+          `SELECT o.id, o.image_url, o.price, o.currency
+             FROM offers o
+             LEFT JOIN offer_enrichments e ON e.id = o.id
+             LEFT JOIN offer_extraction_attempts v
+               ON v.offer_id = o.id AND v.source = 'vision'
+            WHERE e.id IS NULL AND v.offer_id IS NULL ${SCOPE_WHERE[scope] ?? SCOPE_WHERE.all}
               AND o.image_url IS NOT NULL AND o.valid_to >= ?
+              AND ${USABLE_PRICE_SQL}
             ORDER BY o.detected_at DESC LIMIT ?`,
         )
         .bind(currentOn, Math.max(1, Math.min(Number(limit) || 15, 50)))
@@ -104,7 +300,7 @@ export function createD1EnrichStore(db) {
       if (!selected.length) return [];
       const { results } = await db
         .prepare(
-          `SELECT id, image_url FROM offers
+          `SELECT id, image_url, price, currency FROM offers
             WHERE id IN (${selected.map(() => '?').join(',')})
               AND image_url IS NOT NULL AND valid_to >= ?
             ORDER BY detected_at DESC`,
@@ -115,7 +311,12 @@ export function createD1EnrichStore(db) {
     },
 
     // Ops Vision Progress: the enrichment coverage of the CURRENT vision-
-    // eligible catalog (offers holding a crop), in one query. `attempted`
+    // eligible catalog, in one query. "Vision-eligible" is the S1 admission
+    // predicate, so since R4 it means "holds a crop AND holds a usable
+    // commerce price" — the SAME condition listDebris/countDebris apply. The
+    // denominator has to move with them: withCrop is what `remaining` is
+    // measured against, so leaving priceless offers in it would strand them as
+    // permanently-uncovered and cap coverage% below 100 forever. `attempted`
     // counts every offer vision has looked at (incl. declined, NULL-names
     // rows); `enriched` those it read a name from; `servable` those clearing
     // the corroboration floor. `remaining = withCrop - attempted` equals
@@ -125,12 +326,16 @@ export function createD1EnrichStore(db) {
       const row = await db
         .prepare(
           `SELECT COUNT(*) AS with_crop,
-                  SUM(CASE WHEN e.id IS NOT NULL THEN 1 ELSE 0 END) AS attempted,
+                  SUM(CASE WHEN e.id IS NOT NULL OR v.offer_id IS NOT NULL THEN 1 ELSE 0 END) AS attempted,
                   SUM(CASE WHEN e.name IS NOT NULL OR e.name_ar IS NOT NULL THEN 1 ELSE 0 END) AS enriched,
                   SUM(CASE WHEN (e.name IS NOT NULL OR e.name_ar IS NOT NULL)
                             AND e.corroboration >= ${CORROBORATION_FLOOR} THEN 1 ELSE 0 END) AS servable
-             FROM offers o LEFT JOIN offer_enrichments e ON e.id = o.id
-            WHERE o.image_url IS NOT NULL AND o.valid_to >= ?`,
+             FROM offers o
+             LEFT JOIN offer_enrichments e ON e.id = o.id
+             LEFT JOIN offer_extraction_attempts v
+               ON v.offer_id = o.id AND v.source = 'vision'
+            WHERE o.image_url IS NOT NULL AND o.valid_to >= ?
+              AND ${USABLE_PRICE_SQL}`,
         )
         .bind(currentOn)
         .first();
@@ -148,13 +353,84 @@ export function createD1EnrichStore(db) {
       };
     },
 
+    // The calibration read (R5, R6). Answers the question the mandatory set is
+    // tuned against: of the offers S4 has judged, how many were rejected, and
+    // BY WHICH CONDITION. Per-condition counts come from the stored `mandatory`
+    // object, and the condition list is imported from the gate itself, so this
+    // query cannot fall out of step with the version it reports on.
+    //
+    // Counts are per-condition and therefore OVERLAPPING — one offer missing
+    // both a price and a size is counted in both buckets. That is deliberate:
+    // aggregating them into "rejected for N reasons" is the exact loss of
+    // information R6 forbids. `onlyCondition` is the disjoint view, and it is
+    // the actionable one: it isolates offers a single condition is keeping out,
+    // which is what would change if that condition were dropped.
+    async acceptanceSummary({ version = null } = {}) {
+      if (!await acceptanceVerdictsReady()) return null;
+      const perCondition = MANDATORY_CONDITIONS.map(
+        (c) => `SUM(CASE WHEN json_extract(mandatory, '$.${c}') = 0 THEN 1 ELSE 0 END) AS missing_${c}`,
+      ).join(',\n                  ');
+      const onlyCondition = MANDATORY_CONDITIONS.map(
+        (c) => `SUM(CASE WHEN accepted = 0 AND json_array_length(missing) = 1`
+          + ` AND json_extract(missing, '$[0]') = '${c}' THEN 1 ELSE 0 END) AS only_${c}`,
+      ).join(',\n                  ');
+      const row = await db
+        .prepare(
+          `SELECT COUNT(*) AS judged,
+                  SUM(accepted) AS accepted,
+                  ${perCondition},
+                  ${onlyCondition}
+             FROM offer_acceptance_verdicts
+            WHERE (? IS NULL OR version = ?)`,
+        )
+        .bind(version, version)
+        .first();
+      const judged = row?.judged || 0;
+      const accepted = row?.accepted || 0;
+      return {
+        version: version ?? 'all',
+        judged,
+        accepted,
+        rejected: judged - accepted,
+        acceptanceRate: judged > 0 ? Math.round((accepted / judged) * 1000) / 10 : null,
+        missingByCondition: Object.fromEntries(
+          MANDATORY_CONDITIONS.map((c) => [c, row?.[`missing_${c}`] || 0]),
+        ),
+        onlyCondition: Object.fromEntries(
+          MANDATORY_CONDITIONS.map((c) => [c, row?.[`only_${c}`] || 0]),
+        ),
+      };
+    },
+
+    async getAcceptanceVerdict(offerId) {
+      if (!await acceptanceVerdictsReady()) return null;
+      const row = await db
+        .prepare('SELECT * FROM offer_acceptance_verdicts WHERE offer_id = ?')
+        .bind(offerId)
+        .first();
+      if (!row) return null;
+      return {
+        offerId: row.offer_id,
+        version: row.version,
+        accepted: row.accepted === 1,
+        missing: JSON.parse(row.missing),
+        mandatory: JSON.parse(row.mandatory),
+        comparableQuantity: { status: row.quantity_status, basis: row.quantity_basis },
+        decidedAt: row.decided_at,
+      };
+    },
+
     async countDebris(currentOn, scope = 'all') {
       const row = await db
         .prepare(
           `SELECT COUNT(*) AS n
-             FROM offers o LEFT JOIN offer_enrichments e ON e.id = o.id
-            WHERE e.id IS NULL ${SCOPE_WHERE[scope] ?? SCOPE_WHERE.all}
-              AND o.image_url IS NOT NULL AND o.valid_to >= ?`,
+             FROM offers o
+             LEFT JOIN offer_enrichments e ON e.id = o.id
+             LEFT JOIN offer_extraction_attempts v
+               ON v.offer_id = o.id AND v.source = 'vision'
+            WHERE e.id IS NULL AND v.offer_id IS NULL ${SCOPE_WHERE[scope] ?? SCOPE_WHERE.all}
+              AND o.image_url IS NOT NULL AND o.valid_to >= ?
+              AND ${USABLE_PRICE_SQL}`,
         )
         .bind(currentOn)
         .first();
@@ -163,24 +439,258 @@ export function createD1EnrichStore(db) {
 
     async upsertMany(rows) {
       for (let i = 0; i < rows.length; i += 40) {
-        await db.batch(
-          rows.slice(i, i + 40).map((r) =>
-            db
-              .prepare(upsertStmt)
-              .bind(
-                r.id, r.name ?? null, r.name_ar ?? null, r.brand ?? null,
-                r.size ?? null, r.confidence ?? null, r.corroboration ?? null,
-                r.model ?? null, r.crop_url ?? null, r.enriched_at,
-                visionMatchText(r),
-                r.identity_candidate == null ? null : JSON.stringify(r.identity_candidate),
-                r.identity_candidate_version ?? (r.identity_candidate == null
-                  ? null
-                  : IDENTITY_CANDIDATE_STORAGE_VERSION),
-              ),
-          ),
-        );
+        await db.batch(rows.slice(i, i + 40).map(canonicalStatement));
       }
       return { stored: rows.length };
+    },
+
+    // Vision attempt + either canonical PASS or OCR queue REJECT are committed
+    // together. A Worker retry therefore cannot lose an escalation or strand a
+    // persisted attempt without a canonical result.
+    //
+    // `acceptance` (R5) joins that same batch: the S4 verdict is committed with
+    // the attempt that produced it, so no offer can carry a verdict describing
+    // an extraction that was rolled back, nor an extraction with no verdict.
+    //
+    // `recovery` (S5.3, C-9) joins it for the same reason. It is the ALREADY
+    // DECIDED admission — `{ complete, reasons }` from `recoveryAdmission()` in
+    // enrich.js — not something re-derived here. The single admission rule needs
+    // `servable()` and the S4 verdict, both of which live at the caller; passing
+    // the decision in keeps the queue and its store from re-implementing a rule
+    // that must have exactly one definition (C-9).
+    async saveVisionOutcome({
+      attempt, canonicalRow = null, triggerReasons = [], acceptance = null,
+      recovery = null,
+    }) {
+      const statements = [attemptStatement(attempt)];
+      if (canonicalRow) {
+        statements.push(canonicalStatement(canonicalRow));
+        statements.push(db.prepare('DELETE FROM offer_ocr_queue WHERE offer_id = ?').bind(attempt.offerId));
+      } else {
+        statements.push(db
+          .prepare(
+            `INSERT INTO offer_ocr_queue
+               (offer_id, status, trigger_reasons, attempts, next_attempt_at,
+                last_error, created_at, updated_at)
+             VALUES (?, 'ocr_pending', ?, 0, NULL, NULL, ?, ?)
+             ON CONFLICT(offer_id) DO UPDATE SET
+               status=CASE WHEN offer_ocr_queue.status = 'completed'
+                           THEN 'completed' ELSE 'ocr_pending' END,
+               trigger_reasons=excluded.trigger_reasons,
+               updated_at=excluded.updated_at`,
+          )
+          .bind(
+            attempt.offerId,
+            JSON.stringify(triggerReasons),
+            attempt.attemptedAt,
+            attempt.attemptedAt,
+          ));
+      }
+      // Rejected verdicts are persisted exactly like accepted ones (R5) — the
+      // reject rows ARE the calibration signal, so there is no `if (accepted)`
+      // here by design.
+      const verdictStored = !!acceptance && await acceptanceVerdictsReady();
+      if (verdictStored) {
+        statements.push(acceptanceStatement(attempt.offerId, acceptance, attempt.attemptedAt));
+      }
+      // S5.3 — the Recovery Queue write, on the SAME atomic batch.
+      //
+      // MIGRATION-TOLERANT, and the fallback matters: when the table is absent
+      // the legacy offer_ocr_queue statements above are the only queue write, so
+      // a Worker deployed ahead of the migration behaves EXACTLY as it did
+      // before S5. A hard dependency here would turn a missing migration into
+      // lost escalations — strictly worse than today.
+      //
+      // ⚠️ TRANSITIONAL DOUBLE-WRITE. Both queues are written until the OCR
+      // processor reads the recovery queue (S5.5); that is what makes the
+      // cutover reversible by redeploy instead of by data restore. It cannot
+      // cause double processing, because the recovery runner is inert until an
+      // operator arms it (Manual is the default, C-9). REMOVE the legacy
+      // offer_ocr_queue statements once the recovery queue is observed working
+      // in production.
+      //
+      // ROLLBACK IS NOT ONE STEP, and it is worth being exact about why. Both
+      // environments ship OCR_FALLBACK_ENABLED="false" (wrangler.toml), so the
+      // legacy drain is NOT running alongside this — the legacy rows are being
+      // kept warm, not consumed. Reverting the Worker therefore restores the
+      // pre-S5 code path but still leaves recovery switched off; restoring the
+      // pre-S5 BEHAVIOUR additionally requires setting OCR_FALLBACK_ENABLED to
+      // "true" and binding MISTRAL_OCR_API_KEY. Neither step touches data,
+      // which is the property this double-write actually buys.
+      let recoveryQueued = false;
+      if (recovery && await recoveryStore.ready()) {
+        if (recovery.complete) {
+          statements.push(resolveStatement(db, attempt.offerId, attempt.attemptedAt));
+        } else {
+          statements.push(enqueueStatement(db, attempt.offerId, {
+            reasons: recovery.reasons,
+            at: attempt.attemptedAt,
+            meta: { origin: 'extraction' },
+          }));
+          recoveryQueued = true;
+        }
+      }
+      await db.batch(statements);
+      return { stored: 1, queued: canonicalRow ? 0 : 1, verdictStored, recoveryQueued };
+    },
+
+    // S5 · THE RECOVERY COMMIT BOUNDARY. Attempt journal + canonical row + the
+    // re-judged S4 verdict + queue closure, in ONE atomic batch.
+    //
+    // Processor-agnostic on purpose: `attempt.source` is the opaque processor
+    // id, and this method neither knows nor asks which processor produced the
+    // row. It is the generic twin of `saveOcrOutcome`, which stays in place
+    // until the legacy drain is retired.
+    //
+    // Atomicity matters more here than on the primary path. A recovery write
+    // that committed the canonical row but not the verdict would leave an offer
+    // that LOOKS servable carrying a stale reject verdict, and the queue would
+    // hand it to another processor to be paid for again.
+    // `fence` is the lease token from recoveryQueue.claim(). EVERYTHING below
+    // rides on it: a worker that ran past its lease must not overwrite the
+    // canonical row a successor already wrote from the same crop, nor resolve
+    // an item someone else is working, nor spend a newer generation's attempt
+    // budget. The fence statements go FIRST and abort the whole batch when the
+    // lease is no longer ours (recoveryQueue.claimFenceStatements).
+    //
+    // `history` and `release` join the same batch for the same reason the
+    // verdict does: the attempt journal describes this exact canonical write,
+    // and the queue state describes what to do next. Anything committed apart
+    // from the others can be lost apart from the others.
+    async saveRecoveryOutcome({
+      attempt, canonicalRow = null, acceptance = null, resolve = false,
+      fence = null, history = null, release = null,
+    }) {
+      const recoveryReady = await recoveryStore.ready();
+      const statements = [];
+      if (fence?.token && recoveryReady) {
+        statements.push(...claimFenceStatements(db, {
+          offerId: fence.offerId ?? attempt.offerId,
+          token: fence.token,
+          at: fence.at ?? attempt.attemptedAt,
+        }));
+      }
+      statements.push(attemptStatement(attempt));
+      if (canonicalRow) statements.push(canonicalStatement(canonicalRow));
+      const verdictStored = !!acceptance && await acceptanceVerdictsReady();
+      if (verdictStored) {
+        statements.push(acceptanceStatement(attempt.offerId, acceptance, attempt.attemptedAt));
+      }
+      if (recoveryReady) {
+        if (history) {
+          statements.push(...attemptStatements(db, { ...history, token: fence?.token ?? null }));
+        }
+        if (resolve) {
+          statements.push(resolveStatement(db, attempt.offerId, attempt.attemptedAt));
+        } else if (release) {
+          statements.push(releaseStatement(db, attempt.offerId, {
+            ...release,
+            token: fence?.token ?? null,
+            at: release.at ?? attempt.attemptedAt,
+          }));
+        }
+      }
+      // ⚠️ TRANSITIONAL, remove with the rest of the legacy queue (S5.5): while
+      // both queues exist, a recovery that resolved an offer must also close the
+      // legacy row, or the old OCR drain will pay to process it again.
+      if (resolve) {
+        statements.push(db
+          .prepare(`UPDATE offer_ocr_queue SET status = 'completed', updated_at = ?
+                     WHERE offer_id = ?`)
+          .bind(attempt.attemptedAt, attempt.offerId));
+      }
+      try {
+        await db.batch(statements);
+      } catch (err) {
+        // Distinguish "we lost the lease" from "the database is broken" — the
+        // caller must continue on the first and stop on the second. Costs one
+        // read, and only on a path that has already failed.
+        if (fence?.token && recoveryReady) {
+          const row = await db
+            .prepare('SELECT claim_token FROM offer_recovery_queue WHERE offer_id = ?')
+            .bind(fence.offerId ?? attempt.offerId)
+            .first()
+            .catch(() => null);
+          if (!row || row.claim_token !== fence.token) err.staleClaim = true;
+        }
+        throw err;
+      }
+      return { stored: 1, verdictStored, resolved: !!resolve };
+    },
+
+    async listPendingOcr({ currentOn, limit = 10 } = {}) {
+      const { results } = await db
+        .prepare(
+          `SELECT o.id, o.image_url, o.price, o.currency, q.attempts, q.trigger_reasons,
+                  v.output AS vision_output, v.validation AS vision_validation,
+                  v.confidence AS vision_confidence, v.model AS vision_model,
+                  v.crop_url AS vision_crop_url, v.attempted_at AS vision_attempted_at
+             FROM offer_ocr_queue q
+             JOIN offers o ON o.id = q.offer_id
+             JOIN offer_extraction_attempts v
+               ON v.offer_id = q.offer_id AND v.source = 'vision'
+             LEFT JOIN offer_enrichments e ON e.id = q.offer_id
+            WHERE q.status = 'ocr_pending' AND e.id IS NULL
+              AND (q.next_attempt_at IS NULL OR q.next_attempt_at <= ?)
+              AND o.image_url IS NOT NULL AND o.valid_to >= ?
+            ORDER BY q.updated_at, q.offer_id LIMIT ?`,
+        )
+        .bind(
+          new Date().toISOString(),
+          currentOn,
+          Math.max(1, Math.min(Number(limit) || 10, 25)),
+        )
+        .all();
+      return (results || []).map((row) => ({
+        ...row,
+        vision_output: row.vision_output == null ? null : JSON.parse(row.vision_output),
+        vision_validation: JSON.parse(row.vision_validation),
+        trigger_reasons: JSON.parse(row.trigger_reasons || '[]'),
+      }));
+    },
+
+    async countPendingOcr(currentOn) {
+      const row = await db
+        .prepare(
+          `SELECT COUNT(*) AS n
+             FROM offer_ocr_queue q
+             JOIN offers o ON o.id = q.offer_id
+             LEFT JOIN offer_enrichments e ON e.id = q.offer_id
+            WHERE q.status = 'ocr_pending' AND e.id IS NULL
+              AND o.valid_to >= ?`,
+        )
+        .bind(currentOn)
+        .first();
+      return row?.n || 0;
+    },
+
+    async saveOcrOutcome({ attempt, canonicalRow }) {
+      await db.batch([
+        attemptStatement(attempt),
+        canonicalStatement(canonicalRow),
+        db
+          .prepare(
+            `UPDATE offer_ocr_queue
+                SET status = 'completed', attempts = attempts + 1,
+                    next_attempt_at = NULL, last_error = NULL, updated_at = ?
+              WHERE offer_id = ?`,
+          )
+          .bind(attempt.attemptedAt, attempt.offerId),
+      ]);
+      return { stored: 1 };
+    },
+
+    async markOcrPending(offerId, error, { retryAt } = {}) {
+      const updatedAt = new Date().toISOString();
+      await db
+        .prepare(
+          `UPDATE offer_ocr_queue
+              SET status = 'ocr_pending', attempts = attempts + 1,
+                  next_attempt_at = ?, last_error = ?, updated_at = ?
+            WHERE offer_id = ?`,
+        )
+        .bind(retryAt ?? null, String(error || '').slice(0, 500), updatedAt, offerId)
+        .run();
     },
 
     // Batch fetch for the read-path overlay, keyed for O(1) join per row.
@@ -199,14 +709,93 @@ export function createD1EnrichStore(db) {
       return map;
     },
 
+    // No-schema-migration shadow backfill. Existing production rows already
+    // contain every builder input; this fills missing/stale score metadata and
+    // never changes observed names, match_text, or serving eligibility.
+    async backfillArabicBuilderShadows(limit = 200) {
+      const missingShadow = (column = 'extraction_json') =>
+        `CASE WHEN ${column} IS NULL THEN 1 ` +
+        `WHEN json_valid(${column}) THEN (` +
+        `COALESCE(json_extract(${column}, '$._arabic_builder.builder_score_version'), '') ` +
+        `!= '${BUILDER_SCORE_VERSION}' OR ` +
+        `COALESCE(json_extract(${column}, '$._arabic_builder.commerce_score_version'), '') ` +
+        `!= '${COMMERCE_SCORE_VERSION}') ` +
+        `ELSE 0 END`;
+      const { results } = await db
+        .prepare(
+          `SELECT e.id, e.name, e.name_ar, e.brand, e.size, e.extraction_json,
+                  o.price, o.currency
+             FROM offer_enrichments e JOIN offers o ON o.id = e.id
+            WHERE ${missingShadow('e.extraction_json')}
+            ORDER BY e.enriched_at DESC LIMIT ?`,
+        )
+        .bind(Math.max(1, Math.min(Number(limit) || 200, 500)))
+        .all();
+      const rows = results || [];
+      if (!rows.length) return 0;
+      const statements = rows.map((row) => {
+        let observation = {};
+        try {
+          observation = row.extraction_json ? JSON.parse(row.extraction_json) : {};
+        } catch {
+          observation = {};
+        }
+        const { arabicBuilder } = buildArabicShadow({
+          ...observation,
+          name_en: row.name,
+          name_ar: row.name_ar,
+          brand: row.brand,
+          size: row.size,
+          price: row.price,
+          currency: row.currency,
+        });
+        return db
+          .prepare(
+            `UPDATE offer_enrichments SET extraction_json = ?
+              WHERE id = ? AND (${missingShadow()})`,
+          )
+          .bind(
+            JSON.stringify(withArabicBuilderShadow(observation, arabicBuilder)),
+            row.id,
+          );
+      });
+      const changes = await db.batch(statements);
+      return changes.reduce((sum, result) => sum + (result?.meta?.changes || 0), 0);
+    },
+
     // Offer ids churn weekly (the aggregator re-extracts every flyer), and
     // retention prunes expired offer rows — enrichments follow their offers.
+    //
+    // THE RECOVERY TABLES ARE PRUNED HERE TOO, and they have to be: neither
+    // carries a foreign key, and every operator-facing read of them inner-joins
+    // `offers`, so orphans are invisible in the console while still occupying
+    // the database. On weekly churn that is unbounded growth nobody can see.
+    // The verdict table is in the same position — keyed by offer, joined on
+    // read, no FK.
+    //
+    // Recovery history dies with its offer rather than being kept for
+    // effectiveness reporting. It is a deliberate trade: `effectiveness()`
+    // aggregates over live history only, which is the honest scope for a
+    // database whose offer ids are re-minted every week — an id that no longer
+    // exists cannot be traced back to anything an operator can look at.
     async pruneOrphans() {
       const res = await db
         .prepare(
           'DELETE FROM offer_enrichments WHERE id NOT IN (SELECT id FROM offers)',
         )
         .run();
+      await db.batch([
+        db.prepare('DELETE FROM offer_extraction_attempts WHERE offer_id NOT IN (SELECT id FROM offers)'),
+        db.prepare('DELETE FROM offer_ocr_queue WHERE offer_id NOT IN (SELECT id FROM offers)'),
+      ]);
+      // Separate batch, and tolerant: these tables may not exist yet on a
+      // Worker running ahead of its migrations, and retention must not start
+      // failing because of it.
+      await db.batch([
+        db.prepare('DELETE FROM offer_recovery_attempts WHERE offer_id NOT IN (SELECT id FROM offers)'),
+        db.prepare('DELETE FROM offer_recovery_queue WHERE offer_id NOT IN (SELECT id FROM offers)'),
+        db.prepare('DELETE FROM offer_acceptance_verdicts WHERE offer_id NOT IN (SELECT id FROM offers)'),
+      ]).catch(() => {});
       return res?.meta?.changes || 0;
     },
 

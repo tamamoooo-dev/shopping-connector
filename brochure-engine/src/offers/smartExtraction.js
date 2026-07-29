@@ -8,6 +8,7 @@
 
 import { parseSize } from '../matching.js';
 import { matchBrandToken } from '../browse/brands.js';
+import { latinLetterCount, MIN_LATIN_LETTERS } from '../usableEnglish.js';
 
 export const EXTRACTION_STRATEGIES = Object.freeze({
   VISION_FIRST: 'vision-first',
@@ -18,6 +19,53 @@ export const EXTRACTION_STRATEGIES = Object.freeze({
 
 export const DEFAULT_EXTRACTION_STRATEGY = EXTRACTION_STRATEGIES.VISION_FIRST;
 export const EXTRACTION_FIELDS = Object.freeze(['name_en', 'name_ar', 'brand', 'size', 'pack_count']);
+
+// Where a final field value came from. `Human` is a FIRST-CLASS source, not a
+// decoration: without it the Developer Review stage (S7) writes rows the serving
+// gate silently refuses, and the review tool appears to work while accomplishing
+// nothing (VISION-PIPELINE.md §6 S7, R1).
+export const EXTRACTION_PROVENANCE = Object.freeze({
+  VISION: 'Vision',
+  OCR: 'OCR',
+  HUMAN: 'Human',
+  NULL: 'Null',
+});
+
+// A human edit IS the evidence. Machine provenances must agree with the
+// validator that admitted them; asking a validator to corroborate a developer's
+// decision inverts the authority the review stage exists to exercise — the
+// reviewer is looking at the crop, which is more than any validator has.
+export function isSelfEvidencingProvenance(provenance) {
+  return provenance === EXTRACTION_PROVENANCE.HUMAN;
+}
+
+// Expanded JSON schema mapping (FROZEN production baseline, 2026-07-25). The
+// adopted prompt renames two of the observation fields this module validates:
+// `package_size` carries what the old 6-field schema called `size`, and
+// `quantity` carries what it called `pack_count`. Reading through an ordered
+// alias list — legacy key first — maps the new schema onto the existing
+// validation and storage contract without changing a single validation rule,
+// and keeps already-stored observations and the OCR path validating unchanged.
+// The remaining Expanded JSON fields (unit, package_type, attributes, and the
+// quarantined prices) are not extraction candidates; offers/enrich.js preserves
+// them alongside the record rather than feeding them to these validators.
+export const OBSERVATION_FIELD_ALIASES = Object.freeze({
+  name_en: ['name_en'],
+  name_ar: ['name_ar'],
+  brand: ['brand'],
+  size: ['size', 'package_size'],
+  pack_count: ['pack_count', 'packCount', 'quantity'],
+});
+
+// First non-empty alias wins. Returns null when the model populated none of
+// them, which is exactly the "Missing" signal fieldDecision() already expects.
+export function readObservationField(output, field) {
+  for (const key of OBSERVATION_FIELD_ALIASES[field] || [field]) {
+    const value = output?.[key];
+    if (value != null && value !== '') return value;
+  }
+  return null;
+}
 
 const STRATEGY_ALIASES = new Map([
   ['vision first', EXTRACTION_STRATEGIES.VISION_FIRST],
@@ -129,7 +177,7 @@ function visiblePackEvidence(candidates) {
 function scriptCounts(text) {
   return {
     arabic: (String(text).match(/[\p{Script=Arabic}]/gu) || []).length,
-    latin: (String(text).match(/[A-Za-z]/g) || []).length,
+    latin: latinLetterCount(text),
   };
 }
 
@@ -160,7 +208,7 @@ function fieldDecision(field, value, usable, source) {
     reasons.push('Candidate is promotional, price-only, specification-only, or identifier noise');
   }
   if (PRICE_IN_FIELD.test(candidate)) reasons.push('Candidate contains a price or currency fragment');
-  if (field === 'name_en' && scriptCounts(candidate).latin < 2) {
+  if (field === 'name_en' && scriptCounts(candidate).latin < MIN_LATIN_LETTERS) {
     reasons.push('Candidate lacks required English script evidence');
   }
   if (field === 'name_ar' && scriptCounts(candidate).arabic < 2) {
@@ -206,13 +254,10 @@ export function parseVisionObject(text) {
 
 export function validateVisionOutput(output, { usable = true, error = null } = {}) {
   const objectOk = usable && output && typeof output === 'object' && !Array.isArray(output);
-  const candidates = {
-    name_en: objectOk ? output.name_en : null,
-    name_ar: objectOk ? output.name_ar : null,
-    brand: objectOk ? output.brand : null,
-    size: objectOk ? output.size : null,
-    pack_count: objectOk ? (output.pack_count ?? output.packCount) : null,
-  };
+  const candidates = Object.fromEntries(EXTRACTION_FIELDS.map((field) => [
+    field,
+    objectOk ? readObservationField(output, field) : null,
+  ]));
   const fields = Object.fromEntries(
     EXTRACTION_FIELDS.map((field) => [field, fieldDecision(field, candidates[field], objectOk, 'Vision')]),
   );
@@ -526,6 +571,156 @@ export function mergeValidatedExtractions(visionValidation, ocrValidation) {
   };
 }
 
+// S7 · the human review layer.
+//
+// AN ADDITIVE LAYER, NEVER A MUTATION. The merge it receives is left byte-
+// identical; a new one is returned beside it. The model's reply and every
+// validation stay auditable, which is invariant P2 and the reason a bad edit is
+// always diagnosable after the fact.
+//
+// WHY A HUMAN MAY OVERRIDE AN ACCEPTED FIELD (C-7). P6 stops a WEAKER AUTOMATED
+// source from clobbering a stronger one — OCR must never overwrite accepted
+// Vision, and a recovery extractor must never overwrite the primary. The human
+// rung is not another source competing on evidence; it is the terminal authority
+// the ladder escalates TO. A review stage that could only fill blanks and never
+// correct a confident misread would be unable to fix the exact defects this
+// ladder exists to catch: the `10 KG` hallucination against a printed `5kg` was
+// an ACCEPTED field at 0.98 confidence.
+//
+// The override is never silent. Every changed field keeps its previous value and
+// previous provenance in `humanOverrides` (P15).
+export function applyHumanReview(merge, { fields = {}, actor = null, at = null } = {}) {
+  const final = { ...(merge?.final || {}) };
+  const provenance = { ...(merge?.provenance || {}) };
+  const decisions = { ...(merge?.decisions || {}) };
+  const humanOverrides = [];
+
+  for (const field of EXTRACTION_FIELDS) {
+    // Only an EXPLICIT key is an edit. An absent key leaves the field exactly as
+    // the machine rungs left it, so a review that touches one field cannot
+    // silently blank the other four.
+    if (!Object.hasOwn(fields, field)) continue;
+    const value = fields[field] ?? null;
+    const previousValue = final[field] ?? null;
+    const previousProvenance = provenance[field] ?? EXTRACTION_PROVENANCE.NULL;
+    if (value === previousValue && previousProvenance === EXTRACTION_PROVENANCE.HUMAN) continue;
+
+    final[field] = value;
+    provenance[field] = value === null
+      ? EXTRACTION_PROVENANCE.NULL
+      : EXTRACTION_PROVENANCE.HUMAN;
+    decisions[field] = { action: 'human_review_edit', value, previousValue, previousProvenance };
+    humanOverrides.push({ field, value, previousValue, previousProvenance });
+  }
+
+  return {
+    ...merge,
+    final,
+    provenance,
+    decisions,
+    humanReview: Object.freeze({
+      actor,
+      at,
+      fields: Object.freeze(humanOverrides.map((override) => override.field)),
+    }),
+    humanOverrides: Object.freeze(humanOverrides.map((override) => Object.freeze(override))),
+  };
+}
+
+// Assemble the source-neutral extraction contract from already-validated
+// observations. The asynchronous OCR worker uses this after loading the saved
+// Vision validation, so it never needs to invoke Vision a second time.
+export function finalizeValidatedExtraction({
+  strategy = EXTRACTION_STRATEGIES.VISION_FIRST,
+  visionOutput = null,
+  visionValidation = emptySourceValidation('Vision'),
+  ocrOutput = null,
+  ocrValidation = emptySourceValidation('OCR'),
+  visionRequests = 0,
+  ocrRequests = 0,
+  visionAttemptPresent = visionRequests > 0,
+  ocrAttemptPresent = ocrRequests > 0,
+  processingTimeMs = 0,
+  // S7 · THE REVIEW LAYER, ADDITIVE. `{ fields, actor, at }` or null. Supplied
+  // ONLY by the human recovery processor; every machine caller omits it and
+  // gets a byte-identical result, because with null `applyHumanReview` is not
+  // called at all. It lives here rather than in the processor so there is ONE
+  // assembly of `structured`/`provenance`/`diagnostics` — a processor that
+  // rebuilt that shape by hand would drift from the machine path the first time
+  // this function changed, and the drift would surface as a serving-gate bug.
+  humanReview = null,
+} = {}) {
+  const selectedStrategy = normalizeExtractionStrategy(strategy);
+  const machineMerge = mergeValidatedExtractions(visionValidation, ocrValidation);
+  // The review sits ON TOP of the machine merge and never inside it (P2): the
+  // machine rungs' conflict handling, including OCR-vs-Vision immutability, has
+  // already run and is left exactly as it was.
+  const merge = humanReview ? applyHumanReview(machineMerge, humanReview) : machineMerge;
+  const ocrAuthoritative = selectedStrategy === EXTRACTION_STRATEGIES.OCR_FIRST
+    || selectedStrategy === EXTRACTION_STRATEGIES.OCR_ONLY;
+  const confidence = ocrAuthoritative ? ocrValidation.confidence : visionValidation.confidence;
+  const confidenceProvenance = confidence == null ? 'Null' : ocrAuthoritative ? 'OCR' : 'Vision';
+  const structured = {
+    brand: merge.final.brand,
+    productName: merge.final.name_en,
+    arabicName: merge.final.name_ar,
+    size: merge.final.size,
+    packCount: merge.final.pack_count,
+    count: parseVisiblePackCount(merge.final.pack_count, { allowStandaloneMultiplier: true, allowBareCount: true })?.count ?? null,
+  };
+  const reason = ocrAttemptPresent
+    ? (selectedStrategy === EXTRACTION_STRATEGIES.VISION_FIRST
+      ? visionValidation.triggerReasons
+      : [`strategy_${selectedStrategy.replaceAll('-', '_')}`])
+    : (selectedStrategy === EXTRACTION_STRATEGIES.VISION_ONLY && visionValidation.ocrRequired
+      ? ['ocr_disabled_by_vision_only_strategy', ...visionValidation.triggerReasons]
+      : ['vision_validation_complete']);
+
+  return {
+    extraction: structured,
+    confidence,
+    provenance: {
+      brand: merge.provenance.brand,
+      productName: merge.provenance.name_en,
+      arabicName: merge.provenance.name_ar,
+      size: merge.provenance.size,
+      packCount: merge.provenance.pack_count,
+      count: merge.provenance.pack_count,
+      confidence: confidenceProvenance,
+    },
+    diagnostics: {
+      strategy: selectedStrategy,
+      visionOutput,
+      validationResult: visionValidation,
+      ocrTriggered: ocrAttemptPresent,
+      triggerReason: reason,
+      ocrOutput,
+      ocrValidationResult: ocrValidation,
+      finalMergedExtraction: structured,
+      fieldProvenance: {
+        brand: merge.provenance.brand,
+        productName: merge.provenance.name_en,
+        arabicName: merge.provenance.name_ar,
+        size: merge.provenance.size,
+        packCount: merge.provenance.pack_count,
+        count: merge.provenance.pack_count,
+        confidence: confidenceProvenance,
+      },
+      processingTimeMs: Math.max(0, processingTimeMs),
+      visionRequests,
+      ocrRequests,
+      visionAttemptPresent,
+      ocrAttemptPresent,
+      acceptedVisionFieldsOverwritten: merge.acceptedVisionFieldsOverwritten,
+      ignoredOcrConflicts: merge.ignoredOcrConflicts,
+      // P15 — a human override is RECORDED, never silent. Absent (null) on every
+      // machine path, so this adds no bytes to the ordinary extraction journal.
+      humanReview: merge.humanReview ?? null,
+      humanOverrides: merge.humanOverrides ?? null,
+    },
+  };
+}
+
 export async function runSmartExtraction({
   strategy,
   runVision,
@@ -569,62 +764,14 @@ export async function runSmartExtraction({
     }
   }
 
-  const merge = mergeValidatedExtractions(visionValidation, ocrValidation);
-  const ocrAuthoritative = selectedStrategy === EXTRACTION_STRATEGIES.OCR_FIRST
-    || selectedStrategy === EXTRACTION_STRATEGIES.OCR_ONLY;
-  const confidence = ocrAuthoritative ? ocrValidation.confidence : visionValidation.confidence;
-  const confidenceProvenance = confidence == null ? 'Null' : ocrAuthoritative ? 'OCR' : 'Vision';
-  const structured = {
-    brand: merge.final.brand,
-    productName: merge.final.name_en,
-    arabicName: merge.final.name_ar,
-    size: merge.final.size,
-    packCount: merge.final.pack_count,
-    count: parseVisiblePackCount(merge.final.pack_count, { allowStandaloneMultiplier: true, allowBareCount: true })?.count ?? null,
-  };
-  const reason = ocrRequests
-    ? (selectedStrategy === EXTRACTION_STRATEGIES.VISION_FIRST
-      ? visionValidation.triggerReasons
-      : [`strategy_${selectedStrategy.replaceAll('-', '_')}`])
-    : (selectedStrategy === EXTRACTION_STRATEGIES.VISION_ONLY && visionValidation.ocrRequired
-      ? ['ocr_disabled_by_vision_only_strategy', ...visionValidation.triggerReasons]
-      : ['vision_validation_complete']);
-
-  return {
-    extraction: structured,
-    confidence,
-    provenance: {
-      brand: merge.provenance.brand,
-      productName: merge.provenance.name_en,
-      arabicName: merge.provenance.name_ar,
-      size: merge.provenance.size,
-      packCount: merge.provenance.pack_count,
-      count: merge.provenance.pack_count,
-      confidence: confidenceProvenance,
-    },
-    diagnostics: {
-      strategy: selectedStrategy,
-      visionOutput: vision?.parsedObject ?? parseVisionObject(vision?.rawReply).value,
-      validationResult: visionValidation,
-      ocrTriggered: ocrRequests > 0,
-      triggerReason: reason,
-      ocrOutput: ocr?.rawOutput ?? null,
-      ocrValidationResult: ocrValidation,
-      finalMergedExtraction: structured,
-      fieldProvenance: {
-        brand: merge.provenance.brand,
-        productName: merge.provenance.name_en,
-        arabicName: merge.provenance.name_ar,
-        size: merge.provenance.size,
-        packCount: merge.provenance.pack_count,
-        count: merge.provenance.pack_count,
-        confidence: confidenceProvenance,
-      },
-      processingTimeMs: Math.max(0, now() - started),
-      visionRequests,
-      ocrRequests,
-      acceptedVisionFieldsOverwritten: merge.acceptedVisionFieldsOverwritten,
-      ignoredOcrConflicts: merge.ignoredOcrConflicts,
-    },
-  };
+  return finalizeValidatedExtraction({
+    strategy: selectedStrategy,
+    visionOutput: vision?.parsedObject ?? parseVisionObject(vision?.rawReply).value,
+    visionValidation,
+    ocrOutput: ocr?.rawOutput ?? null,
+    ocrValidation,
+    visionRequests,
+    ocrRequests,
+    processingTimeMs: now() - started,
+  });
 }

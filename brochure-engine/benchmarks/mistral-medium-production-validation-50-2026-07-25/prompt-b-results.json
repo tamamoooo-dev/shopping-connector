@@ -1,0 +1,359 @@
+{
+  "schema_version": "prompt-b-name-trial-v1",
+  "ran_at": "2026-07-25T00:15:55.365Z",
+  "model": "mistral-medium-latest",
+  "variant": "medium_expanded_json_verbatim_name",
+  "prompt_sha256": "e643b2a1b833d12256e0e3806b04c28bc5fd042bf3a86b647b989df9be7c3557",
+  "settings": {
+    "temperature": 0,
+    "top_p": 1,
+    "reasoning_effort": "none",
+    "ocr": false,
+    "requests_per_crop": 1
+  },
+  "subset": [
+    3,
+    6,
+    10,
+    14,
+    16,
+    17,
+    19,
+    20,
+    33,
+    37
+  ],
+  "samples": [
+    {
+      "index": 3,
+      "id": "aljazera:central:d4d:93632763",
+      "store": "aljazera",
+      "file": "assets/03.jpg",
+      "sha256": "575633d7a62d3b802254b114410edd98eca7ede8a696ccd0cd15535c091a67bb",
+      "ok": true,
+      "structured": {
+        "name_en": "KLEENEX FACIAL TISSUES ORIGINAL / DECOR",
+        "name_ar": "كليكس مناديل للوجه الاصلي/ديكور المنزل",
+        "brand": "Kleenex",
+        "current_price": 20.99,
+        "old_price": 34.99,
+        "unit": "PER PACK",
+        "package_size": "8 + 2",
+        "quantity": "8 + 2 FREE",
+        "package_type": "pack",
+        "attributes": [],
+        "confidence": 1
+      },
+      "raw_output": "{\n  \"name_en\": \"KLEENEX FACIAL TISSUES ORIGINAL / DECOR\",\n  \"name_ar\": \"كليكس مناديل للوجه الاصلي/ديكور المنزل\",\n  \"brand\": \"Kleenex\",\n  \"current_price\": 20.99,\n  \"old_price\": 34.99,\n  \"unit\": \"PER PACK\",\n  \"package_size\": \"8 + 2\",\n  \"quantity\": \"8 + 2 FREE\",\n  \"package_type\": \"pack\",\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "usage": {
+        "prompt_tokens": 789,
+        "total_tokens": 925,
+        "completion_tokens": 136,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1685.9
+    },
+    {
+      "index": 6,
+      "id": "almadina:central:d4d:93668310",
+      "store": "almadina",
+      "file": "assets/06.jpg",
+      "sha256": "57aed3057358b9acb9a975a3bf1fc1e9d6249f9cda4eeac884d32f35f054e614",
+      "ok": true,
+      "structured": {
+        "name_en": "Hershey's Strawberry Syrup 623g",
+        "name_ar": "شرب الفراولة من هيرشي ٦٢٣ غرام",
+        "brand": "Hershey's",
+        "current_price": 4.95,
+        "old_price": 19.95,
+        "unit": null,
+        "package_size": "623g",
+        "quantity": null,
+        "package_type": "bottle",
+        "attributes": [
+          "Strawberry"
+        ],
+        "confidence": 1
+      },
+      "raw_output": "{\n  \"name_en\": \"Hershey's Strawberry Syrup 623g\",\n  \"name_ar\": \"شرب الفراولة من هيرشي ٦٢٣ غرام\",\n  \"brand\": \"Hershey's\",\n  \"current_price\": 4.95,\n  \"old_price\": 19.95,\n  \"unit\": null,\n  \"package_size\": \"623g\",\n  \"quantity\": null,\n  \"package_type\": \"bottle\",\n  \"attributes\": [\"Strawberry\"],\n  \"confidence\": 1.0\n}",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 862,
+        "completion_tokens": 130,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1353.96
+    },
+    {
+      "index": 10,
+      "id": "amarket:central:d4d:93808830",
+      "store": "amarket",
+      "file": "assets/10.jpg",
+      "sha256": "99024fefabd1fc718c34ff2718a5ef106b08df5e63dd3a94d9a72ccbb1e5d4b1",
+      "ok": true,
+      "structured": {
+        "name_en": "ZAIQA PURE BEE HONEY 500 GM",
+        "name_ar": "عسل نحل زائقة النقي",
+        "brand": "ZAIQA",
+        "current_price": 8.95,
+        "old_price": 17.95,
+        "unit": null,
+        "package_size": "500 GM",
+        "quantity": null,
+        "package_type": "jar",
+        "attributes": [
+          "PURE"
+        ],
+        "confidence": 1
+      },
+      "raw_output": "{\n  \"name_en\": \"ZAIQA PURE BEE HONEY 500 GM\",\n  \"name_ar\": \"عسل نحل زائقة النقي\",\n  \"brand\": \"ZAIQA\",\n  \"current_price\": 8.95,\n  \"old_price\": 17.95,\n  \"unit\": null,\n  \"package_size\": \"500 GM\",\n  \"quantity\": null,\n  \"package_type\": \"jar\",\n  \"attributes\": [\"PURE\"],\n  \"confidence\": 1.0\n}",
+      "usage": {
+        "prompt_tokens": 709,
+        "total_tokens": 834,
+        "completion_tokens": 125,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1190.69
+    },
+    {
+      "index": 14,
+      "id": "carrefour:central:d4d:93691947",
+      "store": "carrefour",
+      "file": "assets/14.jpg",
+      "sha256": "2f7471f0bf1d6da47fa3709623532012fb6708cfef59403c8c7e8d3b93bdd3ca",
+      "ok": true,
+      "structured": {
+        "name_en": "Zoflora Disinfectant Spray 800ml",
+        "name_ar": "زوفلورا بخاخ مطهر ٨٠٠ مل",
+        "brand": "Zoflora",
+        "current_price": 27.75,
+        "old_price": 41.5,
+        "unit": "SAR",
+        "package_size": "800ml",
+        "quantity": null,
+        "package_type": "bottle",
+        "attributes": [
+          "Disinfectant",
+          "Spray",
+          "Midnight Blooms"
+        ],
+        "confidence": 1
+      },
+      "raw_output": "{\n  \"name_en\": \"Zoflora Disinfectant Spray 800ml\",\n  \"name_ar\": \"زوفلورا بخاخ مطهر ٨٠٠ مل\",\n  \"brand\": \"Zoflora\",\n  \"current_price\": 27.75,\n  \"old_price\": 41.5,\n  \"unit\": \"SAR\",\n  \"package_size\": \"800ml\",\n  \"quantity\": null,\n  \"package_type\": \"bottle\",\n  \"attributes\": [\"Disinfectant\", \"Spray\", \"Midnight Blooms\"],\n  \"confidence\": 1.0\n}",
+      "usage": {
+        "prompt_tokens": 789,
+        "total_tokens": 933,
+        "completion_tokens": 144,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2761.18
+    },
+    {
+      "index": 16,
+      "id": "cityflower:central:d4d:92810718",
+      "store": "cityflower",
+      "file": "assets/16.jpg",
+      "sha256": "696179b9281d32f53a3154dd899fcea746d988ce0752e566923477e1c80c8d96",
+      "ok": true,
+      "structured": {
+        "name_en": "Strong Lite Emerg. Light+2 Hand Torch Sgl 646 Combo",
+        "name_ar": "مصباح طوارئ فوي + مصباح يدوي",
+        "brand": "Strong Lite",
+        "current_price": 135,
+        "old_price": 170,
+        "unit": null,
+        "package_size": null,
+        "quantity": "3 IN 1 COMBO",
+        "package_type": null,
+        "attributes": [
+          "RECHARGEABLE",
+          "LED LANTERN & FLASH LIGHT",
+          "Sgl 646"
+        ],
+        "confidence": 0.98
+      },
+      "raw_output": "{\n  \"name_en\": \"Strong Lite Emerg. Light+2 Hand Torch Sgl 646 Combo\",\n  \"name_ar\": \"مصباح طوارئ فوي + مصباح يدوي\",\n  \"brand\": \"Strong Lite\",\n  \"current_price\": 135,\n  \"old_price\": 170,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": \"3 IN 1 COMBO\",\n  \"package_type\": null,\n  \"attributes\": [\"RECHARGEABLE\", \"LED LANTERN & FLASH LIGHT\", \"Sgl 646\"],\n  \"confidence\": 0.98\n}",
+      "usage": {
+        "prompt_tokens": 694,
+        "total_tokens": 841,
+        "completion_tokens": 147,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1649.12
+    },
+    {
+      "index": 17,
+      "id": "cityflower:central:d4d:92715228",
+      "store": "cityflower",
+      "file": "assets/17.jpg",
+      "sha256": "d16497cb06a297d98ec844390b53910749ecda81d6711137bba24a6a128b6762",
+      "ok": true,
+      "structured": {
+        "name_en": "Olay Natural White Face Cream 2X50ml + Facewash 100ml",
+        "name_ar": "كريم أولاي للوجه 2×50 مل + غسول وجه 100 مل",
+        "brand": "Olay",
+        "current_price": 30,
+        "old_price": 42,
+        "unit": null,
+        "package_size": "2X50ml + 100ml",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "Natural White"
+        ],
+        "confidence": 1
+      },
+      "raw_output": "{\n  \"name_en\": \"Olay Natural White Face Cream 2X50ml + Facewash 100ml\",\n  \"name_ar\": \"كريم أولاي للوجه 2×50 مل + غسول وجه 100 مل\",\n  \"brand\": \"Olay\",\n  \"current_price\": 30.0,\n  \"old_price\": 42.0,\n  \"unit\": null,\n  \"package_size\": \"2X50ml + 100ml\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"Natural White\"],\n  \"confidence\": 1.0\n}",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 878,
+        "completion_tokens": 146,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 3472.5
+    },
+    {
+      "index": 19,
+      "id": "danube:central:d4d:93264666",
+      "store": "danube",
+      "file": "assets/19.jpg",
+      "sha256": "afa85fbc67cad90fa128a4a4bdb73eea4de77c56f839a8de3c55ed8a8a67eb0b",
+      "ok": true,
+      "structured": {
+        "name_en": "Loacker Wafer 4x19g",
+        "name_ar": "ويفر لوكر 4×19غ",
+        "brand": "Loacker",
+        "current_price": 6.99,
+        "old_price": 10.5,
+        "unit": null,
+        "package_size": "4x19g",
+        "quantity": "4",
+        "package_type": null,
+        "attributes": [
+          "Hazelnut",
+          "Break 3"
+        ],
+        "confidence": 1
+      },
+      "raw_output": "{\n  \"name_en\": \"Loacker Wafer 4x19g\",\n  \"name_ar\": \"ويفر لوكر 4×19غ\",\n  \"brand\": \"Loacker\",\n  \"current_price\": 6.99,\n  \"old_price\": 10.5,\n  \"unit\": null,\n  \"package_size\": \"4x19g\",\n  \"quantity\": \"4\",\n  \"package_type\": null,\n  \"attributes\": [\"Hazelnut\", \"Break 3\"],\n  \"confidence\": 1.0\n}",
+      "usage": {
+        "prompt_tokens": 769,
+        "total_tokens": 894,
+        "completion_tokens": 125,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1362.79
+    },
+    {
+      "index": 20,
+      "id": "danube:central:d4d:93267450",
+      "store": "danube",
+      "file": "assets/20.jpg",
+      "sha256": "3e0d6f420c2c8cf802607f2d51098d97458a1cb1e1ee9a9f7d1f14ad7e564af2",
+      "ok": true,
+      "structured": {
+        "name_en": "Galaxy Chocolates 80g",
+        "name_ar": "شوكولاتة جلاكسي ٨٠غ",
+        "brand": "Galaxy",
+        "current_price": 6.99,
+        "old_price": 9.5,
+        "unit": "EACH",
+        "package_size": "80g",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [],
+        "confidence": 1
+      },
+      "raw_output": "{\n  \"name_en\": \"Galaxy Chocolates 80g\",\n  \"name_ar\": \"شوكولاتة جلاكسي ٨٠غ\",\n  \"brand\": \"Galaxy\",\n  \"current_price\": 6.99,\n  \"old_price\": 9.5,\n  \"unit\": \"EACH\",\n  \"package_size\": \"80g\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+      "usage": {
+        "prompt_tokens": 769,
+        "total_tokens": 882,
+        "completion_tokens": 113,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2655.24
+    },
+    {
+      "index": 33,
+      "id": "lulu:central:d4d:93661134",
+      "store": "lulu",
+      "file": "assets/33.jpg",
+      "sha256": "c73b2f9aecc371efe23ed9e0aa5fb097c3484e63d721f75a4bf16b98889778c2",
+      "ok": true,
+      "structured": {
+        "name_en": "Mughal ROYAL DIAMOND STEAMED 1121 BASMATI RICE XXL EXTRA LONG GRAIN 5kg",
+        "name_ar": "أرز بسمتي 1121",
+        "brand": "Mughal",
+        "current_price": 34.99,
+        "old_price": 39.95,
+        "unit": "SAR",
+        "package_size": "5kg",
+        "quantity": null,
+        "package_type": "bag",
+        "attributes": [
+          "Steamed",
+          "Basmati",
+          "XXL Extra Long Grain"
+        ],
+        "confidence": 1
+      },
+      "raw_output": "{\n  \"name_en\": \"Mughal ROYAL DIAMOND STEAMED 1121 BASMATI RICE XXL EXTRA LONG GRAIN 5kg\",\n  \"name_ar\": \"أرز بسمتي 1121\",\n  \"brand\": \"Mughal\",\n  \"current_price\": 34.99,\n  \"old_price\": 39.95,\n  \"unit\": \"SAR\",\n  \"package_size\": \"5kg\",\n  \"quantity\": null,\n  \"package_type\": \"bag\",\n  \"attributes\": [\"Steamed\", \"Basmati\", \"XXL Extra Long Grain\"],\n  \"confidence\": 1.0\n}",
+      "usage": {
+        "prompt_tokens": 789,
+        "total_tokens": 949,
+        "completion_tokens": 160,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 4922.09
+    },
+    {
+      "index": 37,
+      "id": "nesto:central:d4d:93653649",
+      "store": "nesto",
+      "file": "assets/37.jpg",
+      "sha256": "aa6d91ca22174d6a78e859048c209732d81a5d2f31af35a8c5291a6671b551bd",
+      "ok": true,
+      "structured": {
+        "name_en": null,
+        "name_ar": "بلح الشام",
+        "brand": null,
+        "current_price": 15.99,
+        "old_price": null,
+        "unit": "GM",
+        "package_size": "500 GM",
+        "quantity": "10",
+        "package_type": null,
+        "attributes": [],
+        "confidence": 0.98
+      },
+      "raw_output": "{\n  \"name_en\": null,\n  \"name_ar\": \"بلح الشام\",\n  \"brand\": null,\n  \"current_price\": 15.99,\n  \"old_price\": null,\n  \"unit\": \"GM\",\n  \"package_size\": \"500 GM\",\n  \"quantity\": \"10\",\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 0.98\n}",
+      "usage": {
+        "prompt_tokens": 689,
+        "total_tokens": 784,
+        "completion_tokens": 95,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2038.79
+    }
+  ]
+}

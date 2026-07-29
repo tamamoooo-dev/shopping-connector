@@ -1,0 +1,2686 @@
+{
+  "schema_version": "mistral-small-economy-ab-10-metrics-v1",
+  "scored_at": "2026-07-25T02:49:50.322Z",
+  "model": "mistral-medium-latest",
+  "strategy": "medium_expanded_json_verbatim_name",
+  "prompt_sha256": "e643b2a1b833d12256e0e3806b04c28bc5fd042bf3a86b647b989df9be7c3557",
+  "sample_digest": "32c2c00166e1e839fbfaebfdb7b61329cc7fc29e8ee99ffa80f917913eea70e9",
+  "crops": 50,
+  "api_failures": 0,
+  "json_parse_rate": "50/50",
+  "accuracy_all_adjudicable": {
+    "name_en": {
+      "correct": 43,
+      "total": 50,
+      "excluded": 0,
+      "pct": 86
+    },
+    "brand": {
+      "correct": 47,
+      "total": 49,
+      "excluded": 1,
+      "pct": 95.9
+    },
+    "current_price": {
+      "correct": 46,
+      "total": 50,
+      "excluded": 0,
+      "pct": 92
+    },
+    "old_price": {
+      "correct": 38,
+      "total": 49,
+      "excluded": 1,
+      "pct": 77.6
+    },
+    "quantity": {
+      "correct": 48,
+      "total": 50,
+      "excluded": 0,
+      "pct": 96
+    }
+  },
+  "accuracy_field_present_only": {
+    "name_en": {
+      "correct": 42,
+      "total": 49,
+      "excluded": 1,
+      "pct": 85.7
+    },
+    "brand": {
+      "correct": 40,
+      "total": 42,
+      "excluded": 8,
+      "pct": 95.2
+    },
+    "current_price": {
+      "correct": 46,
+      "total": 50,
+      "excluded": 0,
+      "pct": 92
+    },
+    "old_price": {
+      "correct": 36,
+      "total": 47,
+      "excluded": 3,
+      "pct": 76.6
+    },
+    "quantity": {
+      "correct": 45,
+      "total": 47,
+      "excluded": 3,
+      "pct": 95.7
+    }
+  },
+  "usage": {
+    "pricing_basis": "mistral-medium-latest: $1.5/M input, $7.5/M output",
+    "requests": 50,
+    "prompt_tokens": 36724,
+    "completion_tokens": 6347,
+    "total_tokens": 43071,
+    "cost_usd": 0.1026885,
+    "avg_prompt_tokens": 734.48,
+    "avg_completion_tokens": 126.94,
+    "avg_total_tokens": 861.42,
+    "avg_latency_ms": 1831.7931999999998,
+    "median_latency_ms": 1394.35,
+    "max_latency_ms": 5681.42,
+    "avg_cost_usd": 0.00205377,
+    "per_crop": [
+      {
+        "index": 1,
+        "prompt_tokens": 749,
+        "completion_tokens": 134,
+        "total_tokens": 883,
+        "latency_ms": 3064.95,
+        "cost_usd": 0.0021285
+      },
+      {
+        "index": 2,
+        "prompt_tokens": 769,
+        "completion_tokens": 134,
+        "total_tokens": 903,
+        "latency_ms": 1894.66,
+        "cost_usd": 0.0021585
+      },
+      {
+        "index": 3,
+        "prompt_tokens": 789,
+        "completion_tokens": 136,
+        "total_tokens": 925,
+        "latency_ms": 1278.82,
+        "cost_usd": 0.0022035
+      },
+      {
+        "index": 4,
+        "prompt_tokens": 770,
+        "completion_tokens": 115,
+        "total_tokens": 885,
+        "latency_ms": 2419.13,
+        "cost_usd": 0.0020175
+      },
+      {
+        "index": 5,
+        "prompt_tokens": 770,
+        "completion_tokens": 116,
+        "total_tokens": 886,
+        "latency_ms": 1081.38,
+        "cost_usd": 0.002025
+      },
+      {
+        "index": 6,
+        "prompt_tokens": 732,
+        "completion_tokens": 130,
+        "total_tokens": 862,
+        "latency_ms": 3763.73,
+        "cost_usd": 0.002073
+      },
+      {
+        "index": 7,
+        "prompt_tokens": 749,
+        "completion_tokens": 146,
+        "total_tokens": 895,
+        "latency_ms": 1325.49,
+        "cost_usd": 0.0022185
+      },
+      {
+        "index": 8,
+        "prompt_tokens": 751,
+        "completion_tokens": 153,
+        "total_tokens": 904,
+        "latency_ms": 5681.42,
+        "cost_usd": 0.002274
+      },
+      {
+        "index": 9,
+        "prompt_tokens": 732,
+        "completion_tokens": 137,
+        "total_tokens": 869,
+        "latency_ms": 1462.61,
+        "cost_usd": 0.0021255
+      },
+      {
+        "index": 10,
+        "prompt_tokens": 709,
+        "completion_tokens": 125,
+        "total_tokens": 834,
+        "latency_ms": 1274.5,
+        "cost_usd": 0.002001
+      },
+      {
+        "index": 11,
+        "prompt_tokens": 669,
+        "completion_tokens": 107,
+        "total_tokens": 776,
+        "latency_ms": 1016.65,
+        "cost_usd": 0.001806
+      },
+      {
+        "index": 12,
+        "prompt_tokens": 669,
+        "completion_tokens": 141,
+        "total_tokens": 810,
+        "latency_ms": 2995.78,
+        "cost_usd": 0.0020610000000000003
+      },
+      {
+        "index": 13,
+        "prompt_tokens": 769,
+        "completion_tokens": 121,
+        "total_tokens": 890,
+        "latency_ms": 1183.05,
+        "cost_usd": 0.002061
+      },
+      {
+        "index": 14,
+        "prompt_tokens": 789,
+        "completion_tokens": 144,
+        "total_tokens": 933,
+        "latency_ms": 1415.27,
+        "cost_usd": 0.0022635
+      },
+      {
+        "index": 15,
+        "prompt_tokens": 609,
+        "completion_tokens": 133,
+        "total_tokens": 742,
+        "latency_ms": 1226.52,
+        "cost_usd": 0.0019110000000000002
+      },
+      {
+        "index": 16,
+        "prompt_tokens": 694,
+        "completion_tokens": 140,
+        "total_tokens": 834,
+        "latency_ms": 1322.63,
+        "cost_usd": 0.002091
+      },
+      {
+        "index": 17,
+        "prompt_tokens": 732,
+        "completion_tokens": 158,
+        "total_tokens": 890,
+        "latency_ms": 1340.09,
+        "cost_usd": 0.0022830000000000003
+      },
+      {
+        "index": 18,
+        "prompt_tokens": 694,
+        "completion_tokens": 118,
+        "total_tokens": 812,
+        "latency_ms": 1078.19,
+        "cost_usd": 0.0019260000000000002
+      },
+      {
+        "index": 19,
+        "prompt_tokens": 769,
+        "completion_tokens": 126,
+        "total_tokens": 895,
+        "latency_ms": 1264.5,
+        "cost_usd": 0.0020985
+      },
+      {
+        "index": 20,
+        "prompt_tokens": 769,
+        "completion_tokens": 113,
+        "total_tokens": 882,
+        "latency_ms": 2972.44,
+        "cost_usd": 0.002001
+      },
+      {
+        "index": 21,
+        "prompt_tokens": 769,
+        "completion_tokens": 122,
+        "total_tokens": 891,
+        "latency_ms": 1921.11,
+        "cost_usd": 0.0020685
+      },
+      {
+        "index": 22,
+        "prompt_tokens": 709,
+        "completion_tokens": 134,
+        "total_tokens": 843,
+        "latency_ms": 3298.88,
+        "cost_usd": 0.0020685
+      },
+      {
+        "index": 23,
+        "prompt_tokens": 732,
+        "completion_tokens": 131,
+        "total_tokens": 863,
+        "latency_ms": 1258.42,
+        "cost_usd": 0.0020805
+      },
+      {
+        "index": 24,
+        "prompt_tokens": 713,
+        "completion_tokens": 95,
+        "total_tokens": 808,
+        "latency_ms": 980.69,
+        "cost_usd": 0.001782
+      },
+      {
+        "index": 25,
+        "prompt_tokens": 694,
+        "completion_tokens": 124,
+        "total_tokens": 818,
+        "latency_ms": 2212.18,
+        "cost_usd": 0.001971
+      },
+      {
+        "index": 26,
+        "prompt_tokens": 770,
+        "completion_tokens": 108,
+        "total_tokens": 878,
+        "latency_ms": 1110.71,
+        "cost_usd": 0.001965
+      },
+      {
+        "index": 27,
+        "prompt_tokens": 732,
+        "completion_tokens": 138,
+        "total_tokens": 870,
+        "latency_ms": 2560.66,
+        "cost_usd": 0.0021330000000000003
+      },
+      {
+        "index": 28,
+        "prompt_tokens": 769,
+        "completion_tokens": 138,
+        "total_tokens": 907,
+        "latency_ms": 1365.58,
+        "cost_usd": 0.0021885000000000003
+      },
+      {
+        "index": 29,
+        "prompt_tokens": 656,
+        "completion_tokens": 123,
+        "total_tokens": 779,
+        "latency_ms": 2339.88,
+        "cost_usd": 0.0019065000000000002
+      },
+      {
+        "index": 30,
+        "prompt_tokens": 649,
+        "completion_tokens": 123,
+        "total_tokens": 772,
+        "latency_ms": 1109.74,
+        "cost_usd": 0.0018960000000000001
+      },
+      {
+        "index": 31,
+        "prompt_tokens": 689,
+        "completion_tokens": 170,
+        "total_tokens": 859,
+        "latency_ms": 1356.79,
+        "cost_usd": 0.0023085000000000002
+      },
+      {
+        "index": 32,
+        "prompt_tokens": 732,
+        "completion_tokens": 122,
+        "total_tokens": 854,
+        "latency_ms": 2322.86,
+        "cost_usd": 0.002013
+      },
+      {
+        "index": 33,
+        "prompt_tokens": 789,
+        "completion_tokens": 172,
+        "total_tokens": 961,
+        "latency_ms": 1480.88,
+        "cost_usd": 0.0024735
+      },
+      {
+        "index": 34,
+        "prompt_tokens": 694,
+        "completion_tokens": 136,
+        "total_tokens": 830,
+        "latency_ms": 1303.15,
+        "cost_usd": 0.0020610000000000003
+      },
+      {
+        "index": 35,
+        "prompt_tokens": 713,
+        "completion_tokens": 104,
+        "total_tokens": 817,
+        "latency_ms": 1061.53,
+        "cost_usd": 0.0018495
+      },
+      {
+        "index": 36,
+        "prompt_tokens": 789,
+        "completion_tokens": 122,
+        "total_tokens": 911,
+        "latency_ms": 2440.5,
+        "cost_usd": 0.0020985
+      },
+      {
+        "index": 37,
+        "prompt_tokens": 689,
+        "completion_tokens": 95,
+        "total_tokens": 784,
+        "latency_ms": 1043.31,
+        "cost_usd": 0.0017460000000000002
+      },
+      {
+        "index": 38,
+        "prompt_tokens": 751,
+        "completion_tokens": 116,
+        "total_tokens": 867,
+        "latency_ms": 1129.52,
+        "cost_usd": 0.0019965
+      },
+      {
+        "index": 39,
+        "prompt_tokens": 749,
+        "completion_tokens": 105,
+        "total_tokens": 854,
+        "latency_ms": 1394.35,
+        "cost_usd": 0.001911
+      },
+      {
+        "index": 40,
+        "prompt_tokens": 732,
+        "completion_tokens": 104,
+        "total_tokens": 836,
+        "latency_ms": 1130.29,
+        "cost_usd": 0.001878
+      },
+      {
+        "index": 41,
+        "prompt_tokens": 732,
+        "completion_tokens": 112,
+        "total_tokens": 844,
+        "latency_ms": 1310.87,
+        "cost_usd": 0.001938
+      },
+      {
+        "index": 42,
+        "prompt_tokens": 732,
+        "completion_tokens": 108,
+        "total_tokens": 840,
+        "latency_ms": 2536.45,
+        "cost_usd": 0.001908
+      },
+      {
+        "index": 43,
+        "prompt_tokens": 709,
+        "completion_tokens": 122,
+        "total_tokens": 831,
+        "latency_ms": 1273.51,
+        "cost_usd": 0.0019785000000000002
+      },
+      {
+        "index": 44,
+        "prompt_tokens": 729,
+        "completion_tokens": 166,
+        "total_tokens": 895,
+        "latency_ms": 1583.55,
+        "cost_usd": 0.0023385000000000003
+      },
+      {
+        "index": 45,
+        "prompt_tokens": 769,
+        "completion_tokens": 95,
+        "total_tokens": 864,
+        "latency_ms": 2179.24,
+        "cost_usd": 0.001866
+      },
+      {
+        "index": 46,
+        "prompt_tokens": 789,
+        "completion_tokens": 106,
+        "total_tokens": 895,
+        "latency_ms": 1095.58,
+        "cost_usd": 0.0019785000000000002
+      },
+      {
+        "index": 47,
+        "prompt_tokens": 789,
+        "completion_tokens": 108,
+        "total_tokens": 897,
+        "latency_ms": 2054.51,
+        "cost_usd": 0.0019935
+      },
+      {
+        "index": 48,
+        "prompt_tokens": 751,
+        "completion_tokens": 162,
+        "total_tokens": 913,
+        "latency_ms": 4012.69,
+        "cost_usd": 0.0023415
+      },
+      {
+        "index": 49,
+        "prompt_tokens": 751,
+        "completion_tokens": 141,
+        "total_tokens": 892,
+        "latency_ms": 1418.77,
+        "cost_usd": 0.002184
+      },
+      {
+        "index": 50,
+        "prompt_tokens": 770,
+        "completion_tokens": 118,
+        "total_tokens": 888,
+        "latency_ms": 2241.65,
+        "cost_usd": 0.00204
+      }
+    ]
+  },
+  "per_image": [
+    {
+      "index": 1,
+      "store": "aljazera",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "NAJJAR INSTANT COFFEE RED / GOLD 190G",
+          "got": "NAJJAR INSTANT COFFEE RED / GOLD 190G",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "NAJJAR",
+          "got": "NAJJAR",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "wrong",
+          "expected": 28.99,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 37.95,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "190g",
+          "got": {
+            "package_size": "190G",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 2,
+      "store": "aljazera",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "SINIORA BEEF MORTADELLA (KG) ASSORTED",
+          "got": "SINIORA BEEF MORTADELLA (KG) ASSORTED",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "SINIORA",
+          "got": "SINIORA",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 36.99,
+          "got": 36.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 44.99,
+          "got": 44.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "kg",
+          "got": {
+            "package_size": null,
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": true
+        }
+      }
+    },
+    {
+      "index": 3,
+      "store": "aljazera",
+      "fields": {
+        "name_en": {
+          "status": "wrong",
+          "expected": "KLEENEX FACIAL TISSUES ORIGINAL / DECOR 8 + 2 FREE",
+          "got": "KLEENEX FACIAL TISSUES ORIGINAL / DECOR",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "KLEENEX",
+          "got": "Kleenex",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 20.99,
+          "got": 20.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 34.99,
+          "got": 34.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "8+2",
+          "got": {
+            "package_size": "8 + 2",
+            "quantity": "8 + 2 FREE"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 4,
+      "store": "almadina",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Refrigerator NRF110N26S",
+          "got": "Refrigerator NRF110N26S",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "NIKAI",
+          "got": "NIKAI",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 349,
+          "got": 349,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 575,
+          "got": 575,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": null,
+          "got": {
+            "package_size": null,
+            "quantity": null
+          },
+          "truth_is_null": true,
+          "returned_null": true
+        }
+      }
+    },
+    {
+      "index": 5,
+      "store": "almadina",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "CLIKON BREAD TOASTER 2 CK-2436",
+          "got": "CLIKON BREAD TOASTER 2 CK-2436",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "CLIKON",
+          "got": "CLIKON",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 59,
+          "got": 59,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 85,
+          "got": 85,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": null,
+          "got": {
+            "package_size": null,
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": true
+        }
+      }
+    },
+    {
+      "index": 6,
+      "store": "almadina",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Hershey's Strawberry Syrup 623g",
+          "got": "Hershey's Strawberry Syrup 623g",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Hershey's",
+          "got": "Hershey's",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 4.95,
+          "got": 4.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 19.95,
+          "got": 19.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "623g",
+          "got": {
+            "package_size": "623g",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 7,
+      "store": "alwafa",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Tiny Tunes KidsTab 8GB/256/5G 7In TS500",
+          "got": "Tiny Tunes KidsTab 8GB/256/5G 7In TS500",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Tiny Tunes",
+          "got": "Tiny Tunes",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 179,
+          "got": 179,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 299,
+          "got": 299,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "1pc",
+          "got": {
+            "package_size": "7 Inch",
+            "quantity": "1 PC"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 8,
+      "store": "alwafa",
+      "fields": {
+        "name_en": {
+          "status": "wrong",
+          "expected": "Fine Baby Diaper5Maxi Jmbo Pk40's11-18kg",
+          "got": "Fine Baby Diaper5Maxi Jumbo Pk40's11-18kg",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Fine Baby",
+          "got": "Fine Baby",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "wrong",
+          "expected": 30,
+          "got": 44.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 44.99,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "40",
+          "got": {
+            "package_size": "40's",
+            "quantity": "30"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 9,
+      "store": "alwafa",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Geepas Rech.7in1 Precision Trimmer/600 Mah",
+          "got": "Geepas Rech.7in1 Precision Trimmer/600 Mah",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Geepas",
+          "got": "Geepas",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 69.99,
+          "got": 69.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 99,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "wrong",
+          "expected": "7in1",
+          "got": {
+            "package_size": "600 Mah",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 10,
+      "store": "amarket",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "ZAIQA PURE BEE HONEY 500 GM",
+          "got": "ZAIQA PURE BEE HONEY 500 GM",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "ZAIQA",
+          "got": "ZAIQA",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 8.95,
+          "got": 8.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 17.95,
+          "got": 17.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "500g",
+          "got": {
+            "package_size": "500 GM",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 11,
+      "store": "amarket",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "ALMOND SALTED",
+          "got": "ALMOND SALTED",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 42.95,
+          "got": 42.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 49.95,
+          "got": 49.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "kg",
+          "got": {
+            "package_size": null,
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": true
+        }
+      }
+    },
+    {
+      "index": 12,
+      "store": "amarket",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "ENTAJ FRESH WHOLE CHICKEN CUT UP 800 GM",
+          "got": "ENTAJ FRESH WHOLE CHICKEN CUT UP 800 GM",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "ENTAJ",
+          "got": "entaj",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 10.5,
+          "got": 10.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 14.95,
+          "got": 14.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "800g",
+          "got": {
+            "package_size": "800 GM",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 13,
+      "store": "carrefour",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "REEM SWEET KERNEL CORN 425G",
+          "got": "REEM SWEET KERNEL CORN 425G",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "REEM",
+          "got": "REEM",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 3.99,
+          "got": 3.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 6.5,
+          "got": 6.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "425g",
+          "got": {
+            "package_size": "425G",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 14,
+      "store": "carrefour",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "ZOFLORA DISINFICTANT SPRAY 800ML",
+          "got": "Zoflora Disinfectant Spray 800ml",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "ZOFLORA",
+          "got": "Zoflora",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 27.75,
+          "got": 27.75,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 41.5,
+          "got": 41.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "800ml",
+          "got": {
+            "package_size": "800ml",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 15,
+      "store": "carrefour",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "ROYALFORD GRANITE COOKING SET 9PCS",
+          "got": "ROYALFORD GRANITE COOKING SET 9PCS",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "ROYALFORD",
+          "got": "ROYALFORD",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 209,
+          "got": 209,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 499,
+          "got": 499,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "9pc",
+          "got": {
+            "package_size": null,
+            "quantity": "9PCS"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 16,
+      "store": "cityflower",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Strong Lite Emerg. Light+2 Hand Torch Sgl 646 Combo",
+          "got": "Strong Lite Emerg. Light+2 Hand Torch Sgl 646 Combo",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Strong Lite",
+          "got": "Strong Lite",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 135,
+          "got": 135,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 170,
+          "got": 170,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "3in1",
+          "got": {
+            "package_size": null,
+            "quantity": "3 IN 1 COMBO"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 17,
+      "store": "cityflower",
+      "fields": {
+        "name_en": {
+          "status": "wrong",
+          "expected": "Olay Face Cream 2X50ml+Facewash 100ml",
+          "got": "Olay Natural White Face Cream 2X50ml + Facewash 100ml",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Olay",
+          "got": "Olay",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 30,
+          "got": 30,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 42,
+          "got": 42,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "2x50ml+100ml",
+          "got": {
+            "package_size": "2X50ml + 100ml",
+            "quantity": "2X50ml + 100ml"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 18,
+      "store": "cityflower",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Nebo Makeup Kit -9090",
+          "got": "Nebo Makeup Kit -9090",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Nebo",
+          "got": "Nebo",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 35,
+          "got": 35,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 39,
+          "got": 39,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": null,
+          "got": {
+            "package_size": null,
+            "quantity": null
+          },
+          "truth_is_null": true,
+          "returned_null": true
+        }
+      }
+    },
+    {
+      "index": 19,
+      "store": "danube",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Loacker Wafer 4x19g",
+          "got": "Loacker Wafer 4x19g",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Loacker",
+          "got": "Loacker",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 6.99,
+          "got": 6.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 10.5,
+          "got": 10.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "4x19g",
+          "got": {
+            "package_size": "4x19g",
+            "quantity": "4"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 20,
+      "store": "danube",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Galaxy Chocolates 80g",
+          "got": "Galaxy Chocolates 80g",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Galaxy",
+          "got": "Galaxy",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 6.99,
+          "got": 6.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 9.5,
+          "got": 9.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "80g",
+          "got": {
+            "package_size": "80g",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 21,
+      "store": "danube",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Almarai Halloumi Cheese 200g",
+          "got": "Almarai Halloumi Cheese 200g",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Almarai",
+          "got": "Almarai",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 13.5,
+          "got": 13.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 16.95,
+          "got": 16.75,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "200g",
+          "got": {
+            "package_size": "200g",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 22,
+      "store": "farm",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA 415 GR",
+          "got": "EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA 415 GR",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "EL CORTE INGLES",
+          "got": "EL CORTE INGLES SELECTION",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 16.99,
+          "got": 16.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 22.99,
+          "got": 22.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "415g",
+          "got": {
+            "package_size": "415 GR",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 23,
+      "store": "farm",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "CRISPY CHIPS LETTERS / RINGS 12 *18GR",
+          "got": "CRISPY CHIPS LETTERS / RINGS 12 *18GR",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "CRISPY",
+          "got": "CRISPY",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 10.99,
+          "got": 10.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 12.99,
+          "got": 12.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "12x18g",
+          "got": {
+            "package_size": "12 *18GR",
+            "quantity": "12"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 24,
+      "store": "farm",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "BARHY RUTAB",
+          "got": "BARHY RUTAB",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 9.99,
+          "got": 9.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "kg",
+          "got": {
+            "package_size": null,
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": true
+        }
+      }
+    },
+    {
+      "index": 25,
+      "store": "grandhyper",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "DERIK MARK BOYS BAGGY JEANS",
+          "got": "DERIK MARK BOYS BAGGY JEANS",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "DERIK MARK",
+          "got": "DERIK MARK",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 45,
+          "got": 45,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 69,
+          "got": 69,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": null,
+          "got": {
+            "package_size": null,
+            "quantity": null
+          },
+          "truth_is_null": true,
+          "returned_null": true
+        }
+      }
+    },
+    {
+      "index": 26,
+      "store": "grandhyper",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "PINEAPPLE (KENYA)/PC",
+          "got": "PINEAPPLE (KENYA)/PC",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 8.95,
+          "got": 8.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 16.95,
+          "got": 16.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "wrong",
+          "expected": "1pc",
+          "got": {
+            "package_size": null,
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": true
+        }
+      }
+    },
+    {
+      "index": 27,
+      "store": "grandhyper",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "GODREJ CINTHOL SOAP 125GM 6PCS (ASSORTED)",
+          "got": "GODREJ CINTHOL SOAP 125GM 6PCS (ASSORTED)",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Cinthol",
+          "got": "CINTHOL",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 9.95,
+          "got": 9.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 19.5,
+          "got": 19.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "6x125g",
+          "got": {
+            "package_size": "125GM 6PCS",
+            "quantity": "6PCS"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 28,
+      "store": "hyperpanda",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Whiskas Cat Food With Beef Flavour (4 x 85g)",
+          "got": "Whiskas Cat Food With Beef Flavour (4 x 85g)",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Whiskas",
+          "got": "Whiskas",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 10.99,
+          "got": 10.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 20.99,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "4x85g",
+          "got": {
+            "package_size": "4 x 85g",
+            "quantity": "4"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 29,
+      "store": "hyperpanda",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Downy Concentrated Fabric Softener (3L)",
+          "got": "Downy Concentrated Fabric Softener (3L)",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Downy",
+          "got": "Downy",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 39.99,
+          "got": 39.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "unadjudicable"
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "3l",
+          "got": {
+            "package_size": "3L",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 30,
+      "store": "hyperpanda",
+      "fields": {
+        "name_en": {
+          "status": "wrong",
+          "expected": "Mini Madeleines Traditional French Sponge Cakes (85g)",
+          "got": "St Michel Mini Madeleines Traditional French Sponge Cakes (85g)",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "St Michel",
+          "got": "St Michel",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "wrong",
+          "expected": 5,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 7.95,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "85g",
+          "got": {
+            "package_size": "85g",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 31,
+      "store": "lulu",
+      "fields": {
+        "name_en": {
+          "status": "wrong",
+          "expected": "TCL 4KSQD Mini LED 98C79L 98inch",
+          "got": "TCL 4K SQD Mini LED 98C79L 98inch 2026 MODEL",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "TCL",
+          "got": "TCL",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 9499,
+          "got": 9499,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 14999,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "98in",
+          "got": {
+            "package_size": "98inch",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 32,
+      "store": "lulu",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Chia Kiwi Cooler 500ml",
+          "got": "Chia Kiwi Cooler 500ml",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "wrong",
+          "expected": "LuLu Fresh",
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 11.95,
+          "got": 11.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 14.9,
+          "got": 14.9,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "500ml",
+          "got": {
+            "package_size": "500ml",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 33,
+      "store": "lulu",
+      "fields": {
+        "name_en": {
+          "status": "wrong",
+          "expected": "Mughal Basmati Rice 1121 5kg",
+          "got": "Mughal ROYAL DIAMOND STEAMED 1121 BASMATI RICE XXL EXTRA LONG GRAIN 5kg",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Mughal",
+          "got": "Mughal",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 34.99,
+          "got": 34.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 39.95,
+          "got": 39.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "5kg",
+          "got": {
+            "package_size": "5kg",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 34,
+      "store": "marksave",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Fairy Dish Washing Liquid Lemon/Original 1Ltr",
+          "got": "Fairy Dish Washing Liquid Lemon/Original 1Ltr",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Fairy",
+          "got": "Fairy",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 12.95,
+          "got": 12.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 18.95,
+          "got": 18.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "1l",
+          "got": {
+            "package_size": "1Ltr",
+            "quantity": "1 pc"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 35,
+      "store": "marksave",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Pumpkin Small ( ASHGUARD)",
+          "got": "Pumpkin Small (Ashguard)",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 1.99,
+          "got": 1.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 4.99,
+          "got": 4.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "kg",
+          "got": {
+            "package_size": null,
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": true
+        }
+      }
+    },
+    {
+      "index": 36,
+      "store": "marksave",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Dear Love Amla Hair Oil 250Ml",
+          "got": "Dear Love Amla Hair Oil 250ml",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Dear Love",
+          "got": "Dear Love",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 5.95,
+          "got": 5.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 10.95,
+          "got": 10.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "250ml",
+          "got": {
+            "package_size": "250ml",
+            "quantity": "1 pc"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 37,
+      "store": "nesto",
+      "fields": {
+        "name_en": {
+          "status": "wrong",
+          "expected": "Balasham",
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "brand": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "current_price": {
+          "status": "wrong",
+          "expected": 10,
+          "got": 15.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 15.99,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "500g",
+          "got": {
+            "package_size": "500 GM",
+            "quantity": "10"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 38,
+      "store": "nesto",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Saudia Ice Cream 1Ltr",
+          "got": "Saudia Ice Cream 1Ltr",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Saudia",
+          "got": "Saudia",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 13.99,
+          "got": 13.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 18.99,
+          "got": 18.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "1l",
+          "got": {
+            "package_size": "1Ltr",
+            "quantity": "1 PCS"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 39,
+      "store": "nesto",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Ceramic prayer mat sponge",
+          "got": "Ceramic prayer mat sponge",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 10,
+          "got": 10,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 18,
+          "got": 18,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "1pc",
+          "got": {
+            "package_size": null,
+            "quantity": "1 PC"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 40,
+      "store": "othaim",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Pepsi Bottles",
+          "got": "Pepsi Bottles",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Pepsi",
+          "got": "Pepsi",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 11.99,
+          "got": 11.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "6x250ml",
+          "got": {
+            "package_size": "6x250ml",
+            "quantity": "6"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 41,
+      "store": "othaim",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Freshco Tomato Paste",
+          "got": "Freshco Tomato Paste",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Freshco",
+          "got": "Freshco",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 11.99,
+          "got": 11.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 16.25,
+          "got": 16.25,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "6x140g",
+          "got": {
+            "package_size": "6x140g",
+            "quantity": "6"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 42,
+      "store": "othaim",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Alsafi Greek Yoghurt",
+          "got": "Alsafi Greek Yoghurt",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Alsafi",
+          "got": "Alsafi",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 8.99,
+          "got": 8.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 15,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "3x150g",
+          "got": {
+            "package_size": "150g",
+            "quantity": "3 PCS"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 43,
+      "store": "prime",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "VIELLE DEO ROLL ON - SPECIFIC ITEMS 50ML",
+          "got": "Vielle Deo Roll On - Specific Items 50ml",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "VIELLE",
+          "got": "Vielle",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 5.75,
+          "got": 5.75,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 15.95,
+          "got": 16.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "50ml",
+          "got": {
+            "package_size": "50ml",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 44,
+      "store": "prime",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)",
+          "got": "NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "NOOR",
+          "got": "NOOR",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 39.95,
+          "got": 39.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 45.51,
+          "got": 45.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "2x1.5l+500ml",
+          "got": {
+            "package_size": "2 X 1.5 LTR + 500 ML",
+            "quantity": "2 X 1.5 LTR + 500 ML"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 45,
+      "store": "ramez",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Premium Colour Paper",
+          "got": "Premium Colour Paper",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "unadjudicable"
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 4.75,
+          "got": 4.75,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 5.75,
+          "got": 5.75,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "100",
+          "got": {
+            "package_size": null,
+            "quantity": "100"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 46,
+      "store": "ramez",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Listerine Total Care / Cool Mint",
+          "got": "LISTERINE TOTAL CARE",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "LISTERINE",
+          "got": "LISTERINE",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 15.95,
+          "got": 15.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 24.5,
+          "got": 24.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "500ml",
+          "got": {
+            "package_size": "500 ml",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 47,
+      "store": "ramez",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "brand": {
+          "status": "wrong",
+          "expected": "KAHK",
+          "got": "RAIN",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 157,
+          "got": 157,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 190,
+          "got": 190,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "3pc",
+          "got": {
+            "package_size": null,
+            "quantity": "3"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 48,
+      "store": "tamimi",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "NONGSHIM CUP NOODLES, ASSORTED ITEMS, 68 - 114 GRAMS",
+          "got": "NONGSHIM CUP NOODLES, ASSORTED ITEMS, 68 - 114 GRAMS",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "NONGSHIM",
+          "got": "NONGSHIM",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 4.99,
+          "got": 4.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 7.25,
+          "got": 7.25,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "68-114g",
+          "got": {
+            "package_size": "68 - 114 GRAMS",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 49,
+      "store": "tamimi",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "NESTLE COUNTRY CORNFLAKES, 500 GRAMS OR 1 KILO",
+          "got": "NESTLE COUNTRY CORNFLAKES, 500 GRAMS OR 1 KILO",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "NESTLE",
+          "got": "Nestle",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 19.99,
+          "got": 19.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 23.95,
+          "got": 23.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "500gor1kg",
+          "got": {
+            "package_size": "500 GRAMS OR 1 KILO",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 50,
+      "store": "tamimi",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "FRESH VEAL - BONE IN",
+          "got": "FRESH VEAL - BONE IN",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 49.99,
+          "got": 49.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 69.95,
+          "got": 69.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "kg",
+          "got": {
+            "package_size": null,
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": true
+        }
+      }
+    }
+  ]
+}

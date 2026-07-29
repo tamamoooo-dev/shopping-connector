@@ -19,7 +19,7 @@ import { execFileSync } from 'node:child_process';
 import { writeFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { enrichWithFailover } from './src/offers/enrich.js';
+import { DEFAULT_MODEL, enrichWithFailover } from './src/offers/enrich.js';
 import { createKeyChain } from './src/offers/mistralKeys.js';
 import { visionMatchText } from './src/storage/enrichStore.js';
 import { loadMistralKeys } from './local-secrets.mjs';
@@ -102,7 +102,9 @@ for (const d of debris) {
     if (!rec) {
       declined += 1;
       batch.push(
-        `INSERT OR REPLACE INTO offer_enrichments (id, model, crop_url, enriched_at) VALUES (${sq(d.id)}, 'mistral-small-latest', ${sq(d.image_url)}, ${sq(now)});`,
+        // Record the model that actually ran, never a hardcoded name — the
+        // production baseline is DEFAULT_MODEL (offers/enrich.js).
+        `INSERT OR REPLACE INTO offer_enrichments (id, model, crop_url, enriched_at) VALUES (${sq(d.id)}, ${sq(DEFAULT_MODEL)}, ${sq(d.image_url)}, ${sq(now)});`,
       );
     } else {
       enriched += 1;
@@ -113,7 +115,7 @@ for (const d of debris) {
       // vision-searchable immediately, no reindex wait.
       const mt = visionMatchText({ name: rec.name, name_ar: rec.nameAr, brand: rec.brand });
       batch.push(
-        `INSERT OR REPLACE INTO offer_enrichments (id, name, name_ar, brand, size, confidence, corroboration, model, crop_url, enriched_at, match_text, identity_candidate, identity_candidate_version) VALUES (${sq(d.id)}, ${sq(rec.name)}, ${sq(rec.nameAr)}, ${sq(rec.brand)}, ${sq(rec.size)}, ${rec.confidence ?? 'NULL'}, ${cor == null ? 'NULL' : cor.toFixed(3)}, ${sq(rec.model)}, ${sq(rec.cropUrl)}, ${sq(rec.enrichedAt)}, ${sq(mt)}, ${sq(JSON.stringify(rec.identityCandidate))}, 'identity-candidate-v1');`,
+        `INSERT OR REPLACE INTO offer_enrichments (id, name, name_ar, brand, size, confidence, corroboration, model, crop_url, enriched_at, match_text, extraction_json, identity_candidate, identity_candidate_version) VALUES (${sq(d.id)}, ${sq(rec.name)}, ${sq(rec.nameAr)}, ${sq(rec.brand)}, ${sq(rec.size)}, ${rec.confidence ?? 'NULL'}, ${cor == null ? 'NULL' : cor.toFixed(3)}, ${sq(rec.model)}, ${sq(rec.cropUrl)}, ${sq(rec.enrichedAt)}, ${sq(mt)}, ${rec.observation == null ? 'NULL' : sq(JSON.stringify(rec.observation))}, ${sq(JSON.stringify(rec.identityCandidate))}, 'identity-candidate-v1');`,
       );
     }
     console.log(`${n}/${debris.length}  ${d.id}  ${rec ? '-> ' + (rec.name || rec.nameAr) : '(declined)'}`);

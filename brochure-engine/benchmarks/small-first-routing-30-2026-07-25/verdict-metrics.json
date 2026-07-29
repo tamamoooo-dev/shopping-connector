@@ -1,0 +1,47 @@
+{
+  "n": 30,
+  "verdicts": {
+    "Small": 1,
+    "Medium": 5,
+    "Tie": 24,
+    "Both wrong": 0
+  },
+  "pipeline": {
+    "small_accepted_directly": 30,
+    "small_escalated": 0,
+    "escalation_rate": 0,
+    "medium_corrected_small": 0,
+    "medium_would_have_corrected": 5,
+    "medium_added_no_value": 25,
+    "shipped_defect_crops": [
+      4,
+      23,
+      33,
+      39,
+      46
+    ]
+  },
+  "cost": {
+    "small_30": 0.005467949999999999,
+    "medium_30": 0.061368000000000006,
+    "routed_30": 0.005467949999999999,
+    "per_crop_small": 0.00018226499999999998,
+    "per_crop_medium": 0.0020456000000000003,
+    "per_crop_routed": 0.00018226499999999998,
+    "reduction_vs_medium": 0.9108990027375832,
+    "ratio": 11.223218939456288
+  },
+  "latency": {
+    "small_mean_ms": 1360.0613333333329,
+    "medium_mean_ms": 1958.587666666666
+  },
+  "quality": {
+    "defect_rate": 0.16666666666666666,
+    "ci95": [
+      0.07336542325431777,
+      0.33564350658665026
+    ],
+    "discordant_pairs": 6,
+    "p_two_sided": 0.21875
+  }
+}

@@ -165,23 +165,6 @@ export function createD1RegistryStore(db) {
     // can surface the SAME canonical product at every other retailer, even
     // when a sibling's extracted name is generic ("Milk" on a tile whose brand
     // only appears in the artwork).
-    async sightingsForProducts(productIds) {
-      const out = [];
-      const ids = [...new Set(productIds)].filter(Boolean);
-      for (let i = 0; i < ids.length; i += 60) {
-        const chunk = ids.slice(i, i + 60);
-        const { results } = await db
-          .prepare(
-            `SELECT offer_id, product_id, match_band FROM product_sightings
-              WHERE product_id IN (${chunk.map(() => '?').join(',')})`,
-          )
-          .bind(...chunk)
-          .all();
-        out.push(...(results || []));
-      }
-      return out;
-    },
-
     // §8 standing metrics, one D1 round-trip each: registry size and health,
     // match-band distribution, review pressure, weekly new-product series
     // (must DECAY toward the true new-product rate as coverage builds — a

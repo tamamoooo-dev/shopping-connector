@@ -836,7 +836,14 @@ const UNIT_TO_BASE = [
   { re: new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(kg|kgs|kilo|kilos|كجم|كيلو|كغ|كيلوجرام)${B}`, 'u'), base: 'g', factor: 1000 },
   { re: new RegExp(`(\\d+(?:[.,]\\d+)?)\\s*(g|gm|gr|grm|gram|grams|جم|جرام|غرام|غ)${B}`, 'u'), base: 'g', factor: 1 },
 ];
-const UNITS = 'l|lt|ltr|liter|litre|ml|kg|g|gm|gr|gram|لتر|مل|كجم|جم|جرام';
+// Keep this grammar in lockstep with UNIT_TO_BASE. If a unit is accepted by
+// the single-size fallback but omitted here, a leading pack expression such as
+// "٣*٤٥٠ غرام" falls through and the size number can be mistaken for the pack
+// multiplier (450 × 450 g).
+const UNITS = 'l|lt|ltr|liter|litre|litres|لتر|ليتر'
+  + '|ml|ملي|ميلي|مليلتر'
+  + '|kg|kgs|kilo|kilos|كجم|كيلو|كغ|كيلوجرام'
+  + '|g|gm|gr|grm|gram|grams|جم|جرام|غرام|غ';
 // Packaging count words: a number followed by one of these IS the unit count of
 // the package ("12 rolls", "30 pcs", "50 قرص"). Curated to container/count
 // nouns that name the WHOLE sellable unit; per-sheet/inner counts (ورقة،
@@ -952,8 +959,12 @@ export function parseSize(name, sizeField) {
       // A trailing "x6" pack multiplier — but never the size's own "× 125ml"
       // digits (a unit right after the number means the × introduced the SIZE).
       // A bonus pack ("9+3" beside "1 لتر" = 12 × 1 L) wins over both.
+      // A suffix multiplier must occur after the matched measurement. Searching
+      // the whole name lets the size in a leading "3 × 450 g" expression become
+      // a bogus 450-pack whenever the full multipack grammar misses a unit.
+      const tail = hay.slice(m.index + m[0].length);
       const pm =
-        new RegExp(`[x×*]\\s*(\\d+)(?!\\s*(?:${UNITS}))${B}`, 'u').exec(hay) ||
+        new RegExp(`^\\s*[x×*]\\s*(\\d+)${B}`, 'u').exec(tail) ||
         /\b(\d+)\s*(?:pcs|pc|pack|s)\b/.exec(hay);
       const pack = bonus || (pm ? Math.max(1, parseInt(pm[1], 10)) : 1);
       return { unit: u.base, each, pack, total: each * pack, src: 'measure' };

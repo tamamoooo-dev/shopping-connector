@@ -1,0 +1,657 @@
+{
+  "schema_version": "prompt-c-brochure-title-trial-v1",
+  "ran_at": "2026-07-25T00:31:57.182Z",
+  "model": "mistral-medium-latest",
+  "variant": "medium_expanded_json_brochure_title",
+  "prompt_c_sha256": "8b06fc3a0c3304c8ad18c0798526e749ca753cd7b9af91a1a7e7d15a2974c96e",
+  "prompt_b_sha256": "e643b2a1b833d12256e0e3806b04c28bc5fd042bf3a86b647b989df9be7c3557",
+  "settings": {
+    "temperature": 0,
+    "top_p": 1,
+    "reasoning_effort": "none",
+    "ocr": false,
+    "requests_per_crop": 1
+  },
+  "subset": [
+    8,
+    9,
+    22,
+    25,
+    28,
+    30,
+    36,
+    40,
+    44,
+    49
+  ],
+  "samples": [
+    {
+      "index": 8,
+      "id": "alwafa:central:d4d:93643038",
+      "store": "alwafa",
+      "category": "baby-diapers",
+      "file": "assets/08.jpg",
+      "sha256": "867a1832a3930b1aad382291fb446426853446cb0eb8fde9e8ecdb49909ad5c2",
+      "prompt_c": {
+        "ok": true,
+        "structured": {
+          "name_en": "Fine Baby Diaper5Maxi Jmbo Pk40's11-18kg",
+          "name_ar": "حفاضات اطفال ماكسي كيس جامبو 40 قطعة 11-18 كجم",
+          "brand": null,
+          "current_price": 44.99,
+          "old_price": null,
+          "unit": null,
+          "package_size": "40's",
+          "quantity": "30",
+          "package_type": "pack",
+          "attributes": [
+            "11-18kg"
+          ],
+          "confidence": 0.98
+        },
+        "raw_output": "{\n  \"name_en\": \"Fine Baby Diaper5Maxi Jmbo Pk40's11-18kg\",\n  \"name_ar\": \"حفاضات اطفال ماكسي كيس جامبو 40 قطعة 11-18 كجم\",\n  \"brand\": null,\n  \"current_price\": 44.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"40's\",\n  \"quantity\": \"30\",\n  \"package_type\": \"pack\",\n  \"attributes\": [\"11-18kg\"],\n  \"confidence\": 0.98\n}",
+        "usage": {
+          "prompt_tokens": 758,
+          "total_tokens": 903,
+          "completion_tokens": 145,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 3149.7
+      },
+      "prompt_b": {
+        "ok": true,
+        "structured": {
+          "name_en": "Fine Baby Diaper5Maxi Jmbo Pk40's11-18kg",
+          "name_ar": "حفاضات اطفال ماكسي كيس جامبو 40 قطعة 11-18 كجم",
+          "brand": "Fine Baby",
+          "current_price": 44.99,
+          "old_price": null,
+          "unit": null,
+          "package_size": "40's",
+          "quantity": "30",
+          "package_type": "pack",
+          "attributes": [
+            "Maxi",
+            "Jumbo",
+            "11-18kg"
+          ],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"Fine Baby Diaper5Maxi Jmbo Pk40's11-18kg\",\n  \"name_ar\": \"حفاضات اطفال ماكسي كيس جامبو 40 قطعة 11-18 كجم\",\n  \"brand\": \"Fine Baby\",\n  \"current_price\": 44.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"40's\",\n  \"quantity\": \"30\",\n  \"package_type\": \"pack\",\n  \"attributes\": [\"Maxi\", \"Jumbo\", \"11-18kg\"],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 751,
+          "total_tokens": 905,
+          "completion_tokens": 154,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 1752.73
+      }
+    },
+    {
+      "index": 9,
+      "id": "alwafa:central:d4d:93643248",
+      "store": "alwafa",
+      "category": "shaving-hair-removal",
+      "file": "assets/09.jpg",
+      "sha256": "331a67839ceec033b2a3c81361e2b81bc791a98584637a1b6979d4a51d42d68c",
+      "prompt_c": {
+        "ok": true,
+        "structured": {
+          "name_en": "Geepas Rech.7in1 Precision Trimmer/600 Mah",
+          "name_ar": "جيباس ماكينة حلاقة كاملة للشحن 7 في 1",
+          "brand": "GEEPAS",
+          "current_price": 69.99,
+          "old_price": null,
+          "unit": null,
+          "package_size": null,
+          "quantity": null,
+          "package_type": null,
+          "attributes": [
+            "Rechargeable",
+            "7in1",
+            "Precision Trimmer",
+            "600 Mah"
+          ],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"Geepas Rech.7in1 Precision Trimmer/600 Mah\",\n  \"name_ar\": \"جيباس ماكينة حلاقة كاملة للشحن 7 في 1\",\n  \"brand\": \"GEEPAS\",\n  \"current_price\": 69.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"Rechargeable\", \"7in1\", \"Precision Trimmer\", \"600 Mah\"],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 739,
+          "total_tokens": 880,
+          "completion_tokens": 141,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 1681.01
+      },
+      "prompt_b": {
+        "ok": true,
+        "structured": {
+          "name_en": "Geepas Rech.7in1 Precision Trimmer/600 Mah",
+          "name_ar": "جيباس ماكينة حلاقة فائقة للشحن 7 في 1",
+          "brand": "Geepas",
+          "current_price": 69.99,
+          "old_price": null,
+          "unit": null,
+          "package_size": "600 Mah",
+          "quantity": null,
+          "package_type": null,
+          "attributes": [
+            "Rech.",
+            "7in1",
+            "Precision Trimmer"
+          ],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"Geepas Rech.7in1 Precision Trimmer/600 Mah\",\n  \"name_ar\": \"جيباس ماكينة حلاقة فائقة للشحن 7 في 1\",\n  \"brand\": \"Geepas\",\n  \"current_price\": 69.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"600 Mah\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"Rech.\", \"7in1\", \"Precision Trimmer\"],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 732,
+          "total_tokens": 870,
+          "completion_tokens": 138,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 3123.78
+      }
+    },
+    {
+      "index": 22,
+      "id": "farm:central:d4d:93613236",
+      "store": "farm",
+      "category": "other-frozen-food",
+      "file": "assets/22.jpg",
+      "sha256": "bf2bc86273c4f4d2e0ade229a9723f76dc8d622bef137118001327f7c1f4e668",
+      "prompt_c": {
+        "ok": true,
+        "structured": {
+          "name_en": "EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA",
+          "name_ar": "بيتزا سبانخ وجبن",
+          "brand": null,
+          "current_price": 16.99,
+          "old_price": 22.99,
+          "unit": "GRAM",
+          "package_size": "415 GR",
+          "quantity": null,
+          "package_type": null,
+          "attributes": [],
+          "confidence": 0.98
+        },
+        "raw_output": "{\n  \"name_en\": \"EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA\",\n  \"name_ar\": \"بيتزا سبانخ وجبن\",\n  \"brand\": null,\n  \"current_price\": 16.99,\n  \"old_price\": 22.99,\n  \"unit\": \"GRAM\",\n  \"package_size\": \"415 GR\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 0.98\n}",
+        "usage": {
+          "prompt_tokens": 716,
+          "total_tokens": 838,
+          "completion_tokens": 122,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 2301.81
+      },
+      "prompt_b": {
+        "ok": true,
+        "structured": {
+          "name_en": "EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA 415 GR",
+          "name_ar": "بيتزا سبانخ وجبن",
+          "brand": "EL CORTE INGLES SELECTION",
+          "current_price": 16.99,
+          "old_price": 22.99,
+          "unit": null,
+          "package_size": "415 GR",
+          "quantity": null,
+          "package_type": null,
+          "attributes": [],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA 415 GR\",\n  \"name_ar\": \"بيتزا سبانخ وجبن\",\n  \"brand\": \"EL CORTE INGLES SELECTION\",\n  \"current_price\": 16.99,\n  \"old_price\": 22.99,\n  \"unit\": null,\n  \"package_size\": \"415 GR\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 709,
+          "total_tokens": 842,
+          "completion_tokens": 133,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 2808.13
+      }
+    },
+    {
+      "index": 25,
+      "id": "grandhyper:central:d4d:93676923",
+      "store": "grandhyper",
+      "category": "kids-wear",
+      "file": "assets/25.jpg",
+      "sha256": "7f63e59d5d03a6f6b1b3071f7c348471d405c76b745c05dbaf87fc6ab99a6cf3",
+      "prompt_c": {
+        "ok": true,
+        "structured": {
+          "name_en": "DERIK MARK BOYS BAGGY JEANS",
+          "name_ar": "ديريك مارك بنطال جينز واسع للاولاد",
+          "brand": null,
+          "current_price": 45,
+          "old_price": 69,
+          "unit": null,
+          "package_size": null,
+          "quantity": null,
+          "package_type": null,
+          "attributes": [],
+          "confidence": null
+        },
+        "raw_output": "{\n  \"name_en\": \"DERIK MARK BOYS BAGGY JEANS\",\n  \"name_ar\": \"ديريك مارك بنطال جينز واسع للاولاد\",\n  \"brand\": null,\n  \"current_price\": 45.0,\n  \"old_price\": 69.0,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": null\n}",
+        "usage": {
+          "prompt_tokens": 701,
+          "total_tokens": 808,
+          "completion_tokens": 107,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 2066.46
+      },
+      "prompt_b": {
+        "ok": true,
+        "structured": {
+          "name_en": "DERIK MARK BOYS BAGGY JEANS",
+          "name_ar": "ديريك مارك بنطال جينز واسع للاولاد",
+          "brand": "DERIK MARK",
+          "current_price": 45,
+          "old_price": 69,
+          "unit": null,
+          "package_size": null,
+          "quantity": null,
+          "package_type": null,
+          "attributes": [
+            "BOYS",
+            "BAGGY"
+          ],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"DERIK MARK BOYS BAGGY JEANS\",\n  \"name_ar\": \"ديريك مارك بنطال جينز واسع للاولاد\",\n  \"brand\": \"DERIK MARK\",\n  \"current_price\": 45.0,\n  \"old_price\": 69.0,\n  \"unit\": null,\n  \"package_size\": null,\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"BOYS\", \"BAGGY\"],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 694,
+          "total_tokens": 818,
+          "completion_tokens": 124,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 2328.52
+      }
+    },
+    {
+      "index": 28,
+      "id": "hyperpanda:central:d4d:93695634",
+      "store": "hyperpanda",
+      "category": "pets",
+      "file": "assets/28.jpg",
+      "sha256": "062a53f281ebb5aa93786a206f9eeaf2d4c67641436edaa2184d0c83d5099174",
+      "prompt_c": {
+        "ok": true,
+        "structured": {
+          "name_en": "Whiskas Cat Food With Beef Flavour",
+          "name_ar": "طعام القطط بنكهة اللحم ويسكاس",
+          "brand": null,
+          "current_price": 10.99,
+          "old_price": null,
+          "unit": null,
+          "package_size": "4 x 85g",
+          "quantity": "4",
+          "package_type": "can",
+          "attributes": [],
+          "confidence": null
+        },
+        "raw_output": "{\n  \"name_en\": \"Whiskas Cat Food With Beef Flavour\",\n  \"name_ar\": \"طعام القطط بنكهة اللحم ويسكاس\",\n  \"brand\": null,\n  \"current_price\": 10.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"4 x 85g\",\n  \"quantity\": \"4\",\n  \"package_type\": \"can\",\n  \"attributes\": [],\n  \"confidence\": null\n}",
+        "usage": {
+          "prompt_tokens": 776,
+          "total_tokens": 888,
+          "completion_tokens": 112,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 2116.28
+      },
+      "prompt_b": {
+        "ok": true,
+        "structured": {
+          "name_en": "Whiskas Cat Food With Beef Flavour (4 x 85g)",
+          "name_ar": "طعام القطط بنكهة اللحم ويسكاس",
+          "brand": "Whiskas",
+          "current_price": 10.99,
+          "old_price": null,
+          "unit": null,
+          "package_size": "4 x 85g",
+          "quantity": "4 x 85g",
+          "package_type": "can",
+          "attributes": [
+            "Beef Flavour"
+          ],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"Whiskas Cat Food With Beef Flavour (4 x 85g)\",\n  \"name_ar\": \"طعام القطط بنكهة اللحم ويسكاس\",\n  \"brand\": \"Whiskas\",\n  \"current_price\": 10.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"4 x 85g\",\n  \"quantity\": \"4 x 85g\",\n  \"package_type\": \"can\",\n  \"attributes\": [\"Beef Flavour\"],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 769,
+          "total_tokens": 903,
+          "completion_tokens": 134,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 1260.41
+      }
+    },
+    {
+      "index": 30,
+      "id": "hyperpanda:central:d4d:93693444",
+      "store": "hyperpanda",
+      "category": "cakes-pastry",
+      "file": "assets/30.jpg",
+      "sha256": "82b8b3da81fdade1a95a07da7a7eb8d5ddf4e697c2b9d162a21f0067b202dfe9",
+      "prompt_c": {
+        "ok": true,
+        "structured": {
+          "name_en": "Mini Madeleines Traditional French Sponge Cakes",
+          "name_ar": "سبونج كيك فرنسي تقليدي ميني مادلينس",
+          "brand": null,
+          "current_price": null,
+          "old_price": null,
+          "unit": "جرام",
+          "package_size": "85g",
+          "quantity": null,
+          "package_type": null,
+          "attributes": [],
+          "confidence": 0.98
+        },
+        "raw_output": "{\n  \"name_en\": \"Mini Madeleines Traditional French Sponge Cakes\",\n  \"name_ar\": \"سبونج كيك فرنسي تقليدي ميني مادلينس\",\n  \"brand\": null,\n  \"current_price\": null,\n  \"old_price\": null,\n  \"unit\": \"جرام\",\n  \"package_size\": \"85g\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 0.98\n}",
+        "usage": {
+          "prompt_tokens": 656,
+          "total_tokens": 765,
+          "completion_tokens": 109,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 1113.44
+      },
+      "prompt_b": {
+        "ok": true,
+        "structured": {
+          "name_en": "St Michel Mini Madeleines Traditional French Sponge Cakes (85g)",
+          "name_ar": "سبونج كيك فرنسي تقليدي ميني مادلينس",
+          "brand": "St Michel",
+          "current_price": null,
+          "old_price": null,
+          "unit": "جرام",
+          "package_size": "85g",
+          "quantity": null,
+          "package_type": null,
+          "attributes": [
+            "Traditional French Sponge Cakes",
+            "Mini Madeleines"
+          ],
+          "confidence": 0.98
+        },
+        "raw_output": "{\n  \"name_en\": \"St Michel Mini Madeleines Traditional French Sponge Cakes (85g)\",\n  \"name_ar\": \"سبونج كيك فرنسي تقليدي ميني مادلينس\",\n  \"brand\": \"St Michel\",\n  \"current_price\": null,\n  \"old_price\": null,\n  \"unit\": \"جرام\",\n  \"package_size\": \"85g\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [\"Traditional French Sponge Cakes\", \"Mini Madeleines\"],\n  \"confidence\": 0.98\n}",
+        "usage": {
+          "prompt_tokens": 649,
+          "total_tokens": 780,
+          "completion_tokens": 131,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 1198.54
+      }
+    },
+    {
+      "index": 36,
+      "id": "marksave:central:d4d:93625125",
+      "store": "marksave",
+      "category": "hair-care",
+      "file": "assets/36.jpg",
+      "sha256": "a8424d85e3c1209ddd1cf3bfc60ebc566878717d11ac7c826827f5e2c56c0496",
+      "prompt_c": {
+        "ok": true,
+        "structured": {
+          "name_en": "Dear Love Amla Hair Oil 250ml",
+          "name_ar": "زيت الشعر املا 250 مل",
+          "brand": null,
+          "current_price": 5.95,
+          "old_price": 10.95,
+          "unit": null,
+          "package_size": "250ml",
+          "quantity": "1 pc",
+          "package_type": "piece",
+          "attributes": [],
+          "confidence": null
+        },
+        "raw_output": "{\n  \"name_en\": \"Dear Love Amla Hair Oil 250ml\",\n  \"name_ar\": \"زيت الشعر املا 250 مل\",\n  \"brand\": null,\n  \"current_price\": 5.95,\n  \"old_price\": 10.95,\n  \"unit\": null,\n  \"package_size\": \"250ml\",\n  \"quantity\": \"1 pc\",\n  \"package_type\": \"piece\",\n  \"attributes\": [],\n  \"confidence\": null\n}",
+        "usage": {
+          "prompt_tokens": 796,
+          "total_tokens": 909,
+          "completion_tokens": 113,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 2514.63
+      },
+      "prompt_b": {
+        "ok": true,
+        "structured": {
+          "name_en": "Dear love Amla Hair Oil 250ml",
+          "name_ar": "زيت الشعر املا",
+          "brand": "Dear love",
+          "current_price": 5.95,
+          "old_price": 10.95,
+          "unit": "SAR",
+          "package_size": "250ml",
+          "quantity": "1 pc",
+          "package_type": "bottle",
+          "attributes": [
+            "25% FREE"
+          ],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"Dear love Amla Hair Oil 250ml\",\n  \"name_ar\": \"زيت الشعر املا\",\n  \"brand\": \"Dear love\",\n  \"current_price\": 5.95,\n  \"old_price\": 10.95,\n  \"unit\": \"SAR\",\n  \"package_size\": \"250ml\",\n  \"quantity\": \"1 pc\",\n  \"package_type\": \"bottle\",\n  \"attributes\": [\"25% FREE\"],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 789,
+          "total_tokens": 911,
+          "completion_tokens": 122,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 1232.74
+      }
+    },
+    {
+      "index": 40,
+      "id": "othaim:central:d4d:93684717",
+      "store": "othaim",
+      "category": "soft-drinks",
+      "file": "assets/40.jpg",
+      "sha256": "08388d22fc242e167d3d26a1bcfbc5e4c843e77417f5b3ad4a3a34fabf08ee3d",
+      "prompt_c": {
+        "ok": true,
+        "structured": {
+          "name_en": "Pepsi Bottles",
+          "name_ar": "بيبسي زجاج",
+          "brand": null,
+          "current_price": 11.99,
+          "old_price": null,
+          "unit": null,
+          "package_size": "6x250ml",
+          "quantity": "6",
+          "package_type": "pack",
+          "attributes": [],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"Pepsi Bottles\",\n  \"name_ar\": \"بيبسي زجاج\",\n  \"brand\": null,\n  \"current_price\": 11.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"6x250ml\",\n  \"quantity\": \"6\",\n  \"package_type\": \"pack\",\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 739,
+          "total_tokens": 841,
+          "completion_tokens": 102,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 1987.21
+      },
+      "prompt_b": {
+        "ok": true,
+        "structured": {
+          "name_en": "Pepsi Bottles",
+          "name_ar": "بيبسي زجاج",
+          "brand": "Pepsi",
+          "current_price": 11.99,
+          "old_price": null,
+          "unit": null,
+          "package_size": "6x250ml",
+          "quantity": "6",
+          "package_type": "pack",
+          "attributes": [],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"Pepsi Bottles\",\n  \"name_ar\": \"بيبسي زجاج\",\n  \"brand\": \"Pepsi\",\n  \"current_price\": 11.99,\n  \"old_price\": null,\n  \"unit\": null,\n  \"package_size\": \"6x250ml\",\n  \"quantity\": \"6\",\n  \"package_type\": \"pack\",\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 732,
+          "total_tokens": 836,
+          "completion_tokens": 104,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 1060.35
+      }
+    },
+    {
+      "index": 44,
+      "id": "prime:central:d4d:93552036",
+      "store": "prime",
+      "category": "oil-ghee",
+      "file": "assets/44.jpg",
+      "sha256": "2af5e74c317e00fb47a5ab5a38ed30838cebd35e8d4ee7b8aaf4122eb82a3bf1",
+      "prompt_c": {
+        "ok": true,
+        "structured": {
+          "name_en": "NOOR SUN FLOWER OIL (PET)",
+          "name_ar": "زيت دوار الشمس",
+          "brand": "NOOR",
+          "current_price": 39.95,
+          "old_price": 45.5,
+          "unit": null,
+          "package_size": "2 X 1.5 LTR + 500 ML",
+          "quantity": "2 X 1.5 LTR + 500 ML",
+          "package_type": "PACK",
+          "attributes": [],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"NOOR SUN FLOWER OIL (PET)\",\n  \"name_ar\": \"زيت دوار الشمس\",\n  \"brand\": \"NOOR\",\n  \"current_price\": 39.95,\n  \"old_price\": 45.5,\n  \"unit\": null,\n  \"package_size\": \"2 X 1.5 LTR + 500 ML\",\n  \"quantity\": \"2 X 1.5 LTR + 500 ML\",\n  \"package_type\": \"PACK\",\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 736,
+          "total_tokens": 873,
+          "completion_tokens": 137,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 1300.24
+      },
+      "prompt_b": {
+        "ok": true,
+        "structured": {
+          "name_en": "NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)",
+          "name_ar": "زيت دوار الشمس نور",
+          "brand": "NOOR",
+          "current_price": 39.95,
+          "old_price": 45.5,
+          "unit": null,
+          "package_size": "2 X 1.5 LTR + 500 ML",
+          "quantity": "2 X 1.5 LTR + 500 ML",
+          "package_type": "PACK",
+          "attributes": [
+            "SUN FLOWER OIL",
+            "PET"
+          ],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)\",\n  \"name_ar\": \"زيت دوار الشمس نور\",\n  \"brand\": \"NOOR\",\n  \"current_price\": 39.95,\n  \"old_price\": 45.5,\n  \"unit\": null,\n  \"package_size\": \"2 X 1.5 LTR + 500 ML\",\n  \"quantity\": \"2 X 1.5 LTR + 500 ML\",\n  \"package_type\": \"PACK\",\n  \"attributes\": [\"SUN FLOWER OIL\", \"PET\"],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 729,
+          "total_tokens": 895,
+          "completion_tokens": 166,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 1456.66
+      }
+    },
+    {
+      "index": 49,
+      "id": "tamimi:central:d4d:93618753",
+      "store": "tamimi",
+      "category": "cereals-bars",
+      "file": "assets/49.jpg",
+      "sha256": "dd835b968dabe7bdf6027888d1116ced3e895949a963773046b5a852793b5c48",
+      "prompt_c": {
+        "ok": true,
+        "structured": {
+          "name_en": "NESTLE COUNTRY CORNFLAKES",
+          "name_ar": "كورن فليكس كاونتري",
+          "brand": "Nestle",
+          "current_price": 19.99,
+          "old_price": 23.95,
+          "unit": null,
+          "package_size": "500 GRAMS OR 1 KILO",
+          "quantity": null,
+          "package_type": null,
+          "attributes": [],
+          "confidence": null
+        },
+        "raw_output": "{\n  \"name_en\": \"NESTLE COUNTRY CORNFLAKES\",\n  \"name_ar\": \"كورن فليكس كاونتري\",\n  \"brand\": \"Nestle\",\n  \"current_price\": 19.99,\n  \"old_price\": 23.95,\n  \"unit\": null,\n  \"package_size\": \"500 GRAMS OR 1 KILO\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": null\n}",
+        "usage": {
+          "prompt_tokens": 758,
+          "total_tokens": 878,
+          "completion_tokens": 120,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 1192.25
+      },
+      "prompt_b": {
+        "ok": true,
+        "structured": {
+          "name_en": "NESTLE COUNTRY CORNFLAKES, 500 GRAMS OR 1 KILO",
+          "name_ar": "كورن فليكس كاونتري",
+          "brand": "Nestle",
+          "current_price": 19.99,
+          "old_price": 23.95,
+          "unit": null,
+          "package_size": "500 GRAMS OR 1 KILO",
+          "quantity": null,
+          "package_type": null,
+          "attributes": [],
+          "confidence": 1
+        },
+        "raw_output": "{\n  \"name_en\": \"NESTLE COUNTRY CORNFLAKES, 500 GRAMS OR 1 KILO\",\n  \"name_ar\": \"كورن فليكس كاونتري\",\n  \"brand\": \"Nestle\",\n  \"current_price\": 19.99,\n  \"old_price\": 23.95,\n  \"unit\": null,\n  \"package_size\": \"500 GRAMS OR 1 KILO\",\n  \"quantity\": null,\n  \"package_type\": null,\n  \"attributes\": [],\n  \"confidence\": 1.0\n}",
+        "usage": {
+          "prompt_tokens": 751,
+          "total_tokens": 888,
+          "completion_tokens": 137,
+          "prompt_tokens_details": {
+            "cached_tokens": 0
+          }
+        },
+        "latency_ms": 2911.46
+      }
+    }
+  ]
+}

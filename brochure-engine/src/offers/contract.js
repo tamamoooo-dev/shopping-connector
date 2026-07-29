@@ -8,7 +8,8 @@
 // 10-key result: treat it as a contract.
 //
 // Offer:
-//   { id, store, region, source, offerId, flyerRef, pageRef, edition,
+//   { id, store, region, source, offerId, flyerRef, pageRef,
+//     brochureId, pageIndex, edition,
 //     name, nameAr, price, oldPrice, currency, categoryId, category,
 //     imageUrl, sourceUrl, validFrom, validTo, detectedAt, searchText }
 //
@@ -149,6 +150,9 @@ export function buildOffer(raw, { store, region, source, detectedAt }) {
     offerId,
     flyerRef: raw.flyerRef != null ? String(raw.flyerRef) : null,
     pageRef: raw.pageRef != null ? String(raw.pageRef) : null,
+    brochureId: null, // exact local navigation link, stamped by ingest
+    pageIndex: null, // zero-based stored page index, stamped by ingest
+    navigationProvenance: null, // dual | hotspot_unique, stamped by Policy B
     edition: null, // linked to a held brochure edition by the ingest, if matched
     name,
     nameAr,
@@ -190,6 +194,9 @@ export function offerToRow(o) {
     offer_id: o.offerId,
     flyer_ref: o.flyerRef,
     page_ref: o.pageRef,
+    brochure_id: o.brochureId,
+    page_index: o.pageIndex,
+    navigation_provenance: o.navigationProvenance ?? null,
     edition: o.edition,
     name: o.name,
     name_ar: o.nameAr,
@@ -218,6 +225,9 @@ export function rowToOffer(r) {
     offerId: r.offer_id,
     flyerRef: r.flyer_ref,
     pageRef: r.page_ref,
+    brochureId: r.brochure_id ?? null,
+    pageIndex: Number.isInteger(r.page_index) ? r.page_index : null,
+    navigationProvenance: r.navigation_provenance ?? null,
     edition: r.edition,
     name: r.name,
     nameAr: r.name_ar,
@@ -227,7 +237,10 @@ export function rowToOffer(r) {
     categoryId: r.category_id,
     category: r.category,
     imageUrl: r.image_url,
-    sourceUrl: r.source_url,
+    // D4D URL is retained in D1 as ingestion provenance only. It is never
+    // exposed as a browsing/navigation target; exact local navigation is the
+    // brochureId + pageIndex pair above.
+    sourceUrl: null,
     validFrom: r.valid_from,
     validTo: r.valid_to,
     detectedAt: r.detected_at,

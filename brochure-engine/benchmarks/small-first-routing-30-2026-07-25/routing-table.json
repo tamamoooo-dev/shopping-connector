@@ -1,0 +1,927 @@
+{
+  "summary": {
+    "n": 30,
+    "registry_gate": {
+      "usable": 1,
+      "absent": 21,
+      "circular": 6,
+      "no_size": 2,
+      "escalated": 0,
+      "accepted": 30
+    },
+    "d4d_gate": {
+      "fired": 2,
+      "blind": 28,
+      "escalated": 0
+    },
+    "models": {
+      "size_agree": 26,
+      "size_differ": 4,
+      "name_differ": 16,
+      "brand_differ": 11,
+      "price_differ": 3
+    }
+  },
+  "rows": [
+    {
+      "index": 2,
+      "store": "aljazera",
+      "category": "deli-speaclity-meats",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/02.jpg",
+      "small_raw": "—",
+      "medium_raw": "—",
+      "small_canon": null,
+      "medium_canon": null,
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "models_agree": true,
+      "small_name": "SINIORA BEEF MORTADELLA (KG) ASSORTED",
+      "medium_name": "SINIORA BEEF MORTADELLA (KG) ASSORTED",
+      "small_brand": "SINIORA",
+      "medium_brand": "SINIORA",
+      "small_price": 36.99,
+      "medium_price": 36.99
+    },
+    {
+      "index": 4,
+      "store": "almadina",
+      "category": "large-appliances",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/04.jpg",
+      "small_raw": "—",
+      "medium_raw": "—",
+      "small_canon": null,
+      "medium_canon": null,
+      "d4d_canon": "26pcs",
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "models_agree": true,
+      "small_name": "Refrigerator NRF110N26S",
+      "medium_name": "Refrigerator NRF110N26S",
+      "small_brand": "PIKAY",
+      "medium_brand": "NIKAI",
+      "small_price": 349,
+      "medium_price": 349
+    },
+    {
+      "index": 5,
+      "store": "almadina",
+      "category": "kitchen-appliance",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/05.jpg",
+      "small_raw": "2",
+      "medium_raw": "—",
+      "small_canon": null,
+      "medium_canon": null,
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "models_agree": true,
+      "small_name": "CLIKON BREAD TOASTER 2 CK-2436",
+      "medium_name": "CLIKON BREAD TOASTER 2 CK-2436",
+      "small_brand": "Clikon",
+      "medium_brand": "CLIKON",
+      "small_price": 59,
+      "medium_price": 59
+    },
+    {
+      "index": 6,
+      "store": "almadina",
+      "category": "powdered-drinks-syrups",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/06.jpg",
+      "small_raw": "623g",
+      "medium_raw": "623g",
+      "small_canon": "623g",
+      "medium_canon": "623g",
+      "d4d_canon": "623g",
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "YES",
+        "esc": "NO",
+        "why": "canonical values agree"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": true,
+      "small_name": "HERSHEY'S Strawberry Syrup 623g",
+      "medium_name": "Hershey's Strawberry Syrup 623g",
+      "small_brand": "HERSHEY'S",
+      "medium_brand": "Hershey's",
+      "small_price": 4.95,
+      "medium_price": 4.95
+    },
+    {
+      "index": 7,
+      "store": "alwafa",
+      "category": "tabs",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/07.jpg",
+      "small_raw": "7Inch / 1 PC",
+      "medium_raw": "7 Inch / 1 PC",
+      "small_canon": "1pcs",
+      "medium_canon": "1pcs",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": true,
+      "small_name": "Tiny Tunes KidsTab 8GB/256G 5G 7In TS500",
+      "medium_name": "Tiny Tunes KidsTab 8GB/256/5G 7In TS500",
+      "small_brand": "Tiny Tunes",
+      "medium_brand": "Tiny Tunes",
+      "small_price": 179,
+      "medium_price": 179
+    },
+    {
+      "index": 8,
+      "store": "alwafa",
+      "category": "baby-diapers",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/08.jpg",
+      "small_raw": "40's",
+      "medium_raw": "40's / 30",
+      "small_canon": "40pcs",
+      "medium_canon": "40pcs",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": true,
+      "small_name": "Fine Baby Diaper 5Maxi Jmbo Pk40's 11-18kg",
+      "medium_name": "Fine Baby Diaper5Maxi Jumbo Pk40's11-18kg",
+      "small_brand": "Fine Baby",
+      "medium_brand": "Fine Baby",
+      "small_price": 44.99,
+      "medium_price": 44.99
+    },
+    {
+      "index": 9,
+      "store": "alwafa",
+      "category": "shaving-hair-removal",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/09.jpg",
+      "small_raw": "600 Mah",
+      "medium_raw": "600 Mah",
+      "small_canon": null,
+      "medium_canon": null,
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "models_agree": true,
+      "small_name": "Geepas Rech.7in1 Precision Trimmer/600 Mah",
+      "medium_name": "Geepas Rech.7in1 Precision Trimmer/600 Mah",
+      "small_brand": "Geepas",
+      "medium_brand": "Geepas",
+      "small_price": 69,
+      "medium_price": 69.99
+    },
+    {
+      "index": 11,
+      "store": "amarket",
+      "category": "dried-fruits-dates",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/11.jpg",
+      "small_raw": "—",
+      "medium_raw": "—",
+      "small_canon": null,
+      "medium_canon": null,
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "models_agree": true,
+      "small_name": "ALMOND SALTED",
+      "medium_name": "ALMOND SALTED",
+      "small_brand": "ALMOND",
+      "medium_brand": null,
+      "small_price": 42.95,
+      "medium_price": 42.95
+    },
+    {
+      "index": 12,
+      "store": "amarket",
+      "category": "fresh-chicken-poultry",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/12.jpg",
+      "small_raw": "800 GM",
+      "medium_raw": "800 GM",
+      "small_canon": "800g",
+      "medium_canon": "800g",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "circular",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "registry circular (1 sighting)"
+      },
+      "models_agree": true,
+      "small_name": "ENTAJ FRESH WHOLE CHICKEN CUT UP 800 GM",
+      "medium_name": "ENTAJ FRESH WHOLE CHICKEN CUT UP 800 GM",
+      "small_brand": "ENTAJ",
+      "medium_brand": "entaj",
+      "small_price": 10.5,
+      "medium_price": 10.5
+    },
+    {
+      "index": 20,
+      "store": "danube",
+      "category": "chocolates-candies",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/20.jpg",
+      "small_raw": "80g",
+      "medium_raw": "80g",
+      "small_canon": "80g",
+      "medium_canon": "80g",
+      "d4d_canon": "80g",
+      "reg_canon": null,
+      "reg_state": "circular",
+      "d4d": {
+        "match": "YES",
+        "esc": "NO",
+        "why": "canonical values agree"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "registry circular (1 sighting)"
+      },
+      "models_agree": true,
+      "small_name": "Galaxy Smooth Milk Chocolates 80g",
+      "medium_name": "Galaxy Chocolates 80g",
+      "small_brand": "Galaxy",
+      "medium_brand": "Galaxy",
+      "small_price": 6.99,
+      "medium_price": 6.99
+    },
+    {
+      "index": 21,
+      "store": "danube",
+      "category": "cheese-creame",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/21.jpg",
+      "small_raw": "200g",
+      "medium_raw": "200g",
+      "small_canon": "200g",
+      "medium_canon": "200g",
+      "d4d_canon": null,
+      "reg_canon": "200g",
+      "reg_state": "usable",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "YES",
+        "esc": "NO",
+        "why": "canonical values agree"
+      },
+      "models_agree": true,
+      "small_name": "Almarai Halloumi Cheese 200g",
+      "medium_name": "Almarai Halloumi Cheese 200g",
+      "small_brand": "Almarai",
+      "medium_brand": "Almarai",
+      "small_price": 13.5,
+      "medium_price": 13.5
+    },
+    {
+      "index": 22,
+      "store": "farm",
+      "category": "other-frozen-food",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/22.jpg",
+      "small_raw": "415 GR",
+      "medium_raw": "415 GR",
+      "small_canon": "415g",
+      "medium_canon": "415g",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "circular",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "registry circular (1 sighting)"
+      },
+      "models_agree": true,
+      "small_name": "EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA 415 GR",
+      "medium_name": "EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA 415 GR",
+      "small_brand": "EL CORTE INGLES SELECTION",
+      "medium_brand": "EL CORTE INGLES SELECTION",
+      "small_price": 16.99,
+      "medium_price": 16.99
+    },
+    {
+      "index": 23,
+      "store": "farm",
+      "category": "snacks",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/23.jpg",
+      "small_raw": "12 * 18GR",
+      "medium_raw": "12 *18GR / 12",
+      "small_canon": "216g",
+      "medium_canon": "216g",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "circular",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "registry circular (1 sighting)"
+      },
+      "models_agree": true,
+      "small_name": "CRISPY CHIPS LETTERS / RINGS 12 * 18GR",
+      "medium_name": "CRISPY CHIPS LETTERS / RINGS 12 *18GR",
+      "small_brand": "GRIP",
+      "medium_brand": "CRISPY",
+      "small_price": 10.99,
+      "medium_price": 10.99
+    },
+    {
+      "index": 24,
+      "store": "farm",
+      "category": null,
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/24.jpg",
+      "small_raw": "9.99 KG",
+      "medium_raw": "—",
+      "small_canon": "9990g",
+      "medium_canon": null,
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "circular",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "registry circular (1 sighting)"
+      },
+      "models_agree": false,
+      "small_name": "BARHY RUTAB 9.99 KG",
+      "medium_name": "BARHY RUTAB",
+      "small_brand": "BARHY",
+      "medium_brand": null,
+      "small_price": 9.99,
+      "medium_price": 9.99
+    },
+    {
+      "index": 25,
+      "store": "grandhyper",
+      "category": "kids-wear",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/25.jpg",
+      "small_raw": "—",
+      "medium_raw": "—",
+      "small_canon": null,
+      "medium_canon": null,
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "no-size",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "models_agree": true,
+      "small_name": "DERIK MARK BOYS BAGGY JEANS",
+      "medium_name": "DERIK MARK BOYS BAGGY JEANS",
+      "small_brand": "DERIK MARK",
+      "medium_brand": "DERIK MARK",
+      "small_price": 45,
+      "medium_price": 45
+    },
+    {
+      "index": 26,
+      "store": "grandhyper",
+      "category": "fresh-fruits",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/26.jpg",
+      "small_raw": "—",
+      "medium_raw": "—",
+      "small_canon": null,
+      "medium_canon": null,
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "no-size",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "models_agree": true,
+      "small_name": "PINEAPPLE (KENYA)/PC",
+      "medium_name": "PINEAPPLE (KENYA)/PC",
+      "small_brand": null,
+      "medium_brand": null,
+      "small_price": 8.95,
+      "medium_price": 8.95
+    },
+    {
+      "index": 27,
+      "store": "grandhyper",
+      "category": "bath-body",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/27.jpg",
+      "small_raw": "125GM 6PCS / 6PCS",
+      "medium_raw": "125GM 6PCS / 6PCS",
+      "small_canon": "750g",
+      "medium_canon": "750g",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": true,
+      "small_name": "GODREJ CINTHOL SOAP 125GM 6PCS (ASSORTED)",
+      "medium_name": "GODREJ CINTHOL SOAP 125GM 6PCS (ASSORTED)",
+      "small_brand": "CINTHOL",
+      "medium_brand": "CINTHOL",
+      "small_price": 9.95,
+      "medium_price": 9.95
+    },
+    {
+      "index": 29,
+      "store": "hyperpanda",
+      "category": "laundry",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/29.jpg",
+      "small_raw": "3L",
+      "medium_raw": "3L",
+      "small_canon": "3000ml",
+      "medium_canon": "3000ml",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": true,
+      "small_name": "Downy Concentrated Fabric Softener (3L)",
+      "medium_name": "Downy Concentrated Fabric Softener (3L)",
+      "small_brand": "Downy",
+      "medium_brand": "Downy",
+      "small_price": 39.9,
+      "medium_price": 39.99
+    },
+    {
+      "index": 30,
+      "store": "hyperpanda",
+      "category": "cakes-pastry",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/30.jpg",
+      "small_raw": "85g",
+      "medium_raw": "85g",
+      "small_canon": "85g",
+      "medium_canon": "85g",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": true,
+      "small_name": "Michel Mini Madeleines Traditional French Sponge Cakes (85g)",
+      "medium_name": "St Michel Mini Madeleines Traditional French Sponge Cakes (85g)",
+      "small_brand": "Michel",
+      "medium_brand": "St Michel",
+      "small_price": null,
+      "medium_price": null
+    },
+    {
+      "index": 31,
+      "store": "lulu",
+      "category": "tv",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/31.jpg",
+      "small_raw": "98inch",
+      "medium_raw": "98inch",
+      "small_canon": null,
+      "medium_canon": null,
+      "d4d_canon": "79000ml",
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "models_agree": true,
+      "small_name": "TCL 4K5QD Mini LED 98C79L 98inch",
+      "medium_name": "TCL 4K SQD Mini LED 98C79L 98inch 2026 MODEL",
+      "small_brand": "TCL",
+      "medium_brand": "TCL",
+      "small_price": 9499,
+      "medium_price": 9499
+    },
+    {
+      "index": 33,
+      "store": "lulu",
+      "category": "rice",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/33.jpg",
+      "small_raw": "10 KG",
+      "medium_raw": "5kg",
+      "small_canon": "10000g",
+      "medium_canon": "5000g",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "circular",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "registry circular (1 sighting)"
+      },
+      "models_agree": false,
+      "small_name": "Mughal Royal Diamond Steamed Basmati Rice 10 KG Extra Long Grain",
+      "medium_name": "Mughal ROYAL DIAMOND STEAMED 1121 BASMATI RICE XXL EXTRA LONG GRAIN 5kg",
+      "small_brand": "Mughal",
+      "medium_brand": "Mughal",
+      "small_price": 34.99,
+      "medium_price": 34.99
+    },
+    {
+      "index": 34,
+      "store": "marksave",
+      "category": "dishwasher",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/34.jpg",
+      "small_raw": "1L",
+      "medium_raw": "1Ltr / 1 pc",
+      "small_canon": "1000ml",
+      "medium_canon": "1000ml",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": true,
+      "small_name": "Fairy Dish Washing Liquid Lemon/Original 1L Tr",
+      "medium_name": "Fairy Dish Washing Liquid Lemon/Original 1Ltr",
+      "small_brand": "Fairy",
+      "medium_brand": "Fairy",
+      "small_price": 12.95,
+      "medium_price": 12.95
+    },
+    {
+      "index": 36,
+      "store": "marksave",
+      "category": "hair-care",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/36.jpg",
+      "small_raw": "250ML",
+      "medium_raw": "250ml / 1 pc",
+      "small_canon": "250ml",
+      "medium_canon": "250ml",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": true,
+      "small_name": "Dear love Amla Hair Oil Make Your Hair Strong With Extra Bounciness 250ML",
+      "medium_name": "Dear Love Amla Hair Oil 250ml",
+      "small_brand": "Dear love",
+      "medium_brand": "Dear Love",
+      "small_price": 5.95,
+      "medium_price": 5.95
+    },
+    {
+      "index": 39,
+      "store": "nesto",
+      "category": "home-furnishing-decor",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/39.jpg",
+      "small_raw": "—",
+      "medium_raw": "1 PC",
+      "small_canon": null,
+      "medium_canon": "1pcs",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "models_agree": false,
+      "small_name": "Ceramic prayer mat sponge",
+      "medium_name": "Ceramic prayer mat sponge",
+      "small_brand": "Ceramic",
+      "medium_brand": null,
+      "small_price": 19,
+      "medium_price": 10
+    },
+    {
+      "index": 40,
+      "store": "othaim",
+      "category": "soft-drinks",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/40.jpg",
+      "small_raw": "6×250 ml / 6",
+      "medium_raw": "6x250ml / 6",
+      "small_canon": "1500ml",
+      "medium_canon": "1500ml",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": true,
+      "small_name": "Pepsi 6×250 ml Bottles",
+      "medium_name": "Pepsi Bottles",
+      "small_brand": "Pepsi",
+      "medium_brand": "Pepsi",
+      "small_price": 11.99,
+      "medium_price": 11.99
+    },
+    {
+      "index": 41,
+      "store": "othaim",
+      "category": "salts-spices-paste",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/41.jpg",
+      "small_raw": "6x140g / 6",
+      "medium_raw": "6x140g / 6",
+      "small_canon": "840g",
+      "medium_canon": "840g",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": true,
+      "small_name": "Freshco Tomato Paste 6x140g",
+      "medium_name": "Freshco Tomato Paste",
+      "small_brand": "Freshco",
+      "medium_brand": "Freshco",
+      "small_price": 11.99,
+      "medium_price": 11.99
+    },
+    {
+      "index": 45,
+      "store": "ramez",
+      "category": "disposables",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/45.jpg",
+      "small_raw": "100",
+      "medium_raw": "100",
+      "small_canon": null,
+      "medium_canon": null,
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "models_agree": true,
+      "small_name": "Palatinol Color Paper 100",
+      "medium_name": "Premium Colour Paper",
+      "small_brand": "Palatinol",
+      "medium_brand": null,
+      "small_price": 4.75,
+      "medium_price": 4.75
+    },
+    {
+      "index": 46,
+      "store": "ramez",
+      "category": "dental-care",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/46.jpg",
+      "small_raw": "6×200 ml / 6",
+      "medium_raw": "500 ml",
+      "small_canon": "1200ml",
+      "medium_canon": "500ml",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": false,
+      "small_name": "LISTERINE TOTAL CARE 6×200 ml",
+      "medium_name": "LISTERINE TOTAL CARE",
+      "small_brand": "LISTERINE",
+      "medium_brand": "LISTERINE",
+      "small_price": 15.95,
+      "medium_price": 15.95
+    },
+    {
+      "index": 49,
+      "store": "tamimi",
+      "category": "cereals-bars",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/49.jpg",
+      "small_raw": "500 GRAMS OR 1 KILO",
+      "medium_raw": "500 GRAMS OR 1 KILO",
+      "small_canon": "1000g",
+      "medium_canon": "1000g",
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "D4D missing value"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "no registry sighting"
+      },
+      "models_agree": true,
+      "small_name": "Nestle COUNTRY CORN FLAKES, 500 GRAMS OR 1 KILO",
+      "medium_name": "NESTLE COUNTRY CORNFLAKES, 500 GRAMS OR 1 KILO",
+      "small_brand": "Nestle",
+      "medium_brand": "Nestle",
+      "small_price": 19.99,
+      "medium_price": 19.99
+    },
+    {
+      "index": 50,
+      "store": "tamimi",
+      "category": "meat-fresh-chilled",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/50.jpg",
+      "small_raw": "—",
+      "medium_raw": "—",
+      "small_canon": null,
+      "medium_canon": null,
+      "d4d_canon": null,
+      "reg_canon": null,
+      "reg_state": "absent",
+      "d4d": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "reg": {
+        "match": "n/a",
+        "esc": "NO",
+        "why": "Small returned no size"
+      },
+      "models_agree": true,
+      "small_name": "FRESH VEAL - BONE IN",
+      "medium_name": "FRESH VEAL - BONE IN",
+      "small_brand": null,
+      "medium_brand": null,
+      "small_price": 49.99,
+      "medium_price": 49.99
+    }
+  ]
+}

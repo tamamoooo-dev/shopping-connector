@@ -1,0 +1,426 @@
+{
+  "schema_version": "human-canonical-truth-v2",
+  "adjudicated_at": "2026-07-25",
+  "method": "direct inspection of each original-resolution crop; struck-through prices too small to read were re-inspected at 6-14x upscale; existing production price metadata was used ONLY to disambiguate tiny crossed-out digits, never to supply a value absent from the pixels",
+  "scored_fields": ["name_en", "brand", "current_price", "old_price", "quantity"],
+  "conventions": {
+    "accepted": "every rendering that counts as correct; the first entry is the primary truth",
+    "null_entry": "JSON null inside accepted means returning null is correct",
+    "unadjudicable": "the pixels do not support a human decision; the field is excluded from that field's denominator",
+    "name_en": "exact printed wording; paraphrase, translation and normalization earn no credit",
+    "quantity": "credited from package_size OR quantity OR their combination; unit synonyms (g/gm/gr, l/ltr, pc/pcs) are equivalent"
+  },
+  "samples": [
+    {
+      "index": 1, "store": "aljazera",
+      "note": "dual-variant crop: RED 28.99 was 37.95, GOLD 34.99 was 45.95; either consistent role is accepted",
+      "name_en": { "accepted": ["NAJJAR INSTANT COFFEE RED / GOLD 190G"] },
+      "brand": { "accepted": ["NAJJAR"] },
+      "current_price": { "accepted": [28.99, 34.99] },
+      "old_price": { "accepted": [37.95, 45.95] },
+      "quantity": { "accepted": ["190g"] }
+    },
+    {
+      "index": 2, "store": "aljazera",
+      "name_en": { "accepted": ["SINIORA BEEF MORTADELLA (KG) ASSORTED"] },
+      "brand": { "accepted": ["SINIORA"] },
+      "current_price": { "accepted": [36.99] },
+      "old_price": { "accepted": [44.99] },
+      "quantity": { "accepted": ["kg", "1kg", "per kg", null] }
+    },
+    {
+      "index": 3, "store": "aljazera",
+      "name_en": { "accepted": ["KLEENEX FACIAL TISSUES ORIGINAL / DECOR 8 + 2 FREE"] },
+      "brand": { "accepted": ["KLEENEX"] },
+      "current_price": { "accepted": [20.99] },
+      "old_price": { "accepted": [34.99] },
+      "quantity": { "accepted": ["8+2", "8+2 free", "8+2free"] }
+    },
+    {
+      "index": 4, "store": "almadina",
+      "note": "caption line omits the brand; NIKAI is printed on the unit, so either wording is literally supported",
+      "name_en": { "accepted": ["Refrigerator NRF110N26S", "NIKAI Refrigerator NRF110N26S"] },
+      "brand": { "accepted": ["NIKAI"] },
+      "current_price": { "accepted": [349] },
+      "old_price": { "accepted": [575] },
+      "quantity": { "accepted": [null] }
+    },
+    {
+      "index": 5, "store": "almadina",
+      "name_en": { "accepted": ["CLIKON BREAD TOASTER 2 CK-2436"] },
+      "brand": { "accepted": ["CLIKON"] },
+      "current_price": { "accepted": [59] },
+      "old_price": { "accepted": [85] },
+      "quantity": { "accepted": [null, "2", "2pc"] }
+    },
+    {
+      "index": 6, "store": "almadina",
+      "name_en": { "accepted": ["Hershey's Strawberry Syrup 623g"] },
+      "brand": { "accepted": ["Hershey's", "Hersheys", "HERSHEY'S"] },
+      "current_price": { "accepted": [4.95] },
+      "old_price": { "accepted": [19.95] },
+      "quantity": { "accepted": ["623g"] }
+    },
+    {
+      "index": 7, "store": "alwafa",
+      "name_en": { "accepted": ["Tiny Tunes KidsTab 8GB/256/5G 7In TS500"] },
+      "brand": { "accepted": ["Tiny Tunes"] },
+      "current_price": { "accepted": [179] },
+      "old_price": { "accepted": [299] },
+      "quantity": { "accepted": ["1pc", "7in"] }
+    },
+    {
+      "index": 8, "store": "alwafa",
+      "name_en": { "accepted": ["Fine Baby Diaper5Maxi Jmbo Pk40's11-18kg"] },
+      "brand": { "accepted": ["Fine Baby", "Fine"] },
+      "current_price": { "accepted": [30] },
+      "old_price": { "accepted": [44.99] },
+      "quantity": { "accepted": ["40", "40pc", "40's", "pk40's", "Pk40's11-18kg", "40's 11-18kg"] }
+    },
+    {
+      "index": 9, "store": "alwafa",
+      "name_en": { "accepted": ["Geepas Rech.7in1 Precision Trimmer/600 Mah"] },
+      "brand": { "accepted": ["Geepas", "GEEPAS"] },
+      "current_price": { "accepted": [69.99] },
+      "old_price": { "accepted": [99] },
+      "quantity": { "accepted": ["7in1"] }
+    },
+    {
+      "index": 10, "store": "amarket",
+      "name_en": { "accepted": ["ZAIQA PURE BEE HONEY 500 GM"] },
+      "brand": { "accepted": ["ZAIQA"] },
+      "current_price": { "accepted": [8.95] },
+      "old_price": { "accepted": [17.95] },
+      "quantity": { "accepted": ["500g"] }
+    },
+    {
+      "index": 11, "store": "amarket",
+      "name_en": { "accepted": ["ALMOND SALTED"] },
+      "brand": { "accepted": [null] },
+      "current_price": { "accepted": [42.95] },
+      "old_price": { "accepted": [49.95] },
+      "quantity": { "accepted": ["kg", "1kg", "per kg", null] }
+    },
+    {
+      "index": 12, "store": "amarket",
+      "name_en": { "accepted": ["ENTAJ FRESH WHOLE CHICKEN CUT UP 800 GM"] },
+      "brand": { "accepted": ["ENTAJ"] },
+      "current_price": { "accepted": [10.5] },
+      "old_price": { "accepted": [14.95] },
+      "quantity": { "accepted": ["800g"] }
+    },
+    {
+      "index": 13, "store": "carrefour",
+      "name_en": { "accepted": ["REEM SWEET KERNEL CORN 425G"] },
+      "brand": { "accepted": ["REEM"] },
+      "current_price": { "accepted": [3.99] },
+      "old_price": { "accepted": [6.5] },
+      "quantity": { "accepted": ["425g"] }
+    },
+    {
+      "index": 14, "store": "carrefour",
+      "note": "the flyer prints the misspelling DISINFICTANT",
+      "name_en": { "accepted": ["ZOFLORA DISINFICTANT SPRAY 800ML", "ZOFLORA DISINFECTANT SPRAY 800ML"] },
+      "brand": { "accepted": ["ZOFLORA"] },
+      "current_price": { "accepted": [27.75] },
+      "old_price": { "accepted": [41.5] },
+      "quantity": { "accepted": ["800ml"] }
+    },
+    {
+      "index": 15, "store": "carrefour",
+      "name_en": { "accepted": ["ROYALFORD GRANITE COOKING SET 9PCS"] },
+      "brand": { "accepted": ["ROYALFORD"] },
+      "current_price": { "accepted": [209] },
+      "old_price": { "accepted": [499] },
+      "quantity": { "accepted": ["9pc"] }
+    },
+    {
+      "index": 16, "store": "cityflower",
+      "name_en": { "accepted": ["Strong Lite Emerg. Light+2 Hand Torch Sgl 646 Combo"] },
+      "brand": { "accepted": ["Strong Lite", "StrongLite"] },
+      "current_price": { "accepted": [135] },
+      "old_price": { "accepted": [170] },
+      "quantity": { "accepted": ["3in1", "3in1combo"] }
+    },
+    {
+      "index": 17, "store": "cityflower",
+      "name_en": { "accepted": ["Olay Face Cream 2X50ml+Facewash 100ml"] },
+      "brand": { "accepted": ["Olay", "OLAY"] },
+      "current_price": { "accepted": [30] },
+      "old_price": { "accepted": [42] },
+      "quantity": { "accepted": ["2x50ml+100ml", "2x50ml+facewash100ml"] }
+    },
+    {
+      "index": 18, "store": "cityflower",
+      "name_en": { "accepted": ["Nebo Makeup Kit -9090", "Nebo Makeup Kit 9090"] },
+      "brand": { "accepted": ["Nebo"] },
+      "current_price": { "accepted": [35] },
+      "old_price": { "accepted": [39] },
+      "quantity": { "accepted": [null] }
+    },
+    {
+      "index": 19, "store": "danube",
+      "name_en": { "accepted": ["Loacker Wafer 4x19g"] },
+      "brand": { "accepted": ["Loacker"] },
+      "current_price": { "accepted": [6.99] },
+      "old_price": { "accepted": [10.5] },
+      "quantity": { "accepted": ["4x19g"] }
+    },
+    {
+      "index": 20, "store": "danube",
+      "name_en": { "accepted": ["Galaxy Chocolates 80g"] },
+      "brand": { "accepted": ["Galaxy"] },
+      "current_price": { "accepted": [6.99] },
+      "old_price": { "accepted": [9.5] },
+      "quantity": { "accepted": ["80g"] }
+    },
+    {
+      "index": 21, "store": "danube",
+      "name_en": { "accepted": ["Almarai Halloumi Cheese 200g"] },
+      "brand": { "accepted": ["Almarai"] },
+      "current_price": { "accepted": [13.5] },
+      "old_price": { "accepted": [16.95] },
+      "quantity": { "accepted": ["200g"] }
+    },
+    {
+      "index": 22, "store": "farm",
+      "name_en": { "accepted": ["EL CORTE INGLES SELECTION SPINACH & CHEESE PIZZA 415 GR", "EL CORTE INGLES SELECTION SPINACH AND CHEESE PIZZA 415 GR"] },
+      "brand": { "accepted": ["EL CORTE INGLES", "El Corte Ingles", "Selection", "El Corte Ingles Selection"] },
+      "current_price": { "accepted": [16.99] },
+      "old_price": { "accepted": [22.99] },
+      "quantity": { "accepted": ["415g"] }
+    },
+    {
+      "index": 23, "store": "farm",
+      "name_en": { "accepted": ["CRISPY CHIPS LETTERS / RINGS 12 *18GR", "CRISPY CHIPS LETTERS / RINGS 12*18GR"] },
+      "brand": { "accepted": ["CRISPY"] },
+      "current_price": { "accepted": [10.99] },
+      "old_price": { "accepted": [12.99] },
+      "quantity": { "accepted": ["12x18g"] }
+    },
+    {
+      "index": 24, "store": "farm",
+      "name_en": { "accepted": ["BARHY RUTAB"] },
+      "brand": { "accepted": [null] },
+      "current_price": { "accepted": [9.99] },
+      "old_price": { "accepted": [null] },
+      "quantity": { "accepted": ["kg", "1kg", "per kg", null] }
+    },
+    {
+      "index": 25, "store": "grandhyper",
+      "name_en": { "accepted": ["DERIK MARK BOYS BAGGY JEANS"] },
+      "brand": { "accepted": ["DERIK MARK", "Derik Mark"] },
+      "current_price": { "accepted": [45] },
+      "old_price": { "accepted": [69] },
+      "quantity": { "accepted": [null] }
+    },
+    {
+      "index": 26, "store": "grandhyper",
+      "name_en": { "accepted": ["PINEAPPLE (KENYA)/PC", "PINEAPPLE (KENYA)"] },
+      "brand": { "accepted": [null] },
+      "current_price": { "accepted": [8.95] },
+      "old_price": { "accepted": [16.95] },
+      "quantity": { "accepted": ["1pc", "pc"] }
+    },
+    {
+      "index": 27, "store": "grandhyper",
+      "name_en": { "accepted": ["GODREJ CINTHOL SOAP 125GM 6PCS (ASSORTED)"] },
+      "brand": { "accepted": ["Cinthol", "Godrej", "Godrej Cinthol"] },
+      "current_price": { "accepted": [9.95] },
+      "old_price": { "accepted": [19.5] },
+      "quantity": { "accepted": ["6x125g", "125g6pc", "125g", "6pc"] }
+    },
+    {
+      "index": 28, "store": "hyperpanda",
+      "name_en": { "accepted": ["Whiskas Cat Food With Beef Flavour (4 x 85g)"] },
+      "brand": { "accepted": ["Whiskas", "WHISKAS"] },
+      "current_price": { "accepted": [10.99] },
+      "old_price": { "accepted": [20.99] },
+      "quantity": { "accepted": ["4x85g"] }
+    },
+    {
+      "index": 29, "store": "hyperpanda",
+      "note": "a struck-through price is visibly present but illegible at 14x upscale and absent from production metadata; excluded from the old-price denominator",
+      "name_en": { "accepted": ["Downy Concentrated Fabric Softener (3L)"] },
+      "brand": { "accepted": ["Downy"] },
+      "current_price": { "accepted": [39.99] },
+      "old_price": { "unadjudicable": true },
+      "quantity": { "accepted": ["3l"] }
+    },
+    {
+      "index": 30, "store": "hyperpanda",
+      "note": "struck-through price disambiguated against production metadata (7.95)",
+      "name_en": { "accepted": ["Mini Madeleines Traditional French Sponge Cakes (85g)"] },
+      "brand": { "accepted": ["St Michel", "StMichel", "St. Michel"] },
+      "current_price": { "accepted": [5] },
+      "old_price": { "accepted": [7.95] },
+      "quantity": { "accepted": ["85g"] }
+    },
+    {
+      "index": 31, "store": "lulu",
+      "note": "four size tiers printed; the caption and the hero price are the 98 inch",
+      "name_en": { "accepted": ["TCL 4KSQD Mini LED 98C79L 98inch"] },
+      "brand": { "accepted": ["TCL"] },
+      "current_price": { "accepted": [9499] },
+      "old_price": { "accepted": [14999] },
+      "quantity": { "accepted": ["98in"] }
+    },
+    {
+      "index": 32, "store": "lulu",
+      "name_en": { "accepted": ["Chia Kiwi Cooler 500ml", "LuLu Fresh Chia Kiwi Cooler 500ml"] },
+      "brand": { "accepted": ["LuLu Fresh", "LuLu", "Lulu"] },
+      "current_price": { "accepted": [11.95] },
+      "old_price": { "accepted": [14.9] },
+      "quantity": { "accepted": ["500ml"] }
+    },
+    {
+      "index": 33, "store": "lulu",
+      "name_en": { "accepted": ["Mughal Basmati Rice 1121 5kg"] },
+      "brand": { "accepted": ["Mughal"] },
+      "current_price": { "accepted": [34.99] },
+      "old_price": { "accepted": [39.95] },
+      "quantity": { "accepted": ["5kg"] }
+    },
+    {
+      "index": 34, "store": "marksave",
+      "name_en": { "accepted": ["Fairy Dish Washing Liquid Lemon/Original 1Ltr"] },
+      "brand": { "accepted": ["Fairy", "FAIRY"] },
+      "current_price": { "accepted": [12.95] },
+      "old_price": { "accepted": [18.95] },
+      "quantity": { "accepted": ["1l"] }
+    },
+    {
+      "index": 35, "store": "marksave",
+      "name_en": { "accepted": ["Pumpkin Small ( ASHGUARD)", "Pumpkin Small (ASHGUARD)"] },
+      "brand": { "accepted": [null] },
+      "current_price": { "accepted": [1.99] },
+      "old_price": { "accepted": [4.99] },
+      "quantity": { "accepted": ["kg", "1kg", "per kg", null] }
+    },
+    {
+      "index": 36, "store": "marksave",
+      "name_en": { "accepted": ["Dear Love Amla Hair Oil 250Ml"] },
+      "brand": { "accepted": ["Dear Love", "Dearlove"] },
+      "current_price": { "accepted": [5.95] },
+      "old_price": { "accepted": [10.95] },
+      "quantity": { "accepted": ["250ml"] }
+    },
+    {
+      "index": 37, "store": "nesto",
+      "name_en": { "accepted": ["Balasham"] },
+      "brand": { "accepted": [null] },
+      "current_price": { "accepted": [10] },
+      "old_price": { "accepted": [15.99] },
+      "quantity": { "accepted": ["500g"] }
+    },
+    {
+      "index": 38, "store": "nesto",
+      "name_en": { "accepted": ["Saudia Ice Cream 1Ltr"] },
+      "brand": { "accepted": ["Saudia"] },
+      "current_price": { "accepted": [13.99] },
+      "old_price": { "accepted": [18.99] },
+      "quantity": { "accepted": ["1l"] }
+    },
+    {
+      "index": 39, "store": "nesto",
+      "name_en": { "accepted": ["Ceramic prayer mat sponge"] },
+      "brand": { "accepted": [null] },
+      "current_price": { "accepted": [10] },
+      "old_price": { "accepted": [18] },
+      "quantity": { "accepted": ["1pc"] }
+    },
+    {
+      "index": 40, "store": "othaim",
+      "name_en": { "accepted": ["Pepsi Bottles"] },
+      "brand": { "accepted": ["Pepsi", "PEPSI"] },
+      "current_price": { "accepted": [11.99] },
+      "old_price": { "accepted": [null] },
+      "quantity": { "accepted": ["6x250ml"] }
+    },
+    {
+      "index": 41, "store": "othaim",
+      "name_en": { "accepted": ["Freshco Tomato Paste"] },
+      "brand": { "accepted": ["Freshco"] },
+      "current_price": { "accepted": [11.99] },
+      "old_price": { "accepted": [16.25] },
+      "quantity": { "accepted": ["6x140g"] }
+    },
+    {
+      "index": 42, "store": "othaim",
+      "note": "struck-through 15 confirmed at 10x upscale and by production metadata",
+      "name_en": { "accepted": ["Alsafi Greek Yoghurt", "AlSafi Greek Yoghurt"] },
+      "brand": { "accepted": ["Alsafi", "AlSafi", "Al Safi"] },
+      "current_price": { "accepted": [8.99] },
+      "old_price": { "accepted": [15] },
+      "quantity": { "accepted": ["3x150g", "150g3pc", "150g", "3pc"] }
+    },
+    {
+      "index": 43, "store": "prime",
+      "name_en": { "accepted": ["VIELLE DEO ROLL ON - SPECIFIC ITEMS 50ML", "VIELLE DEO ROLL ON 50ML"] },
+      "brand": { "accepted": ["VIELLE", "Vielle"] },
+      "current_price": { "accepted": [5.75] },
+      "old_price": { "accepted": [15.95] },
+      "quantity": { "accepted": ["50ml"] }
+    },
+    {
+      "index": 44, "store": "prime",
+      "name_en": { "accepted": ["NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)", "NOOR SUNFLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)"] },
+      "brand": { "accepted": ["NOOR", "Noor"] },
+      "current_price": { "accepted": [39.95] },
+      "old_price": { "accepted": [45.51] },
+      "quantity": { "accepted": ["2x1.5l+500ml"] }
+    },
+    {
+      "index": 45, "store": "ramez",
+      "note": "the package brand mark is illegible at 10x upscale; brand excluded from the denominator",
+      "name_en": { "accepted": ["Premium Colour Paper", "Premium Color Paper", "A4 Premium Colour Paper"] },
+      "brand": { "unadjudicable": true },
+      "current_price": { "accepted": [4.75] },
+      "old_price": { "accepted": [5.75] },
+      "quantity": { "accepted": ["100", "100pc"] }
+    },
+    {
+      "index": 46, "store": "ramez",
+      "note": "no single English caption line; the packs print LISTERINE TOTAL CARE and LISTERINE COOL MINT",
+      "name_en": { "accepted": ["Listerine Total Care / Cool Mint", "Listerine Total Care", "Listerine Cool Mint", "Listerine", "Listerine Mouthwash", "Listerine Mouthwash 500ml", "Listerine Total Care / Cool Mint 500ml"] },
+      "brand": { "accepted": ["LISTERINE", "Listerine"] },
+      "current_price": { "accepted": [15.95] },
+      "old_price": { "accepted": [24.5] },
+      "quantity": { "accepted": ["500ml"] }
+    },
+    {
+      "index": 47, "store": "ramez",
+      "note": "no English product name is printed; only the KAHK brand tag and size numbers. null is the correct name_en",
+      "name_en": { "accepted": [null] },
+      "brand": { "accepted": ["KAHK", "Kahk"] },
+      "current_price": { "accepted": [157] },
+      "old_price": { "accepted": [190] },
+      "quantity": { "accepted": ["3pc", "3"] }
+    },
+    {
+      "index": 48, "store": "tamimi",
+      "name_en": { "accepted": ["NONGSHIM CUP NOODLES, ASSORTED ITEMS, 68 - 114 GRAMS", "NONGSHIM CUP NOODLES, ASSORTED ITEMS, 68-114 GRAMS"] },
+      "brand": { "accepted": ["NONGSHIM", "Nongshim"] },
+      "current_price": { "accepted": [4.99] },
+      "old_price": { "accepted": [7.25] },
+      "quantity": { "accepted": ["68-114g"] }
+    },
+    {
+      "index": 49, "store": "tamimi",
+      "note": "two size tiers printed: 1 kilo at 35.99 (was 43.95) and 500 grams at 19.99 (was 23.95); either consistent role is accepted",
+      "name_en": { "accepted": ["NESTLE COUNTRY CORNFLAKES, 500 GRAMS OR 1 KILO"] },
+      "brand": { "accepted": ["NESTLE", "Nestle"] },
+      "current_price": { "accepted": [19.99, 35.99] },
+      "old_price": { "accepted": [23.95, 43.95] },
+      "quantity": { "accepted": ["500gor1kg", "500g", "1kg"] }
+    },
+    {
+      "index": 50, "store": "tamimi",
+      "name_en": { "accepted": ["FRESH VEAL - BONE IN", "FRESH VEAL BONE IN"] },
+      "brand": { "accepted": [null] },
+      "current_price": { "accepted": [49.99] },
+      "old_price": { "accepted": [69.95] },
+      "quantity": { "accepted": ["kg", "1kg", "kilo", "per kg", null] }
+    }
+  ]
+}

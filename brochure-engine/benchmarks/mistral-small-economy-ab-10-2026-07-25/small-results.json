@@ -1,0 +1,396 @@
+{
+  "schema_version": "mistral-small-economy-ab-10-v1",
+  "started_at": "2026-07-25T02:48:31.462Z",
+  "sample_digest": "0ca3d0f993a9e78252a6b4bb0cce457e302c8b8138cf0593da59f32eb9dcc449",
+  "source_sample_digest": "32c2c00166e1e839fbfaebfdb7b61329cc7fc29e8ee99ffa80f917913eea70e9",
+  "model": "mistral-small-latest",
+  "strategy": "medium_expanded_json_verbatim_name",
+  "prompt_sha256": "e643b2a1b833d12256e0e3806b04c28bc5fd042bf3a86b647b989df9be7c3557",
+  "prompt_source": "run-prompt-b.mjs PROMPT_B, read verbatim, unmodified",
+  "settings": {
+    "temperature": 0,
+    "top_p": 1,
+    "response_format": "json_object",
+    "reasoning_effort": "none",
+    "ocr": false,
+    "requests_per_crop": 1
+  },
+  "samples": [
+    {
+      "index": 8,
+      "id": "alwafa:central:d4d:93643038",
+      "store": "alwafa",
+      "category": "baby-diapers",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/08.jpg",
+      "sha256": "867a1832a3930b1aad382291fb446426853446cb0eb8fde9e8ecdb49909ad5c2",
+      "ok": true,
+      "structured": {
+        "name_en": "Fine Baby Diaper 5 Maxi Jmbo Pk40's 11-18kg",
+        "name_ar": "حافظات أطفال فاين بيبي مكسيم جومبو ٥ ٤٠ قطعة ١١-١٨ كجم",
+        "brand": "Fine Baby",
+        "current_price": 44.99,
+        "old_price": null,
+        "unit": null,
+        "package_size": "40's",
+        "quantity": null,
+        "package_type": "Pk",
+        "attributes": [
+          "Maxi",
+          "11-18kg"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\"name_en\": \"Fine Baby Diaper 5 Maxi Jmbo Pk40's 11-18kg\", \"name_ar\": \"حافظات أطفال فاين بيبي مكسيم جومبو ٥ ٤٠ قطعة ١١-١٨ كجم\", \"brand\": \"Fine Baby\", \"current_price\": 44.99, \"old_price\": null, \"unit\": null, \"package_size\": \"40's\", \"quantity\": null, \"package_type\": \"Pk\", \"attributes\": [\"Maxi\", \"11-18kg\"], \"confidence\": 0.98}",
+      "response_model": "mistral-small-latest",
+      "usage": {
+        "prompt_tokens": 751,
+        "total_tokens": 891,
+        "completion_tokens": 140,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 2120.83,
+      "retries": 0
+    },
+    {
+      "index": 10,
+      "id": "amarket:central:d4d:93808830",
+      "store": "amarket",
+      "category": "sauces-spreads",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/10.jpg",
+      "sha256": "99024fefabd1fc718c34ff2718a5ef106b08df5e63dd3a94d9a72ccbb1e5d4b1",
+      "ok": true,
+      "structured": {
+        "name_en": "ZAIQA PURE BEE HONEY 500 GM",
+        "name_ar": "عسل نحل نقي 100% نحل نقي",
+        "brand": "ZAIQA",
+        "current_price": 8.95,
+        "old_price": 11.95,
+        "unit": "GM",
+        "package_size": "500 GM",
+        "quantity": null,
+        "package_type": "jar",
+        "attributes": [
+          "PURE BEE HONEY"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\"name_en\": \"ZAIQA PURE BEE HONEY 500 GM\", \"name_ar\": \"عسل نحل نقي 100% نحل نقي\", \"brand\": \"ZAIQA\", \"current_price\": 8.95, \"old_price\": 11.95, \"unit\": \"GM\", \"package_size\": \"500 GM\", \"quantity\": null, \"package_type\": \"jar\", \"attributes\": [\"PURE BEE HONEY\"], \"confidence\": 0.98}",
+      "response_model": "mistral-small-latest",
+      "usage": {
+        "prompt_tokens": 709,
+        "total_tokens": 834,
+        "completion_tokens": 125,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1299.62,
+      "retries": 0
+    },
+    {
+      "index": 13,
+      "id": "carrefour:central:d4d:93691650",
+      "store": "carrefour",
+      "category": "canned-packeted",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/13.jpg",
+      "sha256": "84f48b89096d5c9768725ae1dfafe3dc40538f74a449ee21e578902e68581488",
+      "ok": true,
+      "structured": {
+        "name_en": "REEEM SWEET KERNEL CORN 425G",
+        "name_ar": "ريم ذرة حلوة 425 جم",
+        "brand": "REEEM",
+        "current_price": 3.99,
+        "old_price": 6.5,
+        "unit": null,
+        "package_size": "425G",
+        "quantity": null,
+        "package_type": "jar",
+        "attributes": [
+          "SWEET KERNEL CORN"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\"name_en\": \"REEEM SWEET KERNEL CORN 425G\", \"name_ar\": \"ريم ذرة حلوة 425 جم\", \"brand\": \"REEEM\", \"current_price\": 3.99, \"old_price\": 6.5, \"unit\": null, \"package_size\": \"425G\", \"quantity\": null, \"package_type\": \"jar\", \"attributes\": [\"SWEET KERNEL CORN\"], \"confidence\": 0.98}",
+      "response_model": "mistral-small-latest",
+      "usage": {
+        "prompt_tokens": 769,
+        "total_tokens": 884,
+        "completion_tokens": 115,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1255.74,
+      "retries": 0
+    },
+    {
+      "index": 19,
+      "id": "danube:central:d4d:93264666",
+      "store": "danube",
+      "category": "biscuits",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/19.jpg",
+      "sha256": "afa85fbc67cad90fa128a4a4bdb73eea4de77c56f839a8de3c55ed8a8a67eb0b",
+      "ok": true,
+      "structured": {
+        "name_en": "Loacker Break Wafer 4x19g",
+        "name_ar": "لواكر ويفر ٤×١٩ غ",
+        "brand": "Loacker",
+        "current_price": 6.99,
+        "old_price": 10.5,
+        "unit": null,
+        "package_size": "4x19g",
+        "quantity": "4",
+        "package_type": "pack",
+        "attributes": [
+          "Hazelnut"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\"name_en\": \"Loacker Break Wafer 4x19g\", \"name_ar\": \"لواكر ويفر ٤×١٩ غ\", \"brand\": \"Loacker\", \"current_price\": 6.99, \"old_price\": 10.5, \"unit\": null, \"package_size\": \"4x19g\", \"quantity\": \"4\", \"package_type\": \"pack\", \"attributes\": [\"Hazelnut\"], \"confidence\": 0.98}",
+      "response_model": "mistral-small-latest",
+      "usage": {
+        "prompt_tokens": 769,
+        "total_tokens": 880,
+        "completion_tokens": 111,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1166.89,
+      "retries": 0
+    },
+    {
+      "index": 26,
+      "id": "grandhyper:central:d4d:93678036",
+      "store": "grandhyper",
+      "category": "fresh-fruits",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/26.jpg",
+      "sha256": "1a0167b453b1c39077400306d48c70b1c9bd0703e4ae224c4e6358308edec3e8",
+      "ok": true,
+      "structured": {
+        "name_en": "PINEAPPLE (KENYA)/PC",
+        "name_ar": "أناناس (كينيا)/PC",
+        "brand": null,
+        "current_price": 8.95,
+        "old_price": 16.95,
+        "unit": null,
+        "package_size": null,
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "fresh"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\"name_en\": \"PINEAPPLE (KENYA)/PC\", \"name_ar\": \"أناناس (كينيا)/PC\", \"brand\": null, \"current_price\": 8.95, \"old_price\": 16.95, \"unit\": null, \"package_size\": null, \"quantity\": null, \"package_type\": null, \"attributes\": [\"fresh\"], \"confidence\": 0.98}",
+      "response_model": "mistral-small-latest",
+      "usage": {
+        "prompt_tokens": 770,
+        "total_tokens": 867,
+        "completion_tokens": 97,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1092.35,
+      "retries": 0
+    },
+    {
+      "index": 30,
+      "id": "hyperpanda:central:d4d:93693444",
+      "store": "hyperpanda",
+      "category": "cakes-pastry",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/30.jpg",
+      "sha256": "82b8b3da81fdade1a95a07da7a7eb8d5ddf4e697c2b9d162a21f0067b202dfe9",
+      "ok": true,
+      "structured": {
+        "name_en": "Michel Mini Madeleines Traditional French Sponge Cakes (85g)",
+        "name_ar": "سونبوج كيك فرنسى تقليدى مصغر مادلينس (٨٥ جرام)",
+        "brand": "Michel",
+        "current_price": null,
+        "old_price": null,
+        "unit": null,
+        "package_size": "85g",
+        "quantity": null,
+        "package_type": null,
+        "attributes": [
+          "Traditional",
+          "French",
+          "Sponge Cakes",
+          "Mini",
+          "Madeleines"
+        ],
+        "confidence": 0.95
+      },
+      "json_parsed": true,
+      "raw_output": "{\"name_en\": \"Michel Mini Madeleines Traditional French Sponge Cakes (85g)\", \"name_ar\": \"سونبوج كيك فرنسى تقليدى مصغر مادلينس (٨٥ جرام)\", \"brand\": \"Michel\", \"current_price\": null, \"old_price\": null, \"unit\": null, \"package_size\": \"85g\", \"quantity\": null, \"package_type\": null, \"attributes\": [\"Traditional\", \"French\", \"Sponge Cakes\", \"Mini\", \"Madeleines\"], \"confidence\": 0.95}",
+      "response_model": "mistral-small-latest",
+      "usage": {
+        "prompt_tokens": 649,
+        "total_tokens": 776,
+        "completion_tokens": 127,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1277.69,
+      "retries": 0
+    },
+    {
+      "index": 33,
+      "id": "lulu:central:d4d:93661134",
+      "store": "lulu",
+      "category": "rice",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/33.jpg",
+      "sha256": "c73b2f9aecc371efe23ed9e0aa5fb097c3484e63d721f75a4bf16b98889778c2",
+      "ok": true,
+      "structured": {
+        "name_en": "Mughal Royal Diamond Steamed 100% Basmati Rice 10 KG Extra Long Grain",
+        "name_ar": "مغل بسمتي ارز ١٠ كيلو",
+        "brand": "Mughal",
+        "current_price": 34.99,
+        "old_price": 39.95,
+        "unit": null,
+        "package_size": "10 KG",
+        "quantity": null,
+        "package_type": "bag",
+        "attributes": [
+          "Steamed",
+          "100% Basmati",
+          "Extra Long Grain"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\n  \"name_en\": \"Mughal Royal Diamond Steamed 100% Basmati Rice 10 KG Extra Long Grain\",\n  \"name_ar\": \"مغل بسمتي ارز ١٠ كيلو\",\n  \"brand\": \"Mughal\",\n  \"current_price\": 34.99,\n  \"old_price\": 39.95,\n  \"unit\": null,\n  \"package_size\": \"10 KG\",\n  \"quantity\": null,\n  \"package_type\": \"bag\",\n  \"attributes\": [\"Steamed\", \"100% Basmati\", \"Extra Long Grain\"],\n  \"confidence\": 0.98\n}",
+      "response_model": "mistral-small-latest",
+      "usage": {
+        "prompt_tokens": 789,
+        "total_tokens": 939,
+        "completion_tokens": 150,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1356.31,
+      "retries": 0
+    },
+    {
+      "index": 40,
+      "id": "othaim:central:d4d:93684717",
+      "store": "othaim",
+      "category": "soft-drinks",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/40.jpg",
+      "sha256": "08388d22fc242e167d3d26a1bcfbc5e4c843e77417f5b3ad4a3a34fabf08ee3d",
+      "ok": true,
+      "structured": {
+        "name_en": "Pepsi 6×250 ml Bottles",
+        "name_ar": "ببسي زجاجات Pepsi Bottles",
+        "brand": "Pepsi",
+        "current_price": 11.99,
+        "old_price": null,
+        "unit": "ml",
+        "package_size": "6×250 ml",
+        "quantity": "6",
+        "package_type": "bottles",
+        "attributes": [],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\"name_en\": \"Pepsi 6×250 ml Bottles\", \"name_ar\": \"ببسي زجاجات Pepsi Bottles\", \"brand\": \"Pepsi\", \"current_price\": 11.99, \"old_price\": null, \"unit\": \"ml\", \"package_size\": \"6×250 ml\", \"quantity\": \"6\", \"package_type\": \"bottles\", \"attributes\": [], \"confidence\": 0.98}",
+      "response_model": "mistral-small-latest",
+      "usage": {
+        "prompt_tokens": 732,
+        "total_tokens": 837,
+        "completion_tokens": 105,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1082.99,
+      "retries": 0
+    },
+    {
+      "index": 44,
+      "id": "prime:central:d4d:93552036",
+      "store": "prime",
+      "category": "oil-ghee",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/44.jpg",
+      "sha256": "2af5e74c317e00fb47a5ab5a38ed30838cebd35e8d4ee7b8aaf4122eb82a3bf1",
+      "ok": true,
+      "structured": {
+        "name_en": "NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)",
+        "name_ar": "زيت دوار الشمس",
+        "brand": "NOOR",
+        "current_price": 39.95,
+        "old_price": 45.51,
+        "unit": null,
+        "package_size": "2 X 1.5 LTR + 500 ML",
+        "quantity": "2 X 1.5 LTR + 500 ML",
+        "package_type": "PACK",
+        "attributes": [
+          "PET"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\"name_en\": \"NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)\", \"name_ar\": \"زيت دوار الشمس\", \"brand\": \"NOOR\", \"current_price\": 39.95, \"old_price\": 45.51, \"unit\": null, \"package_size\": \"2 X 1.5 LTR + 500 ML\", \"quantity\": \"2 X 1.5 LTR + 500 ML\", \"package_type\": \"PACK\", \"attributes\": [\"PET\"], \"confidence\": 0.98}",
+      "response_model": "mistral-small-latest",
+      "usage": {
+        "prompt_tokens": 729,
+        "total_tokens": 874,
+        "completion_tokens": 145,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1450.25,
+      "retries": 0
+    },
+    {
+      "index": 48,
+      "id": "tamimi:central:d4d:93619095",
+      "store": "tamimi",
+      "category": "pasta-noodles",
+      "file": "../mistral-medium-production-validation-50-2026-07-25/assets/48.jpg",
+      "sha256": "454a977501c4f2e5e857644119ddd53fa6c9ac2bd1c299836febf1fcd231e1f1",
+      "ok": true,
+      "structured": {
+        "name_en": "NONGSHIM CUP NOODLES, ASSORTED ITEMS, 68 - 114 GRAMS",
+        "name_ar": "كوب شعيرية نونشيم، أصناف مختلفة، ٦٨ - ١١٤ جرام",
+        "brand": "NONGSHIM",
+        "current_price": 4.99,
+        "old_price": 7.25,
+        "unit": null,
+        "package_size": "68 - 114 GRAMS",
+        "quantity": null,
+        "package_type": "CUP",
+        "attributes": [
+          "ASSORTED ITEMS"
+        ],
+        "confidence": 0.98
+      },
+      "json_parsed": true,
+      "raw_output": "{\"name_en\": \"NONGSHIM CUP NOODLES, ASSORTED ITEMS, 68 - 114 GRAMS\", \"name_ar\": \"كوب شعيرية نونشيم، أصناف مختلفة، ٦٨ - ١١٤ جرام\", \"brand\": \"NONGSHIM\", \"current_price\": 4.99, \"old_price\": 7.25, \"unit\": null, \"package_size\": \"68 - 114 GRAMS\", \"quantity\": null, \"package_type\": \"CUP\", \"attributes\": [\"ASSORTED ITEMS\"], \"confidence\": 0.98}",
+      "response_model": "mistral-small-latest",
+      "usage": {
+        "prompt_tokens": 751,
+        "total_tokens": 902,
+        "completion_tokens": 151,
+        "prompt_tokens_details": {
+          "cached_tokens": 0
+        }
+      },
+      "latency_ms": 1487.11,
+      "retries": 0
+    }
+  ],
+  "finished_at": "2026-07-25T02:48:49.216Z"
+}

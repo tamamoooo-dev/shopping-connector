@@ -16,21 +16,13 @@
 import {
   FROZEN_MARK_TERMS, PROCESSED_MARK_TERMS, FRESH_GUARD_TERMS,
 } from '../browse/mapping.js';
-import { ENRICH_JOIN, CANON_NAME_SQL, CANON_NAME_AR_SQL } from './enrichStore.js';
+import { ENRICH_JOIN, CANON_NAME_SQL, canonicalNameArSql } from './enrichStore.js';
 
 // Slim projection: everything a Browse card needs, nothing more (search_text
 // stays out — it is matching payload, ~600 chars/row of dead weight here).
 // Names are the CANONICAL identity (vision-canonical, 2026-07-21): the
 // servable vision reading via the one shared gate (enrichStore.js
 // SERVABLE_SQL), OCR as extraction fallback — same names Search serves.
-const CARD_COLS = `
-  o.id, o.store, o.region, o.source, o.offer_id, o.flyer_ref, o.page_ref,
-  o.edition, ${CANON_NAME_SQL} AS name, ${CANON_NAME_AR_SQL} AS name_ar,
-  o.price, o.old_price, o.currency, o.category,
-  o.image_url, o.source_url, o.valid_from, o.valid_to, o.detected_at,
-  o.identity, o.brand_slug, pi.weeks_seen, pi.first_seen,
-  h.min_price, h.max_price, h.points`;
-
 const HISTORY_JOIN = `
   ${ENRICH_JOIN}
   LEFT JOIN price_identities pi ON pi.id = o.identity
@@ -48,11 +40,6 @@ const HISTORY_JOIN = `
 // ASCII LIKE is case-insensitive, matching the JS regex's /i.
 // Classify over the CANONICAL names (vision when servable, OCR fallback) so
 // fresh/frozen bucketing agrees with the names the cards actually show.
-const MARK_NAMES = `(ifnull(${CANON_NAME_SQL},'') || ' ' || ifnull(${CANON_NAME_AR_SQL},''))`;
-const likeAny = (terms) => terms.map((t) => `${MARK_NAMES} LIKE '%${t}%'`).join(' OR ');
-const FROZEN_MARK_SQL = `((${likeAny(FROZEN_MARK_TERMS)})
-  OR ((${likeAny(PROCESSED_MARK_TERMS)}) AND NOT (${likeAny(FRESH_GUARD_TERMS)})))`;
-
 const SORTS = {
   discount: `(CASE WHEN o.old_price > o.price
                THEN (o.old_price - o.price) * 1.0 / o.old_price ELSE 0 END) DESC,
@@ -62,7 +49,21 @@ const SORTS = {
   ending: 'o.valid_to ASC, o.price ASC',
 };
 
-export function createD1BrowseStore(db) {
+export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}) {
+  const canonicalNameAr = canonicalNameArSql(builtArabicNamesEnabled);
+  const cardColumns = `
+    o.id, o.store, o.region, o.source, o.offer_id, o.flyer_ref, o.page_ref,
+    o.brochure_id, o.page_index, o.navigation_provenance, o.edition,
+    ${CANON_NAME_SQL} AS name, ${canonicalNameAr} AS name_ar,
+    o.price, o.old_price, o.currency, o.category,
+    o.image_url, o.source_url, o.valid_from, o.valid_to, o.detected_at,
+    o.identity, o.brand_slug, pi.weeks_seen, pi.first_seen,
+    h.min_price, h.max_price, h.points`;
+  const markNames = `(ifnull(${CANON_NAME_SQL},'') || ' ' || ifnull(${canonicalNameAr},''))`;
+  const likeAny = (terms) => terms.map((t) => `${markNames} LIKE '%${t}%'`).join(' OR ');
+  const frozenMarkSql = `((${likeAny(FROZEN_MARK_TERMS)})
+    OR ((${likeAny(PROCESSED_MARK_TERMS)}) AND NOT (${likeAny(FRESH_GUARD_TERMS)})))`;
+
   return {
     // Live-offer counts per (source, provider category) — the market floor's
     // department/aisle tiles fold these through the canonical mapping in JS
@@ -73,9 +74,11 @@ export function createD1BrowseStore(db) {
       const { results } = await db
         .prepare(
           `SELECT o.source, o.category,
-                  (CASE WHEN ${FROZEN_MARK_SQL} THEN 1 ELSE 0 END) AS frozen_marked,
+                  (CASE WHEN ${frozenMarkSql} THEN 1 ELSE 0 END) AS frozen_marked,
                   COUNT(*) AS n
-             FROM offers o ${ENRICH_JOIN} WHERE o.valid_to >= ?
+             FROM offers o ${ENRICH_JOIN}
+            WHERE o.valid_to >= ?
+              AND o.brochure_id IS NOT NULL AND o.page_index IS NOT NULL
             GROUP BY o.source, o.category, frozen_marked`,
         )
         .bind(currentOn)
@@ -94,7 +97,9 @@ export function createD1BrowseStore(db) {
       const { results } = await db
         .prepare(
           `SELECT brand_slug, COUNT(*) AS n, COUNT(DISTINCT store) AS stores
-             FROM offers WHERE valid_to >= ? AND brand_slug IS NOT NULL
+             FROM offers
+            WHERE valid_to >= ? AND brand_slug IS NOT NULL
+              AND brochure_id IS NOT NULL AND page_index IS NOT NULL
             GROUP BY brand_slug ORDER BY n DESC`,
         )
         .bind(currentOn)
@@ -109,9 +114,11 @@ export function createD1BrowseStore(db) {
       const { results } = await db
         .prepare(
           `SELECT o.source, o.category,
-                  (CASE WHEN ${FROZEN_MARK_SQL} THEN 1 ELSE 0 END) AS frozen_marked,
+                  (CASE WHEN ${frozenMarkSql} THEN 1 ELSE 0 END) AS frozen_marked,
                   COUNT(*) AS n
-             FROM offers o ${ENRICH_JOIN} WHERE o.valid_to >= ? AND o.brand_slug = ?
+             FROM offers o ${ENRICH_JOIN}
+            WHERE o.valid_to >= ? AND o.brand_slug = ?
+              AND o.brochure_id IS NOT NULL AND o.page_index IS NOT NULL
             GROUP BY o.source, o.category, frozen_marked`,
         )
         .bind(currentOn, brandSlug)
@@ -131,7 +138,11 @@ export function createD1BrowseStore(db) {
       offset = 0,
       currentOn,
     }) {
-      const where = ['o.valid_to >= ?'];
+      const where = [
+        'o.valid_to >= ?',
+        'o.brochure_id IS NOT NULL',
+        'o.page_index IS NOT NULL',
+      ];
       const binds = [currentOn];
       if (include) {
         if (!include.length) return []; // no source feeds these aisles
@@ -141,8 +152,8 @@ export function createD1BrowseStore(db) {
         const parts = include.map(({ source, categories, frozen }) => {
           binds.push(source, ...categories);
           let p = `(o.source = ? AND o.category IN (${categories.map(() => '?').join(',')})`;
-          if (frozen === 'exclude') p += ` AND NOT ${FROZEN_MARK_SQL}`;
-          else if (frozen === 'only') p += ` AND ${FROZEN_MARK_SQL}`;
+          if (frozen === 'exclude') p += ` AND NOT ${frozenMarkSql}`;
+          else if (frozen === 'only') p += ` AND ${frozenMarkSql}`;
           return `${p})`;
         });
         where.push(`(${parts.join(' OR ')})`);
@@ -168,7 +179,7 @@ export function createD1BrowseStore(db) {
         where.push('o.valid_to <= ?');
         binds.push(maxValidTo);
       }
-      const sql = `SELECT ${CARD_COLS} FROM offers o ${HISTORY_JOIN}
+      const sql = `SELECT ${cardColumns} FROM offers o ${HISTORY_JOIN}
         WHERE ${where.join(' AND ')}
         ORDER BY ${SORTS[sort] || SORTS.discount}
         LIMIT ? OFFSET ?`;
@@ -182,13 +193,14 @@ export function createD1BrowseStore(db) {
     // history-rail candidate pool (qualification requires history signals, so
     // identity-less offers can never qualify and are prefiltered out here).
     async candidates(currentOn) {
-      const sql = `SELECT ${CARD_COLS} FROM offers o
+      const sql = `SELECT ${cardColumns} FROM offers o
         ${ENRICH_JOIN}
         JOIN price_identities pi ON pi.id = o.identity
         LEFT JOIN (SELECT identity, MIN(price) AS min_price, MAX(price) AS max_price,
                           COUNT(*) AS points
                      FROM price_history GROUP BY identity) h ON h.identity = o.identity
         WHERE o.valid_to >= ? AND o.identity IS NOT NULL
+          AND o.brochure_id IS NOT NULL AND o.page_index IS NOT NULL
         LIMIT 10000`;
       const { results } = await db.prepare(sql).bind(currentOn).all();
       return results || [];

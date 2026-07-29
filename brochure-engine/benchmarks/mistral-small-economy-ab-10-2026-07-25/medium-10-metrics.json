@@ -1,0 +1,614 @@
+{
+  "schema_version": "mistral-small-economy-ab-10-metrics-v1",
+  "scored_at": "2026-07-25T02:49:57.611Z",
+  "model": "mistral-medium-latest",
+  "strategy": "medium_expanded_json_verbatim_name",
+  "prompt_sha256": "e643b2a1b833d12256e0e3806b04c28bc5fd042bf3a86b647b989df9be7c3557",
+  "sample_digest": "32c2c00166e1e839fbfaebfdb7b61329cc7fc29e8ee99ffa80f917913eea70e9",
+  "crops": 10,
+  "api_failures": 0,
+  "json_parse_rate": "50/50",
+  "accuracy_all_adjudicable": {
+    "name_en": {
+      "correct": 7,
+      "total": 10,
+      "excluded": 0,
+      "pct": 70
+    },
+    "brand": {
+      "correct": 10,
+      "total": 10,
+      "excluded": 0,
+      "pct": 100
+    },
+    "current_price": {
+      "correct": 8,
+      "total": 10,
+      "excluded": 0,
+      "pct": 80
+    },
+    "old_price": {
+      "correct": 7,
+      "total": 10,
+      "excluded": 0,
+      "pct": 70
+    },
+    "quantity": {
+      "correct": 9,
+      "total": 10,
+      "excluded": 0,
+      "pct": 90
+    }
+  },
+  "accuracy_field_present_only": {
+    "name_en": {
+      "correct": 7,
+      "total": 10,
+      "excluded": 0,
+      "pct": 70
+    },
+    "brand": {
+      "correct": 9,
+      "total": 9,
+      "excluded": 1,
+      "pct": 100
+    },
+    "current_price": {
+      "correct": 8,
+      "total": 10,
+      "excluded": 0,
+      "pct": 80
+    },
+    "old_price": {
+      "correct": 6,
+      "total": 9,
+      "excluded": 1,
+      "pct": 66.7
+    },
+    "quantity": {
+      "correct": 9,
+      "total": 10,
+      "excluded": 0,
+      "pct": 90
+    }
+  },
+  "usage": {
+    "pricing_basis": "mistral-medium-latest: $1.5/M input, $7.5/M output",
+    "requests": 10,
+    "prompt_tokens": 7418,
+    "completion_tokens": 1360,
+    "total_tokens": 8778,
+    "cost_usd": 0.021327,
+    "avg_prompt_tokens": 741.8,
+    "avg_completion_tokens": 136,
+    "avg_total_tokens": 877.8,
+    "avg_latency_ms": 1983.1329999999998,
+    "median_latency_ms": 1274.5,
+    "max_latency_ms": 5681.42,
+    "avg_cost_usd": 0.0021327,
+    "per_crop": [
+      {
+        "index": 8,
+        "prompt_tokens": 751,
+        "completion_tokens": 153,
+        "total_tokens": 904,
+        "latency_ms": 5681.42,
+        "cost_usd": 0.002274
+      },
+      {
+        "index": 10,
+        "prompt_tokens": 709,
+        "completion_tokens": 125,
+        "total_tokens": 834,
+        "latency_ms": 1274.5,
+        "cost_usd": 0.002001
+      },
+      {
+        "index": 13,
+        "prompt_tokens": 769,
+        "completion_tokens": 121,
+        "total_tokens": 890,
+        "latency_ms": 1183.05,
+        "cost_usd": 0.002061
+      },
+      {
+        "index": 19,
+        "prompt_tokens": 769,
+        "completion_tokens": 126,
+        "total_tokens": 895,
+        "latency_ms": 1264.5,
+        "cost_usd": 0.0020985
+      },
+      {
+        "index": 26,
+        "prompt_tokens": 770,
+        "completion_tokens": 108,
+        "total_tokens": 878,
+        "latency_ms": 1110.71,
+        "cost_usd": 0.001965
+      },
+      {
+        "index": 30,
+        "prompt_tokens": 649,
+        "completion_tokens": 123,
+        "total_tokens": 772,
+        "latency_ms": 1109.74,
+        "cost_usd": 0.0018960000000000001
+      },
+      {
+        "index": 33,
+        "prompt_tokens": 789,
+        "completion_tokens": 172,
+        "total_tokens": 961,
+        "latency_ms": 1480.88,
+        "cost_usd": 0.0024735
+      },
+      {
+        "index": 40,
+        "prompt_tokens": 732,
+        "completion_tokens": 104,
+        "total_tokens": 836,
+        "latency_ms": 1130.29,
+        "cost_usd": 0.001878
+      },
+      {
+        "index": 44,
+        "prompt_tokens": 729,
+        "completion_tokens": 166,
+        "total_tokens": 895,
+        "latency_ms": 1583.55,
+        "cost_usd": 0.0023385000000000003
+      },
+      {
+        "index": 48,
+        "prompt_tokens": 751,
+        "completion_tokens": 162,
+        "total_tokens": 913,
+        "latency_ms": 4012.69,
+        "cost_usd": 0.0023415
+      }
+    ]
+  },
+  "per_image": [
+    {
+      "index": 8,
+      "store": "alwafa",
+      "fields": {
+        "name_en": {
+          "status": "wrong",
+          "expected": "Fine Baby Diaper5Maxi Jmbo Pk40's11-18kg",
+          "got": "Fine Baby Diaper5Maxi Jumbo Pk40's11-18kg",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Fine Baby",
+          "got": "Fine Baby",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "wrong",
+          "expected": 30,
+          "got": 44.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 44.99,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "40",
+          "got": {
+            "package_size": "40's",
+            "quantity": "30"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 10,
+      "store": "amarket",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "ZAIQA PURE BEE HONEY 500 GM",
+          "got": "ZAIQA PURE BEE HONEY 500 GM",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "ZAIQA",
+          "got": "ZAIQA",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 8.95,
+          "got": 8.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 17.95,
+          "got": 17.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "500g",
+          "got": {
+            "package_size": "500 GM",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 13,
+      "store": "carrefour",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "REEM SWEET KERNEL CORN 425G",
+          "got": "REEM SWEET KERNEL CORN 425G",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "REEM",
+          "got": "REEM",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 3.99,
+          "got": 3.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 6.5,
+          "got": 6.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "425g",
+          "got": {
+            "package_size": "425G",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 19,
+      "store": "danube",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Loacker Wafer 4x19g",
+          "got": "Loacker Wafer 4x19g",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Loacker",
+          "got": "Loacker",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 6.99,
+          "got": 6.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 10.5,
+          "got": 10.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "4x19g",
+          "got": {
+            "package_size": "4x19g",
+            "quantity": "4"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 26,
+      "store": "grandhyper",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "PINEAPPLE (KENYA)/PC",
+          "got": "PINEAPPLE (KENYA)/PC",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 8.95,
+          "got": 8.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 16.95,
+          "got": 16.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "wrong",
+          "expected": "1pc",
+          "got": {
+            "package_size": null,
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": true
+        }
+      }
+    },
+    {
+      "index": 30,
+      "store": "hyperpanda",
+      "fields": {
+        "name_en": {
+          "status": "wrong",
+          "expected": "Mini Madeleines Traditional French Sponge Cakes (85g)",
+          "got": "St Michel Mini Madeleines Traditional French Sponge Cakes (85g)",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "St Michel",
+          "got": "St Michel",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "wrong",
+          "expected": 5,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 7.95,
+          "got": null,
+          "truth_is_null": false,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "85g",
+          "got": {
+            "package_size": "85g",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 33,
+      "store": "lulu",
+      "fields": {
+        "name_en": {
+          "status": "wrong",
+          "expected": "Mughal Basmati Rice 1121 5kg",
+          "got": "Mughal ROYAL DIAMOND STEAMED 1121 BASMATI RICE XXL EXTRA LONG GRAIN 5kg",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Mughal",
+          "got": "Mughal",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 34.99,
+          "got": 34.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 39.95,
+          "got": 39.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "5kg",
+          "got": {
+            "package_size": "5kg",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 40,
+      "store": "othaim",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "Pepsi Bottles",
+          "got": "Pepsi Bottles",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "Pepsi",
+          "got": "Pepsi",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 11.99,
+          "got": 11.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": null,
+          "got": null,
+          "truth_is_null": true,
+          "returned_null": true
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "6x250ml",
+          "got": {
+            "package_size": "6x250ml",
+            "quantity": "6"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 44,
+      "store": "prime",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)",
+          "got": "NOOR SUN FLOWER OIL (PET) (2 X 1.5 LTR + 500 ML)",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "NOOR",
+          "got": "NOOR",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 39.95,
+          "got": 39.95,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "wrong",
+          "expected": 45.51,
+          "got": 45.5,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "2x1.5l+500ml",
+          "got": {
+            "package_size": "2 X 1.5 LTR + 500 ML",
+            "quantity": "2 X 1.5 LTR + 500 ML"
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    },
+    {
+      "index": 48,
+      "store": "tamimi",
+      "fields": {
+        "name_en": {
+          "status": "correct",
+          "expected": "NONGSHIM CUP NOODLES, ASSORTED ITEMS, 68 - 114 GRAMS",
+          "got": "NONGSHIM CUP NOODLES, ASSORTED ITEMS, 68 - 114 GRAMS",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "brand": {
+          "status": "correct",
+          "expected": "NONGSHIM",
+          "got": "NONGSHIM",
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "current_price": {
+          "status": "correct",
+          "expected": 4.99,
+          "got": 4.99,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "old_price": {
+          "status": "correct",
+          "expected": 7.25,
+          "got": 7.25,
+          "truth_is_null": false,
+          "returned_null": false
+        },
+        "quantity": {
+          "status": "correct",
+          "expected": "68-114g",
+          "got": {
+            "package_size": "68 - 114 GRAMS",
+            "quantity": null
+          },
+          "truth_is_null": false,
+          "returned_null": false
+        }
+      }
+    }
+  ]
+}

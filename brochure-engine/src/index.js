@@ -17,6 +17,7 @@
 import { handleRequest } from './engine.js';
 import { handleOps } from './ops/console.js';
 import { handleIdentityBuilderDebug } from './offers/identityDebug.js';
+import { handleArabicBuilderDebug } from './offers/arabicBuilderDebug.js';
 import { handleRegistryCandidateDebug } from './registry/debug.js';
 import {
   runFanOut,
@@ -25,18 +26,27 @@ import {
   createWatchCheckDispatcher,
   runEnrichDrain,
   createEnrichDispatcher,
+  createOcrEnrichDispatcher,
 } from './scheduler.js';
 import { createD1MetadataStore } from './storage/metadataStore.js';
-import { createR2ObjectStore, createKvObjectStore } from './storage/objectStore.js';
+import {
+  createR2ObjectStore,
+  createKvObjectStore,
+  createTieredObjectStore,
+} from './storage/objectStore.js';
+import { createD1CollectionStore } from './storage/collectionStore.js';
 import { createD1HistoryStore } from './storage/historyStore.js';
 import { createD1OfferStore } from './storage/offerStore.js';
 import { createD1BrowseStore } from './storage/browseStore.js';
 import { createD1WatchStore } from './storage/watchStore.js';
 import { createD1OpsStore } from './storage/opsStore.js';
 import { createD1EnrichStore } from './storage/enrichStore.js';
+import { createRecoveryQueue } from './storage/recoveryQueue.js';
+import { recoveryRegistry } from './recovery/processors/index.js';
 import { createD1VisionJobStore } from './storage/visionJobStore.js';
 import { createD1RegistryStore } from './storage/registryStore.js';
-import { createNtfyNotifier, CHECK_BATCH } from './monitor.js';
+import { builtArabicNamesEnabled } from './lexicon/arabicRollout.js';
+import { createNtfyNotifier, CHECK_BATCH, checkWatch } from './monitor.js';
 import { runMaintenance } from './registry/lifecycle.js';
 import { drainResolution } from './registry/drain.js';
 import { createPipeline } from './pipeline.js';
@@ -78,6 +88,7 @@ const CRONS = {
   watches: '45 5 * * *', // daily Price Monitoring check (+ Monday registry maintenance)
   enrich: '10,30,50 * * * *', // steady-state vision drain (yields to a background job)
   visionDrain: '* * * * *', // Background Manual Vision: near-continuous drain while a job runs
+  brochureResume: '*/2 * * * *', // one safe page batch per pending D4D store
 };
 
 // --- Background Manual Vision (continuous cron-driven drain) --------------------
@@ -104,14 +115,17 @@ const VISION_LEASE_MS = 300000;
 const RESOLVE_LIMIT = 100;
 
 function buildContext(env) {
-  const objectStore = env.BROCHURES
-    ? createR2ObjectStore(env.BROCHURES)
-    : env.BROCHURES_KV
-      ? createKvObjectStore(env.BROCHURES_KV)
-      : (() => {
+  const useBuiltArabicNames = builtArabicNamesEnabled(env.BUILT_ARABIC_NAMES_ENABLED);
+  const r2Store = env.BROCHURES ? createR2ObjectStore(env.BROCHURES) : null;
+  const kvStore = env.BROCHURES_KV ? createKvObjectStore(env.BROCHURES_KV) : null;
+  const objectStore =
+    r2Store && kvStore
+      ? createTieredObjectStore(r2Store, kvStore)
+      : r2Store || kvStore || (() => {
           throw new Error('No object store binding (BROCHURES R2 or BROCHURES_KV).');
         })();
   const metadataStore = createD1MetadataStore(env.DB);
+  const collectionStore = createD1CollectionStore(env.DB);
   const pipeline = createPipeline({ objectStore, metadataStore });
   // Price History (Pillar 3) shares this Worker's D1 database. It is harvested
   // from the structured-offers ingest (priceHistory.js) — catalog-wide, no
@@ -121,11 +135,15 @@ function buildContext(env) {
     ? createServiceBindingSearchClient({ connector: env.CONNECTOR })
     : null;
   // Structured offers (the price-comparison substrate) share the same D1.
-  const offerStore = createD1OfferStore(env.DB);
+  const offerStore = createD1OfferStore(env.DB, {
+    builtArabicNamesEnabled: useBuiltArabicNames,
+  });
   const offersSource = createD4dOffersSource();
   // Browse (product discovery, BROWSE-DESIGN.md): a read-only VIEW over the
   // offers + price-history tables — no tables of its own.
-  const browseStore = createD1BrowseStore(env.DB);
+  const browseStore = createD1BrowseStore(env.DB, {
+    builtArabicNamesEnabled: useBuiltArabicNames,
+  });
   // Price Monitoring (watches + alerts) shares the same D1 too. Push delivery
   // is optional: set the NTFY_TOPIC secret to a private ntfy.sh topic and the
   // monitor pushes each alert to the user's phone; absent, alerts are in-app.
@@ -143,6 +161,11 @@ function buildContext(env) {
   // absent, the whole feature is inert (route 503s, cron skips, reads overlay
   // nothing) with zero behavior change elsewhere.
   const enrichStore = createD1EnrichStore(env.DB);
+  // S5 Recovery Queue (VISION-PIPELINE.md C-8, C-9). Shares D1. Inert twice
+  // over: the store reports not-ready until the migrations are applied, and the
+  // execution policy defaults to Manual/disarmed so nothing drains without an
+  // operator. The registry is the authority on which processors exist.
+  const recoveryQueue = createRecoveryQueue(env.DB);
   // Background Manual Vision job (Vision Milestone 2 §2): one durable 'active'
   // row the 1-minute `visionDrain` cron updates each fire, so a manual drain
   // runs to empty server-side and its progress survives the browser closing.
@@ -150,10 +173,21 @@ function buildContext(env) {
   const visionJobStore = createD1VisionJobStore(env.DB);
   // Product Registry (REGISTRY-DESIGN.md): products + sightings, shared D1.
   const registryStore = createD1RegistryStore(env.DB);
+  const visionPrimaryKey = env.MISTRAL_API_KEY_BACKUP || env.MISTRAL_API_KEY;
+  const visionBackupKey = env.MISTRAL_API_KEY_BACKUP ? env.MISTRAL_API_KEY : null;
+  // OCR may be rotated/scaled independently. Existing deployments remain
+  // compatible until dedicated OCR secrets are configured.
+  const ocrPrimaryKey = env.MISTRAL_OCR_API_KEY
+    || env.MISTRAL_OCR_API_KEY_BACKUP
+    || visionPrimaryKey;
+  const ocrBackupKey = env.MISTRAL_OCR_API_KEY
+    ? (env.MISTRAL_OCR_API_KEY_BACKUP || null)
+    : (env.MISTRAL_OCR_API_KEY_BACKUP ? null : visionBackupKey);
   return {
     registry,
     objectStore,
     metadataStore,
+    collectionStore,
     pipeline,
     historyStore,
     offerStore,
@@ -166,19 +200,33 @@ function buildContext(env) {
     opsStore,
     opsToken: env.OPS_TOKEN,
     enrichStore,
+    recoveryQueue,
+    recoveryRegistry,
     visionJobStore,
     // The main credential is currently provider-rate-limited, so production
     // intentionally serves from the backup binding first. The main credential
     // remains the second failover slot; keys are still used serially, never in
     // parallel, by offers/mistralKeys.js.
-    mistralKey: env.MISTRAL_API_KEY_BACKUP || env.MISTRAL_API_KEY,
-    mistralKeyBackup: env.MISTRAL_API_KEY_BACKUP ? env.MISTRAL_API_KEY : null,
+    mistralKey: visionPrimaryKey,
+    mistralKeyBackup: visionBackupKey,
+    mistralOcrKey: ocrPrimaryKey,
+    mistralOcrKeyBackup: ocrBackupKey,
+    ocrFallbackEnabled: String(env.OCR_FALLBACK_ENABLED ?? 'true').trim().toLowerCase() !== 'false',
     // Runtime extraction policy; normalized inside offers/enrich.js. Unset or
     // invalid values safely retain the validated Vision First default.
     extractionStrategy: env.EXTRACTION_STRATEGY,
     // Identity Builder policy is independent from extraction strategy. It is
     // pure normalization and defaults to strict when this variable is absent.
     identityNormalizationMode: env.IDENTITY_NORMALIZATION_MODE,
+    // Policy B navigation circuit breakers. Rates are fractions in [0,1].
+    // Defaults are zero: the first ambiguous source id or corroboration
+    // disagreement suppresses every hotspot-only fallback for that target,
+    // while existing dual links retain their original contract.
+    navigationPolicy: {
+      ambiguityRateThreshold: env.NAVIGATION_AMBIGUITY_RATE_THRESHOLD,
+      disagreementRateThreshold: env.NAVIGATION_DISAGREEMENT_RATE_THRESHOLD,
+    },
+    builtArabicNamesEnabled: useBuiltArabicNames,
     isDevelopment: env.ENVIRONMENT === 'development',
     registryStore,
     self: env.SELF,
@@ -192,6 +240,7 @@ export default {
     // The Operations Console — a hidden, OPS_TOKEN-guarded admin subsystem
     // mounted at /__ops (ops/console.js). Returns null for any other path.
     return (await handleIdentityBuilderDebug(request, ctx))
+      ?? (await handleArabicBuilderDebug(request, ctx))
       ?? (await handleRegistryCandidateDebug(request, ctx))
       ?? (await handleOps(request, ctx))
       ?? handleRequest(request, ctx);
@@ -210,6 +259,41 @@ export default {
   // The fan-out mechanism is isolated behind dispatchStore() so it can be swapped
   // (e.g. for a Queue producer) without touching collectors, pipeline or storage.
   async scheduled(event, env, ctx) {
+    // Resumable brochure recovery: D1 is the durable queue and each child
+    // advances one D4D store by one <=20-page batch. At most 20 SELF calls stay
+    // below the scheduled-event invocation cap; each child has its own external
+    // subrequest budget. Failed/interrupted jobs remain pending automatically.
+    if (event.cron === '*/2 * * * *') {
+      ctx.waitUntil(
+        (async () => {
+          const context = buildContext(env);
+          const pending = await context.collectionStore.listPending(20);
+          if (!pending.length) return;
+          const pendingRegistry = Object.fromEntries(
+            pending
+              .filter((job) => registry[job.store])
+              .map((job) => [job.store, registry[job.store]]),
+          );
+          if (!Object.keys(pendingRegistry).length) return;
+          const dispatchStore = createServiceBindingDispatcher({
+            self: env.SELF,
+            ingestSecret: env.INGEST_SECRET,
+            mode: 'brochures',
+          });
+          const report = await runFanOut(pendingRegistry, dispatchStore);
+          console.log(
+            'brochure-engine resumable collection',
+            JSON.stringify({
+              dispatched: report.dispatched,
+              ok: report.ok,
+              failed: report.failed,
+            }),
+          );
+        })(),
+      );
+      return;
+    }
+
     // FOUR schedules share this handler (wrangler.toml [triggers]):
     //   • "* * * * *"    — Background Manual Vision continuous drain (below);
     //     a single cheap D1 read unless an operator has a job running.
@@ -299,6 +383,44 @@ export default {
     // writing set — and it YIELDS to a running Background Vision job (below) so
     // there is never more than one resolution writer (§2 single-writer discipline).
     if (event.cron === '10,30,50 * * * *') {
+      // Shadow-mode rollout backfill: bounded, D1-only, and idempotent. It
+      // populates the existing extraction_json carrier without a schema
+      // migration. The conditional UPDATE cannot overwrite a concurrent fresh
+      // enrichment that already wrote rollout metadata.
+      ctx.waitUntil(
+        (async () => {
+          const context = buildContext(env);
+          const backfilled = await context.enrichStore.backfillArabicBuilderShadows(200);
+          if (backfilled) {
+            console.log('brochure-engine Arabic Builder shadow backfill', JSON.stringify({ backfilled }));
+          }
+        })().catch((err) => {
+          console.error('brochure-engine Arabic Builder shadow backfill unavailable', err?.message || String(err));
+        }),
+      );
+      // OCR escalation is a separate waitUntil task. Its provider, quota, or
+      // authentication failure cannot reject or delay the Vision drain below.
+      ctx.waitUntil(
+        (async () => {
+          const context = buildContext(env);
+          if (!context.ocrFallbackEnabled || !context.mistralOcrKey) return;
+          const today = new Date().toISOString().slice(0, 10);
+          const pending = await context.enrichStore.countPendingOcr(today).catch(() => 0);
+          if (pending <= 0) return;
+          const drain = await runEnrichDrain(
+            createOcrEnrichDispatcher({ self: env.SELF, ingestSecret: env.INGEST_SECRET }),
+            { pending, batchSize: 5, maxBatches: 1 },
+          );
+          console.log('brochure-engine OCR escalation drain', JSON.stringify({
+            pending: drain.pending,
+            batches: drain.batches,
+            ok: drain.ok,
+            failed: drain.failed,
+          }));
+        })().catch((err) => {
+          console.error('brochure-engine OCR escalation unavailable', err?.message || String(err));
+        }),
+      );
       ctx.waitUntil(
         (async () => {
           if (!env.MISTRAL_API_KEY && !env.MISTRAL_API_KEY_BACKUP) return;
@@ -451,6 +573,29 @@ export default {
         // child (offers/ingest.js -> recordOfferHistory) — every flyer offer
         // is a price observation, so no separate capture step runs here.
         const ctx = buildContext(env);
+
+        // FLYER-SIDE WATCH RE-EVALUATION. Ingest is the ONLY moment flyer
+        // prices change, so this is where a flyer deal becomes knowable —
+        // polling for it on the daily cron would find the same rows 23 times
+        // out of 24. Restricted to watches whose flyer half is free to read:
+        // a product-anchored watch reads bestCurrentForProduct (pure D1, zero
+        // subrequests). Spec-anchored and store-scoped watches need the online
+        // sweep to be meaningful, so they wait for the daily fire and this step
+        // stays genuinely free.
+        const flyerWatches = (await ctx.watchStore.list({ activeOnly: true }))
+          .filter((w) => w.registryProductId && (w.scope || 'market') === 'market');
+        if (flyerWatches.length) {
+          const flyerCtx = ctx;
+          let alerted = 0;
+          for (const w of flyerWatches) {
+            const line = await checkWatch(flyerCtx, w, { flyerOnly: true }).catch(() => null);
+            if (line?.alerted) alerted += 1;
+          }
+          console.log(
+            'brochure-engine flyer watch re-eval',
+            JSON.stringify({ watches: flyerWatches.length, alerted }),
+          );
+        }
 
         // Retention (see retention.js): metadata is forever, BYTES are a
         // rolling window. Runs in the coordinator (KV/D1 ops don't consume the

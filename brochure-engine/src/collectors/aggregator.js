@@ -74,23 +74,18 @@ export function createAggregatorCollector(config) {
     adapter,
     headers = {},
     fetchImpl = fetch,
-    // Bound the work per run so the weekly Cron stays gentle on the aggregator
-    // (§10.F legal posture) and within a Worker's per-invocation subrequest
-    // budget (Free plan: 50/invocation): at most `maxCandidates` leaflet HTML
-    // fetches, `maxPages` images per flyer (checksum-stable cap), and
-    // `maxTotalPages` image downloads per RUN across all flyers. Flyers that
-    // don't fit this run's budget are picked up by the next run (the cron
-    // already fires twice a week), because already-held flyers cost nothing.
+    // Candidate limiting remains available to focused legacy/local callers.
+    // Production D4D collection uses d4dResumable.js and every advertised
+    // candidate referenced by current offers is durably queued.
     maxCandidates = 6,
-    // 36 (was 40): leaves ~4 subrequests of the child's 50-budget for the
-    // structured-offers pull that now runs in the same per-store invocation.
-    // maxPages MUST NOT exceed maxTotalPages — a flyer longer than the per-run
-    // budget would otherwise never fit ANY run and starve forever; instead it
-    // is truncated to the cap (the tail pages of an oversized flyer are the
-    // acceptable cost of structured offers riding the same invocation).
-    maxPages = 36,
-    maxTotalPages = 36,
+    // Optional caps have no truncating default. Production never depends on
+    // them for Cloudflare safety; resumable batch size is the execution bound.
+    maxPages = null,
+    maxTotalPages = null,
   } = config;
+  const pageLimit = Number.isInteger(maxPages) && maxPages > 0 ? maxPages : Infinity;
+  const runLimit =
+    Number.isInteger(maxTotalPages) && maxTotalPages > 0 ? maxTotalPages : Infinity;
 
   if (!adapter || typeof adapter.listBrochures !== 'function') {
     throw new Error('aggregator: config.adapter with a listBrochures() method is required');
@@ -168,7 +163,7 @@ export function createAggregatorCollector(config) {
       // that don't fit wait for the next run.
       const out = [];
       const errors = [];
-      let budget = maxTotalPages;
+      let budget = runLimit;
       for (const [best, doc] of slots) {
         try {
           // The tap-geometry snapshot the adapter parsed from the same leaflet
@@ -192,10 +187,10 @@ export function createAggregatorCollector(config) {
               const heldPages = await readHeldPages(held);
               if (heldPages && heldPages.length) {
                 heldReadable = true;
-                const srcCount = Math.min(best.pages.length, maxPages);
+                const srcCount = Math.min(best.pages.length, pageLimit);
                 if (heldPages.length !== srcCount) stale = true;
                 else if (
-                  (best.pageIds || []).slice(0, maxPages).some(Boolean) &&
+                  (best.pageIds || []).slice(0, pageLimit).some(Boolean) &&
                   !heldPages.some((p) => p && p.pageId)
                 ) {
                   stale = true; // source now carries deep-link ids the held copy lacks
@@ -211,13 +206,13 @@ export function createAggregatorCollector(config) {
               // nothing: never resurrect keys retention deleted.
               out.push({
                 existing: held,
-                ...(heldReadable ? { hotspots: hotspotsFor(Math.min(best.pages.length, maxPages)) } : {}),
+                ...(heldReadable ? { hotspots: hotspotsFor(Math.min(best.pages.length, pageLimit)) } : {}),
               });
               continue;
             }
           }
-          const pageUrls = best.pages.slice(0, maxPages);
-          const pageIds = (best.pageIds || []).slice(0, maxPages);
+          const pageUrls = best.pages.slice(0, pageLimit);
+          const pageIds = (best.pageIds || []).slice(0, pageLimit);
           if (pageUrls.length > budget) continue; // next run's budget picks it up
 
           const pages = [];

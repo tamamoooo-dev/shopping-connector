@@ -9,7 +9,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, extname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createKeyChain } from './src/offers/mistralKeys.js';
-import { observeWithFailover, VISION_PROMPT } from './src/offers/enrich.js';
+import { DEFAULT_MODEL, observeWithFailover, VISION_PROMPT } from './src/offers/enrich.js';
 import { visionMatchText } from './src/storage/enrichStore.js';
 import { loadMistralKeys } from './local-secrets.mjs';
 
@@ -183,7 +183,7 @@ const records = observations.map(({ sample, capture, observation, error }, index
 const reportData = {
   generated_at: new Date().toISOString(),
   sample_count: records.length,
-  model: 'mistral-small-latest',
+  model: DEFAULT_MODEL,
   prompt_sha256: createHash('sha256').update(VISION_PROMPT).digest('hex'),
   extraction_input_contract: ['crop image bytes'],
   ocr_used_for_extraction_or_acceptance: false,
