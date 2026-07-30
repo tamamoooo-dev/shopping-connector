@@ -23,7 +23,7 @@
 import { createMemRegistryStore } from './memstore.js';
 import {
   decideMerge, mergedFields, consolidate, healDanglingSightings, runMaintenance,
-  LIFECYCLE_TUNING,
+  LIFECYCLE_TUNING, readMergeSetting, writeMergeSetting, REGISTRY_MERGE_KEY,
 } from './lifecycle.js';
 import { applyReviewAction } from './review.js';
 import { resolveLegacyOffer as resolveOffer } from './legacyResolver.js';
@@ -304,6 +304,48 @@ console.log('review isolation:');
     historyRows.length === 1 && historyRows[0].offer_id === 'trusted:offer');
   check('review-band sightings cannot trigger Watch prices',
     best?.offerId === 'trusted:offer' && best.price === 10);
+}
+
+// --- the merge kill switch actually switches -----------------------------------
+// REGRESSION PIN (2026-07-30). readMergeSetting called `rec.arrayBuffer()`, but
+// storage/objectStore.js returns `{ bytes, contentType }` — NOT an R2
+// ObjectBody. The TypeError was swallowed by the reader's own catch, which
+// answers `enabled: true`, so EVERY stored value read back as enabled: the
+// switch could be written and never took effect. Merge is the one irreversible
+// registry operation AND it runs unattended, so "cannot be frozen" is the worst
+// possible failure mode. There were no tests on this reader at all.
+{
+  console.log('merge kill switch:');
+  const objects = new Map();
+  const store = {
+    async get(key) {
+      const bytes = objects.get(key);
+      return bytes ? { bytes, contentType: 'application/json' } : null;
+    },
+    async put(key, bytes) { objects.set(key, bytes); },
+  };
+
+  check('absent setting = enabled (a storage blip never stops maintenance)',
+    (await readMergeSetting(store)).enabled === true);
+
+  await writeMergeSetting(store, false, { reason: 'bulk rebuild' });
+  const frozen = await readMergeSetting(store);
+  check('a written DISABLE is actually read back as disabled',
+    frozen.enabled === false && frozen.source === 'stored');
+  check('the freeze reason survives the round trip', frozen.reason === 'bulk rebuild');
+  check('it is stored under the documented key', objects.has(REGISTRY_MERGE_KEY));
+
+  await writeMergeSetting(store, true, { reason: 'rebuild done' });
+  check('re-arming works too', (await readMergeSetting(store)).enabled === true);
+
+  // Fail-safe direction is preserved: unreadable bytes must not silently
+  // disable merge, only an operator may.
+  objects.set(REGISTRY_MERGE_KEY, new TextEncoder().encode('{not json'));
+  const broken = await readMergeSetting(store);
+  check('corrupt bytes fail SAFE (enabled), not silently frozen',
+    broken.enabled === true && broken.source === 'unreadable');
+
+  check('no object store bound = enabled', (await readMergeSetting(null)).enabled === true);
 }
 
 if (failures) {

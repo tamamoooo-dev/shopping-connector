@@ -220,7 +220,14 @@ export async function readMergeSetting(objectStore) {
   const rec = await objectStore.get(REGISTRY_MERGE_KEY).catch(() => null);
   if (!rec) return { enabled: true, source: 'default' };
   try {
-    const text = typeof rec === 'string' ? rec : new TextDecoder().decode(await rec.arrayBuffer());
+    // storage/objectStore.js returns { bytes, contentType } — NOT an R2
+    // ObjectBody. Calling rec.arrayBuffer() here threw a TypeError, the catch
+    // below swallowed it, and the reader answered `enabled: true` for EVERY
+    // stored value: the kill switch could be written but never took effect, so
+    // merge — the one irreversible registry operation, and one that runs
+    // unattended — could not actually be frozen. Decode `bytes`, exactly as
+    // offers/visionModel.js and recovery/policy.js already do.
+    const text = typeof rec === 'string' ? rec : new TextDecoder().decode(rec.bytes);
     const raw = JSON.parse(text);
     return {
       enabled: raw?.enabled !== false,
