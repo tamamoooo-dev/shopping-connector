@@ -61,6 +61,7 @@ import { danubeProvider } from './providers/danube.js';
 import { tamimiProvider } from './providers/tamimi.js';
 import { nestoProvider } from './providers/nesto.js';
 import { d4dStoreProviders } from './providers/d4dStores.js';
+import { buildMistralPools } from './offers/mistralKeys.js';
 
 // M1: Othaim via the official PdfIndexCollector. The other stores via the
 // reusable AggregatorCollector (D4D adapter) with an official-offers-page
@@ -173,16 +174,13 @@ function buildContext(env) {
   const visionJobStore = createD1VisionJobStore(env.DB);
   // Product Registry (REGISTRY-DESIGN.md): products + sightings, shared D1.
   const registryStore = createD1RegistryStore(env.DB);
-  const visionPrimaryKey = env.MISTRAL_API_KEY_BACKUP || env.MISTRAL_API_KEY;
-  const visionBackupKey = env.MISTRAL_API_KEY_BACKUP ? env.MISTRAL_API_KEY : null;
-  // OCR may be rotated/scaled independently. Existing deployments remain
-  // compatible until dedicated OCR secrets are configured.
-  const ocrPrimaryKey = env.MISTRAL_OCR_API_KEY
-    || env.MISTRAL_OCR_API_KEY_BACKUP
-    || visionPrimaryKey;
-  const ocrBackupKey = env.MISTRAL_OCR_API_KEY
-    ? (env.MISTRAL_OCR_API_KEY_BACKUP || null)
-    : (env.MISTRAL_OCR_API_KEY_BACKUP ? null : visionBackupKey);
+  // Model-scoped Mistral credentials. Dedicated bindings isolate Small, OCR,
+  // and Medium quota. Legacy MISTRAL_API_KEY[_BACKUP] remain fallback aliases
+  // until all dedicated secrets have been rotated into production.
+  const mistralPools = buildMistralPools(env);
+  const mediumKeys = mistralPools.medium.filter((slot) => slot.key);
+  const smallKeys = mistralPools.small.filter((slot) => slot.key);
+  const ocrKeys = mistralPools.ocr.filter((slot) => slot.key);
   return {
     registry,
     objectStore,
@@ -203,14 +201,15 @@ function buildContext(env) {
     recoveryQueue,
     recoveryRegistry,
     visionJobStore,
-    // The main credential is currently provider-rate-limited, so production
-    // intentionally serves from the backup binding first. The main credential
-    // remains the second failover slot; keys are still used serially, never in
-    // parallel, by offers/mistralKeys.js.
-    mistralKey: visionPrimaryKey,
-    mistralKeyBackup: visionBackupKey,
-    mistralOcrKey: ocrPrimaryKey,
-    mistralOcrKeyBackup: ocrBackupKey,
+    mistralPools,
+    // Compatibility fields for older local/tests/callers. Production routing
+    // consumes mistralPools directly and can therefore use all three Medium
+    // slots rather than truncating the pool to primary + backup.
+    mistralKey: mediumKeys[0]?.key || null,
+    mistralKeyBackup: mediumKeys[1]?.key || null,
+    mistralSmallKey: smallKeys[0]?.key || null,
+    mistralOcrKey: ocrKeys[0]?.key || null,
+    mistralOcrKeyBackup: ocrKeys[1]?.key || null,
     ocrFallbackEnabled: String(env.OCR_FALLBACK_ENABLED ?? 'true').trim().toLowerCase() !== 'false',
     // Runtime extraction policy; normalized inside offers/enrich.js. Unset or
     // invalid values safely retain the validated Vision First default.
@@ -313,8 +312,8 @@ export default {
     if (event.cron === '* * * * *') {
       ctx.waitUntil(
         (async () => {
-          if (!env.MISTRAL_API_KEY && !env.MISTRAL_API_KEY_BACKUP) return;
           const context = buildContext(env);
+          if (!context.mistralPools.medium.some((slot) => slot.key)) return;
           const job = await context.visionJobStore.get().catch(() => null);
           if (!job || job.status !== 'running') return; // idle: one D1 read, done
           // Single-writer: only one fire drains at a time (atomic CAS lease).
@@ -423,8 +422,8 @@ export default {
       );
       ctx.waitUntil(
         (async () => {
-          if (!env.MISTRAL_API_KEY && !env.MISTRAL_API_KEY_BACKUP) return;
           const context = buildContext(env);
+          if (!context.mistralPools.medium.some((slot) => slot.key)) return;
           // Yield to an active Background Vision job — it owns the drain via the
           // 1-minute cron above; running both would double the resolution writer.
           const bgJob = await context.visionJobStore.get().catch(() => null);

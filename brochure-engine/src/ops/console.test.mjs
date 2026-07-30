@@ -228,6 +228,29 @@ const post = (ctx, path, body, headers = {}) =>
 
   const d = await (await req(ctx, '/api/diagnostics', { headers: auth })).json();
   check('diagnostics: no errors yet, counts present', d.latestError === null && d.counts.currentFlyers === 2);
+  ctx.mistralPools = {
+    medium: [
+      { id: 'medium-1', label: 'Medium key 1', key: 'secret-a' },
+      { id: 'medium-2', label: 'Medium key 2', key: 'secret-b' },
+      { id: 'medium-3', label: 'Medium key 3', key: 'secret-c' },
+    ],
+    small: [{ id: 'small-1', label: 'Small key', key: 'secret-s' }],
+    ocr: [{ id: 'ocr-1', label: 'OCR key', key: 'secret-o' }],
+  };
+  await ctx.opsStore.record({
+    action: 'enrich',
+    ok: true,
+    detail: {
+      keyUsage: [
+        { id: 'medium-1', status: 'ready', remainingPct: 88, observedAt: new Date().toISOString() },
+      ],
+    },
+  });
+  const vm = await (await req(ctx, '/api/vision/model', { headers: auth })).json();
+  check('developer tool lists model-scoped key slots with remaining percentage',
+    vm.keyPools.find((p) => p.pool === 'medium').keys[0].remainingPct === 88 &&
+    vm.keyPools.find((p) => p.pool === 'medium').keys.length === 3);
+  check('developer tool never serializes secret material', !JSON.stringify(vm).includes('secret-a'));
   console.log('read routes ✅');
 }
 

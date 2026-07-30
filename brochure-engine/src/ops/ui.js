@@ -802,13 +802,30 @@ function runLiveDrain() {
 /* Medium is the production baseline; Small is a MANUAL fallback for API-limit
    or budget pressure. Nothing else in the system moves this — models are never
    switched automatically (see offers/visionModel.js for why). */
-var vmSetting = null, vmActive = null, vmOptions = [], vmBusy = false;
+var vmSetting = null, vmActive = null, vmOptions = [], vmKeyPools = [], vmBusy = false;
 function loadVisionModel() { return api("vision/model").then(renderVisionModel).catch(function () {}); }
+function keyPoolsHtml(pools) {
+  if (!pools || !pools.length) return "";
+  return '<div style="height:10px"></div>' +
+    '<div class="mut" style="margin-bottom:6px">Model keys · remaining capacity is the latest Mistral rate-limit observation. Secrets are never shown.</div>' +
+    pools.map(function (pool) {
+      var keys = (pool.keys || []).map(function (key) {
+        var pct = key.remainingPct == null ? "—" : Math.round(key.remainingPct * 10) / 10 + "%";
+        var state = !key.configured ? "missing" : key.status === "invalid" ? "invalid" :
+          key.status === "limited" ? "limited" : key.status === "unobserved" ? "not observed yet" : "ready";
+        return '<div class="kv"><span>' + esc(pct + " · " + key.label) + '</span><b>' +
+          esc(state + (key.observedAt ? " · " + ago(key.observedAt) : "")) + '</b></div>';
+      }).join("");
+      return '<div style="margin-top:8px"><div class="mut">' + esc(pool.label + " · " + pool.model) +
+        '</div>' + keys + '</div>';
+    }).join("");
+}
 function renderVisionModel(r) {
   var s = r && r.setting;
   if (!s) return;
   vmSetting = s;
   if (r.options) vmOptions = r.options;
+  if (r.keyPools) vmKeyPools = r.keyPools;
   /* The model REALLY running. While no selection is stored the selector is
      inert and extraction uses the engine default, so never render s.model as
      if it were active — an unarmed card must not claim a tier it isn't using. */
@@ -833,7 +850,8 @@ function renderVisionModel(r) {
     (s.armed
       ? "Applies to the next drain; work already running finishes on the model it started with, and every stored row records its own model."
       : "No override stored, so extraction runs on the engine default above and this selector changes nothing. Picking a tier arms it for the next drain.") +
-    " Live Mistral rate-limit signal appears under Vision Progress above.</div>";
+    " Live Mistral rate-limit signal appears under Vision Progress above.</div>" +
+    keyPoolsHtml(vmKeyPools);
 }
 $("#vmSeg").querySelectorAll("button").forEach(function (b) {
   b.onclick = function () {

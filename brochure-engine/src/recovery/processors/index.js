@@ -19,10 +19,17 @@
 import { createRecoveryRegistry } from '../registry.js';
 import human from './human.js';
 import ocr from './ocr.js';
+import visionMedium from './visionMedium.js';
 
 // Cheapest first — a presentation default, NOT an escalation ladder. Human is
 // last because it is the terminal rung and the only one that spends a person's
 // time rather than an API budget.
-export const RECOVERY_PROCESSORS = [ocr, human];
+//
+// `vision-medium` LANDED 2026-07-30 and cost exactly the one line below plus its
+// module — no queue change, no schema, no migration, no new status value, no
+// runner change, and (because it reuses the existing `vision` credential) no
+// console change either. Ordered after `ocr` because it is dearer per offer, not
+// because anything escalates from one to the other.
+export const RECOVERY_PROCESSORS = [ocr, visionMedium, human];
 
 export const recoveryRegistry = createRecoveryRegistry(RECOVERY_PROCESSORS);

@@ -106,16 +106,28 @@ const review = (fields, actor = 'dev@example') => ({
 
 // --- 1. it is a first-class processor ---------------------------------------
 
-await test('human is registered alongside ocr, and costs no provider call', () => {
-  assert.deepEqual(recoveryRegistry.ids(), ['ocr', 'human']);
+await test('human is registered alongside the machine rungs, and costs no provider call', () => {
+  const ids = recoveryRegistry.ids();
+  // NOT a fixed list: machine rungs are expected to be added (C-9's whole
+  // point), and a literal array would make every future plug-in look like a
+  // regression here. What must hold is the ORDER PROPERTY — human is the
+  // terminal rung and stays last — plus at least one machine rung before it.
+  assert.equal(ids.at(-1), HUMAN_PROCESSOR_ID, 'the terminal rung stays last');
+  assert.ok(ids.includes('ocr'));
+  assert.ok(ids.length > 1, 'at least one machine rung precedes the human one');
   const described = recoveryRegistry.describe().find((p) => p.id === HUMAN_PROCESSOR_ID);
   assert.equal(described.kind, 'human');
   assert.equal(described.credential, null, 'needs no provider, so it is handed no key chain');
   assert.equal(described.costHint.requests, 0);
   assert.equal(described.interactive, true, 'declares a review surface');
-  // The machine rung must NOT advertise one, or the console would offer a review
-  // screen for a processor that has nothing to review.
-  assert.equal(recoveryRegistry.describe().find((p) => p.id === 'ocr').interactive, false);
+  // A machine rung must NOT advertise one, or the console would offer a review
+  // screen for a processor that has nothing to review. Asserted over ALL of
+  // them, so a future plug-in that wrongly declares `reviewPlan` is caught.
+  for (const p of recoveryRegistry.describe()) {
+    if (p.id === HUMAN_PROCESSOR_ID) continue;
+    assert.equal(p.interactive, false, `${p.id} must not advertise a review surface`);
+    assert.equal(p.kind, 'machine', `${p.id} must be bound by C-7`);
+  }
 });
 
 // --- 2. the Auto fail-safe ---------------------------------------------------

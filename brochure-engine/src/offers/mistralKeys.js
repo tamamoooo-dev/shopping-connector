@@ -30,37 +30,152 @@
 // a misconfigured "backup" that equals the primary is a no-op, not a phantom
 // failover target. Each slot tracks whether it is auth-dead and, if 429'd, the
 // timestamp until which it is rate-limited. `now` is injectable for tests.
-export function createKeyChain(keys, { log = console.error, label = 'mistral', now = () => Date.now() } = {}) {
+function finiteNumber(value) {
+  const n = value == null || value === '' ? NaN : Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+// A zero-capacity observation cannot be trusted forever: monthly/account quota
+// resets happen outside the Worker and Mistral may report an exhausted key as
+// 401 without a reset header. Re-sample a previously exhausted slot at most
+// once per window so it automatically rejoins the balanced pool after reset,
+// while healthy keys continue serving between probes.
+const EXHAUSTED_KEY_RECHECK_MS = 6 * 60 * 60 * 1000;
+
+export function remainingPercentage(rateLimit) {
+  if (!rateLimit) return null;
+  const pairs = [
+    [rateLimit.remainingRequestsMinute, rateLimit.limitRequestsMinute],
+    [rateLimit.remainingTokensMinute, rateLimit.limitTokensMinute],
+    [rateLimit.remainingTokensMonth, rateLimit.limitTokensMonth],
+    [rateLimit.remainingOcrPagesMinute, rateLimit.limitOcrPagesMinute],
+  ];
+  const percentages = pairs
+    .map(([remaining, limit]) => {
+      const r = finiteNumber(remaining);
+      const l = finiteNumber(limit);
+      return r != null && l != null && l > 0 ? (r / l) * 100 : null;
+    })
+    .filter((value) => value != null);
+  if (!percentages.length) return finiteNumber(rateLimit.remainingPct);
+  return Math.round(Math.max(0, Math.min(100, Math.min(...percentages))) * 10) / 10;
+}
+
+function keyEntry(value, index) {
+  if (value && typeof value === 'object' && !Array.isArray(value)) {
+    const key = value.key == null ? '' : String(value.key).trim();
+    return {
+      key,
+      id: String(value.id || `key-${index + 1}`),
+      label: String(value.label || `Key ${index + 1}`),
+      pool: value.pool || null,
+      model: value.model || null,
+    };
+  }
+  return {
+    key: value == null ? '' : String(value).trim(),
+    id: `key-${index + 1}`,
+    label: `Key ${index + 1}`,
+    pool: null,
+    model: null,
+  };
+}
+
+export function createKeyChain(
+  keys,
+  {
+    log = console.error,
+    label = 'mistral',
+    now = () => Date.now(),
+    balance = false,
+    usage = {},
+  } = {},
+) {
   const seen = new Set();
   const slots = [];
-  for (const k of keys || []) {
-    const key = k == null ? '' : String(k).trim();
-    if (!key || seen.has(key)) continue;
-    seen.add(key);
-    slots.push({ key, dead: false, until: 0 });
+  for (const [index, value] of (keys || []).entries()) {
+    const entry = keyEntry(value, index);
+    if (!entry.key || seen.has(entry.key)) continue;
+    seen.add(entry.key);
+    const storedPrior = usage?.[entry.id] || {};
+    const storedRateLimit = storedPrior.rateLimit || storedPrior;
+    const storedPct = remainingPercentage(storedRateLimit);
+    const observedAt = storedPrior.observedAt || storedPrior.rateLimit?.observedAt || null;
+    const observedMs = observedAt ? Date.parse(observedAt) : NaN;
+    const exhaustedRecheckDue = storedPct != null && storedPct <= 0 &&
+      (!Number.isFinite(observedMs) || now() - observedMs >= EXHAUSTED_KEY_RECHECK_MS);
+    const prior = exhaustedRecheckDue ? {} : storedPrior;
+    slots.push({
+      ...entry,
+      dead: false,
+      until: 0,
+      calls: 0,
+      rateLimit: prior.rateLimit || prior,
+      remainingPct: remainingPercentage(prior.rateLimit || prior),
+      observedAt: prior.observedAt || prior.rateLimit?.observedAt || null,
+    });
   }
   let everFailedOver = false;
 
-  // Lowest-index key that is neither auth-dead nor currently rate-limited.
+  // The legacy chain stays primary-preferred. Balanced pools (Medium's three
+  // independent workspaces) first sample any unobserved slot, then choose the
+  // highest remaining percentage. Equal percentages use the least-served slot,
+  // keeping a fresh pool round-robin instead of draining key #1 first.
   const usableIndex = (t = now()) => {
-    for (let i = 0; i < slots.length; i += 1) {
-      if (!slots[i].dead && slots[i].until <= t) return i;
-    }
-    return -1;
+    const candidates = slots
+      .map((slot, index) => ({ slot, index }))
+      .filter(({ slot }) => !slot.dead && slot.until <= t);
+    if (!candidates.length) return -1;
+    if (!balance) return candidates[0].index;
+    candidates.sort((a, b) => {
+      const ap = a.slot.remainingPct;
+      const bp = b.slot.remainingPct;
+      if (ap == null && bp != null) return -1;
+      if (ap != null && bp == null) return 1;
+      if (ap != null && bp != null && ap !== bp) return bp - ap;
+      if (a.slot.calls !== b.slot.calls) return a.slot.calls - b.slot.calls;
+      return a.index - b.index;
+    });
+    return candidates[0].index;
   };
+
+  const recordRateLimit = (index, rateLimit) => {
+    const slot = slots[index];
+    if (!slot || !rateLimit) return;
+    slot.rateLimit = { ...rateLimit };
+    slot.remainingPct = remainingPercentage(rateLimit);
+    slot.observedAt = rateLimit.observedAt || new Date(now()).toISOString();
+  };
+
+  const publicSlot = (slot) => ({
+    id: slot.id,
+    label: slot.label,
+    pool: slot.pool,
+    model: slot.model,
+    configured: true,
+    status: slot.dead ? 'invalid' : slot.until > now() ? 'limited' : 'ready',
+    remainingPct: slot.remainingPct,
+    observedAt: slot.observedAt,
+    rateLimit: slot.rateLimit || null,
+    calls: slot.calls,
+  });
 
   return {
     size: slots.length,
     hasKeys() {
       return slots.length > 0;
     },
-    // The primary-preferred usable key, or null when every key is dead/parked
-    // right now. Marks that a non-primary key was actually served (failedOver).
+    snapshot() {
+      return slots.map(publicSlot);
+    },
+    // The selected usable key, or null when every key is dead/parked right now.
+    // Secret material never crosses snapshot(); only pick/current expose it to
+    // the provider call path.
     pick(t = now()) {
       const i = usableIndex(t);
       if (i < 0) return null;
-      if (i > 0) everFailedOver = true;
-      return { key: slots[i].key, index: i };
+      if (!balance && i > 0) everFailedOver = true;
+      return { key: slots[i].key, id: slots[i].id, index: i };
     },
     current(t = now()) {
       const i = usableIndex(t);
@@ -69,21 +184,34 @@ export function createKeyChain(keys, { log = console.error, label = 'mistral', n
     failedOver() {
       return everFailedOver;
     },
+    markSuccess(index, rateLimit = null) {
+      const slot = slots[index];
+      if (!slot) return;
+      slot.calls += 1;
+      recordRateLimit(index, rateLimit);
+    },
     // Auth failure: this key is unusable for the rest of the run.
-    markDead(index, reason) {
+    markDead(index, reason, rateLimit = null) {
       const s = slots[index];
       if (!s || s.dead) return;
       s.dead = true;
+      s.calls += 1;
+      s.remainingPct = 0;
+      s.observedAt = rateLimit?.observedAt || new Date(now()).toISOString();
+      if (rateLimit) s.rateLimit = { ...rateLimit };
       const alt = usableIndex();
       log(`[${label}-failover] key #${index + 1} retired (${reason})` +
         (alt >= 0 ? `; using key #${alt + 1} of ${slots.length}` : '; NO usable key remains'));
     },
     // Rate limit: park this key until `untilMs`. Logs the immediate switch when
     // another key can take over now (the active-failover behavior).
-    markRateLimited(index, untilMs, reason = 'rate limited') {
+    markRateLimited(index, untilMs, reason = 'rate limited', rateLimit = null) {
       const s = slots[index];
       if (!s) return;
       s.until = Math.max(s.until, untilMs);
+      s.calls += 1;
+      recordRateLimit(index, rateLimit);
+      if (s.remainingPct == null) s.remainingPct = 0;
       const alt = usableIndex();
       if (alt >= 0 && alt !== index) {
         log(`[${label}-failover] key #${index + 1} ${reason}; switching to usable key #${alt + 1} of ${slots.length}`);
@@ -101,6 +229,113 @@ export function createKeyChain(keys, { log = console.error, label = 'mistral', n
       return soonest === Infinity ? null : soonest;
     },
   };
+}
+
+export const MISTRAL_POOL_DEFINITIONS = Object.freeze({
+  medium: {
+    label: 'Medium 3.5',
+    model: 'mistral-medium-latest',
+    slots: [
+      ['medium-1', 'Medium key 1'],
+      ['medium-2', 'Medium key 2'],
+      ['medium-3', 'Medium key 3'],
+    ],
+  },
+  small: {
+    label: 'Small 2603',
+    model: 'mistral-small-2603',
+    slots: [['small-1', 'Small key']],
+  },
+  ocr: {
+    label: 'OCR',
+    model: 'mistral-ocr-latest',
+    slots: [['ocr-1', 'OCR key']],
+  },
+});
+
+function poolEntry(pool, slot, key) {
+  const def = MISTRAL_POOL_DEFINITIONS[pool];
+  return {
+    id: slot[0],
+    label: slot[1],
+    pool,
+    model: def.model,
+    key: key || null,
+  };
+}
+
+// Dedicated bindings win. The old two-key names remain compatibility fallbacks
+// so deploying the code before rotating secrets cannot interrupt production.
+export function buildMistralPools(env = {}) {
+  const medium = MISTRAL_POOL_DEFINITIONS.medium.slots.map((slot, index) =>
+    poolEntry(
+      'medium',
+      slot,
+      index === 0
+        ? (env.MISTRAL_MEDIUM_API_KEY_1 || env.MISTRAL_API_KEY)
+        : index === 1
+          ? (env.MISTRAL_MEDIUM_API_KEY_2 || env.MISTRAL_API_KEY_BACKUP)
+          : env.MISTRAL_MEDIUM_API_KEY_3,
+    ));
+  return {
+    medium,
+    small: [
+      poolEntry(
+        'small',
+        MISTRAL_POOL_DEFINITIONS.small.slots[0],
+        env.MISTRAL_SMALL_API_KEY || env.MISTRAL_API_KEY || env.MISTRAL_API_KEY_BACKUP,
+      ),
+    ],
+    ocr: [
+      poolEntry(
+        'ocr',
+        MISTRAL_POOL_DEFINITIONS.ocr.slots[0],
+        env.MISTRAL_OCR_API_KEY || env.MISTRAL_OCR_API_KEY_BACKUP
+          || env.MISTRAL_API_KEY || env.MISTRAL_API_KEY_BACKUP,
+      ),
+    ],
+  };
+}
+
+function parseDetail(row) {
+  if (!row?.detail) return null;
+  if (typeof row.detail === 'object') return row.detail;
+  try { return JSON.parse(row.detail); } catch { return null; }
+}
+
+// Audit rows are newest-first. Keep the newest observation for each masked slot;
+// this makes balancing durable across Worker invocations without storing secrets
+// or adding a schema migration.
+export function latestMistralUsage(rows = []) {
+  const usage = {};
+  for (const row of rows) {
+    const list = parseDetail(row)?.keyUsage;
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      if (!item?.id || usage[item.id]) continue;
+      usage[item.id] = item;
+    }
+  }
+  return usage;
+}
+
+export function mistralPoolInventory(pools, usage = {}) {
+  return Object.entries(MISTRAL_POOL_DEFINITIONS).map(([pool, def]) => ({
+    pool,
+    label: def.label,
+    model: def.model,
+    keys: (pools?.[pool] || []).map((entry) => {
+      const seen = usage[entry.id] || {};
+      return {
+        id: entry.id,
+        label: entry.label,
+        configured: !!entry.key,
+        status: entry.key ? (seen.status || 'unobserved') : 'missing',
+        remainingPct: entry.key ? (remainingPercentage(seen.rateLimit || seen)) : null,
+        observedAt: seen.observedAt || seen.rateLimit?.observedAt || null,
+      };
+    }),
+  }));
 }
 
 // Classify an error thrown by a Mistral call (enrichOffer tags its errors with
@@ -152,12 +387,14 @@ export async function withFailover(keyChain, doCall, {
     const slot = keyChain.pick(now());
     if (slot) {
       try {
-        return await doCall(slot.key);
+        const result = await doCall(slot.key);
+        keyChain.markSuccess?.(slot.index, result?.rateLimit || null);
+        return result;
       } catch (err) {
         lastErr = err;
         const kind = classifyMistralError(err);
         if (kind === 'auth') {
-          keyChain.markDead(slot.index, `auth (${err?.status || '?'})`);
+          keyChain.markDead(slot.index, `auth (${err?.status || '?'})`, err?.rateLimit || null);
           continue; // try the next usable key immediately
         }
         if (kind === 'rate') {
@@ -167,7 +404,7 @@ export async function withFailover(keyChain, doCall, {
           const untilMs = err.retryAfterMs != null
             ? now() + err.retryAfterMs
             : now() + backoffMs * (waitCycles + 1);
-          keyChain.markRateLimited(slot.index, untilMs);
+          keyChain.markRateLimited(slot.index, untilMs, 'rate limited', err?.rateLimit || null);
           continue;
         }
         // transient (5xx / network) and other (crop fetch / parse) are not key

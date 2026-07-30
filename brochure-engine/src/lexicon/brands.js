@@ -90,6 +90,21 @@ export const LEXICON_ONLY_BRANDS = Object.freeze([
   { slug: 'gloria', en: 'Gloria', ar: 'غلوريا' },
   { slug: 'super-dine', en: 'Super Dine', ar: 'سوبر داين' },
   { slug: 'vltava', en: 'Vltava', ar: 'فلتافا' },
+
+  // Brands whose Arabic form is NOT what a transliterator would produce, so the
+  // lexicon has to carry them. `Rabea` phonetically renders as رابي; the brand
+  // is written ربيع in every Saudi flyer. This is exactly the case that keeps
+  // lexicon/transliterate.js a fallback rather than a replacement.
+  // ⚠️ `rabea`/ربيع is a KNOWN TRADE-OFF. ربيع is also the ordinary Arabic word
+  // for "spring", and brands.test.mjs used it as an example of a bare word that
+  // must stay unknown. It is a real Saudi tea brand printed on these flyers, and
+  // the user asked for it by name, so the entry wins and the test's example word
+  // was changed. Accepted risk: an Arabic observation that genuinely means
+  // "spring" now resolves to this brand.
+  { slug: 'rabea', en: 'Rabea', ar: 'ربيع' },
+  { slug: 'doritos', en: 'Doritos', ar: 'دوريتوس' },
+  { slug: 'tasali', en: 'Tasali', ar: 'تسالي' },
+  { slug: 'coopoliva', en: 'Coopoliva', ar: 'كوبوليفا' },
 ]);
 
 // --- alias table ---------------------------------------------------------------

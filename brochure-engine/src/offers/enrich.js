@@ -33,7 +33,12 @@
 // code change downstream.
 
 import { normalizeText } from '../matching.js';
-import { createKeyChain, withFailover, classifyMistralError } from './mistralKeys.js';
+import {
+  createKeyChain,
+  withFailover,
+  classifyMistralError,
+  remainingPercentage,
+} from './mistralKeys.js';
 import {
   DEFAULT_EXTRACTION_STRATEGY,
   EXTRACTION_PROVENANCE,
@@ -324,9 +329,28 @@ export function readRateLimit(res) {
     limit: get('x-ratelimit-limit') || get('ratelimitbysize-limit') || null,
     remaining: get('x-ratelimit-remaining') || get('ratelimitbysize-remaining') || null,
     reset: get('x-ratelimit-reset') || get('ratelimitbysize-reset') || null,
+    // Current Mistral completion headers (observed 2026-07-30). Requests and
+    // tokens are separate constraints; the UI and balancer use the lower
+    // percentage so a key never looks healthy when either wall is nearly hit.
+    limitRequestsMinute: get('x-ratelimit-limit-req-minute') || null,
+    remainingRequestsMinute: get('x-ratelimit-remaining-req-minute') || null,
+    limitTokensMinute: get('x-ratelimit-limit-tokens-minute') || null,
+    remainingTokensMinute: get('x-ratelimit-remaining-tokens-minute') || null,
+    limitTokensMonth: get('x-ratelimit-limit-tokens-month') || null,
+    remainingTokensMonth: get('x-ratelimit-remaining-tokens-month') || null,
+    limitOcrPagesMinute: get('x-ratelimit-limit-ocr-pages-minute') || null,
+    remainingOcrPagesMinute: get('x-ratelimit-remaining-ocr-pages-minute') || null,
+    queryTokens: get('x-ratelimit-tokens-query-cost') || null,
+    queryOcrPages: get('x-ratelimit-ocr-pages-query-cost') || null,
     observedAt: new Date().toISOString(),
   };
-  const empty = out.retryAfter == null && !out.limit && !out.remaining && !out.reset;
+  out.remainingPct = remainingPercentage(out);
+  const empty =
+    out.retryAfter == null &&
+    !out.limit &&
+    !out.remaining &&
+    !out.reset &&
+    out.remainingPct == null;
   // On a non-ok response (a 429), always return a signal (at least the status)
   // so the wall is surfaced; only suppress an all-empty capture on an ok body.
   if (empty && res?.ok) return null;
@@ -460,15 +484,19 @@ async function postMistral(url, body, { apiKey, fetchImpl, stage }) {
     if (err.rateLimit?.retryAfter != null) err.retryAfterMs = err.rateLimit.retryAfter * 1000;
     throw err;
   }
-  return res.json();
+  return {
+    body: await res.json(),
+    rateLimit: readRateLimit(res),
+  };
 }
 
 async function observeVisionBytes(crop, { apiKey, model = DEFAULT_MODEL, fetchImpl = fetch } = {}) {
-  const body = await postMistral(
+  const response = await postMistral(
     MISTRAL_URL,
     buildVisionRequest({ model, contentType: crop.contentType, base64: crop.base64 }),
     { apiKey, fetchImpl, stage: 'mistral' },
   );
+  const body = response.body;
   const rawReply = body?.choices?.[0]?.message?.content ?? null;
   let parsedObject = null;
   try {
@@ -485,20 +513,23 @@ async function observeVisionBytes(crop, { apiKey, model = DEFAULT_MODEL, fetchIm
     model,
     cropUrl: crop.cropUrl,
     observedAt: new Date().toISOString(),
+    rateLimit: response.rateLimit,
   };
 }
 
 async function observeOcrBytes(crop, { apiKey, model = DEFAULT_OCR_MODEL, fetchImpl = fetch } = {}) {
-  const body = await postMistral(
+  const response = await postMistral(
     MISTRAL_OCR_URL,
     buildOcrRequest({ model, contentType: crop.contentType, base64: crop.base64 }),
     { apiKey, fetchImpl, stage: 'mistral-ocr' },
   );
+  const body = response.body;
   const pages = Array.isArray(body?.pages) ? body.pages : [];
   return {
     rawOutput: pages.map((page) => page?.markdown ?? '').join('\n').trim(),
     model: body?.model || model,
     usage: body?.usage_info ?? body?.usage ?? null,
+    rateLimit: response.rateLimit,
   };
 }
 
@@ -806,6 +837,7 @@ export async function extractWithFailover(
 
 function finishDrainReport(report, chain) {
   report.failedOver = chain?.failedOver?.() || false;
+  report.keyUsage = chain?.snapshot?.() || [];
   const completedExtractions = report.enriched + report.declined + (report.ocrPending || 0);
   report.extraction.averageProcessingTimeMs = completedExtractions
     ? Math.round((report.extraction.processingTimeMs / completedExtractions) * 100) / 100
@@ -1156,8 +1188,9 @@ export async function drainOcrEnrichment(
     errors: [],
   };
   const chain = keyChain || createKeyChain([mistralOcrKey, mistralOcrKeyBackup]);
-  if (!mistralOcrKey && !keyChain) {
+  if (!chain.hasKeys()) {
     report.unavailable = true;
+    report.keyUsage = [];
     report.finishedAt = new Date().toISOString();
     return report;
   }
@@ -1227,6 +1260,7 @@ export async function drainOcrEnrichment(
     }
   }
   report.failedOver = chain.failedOver();
+  report.keyUsage = chain.snapshot?.() || [];
   report.remaining = await enrichStore.countPendingOcr(currentOn);
   report.finishedAt = new Date().toISOString();
   return report;

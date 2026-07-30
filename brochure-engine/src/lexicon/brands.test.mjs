@@ -93,8 +93,12 @@ check('the definite-article spelling of a bare Arabic name resolves ("السنب
   resolveBrand('سنبلة').brand_id === 'sunbulah' && resolveBrand('السنبلة').brand_id === 'sunbulah');
 check('the article variant is generated for bare Arabic names generally',
   resolveBrand('النوتيلا').brand_id === 'nutella' && resolveBrand('الديتول').brand_id === 'dettol');
+// ربيع was one of the example words here until 2026-07-30, when it was added as
+// the Rabea tea brand (a real brand on these flyers, requested by the user).
+// The property under test is unchanged — ال is never STRIPPED to find a brand —
+// so the example moved to a word with no brand behind it.
 check('the reverse (stripping ال) is NOT done — a bare ordinary word stays unknown',
-  resolveBrand('صافي').brand_id === null && resolveBrand('ربيع').brand_id === null
+  resolveBrand('صافي').brand_id === null && resolveBrand('طازج').brand_id === null
   && resolveBrand('كبير').brand_id === null);
 check('an English name never grows an Arabic article', resolveBrand('alnadec').brand_id === null);
 

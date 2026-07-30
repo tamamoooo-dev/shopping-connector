@@ -648,8 +648,10 @@ console.log('S4 acceptance in the drain:');
   // name, additive, and never replacing the observed Arabic.
   check('the structured product is built from the English name',
     res.structuredProduct.source === 'english' && res.structuredProduct.category.id === 'instant-coffee');
+  // The brand now rides along phonetically (NAJJAR -> ناجار): 2026-07-30 policy,
+  // a term with no Arabic form is written in Arabic letters rather than dropped.
   check('the Arabic name is GENERATED, not the observed OCR Arabic',
-    res.arabicName.status === 'built' && res.arabicName.name === 'قهوة سريعة التحضير 190 جم');
+    res.arabicName.status === 'built' && res.arabicName.name === 'قهوة سريعة التحضير ناجار 190 جم');
   check('the observed Arabic is still what the record carries as nameAr',
     res.nameAr === 'قهوة سريعة الذوبان' && res.structuredProduct.observed.name_ar === 'قهوة سريعة الذوبان');
   check('the in-memory record carries the same persisted shadow contract',

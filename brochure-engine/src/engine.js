@@ -20,7 +20,7 @@ import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offer
 import { drainEnrichment, drainOcrEnrichment, applyEnrichment, DEFAULT_MODEL } from './offers/enrich.js';
 import { rebuildRow, summarize } from './offers/rebuild.js';
 import { readVisionModelSetting } from './offers/visionModel.js';
-import { createKeyChain } from './offers/mistralKeys.js';
+import { createKeyChain, latestMistralUsage } from './offers/mistralKeys.js';
 import { drainRecovery } from './recovery/runner.js';
 import { readRecoveryPolicy } from './recovery/policy.js';
 import { drainResolution } from './registry/drain.js';
@@ -77,6 +77,27 @@ const CORS = {
   'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, X-Ingest-Secret',
 };
+
+async function mistralUsageSnapshot(ctx) {
+  if (!ctx.opsStore?.list) return {};
+  const rows = await ctx.opsStore.list({ limit: 120 }).catch(() => []);
+  return latestMistralUsage(rows);
+}
+
+function mistralPool(ctx, pool) {
+  if (ctx.mistralPools?.[pool]) return ctx.mistralPools[pool];
+  if (pool === 'ocr') return [ctx.mistralOcrKey, ctx.mistralOcrKeyBackup];
+  if (pool === 'small') return [ctx.mistralSmallKey || ctx.mistralKey, ctx.mistralKeyBackup];
+  return [ctx.mistralKey, ctx.mistralKeyBackup];
+}
+
+function createPoolChain(ctx, pool, usage = {}) {
+  return createKeyChain(mistralPool(ctx, pool), {
+    label: `mistral-${pool}`,
+    balance: pool === 'medium',
+    usage,
+  });
+}
 
 function json(body, status = 200, extra = {}) {
   return new Response(JSON.stringify(body), {
@@ -1059,9 +1080,7 @@ export async function handleRequest(request, ctx) {
     if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
       return json({ error: 'Forbidden' }, 403);
     }
-    if (!ctx.enrichStore || !ctx.mistralKey) {
-      return json({ error: 'Enrichment unavailable (no store or MISTRAL_API_KEY).' }, 503);
-    }
+    if (!ctx.enrichStore) return json({ error: 'Enrichment unavailable (no store).' }, 503);
     // One crop fetch + Vision + possible OCR = at most three subrequests per
     // offer. Cap at 16 so fallback-heavy Vision First stays within the Worker budget.
     const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 15, 16));
@@ -1087,9 +1106,14 @@ export async function handleRequest(request, ctx) {
     // would silently move production onto a model/prompt pairing nobody has
     // measured. A read failure is inert too, by construction.
     const visionModel = await readVisionModelSetting(ctx.objectStore);
+    const activePool = visionModel.armed && visionModel.tier === 'small' ? 'small' : 'medium';
+    const keyChain = createPoolChain(ctx, activePool, await mistralUsageSnapshot(ctx));
+    if (!keyChain.hasKeys()) {
+      return json({ error: `Enrichment unavailable (no ${activePool} model key).` }, 503);
+    }
     const t0 = Date.now();
     const report = await drainEnrichment(
-      { enrichStore: ctx.enrichStore, mistralKey: ctx.mistralKey, mistralKeyBackup: ctx.mistralKeyBackup },
+      { enrichStore: ctx.enrichStore, keyChain },
       {
         limit,
         currentOn: todayISO(),
@@ -1134,6 +1158,7 @@ export async function handleRequest(request, ctx) {
             // to the model that was active when the rows were written.
             model: activeVisionModel,
             budgetMode: visionModel.armed && visionModel.budget,
+            keyUsage: report.keyUsage,
             resolved: report.resolution
               ? {
                   scanned: report.resolution.scanned,
@@ -1172,9 +1197,10 @@ export async function handleRequest(request, ctx) {
     // a processor declaring none gets none. Built once for the run, it would
     // hand every processor the first one's keys; defaulted to the vision chain,
     // it would hand a provider-less rung (the human one) a live API key.
+    const usage = await mistralUsageSnapshot(ctx);
     const chains = {
-      ocr: () => createKeyChain([ctx.mistralOcrKey, ctx.mistralOcrKeyBackup]),
-      vision: () => createKeyChain([ctx.mistralKey, ctx.mistralKeyBackup]),
+      ocr: () => createPoolChain(ctx, 'ocr', usage),
+      vision: () => createPoolChain(ctx, 'medium', usage),
     };
     const report = await drainRecovery(
       {
@@ -1223,11 +1249,11 @@ export async function handleRequest(request, ctx) {
     }
     const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 5, 10));
     const identityNormalizationMode = url.searchParams.get('identityMode') || ctx.identityNormalizationMode;
+    const keyChain = createPoolChain(ctx, 'ocr', await mistralUsageSnapshot(ctx));
     const report = await drainOcrEnrichment(
       {
         enrichStore: ctx.enrichStore,
-        mistralOcrKey: ctx.mistralOcrKey,
-        mistralOcrKeyBackup: ctx.mistralOcrKeyBackup,
+        keyChain,
       },
       { limit, currentOn: todayISO(), identityNormalizationMode },
     );
@@ -1245,6 +1271,7 @@ export async function handleRequest(request, ctx) {
           completed: report.completed,
           remaining: report.remaining ?? report.pending,
           unavailable: report.unavailable || false,
+          keyUsage: report.keyUsage,
         },
       }).catch(() => {});
     }

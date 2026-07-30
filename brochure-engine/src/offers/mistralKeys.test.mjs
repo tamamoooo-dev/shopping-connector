@@ -15,7 +15,8 @@
 //  • drainEnrichment surfaces failedOver and keeps draining across a failover.
 
 import {
-  createKeyChain, classifyMistralError, withFailover,
+  createKeyChain, classifyMistralError, withFailover, remainingPercentage,
+  buildMistralPools, latestMistralUsage, mistralPoolInventory,
 } from './mistralKeys.js';
 import { enrichWithFailover, drainEnrichment } from './enrich.js';
 
@@ -73,6 +74,19 @@ console.log('createKeyChain:');
   c3.markRateLimited(1, 1500); // park backup too (sooner window)
   check('all parked -> pick null, nextResumeAt = soonest window', c3.pick(1000) === null && c3.nextResumeAt(1000) === 1500);
   check('primary is preferred again once its window elapses', c3.pick(2000).key === 'a');
+
+  const pct = remainingPercentage({
+    limitRequestsMinute: 50,
+    remainingRequestsMinute: 44,
+    limitTokensMinute: 25000,
+    remainingTokensMinute: 24000,
+  });
+  check('remaining percentage uses the tightest live constraint', pct === 88);
+  check('OCR page headers produce a remaining percentage',
+    remainingPercentage({
+      limitOcrPagesMinute: 625,
+      remainingOcrPagesMinute: 624,
+    }) === 99.8);
 }
 
 // --- withFailover ----------------------------------------------------------------
@@ -151,6 +165,87 @@ console.log('withFailover:');
     try { await withFailover(createKeyChain([]), async () => 'x'); return false; }
     catch (e) { return /no API key/.test(e.message); }
   })());
+
+  // Balanced Medium: sample each unknown slot, then always serve the highest
+  // remaining percentage. Equal percentages use least-served round robin.
+  {
+    const chain = createKeyChain([
+      { id: 'medium-1', label: 'Medium key 1', key: 'a' },
+      { id: 'medium-2', label: 'Medium key 2', key: 'b' },
+      { id: 'medium-3', label: 'Medium key 3', key: 'c' },
+    ], { balance: true, log: noLog });
+    const seen = [];
+    const percentages = [90, 90, 90, 89, 89];
+    for (const remainingPct of percentages) {
+      await withFailover(chain, async (key) => {
+        seen.push(key);
+        return { rateLimit: { remainingPct, observedAt: '2026-07-30T00:00:00.000Z' } };
+      });
+    }
+    check('balanced pool samples all three then keeps equal usage close',
+      seen.join(',') === 'a,b,c,a,b');
+    check('balanced snapshot is masked and carries per-key percentages',
+      chain.snapshot().every((slot) => !Object.prototype.hasOwnProperty.call(slot, 'key')) &&
+      chain.snapshot().every((slot) => slot.remainingPct != null));
+  }
+
+  // An exhausted account can return 401 until its external quota reset. A
+  // durable 0% observation must therefore become probeable again, otherwise a
+  // healthier key would permanently starve it even after the reset.
+  {
+    const nowMs = Date.parse('2026-07-30T12:00:00.000Z');
+    const entries = [
+      { id: 'medium-1', key: 'a' },
+      { id: 'medium-2', key: 'b' },
+    ];
+    const freshZero = createKeyChain(entries, {
+      balance: true,
+      log: noLog,
+      now: () => nowMs,
+      usage: {
+        'medium-1': { remainingPct: 75, observedAt: '2026-07-30T11:00:00.000Z' },
+        'medium-2': { remainingPct: 0, observedAt: '2026-07-30T11:00:00.000Z' },
+      },
+    });
+    check('fresh exhausted observation stays parked behind a healthier key',
+      freshZero.pick().key === 'a');
+
+    const staleZero = createKeyChain(entries, {
+      balance: true,
+      log: noLog,
+      now: () => nowMs,
+      usage: {
+        'medium-1': { remainingPct: 75, observedAt: '2026-07-30T11:00:00.000Z' },
+        'medium-2': { remainingPct: 0, observedAt: '2026-07-30T05:00:00.000Z' },
+      },
+    });
+    check('stale exhausted observation is re-probed so resets are discovered',
+      staleZero.pick().key === 'b' && staleZero.snapshot()[1].remainingPct == null);
+  }
+}
+
+// --- model-scoped pool inventory + durable audit snapshot ---------------------
+console.log('model pools:');
+{
+  const pools = buildMistralPools({
+    MISTRAL_MEDIUM_API_KEY_1: 'm1',
+    MISTRAL_MEDIUM_API_KEY_2: 'm2',
+    MISTRAL_MEDIUM_API_KEY_3: 'm3',
+    MISTRAL_SMALL_API_KEY: 's1',
+    MISTRAL_OCR_API_KEY: 'o1',
+  });
+  check('model keys are attached only to their intended pool',
+    pools.medium.map((x) => x.key).join(',') === 'm1,m2,m3' &&
+    pools.small[0].key === 's1' && pools.ocr[0].key === 'o1');
+  const usage = latestMistralUsage([
+    { detail: JSON.stringify({ keyUsage: [
+      { id: 'medium-1', status: 'ready', remainingPct: 88, observedAt: '2026-07-30T00:00:00.000Z' },
+    ] }) },
+  ]);
+  const inventory = mistralPoolInventory(pools, usage);
+  check('developer inventory shows percentage and never secret material',
+    inventory.find((x) => x.pool === 'medium').keys[0].remainingPct === 88 &&
+    !JSON.stringify(inventory).includes('m1'));
 }
 
 // --- enrichWithFailover + drainEnrichment (integration) --------------------------

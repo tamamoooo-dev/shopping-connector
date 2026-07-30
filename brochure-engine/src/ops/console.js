@@ -60,7 +60,11 @@ import {
   readRecoveryPolicy,
   writeRecoveryPolicy,
 } from '../recovery/policy.js';
-import { createKeyChain } from '../offers/mistralKeys.js';
+import {
+  createKeyChain,
+  latestMistralUsage,
+  mistralPoolInventory,
+} from '../offers/mistralKeys.js';
 import { drainResolution } from '../registry/drain.js';
 import { runMaintenance, writeMergeSetting, readMergeSetting } from '../registry/lifecycle.js';
 import { resolveLegacyWatches } from '../monitor.js';
@@ -565,9 +569,11 @@ const MAX_RECOVERY_DISPATCH = 10;
 // as it can. The alternative, passing every key to every processor, would put
 // credential selection inside processors where it cannot be audited.
 function credentialChains(ctx) {
+  const medium = ctx.mistralPools?.medium || [ctx.mistralKey, ctx.mistralKeyBackup];
+  const ocr = ctx.mistralPools?.ocr || [ctx.mistralOcrKey, ctx.mistralOcrKeyBackup];
   return {
-    ocr: createKeyChain([ctx.mistralOcrKey, ctx.mistralOcrKeyBackup]),
-    vision: createKeyChain([ctx.mistralKey, ctx.mistralKeyBackup]),
+    ocr: createKeyChain(ocr, { label: 'mistral-ocr' }),
+    vision: createKeyChain(medium, { label: 'mistral-medium', balance: true }),
   };
 }
 
@@ -1244,11 +1250,25 @@ async function apiRoute(request, ctx, url, sub) {
         // unarmed card would claim Medium while production is still on the
         // engine default.
         const setting = await readVisionModelSetting(ctx.objectStore);
+        const recentRuns = ctx.opsStore?.list
+          ? await ctx.opsStore.list({ limit: 120 }).catch(() => [])
+          : [];
+        const keyUsage = latestMistralUsage(recentRuns);
+        const pools = ctx.mistralPools || {
+          medium: [
+            { id: 'medium-1', label: 'Medium key 1', key: ctx.mistralKey },
+            { id: 'medium-2', label: 'Medium key 2', key: ctx.mistralKeyBackup },
+            { id: 'medium-3', label: 'Medium key 3', key: null },
+          ],
+          small: [{ id: 'small-1', label: 'Small key', key: ctx.mistralSmallKey }],
+          ocr: [{ id: 'ocr-1', label: 'OCR key', key: ctx.mistralOcrKey }],
+        };
         return opsJson({
           setting,
           defaultModel: DEFAULT_MODEL,
           activeModel: setting.armed ? setting.model : DEFAULT_MODEL,
           options: VISION_MODEL_OPTIONS,
+          keyPools: mistralPoolInventory(pools, keyUsage),
         });
       }
       case 'queue': // §4 Queue Monitor
