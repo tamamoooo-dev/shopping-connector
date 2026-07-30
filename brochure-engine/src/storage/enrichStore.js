@@ -309,6 +309,55 @@ export function createD1EnrichStore(db) {
       return results || [];
     },
 
+    // --- derived-field rebuild (offers/rebuild.js) -----------------------------
+    // Page the stored enrichments so their PURE derived fields can be recomputed
+    // against a newer lexicon. Joined to offers only for the commerce context
+    // productKnowledge() takes (price/currency) — exactly what the enrich path
+    // passes, so a rebuilt row is byte-identical to a freshly enriched one.
+    // Cursor by id: stable, index-ordered, and resumable across invocations.
+    async listForRebuild({ after = '', limit = 500 } = {}) {
+      const { results } = await db
+        .prepare(
+          `SELECT e.id, e.name, e.name_ar, e.brand, e.size, e.confidence,
+                  e.extraction_json, e.identity_candidate, e.mint_verdict,
+                  o.price, o.currency
+             FROM offer_enrichments e
+             LEFT JOIN offers o ON o.id = e.id
+            WHERE e.id > ?
+            ORDER BY e.id ASC
+            LIMIT ?`,
+        )
+        .bind(String(after || ''), Math.max(1, Math.min(Number(limit) || 500, 2000)))
+        .all();
+      return results || [];
+    },
+
+    // Persist rebuilt derived fields. Writes ONLY the two derived columns (plus
+    // the candidate's contract version). `mint_verdict` is untouched unless the
+    // caller explicitly asks: clearing it hands the row back to the registry
+    // drain, which mints and attaches products — a different decision with a
+    // different blast radius, so it never rides along silently.
+    async applyRebuild(rows, { reresolve = false } = {}) {
+      if (!rows?.length) return { updated: 0 };
+      const sql = reresolve
+        ? `UPDATE offer_enrichments
+              SET extraction_json = ?, identity_candidate = ?,
+                  identity_candidate_version = ?, mint_verdict = NULL
+            WHERE id = ?`
+        : `UPDATE offer_enrichments
+              SET extraction_json = ?, identity_candidate = ?,
+                  identity_candidate_version = ?
+            WHERE id = ?`;
+      for (let i = 0; i < rows.length; i += 50) {
+        await db.batch(
+          rows.slice(i, i + 50).map((r) => db
+            .prepare(sql)
+            .bind(r.extraction_json, r.identity_candidate, r.identity_candidate_version, r.id)),
+        );
+      }
+      return { updated: rows.length };
+    },
+
     // Explicit allowlist used only by staged historical re-enrichment. Unlike
     // listDebris it may return an already-enriched crop, but never widens past
     // the supplied IDs and never mutates Registry state itself.

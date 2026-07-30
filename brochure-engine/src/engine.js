@@ -18,6 +18,7 @@ import { getQueryPricesDoc, getLowestDoc, recordOfferHistory, deriveIdentity } f
 import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offers/contract.js';
 import { drainEnrichment, drainOcrEnrichment, applyEnrichment, DEFAULT_MODEL } from './offers/enrich.js';
+import { rebuildRow, summarize } from './offers/rebuild.js';
 import { readVisionModelSetting } from './offers/visionModel.js';
 import { createKeyChain } from './offers/mistralKeys.js';
 import { drainRecovery } from './recovery/runner.js';
@@ -540,6 +541,53 @@ export async function handleRequest(request, ctx) {
     }
 
     return json({ query: q || null, count: offers.length, note: OFFERS_NOTE, offers });
+  }
+
+  // Recompute the PURE derived fields of stored enrichments (offers/rebuild.js)
+  // against the current lexicons. No model is called — every input is already in
+  // the row — so this costs no Mistral quota and can be run freely while the
+  // extraction model stays pinned to Budget Mode.
+  //
+  //   ?dryRun=1     write nothing; report exactly what would change (DEFAULT
+  //                 for the first call an operator should make)
+  //   ?reresolve=1  ALSO clear mint_verdict, handing the rows back to the
+  //                 registry drain. That DOES mint and attach products, so it
+  //                 is opt-in and reported separately.
+  //   ?after=<id>&limit=N   cursor paging; the response carries `nextAfter`.
+  if (path === '/enrich/rebuild' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.enrichStore?.listForRebuild) return json({ error: 'Rebuild unavailable.' }, 503);
+    const dryRun = url.searchParams.get('dryRun') === '1';
+    const reresolve = url.searchParams.get('reresolve') === '1';
+    const after = url.searchParams.get('after') || '';
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 500, 2000));
+    const rows = await ctx.enrichStore.listForRebuild({ after, limit });
+    const results = rows.map((r) => rebuildRow(r, {
+      identityNormalizationMode: ctx.identityNormalizationMode,
+    }));
+    const report = summarize(results);
+    const writable = results.filter((r) => r.changed.candidate || r.changed.arabic);
+    if (!dryRun && writable.length) {
+      await ctx.enrichStore.applyRebuild(writable, { reresolve });
+    }
+    return json({
+      mode: dryRun ? 'dry-run (nothing written)' : reresolve ? 'applied + re-resolve' : 'applied',
+      reresolve,
+      ...report,
+      wouldWrite: writable.length,
+      written: dryRun ? 0 : writable.length,
+      nextAfter: rows.length === limit ? rows[rows.length - 1].id : null,
+      // A handful of real before/after pairs so the operator can judge the
+      // change by eye rather than by counters alone.
+      samples: writable.slice(0, 8).map((r) => ({
+        id: r.id,
+        dimensions: `${r.dimensionsBefore} -> ${r.dimensionsAfter}`,
+        arabicBefore: r.builtArabicBefore,
+        arabicAfter: r.builtArabicAfter,
+      })),
+    });
   }
 
   // Per-product tap targets for a held brochure's pages (see hotspots.js):
