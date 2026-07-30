@@ -255,6 +255,100 @@ const post = (ctx, path, body, headers = {}) =>
   const one = await r.json();
   check('single store rides the same child route', ctx.selfCalls.length === 1 && ctx.selfCalls[0].includes('store=alpha') && one.verification.lines.length === 1);
 
+  // Regression: after brochure collection became resumable, the manual
+  // single-store operation still dispatched exactly one child and verified the
+  // old active flyer. A brochure larger than the 20-page batch therefore
+  // returned before publication. The operator path must continue with
+  // brochures-only children until `storeComplete:true`.
+  const resumable = await buildCtx();
+  resumable.selfCalls.length = 0;
+  const scripted = [
+    {
+      totals: { detected: 0, new: 0, deduped: 0, failed: 0 },
+      resumable: { storeComplete: false, flyerRef: '751686', nextPage: 20, pagesCollected: 20, batch: {} },
+    },
+    {
+      totals: { detected: 0, new: 0, deduped: 0, failed: 0 },
+      resumable: { storeComplete: false, flyerRef: '751686', nextPage: 40, pagesCollected: 20, batch: {} },
+    },
+    {
+      totals: { detected: 1, new: 1, deduped: 0, failed: 0 },
+      resumable: { storeComplete: true, flyerRef: '751686', pagesCollected: 10, batch: {} },
+    },
+  ];
+  resumable.self.fetch = async (url) => {
+    resumable.selfCalls.push(String(url));
+    return new Response(JSON.stringify(scripted.shift()), {
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  r = await post(resumable, '/api/run', { op: 'store', stores: ['alpha'], confirm: true }, auth);
+  const completed = await r.json();
+  check(
+    'single-store run drains resumable brochure through publication before verification',
+    r.status === 200 &&
+      resumable.selfCalls.length === 3 &&
+      !resumable.selfCalls[0].includes('mode=brochures') &&
+      resumable.selfCalls.slice(1).every((url) => url.includes('mode=brochures')) &&
+      completed.fanout[0].result.publication.complete === true &&
+      completed.fanout[0].result.publication.invocations === 3,
+    JSON.stringify(completed.fanout),
+  );
+
+  // Regression: Repair Unhealthy Stores commonly targets more than one store.
+  // The first resumable fix only drained when targets.length === 1, so a
+  // multi-store repair verified stale flyers after one page batch and failed.
+  const multiResumable = await buildCtx();
+  multiResumable.selfCalls.length = 0;
+  const scriptsByStore = {
+    beta: [
+      {
+        totals: { detected: 0, new: 0, deduped: 0, failed: 0 },
+        resumable: { storeComplete: false, flyerRef: '751836', nextPage: 20, pagesCollected: 20, batch: {} },
+      },
+      {
+        totals: { detected: 0, new: 0, deduped: 0, failed: 0 },
+        resumable: { storeComplete: false, flyerRef: '751836', nextPage: 40, pagesCollected: 20, batch: {} },
+      },
+      {
+        totals: { detected: 1, new: 1, deduped: 0, failed: 0 },
+        resumable: { storeComplete: true, flyerRef: '751836', pagesCollected: 6, batch: {} },
+      },
+    ],
+    gamma: [
+      {
+        totals: { detected: 0, new: 0, deduped: 0, failed: 0 },
+        resumable: { storeComplete: false, flyerRef: '751788', nextPage: 20, pagesCollected: 20, batch: {} },
+      },
+      {
+        totals: { detected: 1, new: 1, deduped: 0, failed: 0 },
+        resumable: { storeComplete: true, flyerRef: '751788', pagesCollected: 11, batch: {} },
+      },
+    ],
+  };
+  multiResumable.self.fetch = async (url) => {
+    const parsed = new URL(url);
+    const store = parsed.searchParams.get('store');
+    multiResumable.selfCalls.push(String(url));
+    return new Response(JSON.stringify(scriptsByStore[store].shift()), {
+      headers: { 'content-type': 'application/json' },
+    });
+  };
+  r = await post(multiResumable, '/api/run', { op: 'repair', confirm: true }, auth);
+  const multiCompleted = await r.json();
+  const multiFanout = Object.fromEntries(multiCompleted.fanout.map((line) => [line.store, line]));
+  check(
+    'multi-store repair drains every resumable brochure before verification',
+    r.status === 200 &&
+      multiResumable.selfCalls.length === 5 &&
+      multiFanout.beta.ok === true &&
+      multiFanout.beta.result.publication.invocations === 3 &&
+      multiFanout.gamma.ok === true &&
+      multiFanout.gamma.result.publication.invocations === 2 &&
+      multiResumable.selfCalls.filter((url) => url.includes('mode=brochures')).length === 3,
+    JSON.stringify(multiCompleted.fanout),
+  );
+
   // Partial runs carry the mode through to the child URL.
   ctx.selfCalls.length = 0;
   await post(ctx, '/api/run', { op: 'offers', confirm: true }, auth);

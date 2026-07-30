@@ -27,7 +27,8 @@
 import { ingestAll, handleRequest } from '../engine.js';
 import { ingestOffers } from '../offers/ingest.js';
 import {
-  runFanOut, createServiceBindingDispatcher, runEnrichDrain, createEnrichDispatcher,
+  runFanOut, runStoreToPublication, createServiceBindingDispatcher,
+  runEnrichDrain, createEnrichDispatcher,
 } from '../scheduler.js';
 import {
   computeStoreRows,
@@ -270,11 +271,39 @@ function createInProcessDispatcher(ctx, mode) {
 // Dispatch an ingest across the target stores through the PRODUCTION path:
 // the cron's SELF service-binding fan-out — one child invocation per store,
 // each with its own subrequest budget, each writing its own audit row.
-async function dispatchIngest(ctx, targets, mode = '') {
+async function dispatchIngest(ctx, targets, mode = '', { completePublication = false } = {}) {
   const subRegistry = Object.fromEntries(targets.map((id) => [id, ctx.registry[id]]));
   const dispatch = ctx.self
-    ? createServiceBindingDispatcher({ self: ctx.self, ingestSecret: ctx.ingestSecret, mode, tag: 'ops' })
+    ? createServiceBindingDispatcher({
+        self: ctx.self,
+        ingestSecret: ctx.ingestSecret,
+        mode,
+        tag: 'ops',
+        returnReport: completePublication,
+      })
     : createInProcessDispatcher(ctx, mode);
+  if (completePublication && ctx.self) {
+    // A manual operation is synchronous from the operator's perspective even
+    // when it targets several unhealthy stores. Give every target the same
+    // publication loop used by the single-store button instead of verifying
+    // after one 20-page batch. Divide the coordinator's 48-call safety budget
+    // across targets so a broad repair cannot exceed the Worker subrequest
+    // ceiling. After the first full child seeds each durable job, continuation
+    // children advance brochures only; the final child refreshes exact offer
+    // linkage immediately before atomic publish (engine.js).
+    const resume = createServiceBindingDispatcher({
+      self: ctx.self,
+      ingestSecret: ctx.ingestSecret,
+      mode: 'brochures',
+      tag: 'ops',
+      returnReport: true,
+    });
+    const maxInvocations = Math.max(1, Math.floor(48 / targets.length));
+    return runFanOut(
+      subRegistry,
+      (store) => runStoreToPublication(store, dispatch, resume, { maxInvocations }),
+    );
+  }
   return runFanOut(subRegistry, dispatch);
 }
 
@@ -347,7 +376,17 @@ async function runOperation(ctx, body) {
     return report;
   }
 
-  const fanout = await dispatchIngest(ctx, targets, MODE_FOR_OP[op] || '');
+  const fanout = await dispatchIngest(
+    ctx,
+    targets,
+    MODE_FOR_OP[op] || '',
+    {
+      // Brochure operations promise an end-to-end run. Before the resumable
+      // redesign one child fulfilled that promise; now the Ops coordinator
+      // must explicitly drain every target's page batches before verification.
+      completePublication: op !== 'offers',
+    },
+  );
   const verification = await verifyTargets(ctx, targets);
   const ok = fanout.failed === 0 && verification.pass;
   const report = {

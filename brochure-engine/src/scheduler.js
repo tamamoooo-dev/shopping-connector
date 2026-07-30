@@ -50,6 +50,77 @@ export async function runFanOut(registry, dispatchStore) {
   };
 }
 
+// A manual store run is a synchronous operator contract: when it returns, each
+// targeted store's newly discovered brochure must either be published or the
+// operation must fail loudly. D4D collection became resumable in 2026-07,
+// so one /ingest child now advances at most 20 pages and may return
+// `storeComplete:false`. Keep dispatching fresh SELF-bound children (each with
+// its own external-subrequest budget) until the publication boundary has been
+// crossed. The normal all-store cron remains one-batch fan-out; its durable
+// queue is advanced by the */2 resume cron.
+//
+// 48 invocations is a runaway guard and covers up to 960 newly downloaded
+// pages at the production batch size. SELF calls are internal-service
+// subrequests, so they do not consume the Free plan's 50 external-request
+// allowance (the current internal-service allowance is much higher).
+export async function runStoreToPublication(
+  store,
+  dispatchInitial,
+  dispatchResume = dispatchInitial,
+  { maxInvocations = 48 } = {},
+) {
+  const reports = [];
+  let previousProgress = null;
+
+  for (let invocation = 1; invocation <= maxInvocations; invocation += 1) {
+    const report = await (invocation === 1 ? dispatchInitial : dispatchResume)(store);
+    reports.push(report);
+
+    const failed = Number(report?.totals?.failed || 0);
+    if (failed > 0) {
+      const detail =
+        report?.targets?.flatMap((target) => target.errors || []).find(Boolean) ||
+        report?.resumable?.error ||
+        `ingest reported ${failed} failed target(s)`;
+      throw new Error(`brochure publication ${store} failed: ${detail}`);
+    }
+
+    const resumable = report?.resumable;
+    if (!resumable || resumable.storeComplete === true) {
+      return {
+        ...report,
+        publication: {
+          complete: true,
+          invocations: reports.length,
+          pageBatches: reports.filter((item) => item?.resumable?.batch).length,
+          pagesCollected: reports.reduce(
+            (sum, item) => sum + Number(item?.resumable?.pagesCollected || 0),
+            0,
+          ),
+        },
+      };
+    }
+
+    const progress = JSON.stringify([
+      resumable.flyerRef || null,
+      resumable.nextPage ?? null,
+      resumable.brochuresCompleted ?? null,
+      resumable.complete === true,
+    ]);
+    if (progress === previousProgress) {
+      throw new Error(
+        `brochure publication ${store} made no progress at flyer ${resumable.flyerRef || 'unknown'} ` +
+        `(next page ${resumable.nextPage ?? 'unknown'})`,
+      );
+    }
+    previousProgress = progress;
+  }
+
+  throw new Error(
+    `brochure publication ${store} did not complete within ${maxInvocations} invocations`,
+  );
+}
+
 // The DEFAULT fan-out mechanism: a SELF service binding (Architecture C).
 // Each call triggers a fresh invocation of THIS Worker's fetch handler at
 // POST /ingest?store=<id>, guarded by the ingest secret — reusing the existing,
@@ -72,6 +143,7 @@ export function createServiceBindingDispatcher({
   origin = 'https://brochure-engine.internal',
   mode = '',
   tag = '',
+  returnReport = false,
 }) {
   if (!self || typeof self.fetch !== 'function') {
     throw new Error('scheduler: a SELF service binding (env.SELF) is required for the fan-out dispatcher');
@@ -88,7 +160,7 @@ export function createServiceBindingDispatcher({
       err.body = body;
       throw err;
     }
-    return body.totals || body;
+    return returnReport ? body : body.totals || body;
   };
 }
 
