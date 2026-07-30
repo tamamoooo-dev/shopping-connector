@@ -204,10 +204,20 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
 
     // Every offer of ONE flyer (the hotspots join): tap targets are keyed by
     // offer_id, so the whole flyer's products come back in a single query.
+    //
+    // Carries the aliased enrichment columns (ENRICH_ROW_COLS), exactly like
+    // search() and getByIds(). Without them the flyer viewer was the one read
+    // path that could not honour the 2026-07-21 canonical-identity directive:
+    // the columns were never fetched, so hotspots.js had nothing to overlay and
+    // every tapped product rendered its raw OCR debris (e.g. a Puck cheese tile
+    // titled "Limitad Quentitias Par Customer") even when a servable vision
+    // reading existed. No filters are added here — a flyer's own products are
+    // the caller's scope, unlike the public search window.
     async byFlyer(store, region, flyerRef) {
       const { results } = await db
         .prepare(
-          'SELECT * FROM offers WHERE store = ? AND region = ? AND flyer_ref = ? LIMIT 2000',
+          `SELECT o.*, ${enrichmentColumns} FROM offers o ${ENRICH_JOIN}
+            WHERE o.store = ? AND o.region = ? AND o.flyer_ref = ? LIMIT 2000`,
         )
         .bind(store, region, String(flyerRef))
         .all();

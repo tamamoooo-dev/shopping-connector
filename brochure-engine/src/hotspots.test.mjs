@@ -9,6 +9,8 @@
 // data-next-page-coords (owning the FOLLOWING page).
 
 import { parseHotspots, remapHotspotPages, flyerRefFromUrl, getHotspotsDoc } from './hotspots.js';
+import { rowToOffer } from './offers/contract.js';
+import { createD1OfferStore } from './storage/offerStore.js';
 
 let failures = 0;
 function check(name, cond, detail = '') {
@@ -140,6 +142,86 @@ check('flyerRefFromUrl null on non-leaflet URL',
 
   const notFound = await getHotspotsDoc(ctx, 'nope:x:y', {});
   check('unknown brochure is a 404', notFound.status === 404);
+}
+
+// --- the flyer viewer serves through THE canonical-identity gate --------------
+// REGRESSION PIN (2026-07-30). This route shipped 2026-07-04, before Vision
+// existed, and never called applyEnrichment. Production consequence: every
+// tapped product in the flyer viewer rendered raw OCR debris even when a
+// servable vision reading existed — a Panda Puck cheese tile titled
+// "Limitad Quentitias Par Customer" while offer_enrichments held
+// "Puck Processed Analogue Cream Cheese Spread (2 x 500g)". Both halves are
+// asserted: byFlyer must CARRY the enrichment columns, and the doc builder
+// must APPLY them.
+{
+  const row = {
+    id: 'hyperpanda:central:2026-W31',
+    store: 'hyperpanda',
+    region: 'central',
+    source_type: 'images',
+    source_url: 'https://d4donline.com/en/saudi-arabia/riyadh/offers/panda-1/751686/weekly',
+    storage_key: 'hyperpanda/central/2026-W31',
+  };
+  const snapshot = { pages: [{ index: 0, spots: [{ offerId: '94188402', x: 0, y: 0, w: 1, h: 1 }] }] };
+  const ctx = {
+    metadataStore: { getById: async () => row },
+    objectStore: {
+      get: async () => ({ bytes: new TextEncoder().encode(JSON.stringify(snapshot)) }),
+    },
+    offerStore: {
+      byFlyer: async () => [
+        // A servable vision reading over OCR debris (the real production row).
+        {
+          offer_id: '94188402',
+          name: null,
+          name_ar: 'وفر الكميه محدده لكل مشوق limitad quentitias par customer',
+          search_text: 'وفر الكميه محدده لكل مشوق limitad quentitias par customer',
+          e_name: 'Puck Processed Analogue Cream Cheese Spread (2 x 500g)',
+          e_name_ar: 'شيبية جبنة كريم مطبوخة (2 × 500 جم)',
+          e_corroboration: 1,
+          e_match_text: 'puck processed analogue cream cheese spread',
+        },
+        // Not servable (below CORROBORATION_FLOOR): must KEEP its OCR names.
+        {
+          offer_id: '94188405',
+          name: null,
+          name_ar: 'الذهبي طارح fresh وفر save',
+          search_text: 'الذهبي طارح fresh وفر save',
+          e_name: 'Al Faroj Golden Chicken Fillet 1000g',
+          e_name_ar: null,
+          e_corroboration: 0,
+        },
+      ],
+    },
+  };
+
+  const doc = (await getHotspotsDoc(ctx, row.id, { rowToOffer })).doc;
+  check('servable vision names replace OCR debris in the flyer viewer',
+    doc.offers['94188402'].name === 'Puck Processed Analogue Cream Cheese Spread (2 x 500g)' &&
+    doc.offers['94188402'].nameAr === 'شيبية جبنة كريم مطبوخة (2 × 500 جم)' &&
+    doc.offers['94188402'].enriched === true,
+    JSON.stringify(doc.offers['94188402']));
+  check('an unservable reading leaves the OCR names untouched',
+    doc.offers['94188405'].name === null &&
+    doc.offers['94188405'].nameAr === 'الذهبي طارح fresh وفر save' &&
+    !doc.offers['94188405'].enriched);
+}
+
+// The D1 byFlyer query must PROJECT the enrichment columns — without them the
+// gate above has nothing to apply, which is exactly how the bug survived.
+{
+  const captured = [];
+  const db = {
+    prepare(sql) {
+      captured.push(sql);
+      return { bind: () => ({ all: async () => ({ results: [] }) }) };
+    },
+  };
+  await createD1OfferStore(db).byFlyer('hyperpanda', 'central', '751686');
+  const sql = captured.join(' ');
+  check('byFlyer joins offer_enrichments and aliases its columns',
+    /offer_enrichments/i.test(sql) && /e_name\b/.test(sql) && /e_corroboration\b/.test(sql),
+    sql);
 }
 
 if (failures) {

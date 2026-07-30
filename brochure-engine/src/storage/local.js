@@ -377,6 +377,37 @@ export function createMemoryOfferStore({
   builtArabicNamesEnabled = false,
 } = {}) {
   const rows = new Map(); // id -> row (snake_case, like D1)
+
+  // The ENRICH_ROW_COLS twin, in ONE place. search() and byFlyer() both project
+  // it, because the production bug this mirrors was precisely one read path
+  // (the flyer viewer) silently not carrying these columns.
+  const decorateWithEnrichment = async (scoped) => {
+    const enr = enrichStore
+      ? await enrichStore.getForIds(scoped.map((r) => r.id))
+      : new Map();
+    return scoped.map((r) => {
+      const e = enr.get(r.id);
+      const selectedArabic = selectArabicName({
+        observedArabic: e?.name_ar ?? null,
+        shadow: readArabicBuilderShadow(e?.extraction_json),
+        enabled: builtArabicNamesEnabled,
+      });
+      return {
+        ...r,
+        e_name: e?.name ?? null,
+        e_name_ar: selectedArabic.nameAr,
+        // The D1 search projects the enrichment's brand and size too, and
+        // consumers read them (monitor.js offerAsListing turns a flyer row
+        // into a listing for the shared extractor). Omitting them here made
+        // the twin quietly weaker than production.
+        e_brand: e?.brand ?? null,
+        e_size: e?.size ?? null,
+        e_match_text: e?.match_text ?? null,
+        e_corroboration: e?.corroboration ?? null,
+      };
+    });
+  };
+
   return {
     async upsertMany(newRows) {
       for (const r of newRows) {
@@ -423,31 +454,7 @@ export function createMemoryOfferStore({
       // Decorate with the aliased enrichment columns (ENRICH_ROW_COLS twin),
       // then match relevance over the canonical haystack applyEnrichment
       // returns — same gate, same substrate as the D1 query.
-      const enr = enrichStore
-        ? await enrichStore.getForIds(scoped.map((r) => r.id))
-        : new Map();
-      return scoped
-        .map((r) => {
-          const e = enr.get(r.id);
-          const selectedArabic = selectArabicName({
-            observedArabic: e?.name_ar ?? null,
-            shadow: readArabicBuilderShadow(e?.extraction_json),
-            enabled: builtArabicNamesEnabled,
-          });
-          return {
-            ...r,
-            e_name: e?.name ?? null,
-            e_name_ar: selectedArabic.nameAr,
-            // The D1 search projects the enrichment's brand and size too, and
-            // consumers read them (monitor.js offerAsListing turns a flyer row
-            // into a listing for the shared extractor). Omitting them here made
-            // the twin quietly weaker than production.
-            e_brand: e?.brand ?? null,
-            e_size: e?.size ?? null,
-            e_match_text: e?.match_text ?? null,
-            e_corroboration: e?.corroboration ?? null,
-          };
-        })
+      return (await decorateWithEnrichment(scoped))
         .filter((r) => {
           if (!tokens.length) return true;
           const offer = rowToOffer(r);
@@ -458,9 +465,11 @@ export function createMemoryOfferStore({
         .slice(0, Math.max(1, Math.min(Number(limit) || 60, 300)));
     },
     async byFlyer(store, region, flyerRef) {
-      return [...rows.values()]
-        .filter((r) => r.store === store && r.region === region && String(r.flyer_ref) === String(flyerRef))
-        .slice(0, 2000);
+      return decorateWithEnrichment(
+        [...rows.values()]
+          .filter((r) => r.store === store && r.region === region && String(r.flyer_ref) === String(flyerRef))
+          .slice(0, 2000),
+      );
     },
     async requiredFlyerRefs(store, region, currentOn) {
       return [...new Set(

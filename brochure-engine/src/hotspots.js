@@ -35,6 +35,8 @@
 // so the frontend can position tap targets on ANY rendered size of the same
 // page image (the stored webp shares the flyer's aspect ratio).
 
+import { applyEnrichment } from './offers/enrich.js';
+
 // --- pure parser ---------------------------------------------------------------
 // Flyer HTML -> [{ index, spots: [{ offerId, x, y, w, h }] }] (fractions 0..1),
 // keyed by the SOURCE `data-index` (remap to stored ordinals before persisting).
@@ -178,12 +180,25 @@ export async function getHotspotsDoc(ctx, brochureId, { rowToOffer } = {}) {
     }
   }
 
-  // Join the spots' products from D1 in one query by the flyer id.
+  // Join the spots' products from D1 in one query by the flyer id, then run
+  // each row through THE canonical-identity gate (offers/enrich.js
+  // applyEnrichment) — the same overlay /offers and Watches serve with.
+  //
+  // This route predates Vision (created 2026-07-04; enrichment shipped 07-18)
+  // and was never brought under the 2026-07-21 one-gate directive, so the flyer
+  // viewer served raw OCR for EVERY tapped product — including the ~76% that
+  // hold a perfectly good servable reading. The gate itself decides: a
+  // servable row overlays its vision names, anything else keeps the OCR names
+  // it already had. No fallback logic belongs here.
   const offers = {};
   const flyerRef = flyerRefFromUrl(row.source_url);
   if (flyerRef && ctx.offerStore && ctx.offerStore.byFlyer) {
     const rows = await ctx.offerStore.byFlyer(row.store, row.region, flyerRef);
-    for (const r of rows) offers[r.offer_id] = rowToOffer ? rowToOffer(r) : r;
+    for (const r of rows) {
+      const offer = rowToOffer ? rowToOffer(r) : r;
+      if (rowToOffer) applyEnrichment(offer, r);
+      offers[r.offer_id] = offer;
+    }
   }
 
   return { status: 200, doc: { brochure: brochureId, flyerRef, pages, offers } };
