@@ -128,9 +128,12 @@ export function buildStructuredProduct(observation = {}) {
   const packCount = observation.pack_count ?? observation.packCount ?? observation.quantity ?? null;
   const packageTypeObserved = observation.package_type ?? observation.packageType ?? null;
   const attributes = observation.attributes ?? null;
+  // Disambiguation context from the retailer's category, supplied by the caller
+  // (offers/enrich.js productKnowledge). Absent = false = pre-v2 behaviour.
+  const nonGrocery = observation.non_grocery ?? observation.nonGrocery ?? false;
 
   const brand = resolveBrand(brandObserved);
-  const size = parsePackageSize({ size: sizeObserved, name: nameEn, packCount });
+  const size = parsePackageSize({ size: sizeObserved, name: nameEn, packCount, nonGrocery });
   const packageType = resolvePackageType(packageTypeObserved);
 
   const usableEnglish = hasUsableEnglish(nameEn);

@@ -74,12 +74,9 @@ check('a brand that IS a category word does not become the category',
 console.log('\nthe measured defects that shaped this layer:');
 check('a model code is never read as a package count (NRF110N26S)',
   buildStructuredProduct({ name_en: 'Refrigerator NRF110N26S', brand: 'NIKAI' }).size === null);
-// The brand now appears phonetically (ناجار) under the 2026-07-30 policy; the
-// property under test — that "INSTANT COFFEE" is not repeated after the
-// category already expressed it — is unchanged.
 check('an attribute already inside the category phrase is not repeated',
   arabic({ name_en: 'NAJJAR INSTANT COFFEE RED / GOLD 190G', brand: 'NAJJAR', package_size: '190G', attributes: ['INSTANT COFFEE', 'RED', 'GOLD'] })
-    === 'قهوة سريعة التحضير أحمر ذهبي ناجار 190 جم');
+    === 'قهوة سريعة التحضير أحمر ذهبي 190 جم');
 check('attributes still contribute descriptors the name did not carry',
   buildStructuredProduct({ name_en: 'Zoflora Disinfectant Spray 800ml', brand: 'Zoflora', package_size: '800ml', attributes: ['Concentrated'] })
     .descriptors.some((d) => d.id === 'concentrated' && d.from === 'attributes'));
@@ -105,28 +102,16 @@ check('a plain vocabulary miss is recorded as no_match',
 check('a resolved category records no diagnostics',
   buildStructuredProduct({ name_en: 'Almarai Halloumi Cheese' }).category_diagnostics === null);
 
-// POLICY REVERSAL (user, 2026-07-30). This block asserted the ORIGINAL
-// directive: a term with no Arabic form is DROPPED, never transliterated. Live
-// consequence once built names started serving was that "Doritos Tortilla
-// Chips" displayed as "شيبس" — the product word survived and everything
-// identifying WHICH product did not. The rule is now: write it as is, in Arabic
-// letters (lexicon/transliterate.js).
-//
-// The invariant that did NOT change, and is the reason transliteration is
-// acceptable at all: the built name still contains no Latin script.
-console.log('\nno Arabic term => written in Arabic letters, and always reported:');
+console.log('\nlossiness is by directive — dropped, not transliterated, and always reported:');
 {
   const observation = { name_en: 'Mughal ROYAL DIAMOND STEAMED 1121 BASMATI RICE XXL EXTRA LONG GRAIN 5kg', brand: 'Mughal', package_size: '5kg' };
   const a = buildArabicName(buildStructuredProduct(observation));
   check('the name is clean Arabic with no Latin left in it', !/[A-Za-z]/.test(a.name));
   check('the head noun and the understood descriptors survive',
-    a.name.startsWith('أرز بسمتي مطهو بالبخار حبة طويلة جداً') && a.name.endsWith('5 كجم'));
-  check('terms with no lexicon entry now APPEAR, phonetically',
-    a.name.includes('رويال') && a.name.includes('دياموند'));
-  check('everything transliterated is still reported', a.dropped.map((d) => d.token).includes('royal'));
-  check('an unresolvable brand is transliterated AND reported',
-    a.name.includes('موغال')
-    && a.dropped.some((d) => d.token === 'Mughal' && d.reason === 'brand_transliterated_no_arabic_name'));
+    a.name === 'أرز بسمتي مطهو بالبخار حبة طويلة جداً 5 كجم');
+  check('everything dropped is listed', a.dropped.map((d) => d.token).includes('royal'));
+  check('an unresolvable brand is dropped WITH a reason, never transliterated',
+    a.dropped.some((d) => d.token === 'Mughal' && d.reason === 'brand_has_no_arabic_name'));
   check('coverage measures the real loss', buildStructuredProduct(observation).coverage < 1);
 }
 

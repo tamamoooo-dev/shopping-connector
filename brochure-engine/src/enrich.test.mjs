@@ -40,6 +40,7 @@ import {
   VISION_PROMPT_SHA256,
 } from './offers/enrich.js';
 import { validateVisionOutput } from './offers/smartExtraction.js';
+import { BUSINESS_ACCEPTANCE_VERSION } from './offers/businessAcceptance.js';
 import { handleRequest } from './engine.js';
 
 let failures = 0;
@@ -367,9 +368,15 @@ console.log('S4 acceptance in the drain:');
     report.acceptance.missing.price === 1 &&
     report.acceptance.missing.english_name === 1 &&
     report.acceptance.missing.comparable_quantity === 1);
+  // R3: a verdict must be attributable to the rule that produced it. Asserted
+  // against the EXPORTED constant rather than a literal — pinning the literal
+  // makes every legitimate version bump look like a regression, while the
+  // property being defended is that the report and the stored row agree with
+  // each other and with the gate. The literal moved v1 -> v2 on 2026-07-30
+  // (product-class-aware M2) and would have to move again next time.
   check('the verdict carries the gate version it was produced by (R3)',
-    report.acceptance.version === 'business-acceptance-v1' &&
-    store.verdicts.get('s4:pass').version === 'business-acceptance-v1');
+    report.acceptance.version === BUSINESS_ACCEPTANCE_VERSION &&
+    store.verdicts.get('s4:pass').version === BUSINESS_ACCEPTANCE_VERSION);
   check('persisted count tracks verdicts that actually landed',
     report.acceptance.persisted === 3);
   check('S4 changes no existing outcome: the same rows enrich and escalate',
@@ -648,10 +655,8 @@ console.log('S4 acceptance in the drain:');
   // name, additive, and never replacing the observed Arabic.
   check('the structured product is built from the English name',
     res.structuredProduct.source === 'english' && res.structuredProduct.category.id === 'instant-coffee');
-  // The brand now rides along phonetically (NAJJAR -> ناجار): 2026-07-30 policy,
-  // a term with no Arabic form is written in Arabic letters rather than dropped.
   check('the Arabic name is GENERATED, not the observed OCR Arabic',
-    res.arabicName.status === 'built' && res.arabicName.name === 'قهوة سريعة التحضير ناجار 190 جم');
+    res.arabicName.status === 'built' && res.arabicName.name === 'قهوة سريعة التحضير 190 جم');
   check('the observed Arabic is still what the record carries as nameAr',
     res.nameAr === 'قهوة سريعة الذوبان' && res.structuredProduct.observed.name_ar === 'قهوة سريعة الذوبان');
   check('the in-memory record carries the same persisted shadow contract',

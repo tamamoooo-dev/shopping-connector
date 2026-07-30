@@ -5,6 +5,7 @@
 // the single reversible display-name switch.
 
 import { ARABIC_BUILD_STATUS, buildArabicName } from './arabicBuilder.js';
+import { cleanObservedArabic } from './observedArabic.js';
 import { buildStructuredProduct, PRODUCT_SOURCES } from './structuredProduct.js';
 import { calculateCommerceScore } from '../offers/commerceScore.js';
 
@@ -157,6 +158,18 @@ export function createArabicBuilderShadow(
     path: status === BUILDER_STATUS.BUILT ? 'BUILT_CANDIDATE' : 'OBSERVED_FALLBACK',
     observed_arabic: structured?.observed?.name_ar ?? null,
     built_arabic: status === BUILDER_STATUS.BUILT ? built.name : null,
+    // THE SERVED NAME (user decision, 2026-07-30). Not the built name: composing
+    // from the lexicon loses whatever the lexicon does not know ("Doux Chicken
+    // Nuggets or Fingers" -> "ناجتس دجاج"), and transliterating the remainder to
+    // stop that loss read worse still. This is the model's OWN Arabic, stripped
+    // of Latin debris, with the brand appended when it is missing — no word is
+    // invented, and both of the observed text's mechanical defects are repaired.
+    // Null when cleaning leaves nothing, and the read path then serves the raw
+    // observed text: a bad name beats no name.
+    display_arabic: cleanObservedArabic(structured?.observed?.name_ar ?? null, {
+      brandAr: structured?.brand?.display_ar ?? null,
+    }),
+    display_source: 'observed_cleaned',
     coverage_score: structured?.coverage ?? null,
     builder_score_version: builderScore.version,
     builder_score: builderScore.score,

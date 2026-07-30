@@ -42,13 +42,40 @@
 // (VISION-PIPELINE.md C-1, C-5).
 
 import { hasUsableCommercePrice } from './commerceScore.js';
+import { PRODUCT_CLASS, isNonGrocery } from '../lexicon/productClass.js';
 import {
   COMPARABLE_QUANTITY_STATUS,
   comparableQuantityFromStructured,
   resolveComparableQuantity,
 } from '../lexicon/comparableQuantity.js';
 
-export const BUSINESS_ACCEPTANCE_VERSION = 'business-acceptance-v1';
+// ---------------------------------------------------------------------------
+// v2 · 2026-07-30 — PRODUCT-CLASS-AWARE M2 (user directive: "non grocery items
+// i.e. mobile / bags / tv should be accepted with less strict rule").
+//
+// THE MANDATORY SET IS UNCHANGED. Still exactly price, comparable quantity and
+// English name; R3's "a fourth condition is v2, never an edit of v1" is not
+// being exercised, because nothing was added or removed. What changed is what
+// COUNTS as a resolved comparable quantity: for non-grocery stock the projection
+// gains a UNIT basis (comparableQuantity.js), because M2's own justification —
+// "without it a price is a number with no denominator" — is a statement about
+// groceries. A television's denominator is one television.
+//
+// The version is still bumped, and it must be: `offer_acceptance_verdicts.version`
+// exists so a verdict is always attributable to the rule that produced it, and
+// the same television legitimately yields ABSENT under v1 and RESOLVED under v2.
+// Sharing a version string would erase that distinction permanently.
+//
+// EFFECTIVELY MONOTONIC, which is why it ships live rather than behind a flag:
+// leniency is opt-in per retailer category and an unknown category stays strict
+// (productClass.js), so v2 can turn a non-grocery REJECT into an ACCEPT and
+// cannot turn any grocery ACCEPT into a reject. Measured on the live catalogue:
+// 2,071 current non-grocery offers flip to accepted, all of them previously
+// blocked on `comparable_quantity` ALONE.
+//
+// REVERTING is two edits with no migration: restore the version string and stop
+// passing `nonGrocery` below. Stored v1 verdicts are untouched either way.
+export const BUSINESS_ACCEPTANCE_VERSION = 'business-acceptance-v2';
 
 // The mandatory set, ordered. This array IS the contract: adding to it is a new
 // version, and the per-condition `missing` list is derived from it so the two
@@ -82,11 +109,22 @@ export function evaluateBusinessAcceptance({
   comparableQuantity = null,
   structured = null,
   observation = null,
+  productClass = null,
 } = {}) {
+  // v2 · read from the OFFER ROW, like price (C-2), and never from the model.
+  // The retailer already told us this is a phone; asking a vision model to
+  // re-derive that would be paying for a fact we were given for free, and would
+  // make the gate's leniency depend on an extraction that may itself have
+  // failed. `productClass` stays overridable so a caller holding a better
+  // classification (or a test) can supply one.
+  const nonGrocery = productClass != null
+    ? productClass === PRODUCT_CLASS.NON_GROCERY
+    : isNonGrocery(offer?.category);
+
   const quantity = comparableQuantity
     ?? (structured
-      ? comparableQuantityFromStructured(structured)
-      : resolveComparableQuantity(observation || {}));
+      ? comparableQuantityFromStructured(structured, { nonGrocery })
+      : resolveComparableQuantity({ ...(observation || {}), nonGrocery }));
 
   const mandatory = Object.freeze({
     price: hasUsableCommercePrice(offer || {}),

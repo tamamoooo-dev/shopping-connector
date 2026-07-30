@@ -111,16 +111,26 @@ const SHADOW_STATUS_SQL =
 const SHADOW_BUILT_ARABIC_SQL =
   `(CASE WHEN json_valid(e.extraction_json) ` +
   `THEN json_extract(e.extraction_json, '$._arabic_builder.built_arabic') ELSE NULL END)`;
+const SHADOW_DISPLAY_ARABIC_SQL =
+  `(CASE WHEN json_valid(e.extraction_json) ` +
+  `THEN json_extract(e.extraction_json, '$._arabic_builder.display_arabic') ELSE NULL END)`;
 
 // The only production switch. When disabled (the default), this is byte-for-
-// byte the historical observed-Arabic expression. When enabled, a built name
-// is eligible only if the persisted shadow status is exactly BUILT; legacy
-// rows, refusals, and missing metadata all fall back automatically.
+// byte the historical observed-Arabic expression.
+//
+// When enabled it serves `display_arabic` — the model's OWN Arabic cleaned of
+// Latin debris with the brand appended (lexicon/observedArabic.js). It is NOT
+// the built name: composing from the lexicon dropped whatever the lexicon did
+// not know, and transliterating the remainder to stop that loss read worse than
+// either (user, 2026-07-30, after seeing both live). `built_arabic` is still
+// computed and persisted for diagnostics and the Builder Score; nothing serves
+// it. A row with no display name — cleaning left nothing, or a legacy row
+// written before this field existed — falls back to the raw observed text, so
+// the switch can never blank a name.
 export function enrichmentNameArSql(enabled = false) {
   if (!builtArabicNamesEnabled(enabled)) return 'e.name_ar';
-  return `(CASE WHEN ${SHADOW_STATUS_SQL} = '${BUILDER_STATUS.BUILT}' ` +
-    `AND ${SHADOW_BUILT_ARABIC_SQL} IS NOT NULL ` +
-    `THEN ${SHADOW_BUILT_ARABIC_SQL} ELSE e.name_ar END)`;
+  return `(CASE WHEN ${SHADOW_DISPLAY_ARABIC_SQL} IS NOT NULL ` +
+    `THEN ${SHADOW_DISPLAY_ARABIC_SQL} ELSE e.name_ar END)`;
 }
 
 export function canonicalNameArSql(enabled = false) {
@@ -294,7 +304,7 @@ export function createD1EnrichStore(db) {
     async listDebris({ currentOn, limit = 15, scope = 'all' } = {}) {
       const { results } = await db
         .prepare(
-          `SELECT o.id, o.image_url, o.price, o.currency
+          `SELECT o.id, o.image_url, o.price, o.currency, o.category
              FROM offers o
              LEFT JOIN offer_enrichments e ON e.id = o.id
              LEFT JOIN offer_extraction_attempts v
@@ -320,7 +330,7 @@ export function createD1EnrichStore(db) {
         .prepare(
           `SELECT e.id, e.name, e.name_ar, e.brand, e.size, e.confidence,
                   e.extraction_json, e.identity_candidate, e.mint_verdict,
-                  o.price, o.currency
+                  o.price, o.currency, o.category
              FROM offer_enrichments e
              LEFT JOIN offers o ON o.id = e.id
             WHERE e.id > ?
@@ -366,7 +376,7 @@ export function createD1EnrichStore(db) {
       if (!selected.length) return [];
       const { results } = await db
         .prepare(
-          `SELECT id, image_url, price, currency FROM offers
+          `SELECT id, image_url, price, currency, category FROM offers
             WHERE id IN (${selected.map(() => '?').join(',')})
               AND image_url IS NOT NULL AND valid_to >= ?
             ORDER BY detected_at DESC`,

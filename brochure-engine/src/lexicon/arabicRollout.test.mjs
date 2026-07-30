@@ -230,13 +230,19 @@ await test('disabled SQL is the historical observed-Arabic path', () => {
   assert.ok(!canonicalNameArSql(false).includes('json_extract'));
 });
 
-await test('enabled SQL is guarded by the persisted BUILT status', () => {
+// 2026-07-30: the served name is `display_arabic` — the model's own Arabic
+// cleaned of Latin debris with the brand appended — NOT `built_arabic`. The
+// composed name lost whatever the lexicon did not know, and transliterating the
+// remainder to stop that read worse than either. `built_arabic` is still
+// persisted for diagnostics and the Builder Score; nothing serves it.
+await test('enabled SQL serves the cleaned observed name, falling back to raw', () => {
   const sql = canonicalNameArSql(true);
-  assert.ok(sql.includes('_arabic_builder.status'));
-  assert.ok(sql.includes("= 'BUILT'"));
+  assert.ok(sql.includes('_arabic_builder.display_arabic'));
   assert.ok(sql.includes('json_valid'));
-  assert.ok(sql.includes('built_arabic'));
   assert.ok(sql.includes('ELSE e.name_ar'));
+  // The status gate belonged to the built name and must not gate this one: a
+  // row the BUILDER refused still has a perfectly good observed name to clean.
+  assert.ok(!sql.includes("= 'BUILT'"));
 });
 
 await test('debug diagnostics are invisible outside development', async () => {

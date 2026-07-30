@@ -41,7 +41,13 @@
 import { parsePackageSize } from './packageSize.js';
 import { resolvePackageType } from './shopping.js';
 
-export const COMPARABLE_QUANTITY_VERSION = 'comparable-quantity-v1';
+// v2 (2026-07-30) adds the UNIT basis for non-grocery stock. The version is
+// bumped rather than edited because every stored projection must stay
+// attributable to the rule that produced it — a v1 `ABSENT` on a television and
+// a v2 `RESOLVED/unit` on the same television are both correct answers to
+// different questions, and a shared version string would make that
+// indistinguishable forever.
+export const COMPARABLE_QUANTITY_VERSION = 'comparable-quantity-v2';
 
 export const COMPARABLE_QUANTITY_STATUS = Object.freeze({
   RESOLVED: 'RESOLVED',
@@ -52,6 +58,16 @@ export const COMPARABLE_QUANTITY_BASIS = Object.freeze({
   MEASURE: 'measure',     // a printed magnitude in a measurement unit
   COUNT: 'count',         // a printed number of countable units
   CONTAINER: 'container', // a named package with no printed magnitude
+  // v2 · sold as ONE INDIVISIBLE ITEM — a television, a phone, a bag. Admits
+  // the product; supports grouping and direct price comparison but NOT
+  // arithmetic, exactly like CONTAINER, so `unitPriceComparable` stays false.
+  //
+  // This is not a relaxation of the M2 argument, it is the M2 argument applied
+  // honestly: "without a quantity a price is a number with no denominator" is
+  // true of rice and false of a television, whose denominator IS one
+  // television. Two 65" TVs at 1,999 and 2,499 are already comparable, and no
+  // ml/g figure would make them more so.
+  UNIT: 'unit',
 });
 
 // The measurement units `parsePackageSize()` can emit. `oz` is deliberately
@@ -90,7 +106,7 @@ function resolved({ basis, quantity, unit, pack, unitPriceComparable, source }) 
 // The projection itself: parser outputs in, one shape out. Ordered — first hit
 // wins — so a product that printed a magnitude is never demoted to its
 // container word.
-export function projectComparableQuantity(parsedSize = null, packageType = null) {
+export function projectComparableQuantity(parsedSize = null, packageType = null, { nonGrocery = false } = {}) {
   // 1 · measure — "330 ml", "6 x 250 ml". The strongest basis: a magnitude and
   //     a unit, so both grouping and arithmetic are possible.
   if (parsedSize?.present && parsedSize.unit && positive(parsedSize.quantity)) {
@@ -133,6 +149,25 @@ export function projectComparableQuantity(parsedSize = null, packageType = null)
     });
   }
 
+  // 4 · unit (v2) — LAST, and last on purpose. A non-grocery product that DID
+  //     print a real magnitude keeps it: a 1.7 l kettle and a 7 kg washing
+  //     machine are genuinely measure-comparable, and 627 live non-grocery
+  //     offers currently resolve that way. This branch is a floor for the ones
+  //     that print nothing at all, never a ceiling on the ones that do.
+  if (nonGrocery) {
+    return resolved({
+      basis: COMPARABLE_QUANTITY_BASIS.UNIT,
+      quantity: 1,
+      unit: 'item',
+      pack: 1,
+      // Grouping and price comparison: yes. Price-per-unit arithmetic: no —
+      // dividing by "1 item" would produce a number that merely looks like a
+      // unit price, which is worse than declining to compute one.
+      unitPriceComparable: false,
+      source: 'product_class',
+    });
+  }
+
   return ABSENT;
 }
 
@@ -144,19 +179,28 @@ export function resolveComparableQuantity({
   name = null,
   packCount = null,
   packageType = null,
+  // Defaults false, so every existing caller keeps v1 behaviour exactly.
+  nonGrocery = false,
 } = {}) {
   return projectComparableQuantity(
-    parsePackageSize({ size, name, packCount }),
+    // The class reaches the PARSER too, not just the projection: on a phone it
+    // is what stops a trailing "5G" becoming five grams and winning the measure
+    // branch before the unit branch is ever reached. Passing it to only one of
+    // the two would leave mobiles — the directive's own first example —
+    // resolving on a fabricated mass.
+    parsePackageSize({ size, name, packCount, nonGrocery }),
     resolvePackageType(packageType),
+    { nonGrocery },
   );
 }
 
 // The Structured Product already holds both parser outputs (`size` is
 // `parsePackageSize()` output, `package_type` is `resolvePackageType()` output),
 // so this re-parses nothing.
-export function comparableQuantityFromStructured(structured) {
+export function comparableQuantityFromStructured(structured, { nonGrocery = false } = {}) {
   return projectComparableQuantity(
     structured?.size ?? null,
     structured?.package_type ?? null,
+    { nonGrocery },
   );
 }

@@ -55,6 +55,7 @@ import {
   normalizeIdentityMode,
 } from './identityBuilder.js';
 import { resolveBrand } from '../lexicon/brands.js';
+import { isNonGrocery } from '../lexicon/productClass.js';
 import {
   BUSINESS_ACCEPTANCE_VERSION,
   MANDATORY_CONDITIONS,
@@ -574,6 +575,13 @@ export function productKnowledge(extracted, observation, commerceContext = {}) {
     // price fields never enter preservedObservation and cannot reach this path.
     price: commerceContext?.price ?? null,
     currency: commerceContext?.currency ?? null,
+    // v2 · the retailer's own classification, from the offer row (C-2), so the
+    // size parser knows a trailing "5G" on a phone is a radio and not five
+    // grams. Threaded here rather than only at the gate because the STRUCTURED
+    // PRODUCT is what search, matching and the Registry read — a gate that
+    // ignored a fake size while the stored record kept it would be a fix in
+    // name only.
+    non_grocery: isNonGrocery(commerceContext?.category),
   });
 }
 

@@ -94,6 +94,44 @@ const MEASURE_RE = new RegExp(`(${NUM})\\s*(${MEASURE_ALT})(?![a-z])`, 'iu');
 const COUNT_WORD_RE = new RegExp(`(\\d{1,3})\\s*(${COUNT_ALT})(?![a-z])`, 'iu');
 const APOSTROPHE_COUNT_RE = /(\d{1,3})\s*['’]s(?![a-z])/iu;
 
+// --- network generations are not grams ----------------------------------------
+//
+// "Vivo Y31s 8GB/256GB 5G" resolved to a confidently well-formed FIVE GRAMS,
+// because MEASURE_RE reads the trailing `5G` exactly as it reads `190G`.
+// `comparableQuantity.js` documents this as the known ceiling ("HONOR 5G
+// projects to a perfectly well-formed 5 g"); measured 2026-07-30 it is not
+// theoretical — 235 live offers carry a name-derived `5g`, and 80 of them are
+// S4-ACCEPTED on it, i.e. servable with a five-gram denominator.
+//
+// WHY THE GUARD IS NARROW. `5 g` is a perfectly real grocery size — yeast,
+// saffron, spice sachets — so `Ng` can NEVER be banned outright. Only two
+// things distinguish the cellular sense, and both are required to be safe:
+//
+//   1 · the number is a network generation (2/3/4/5) and the unit is bare `g`
+//   2 · AND the surrounding text is a device — either it carries another device
+//       specification, or the caller told us the product class is non-grocery
+//
+// A yeast sachet satisfies neither. A phone satisfies at least one: measured on
+// the 291 live cases, 143 carry a `GB`/`mAh`/`RAM` token in the name and the
+// remaining 148 ("Oppo A6T 5G", "Samsung Tab A11+ 5G") are caught by the
+// product class. Neither signal alone is sufficient, which is exactly why both
+// are here.
+const NETWORK_GENERATION_RE = /^[2-5]$/;
+// Storage, battery, camera, refresh rate, cellular radio — the company `5G`
+// keeps. Deliberately NOT a general "has a number" test.
+const DEVICE_SPEC_RE = /\d+\s*gb\b|\d+\s*tb\b|\d+\s*mah\b|\d+\s*mp\b|\d+\s*hz\b|\blte\b|\bwifi\b|\bram\b|\brom\b|\bdual\s*sim\b/iu;
+
+/**
+ * True when a `MEASURE_RE` hit is a cellular generation rather than a mass.
+ * `unitKey` is the RAW matched unit text, so `5G`/`5g` qualify and `5kg` — a
+ * different unit entirely — never reaches this test as a candidate.
+ */
+function isNetworkGeneration(quantityText, unitKey, text, nonGrocery) {
+  if (!NETWORK_GENERATION_RE.test(String(quantityText).trim())) return false;
+  if (String(unitKey).trim().toLowerCase() !== 'g') return false;
+  return nonGrocery || DEVICE_SPEC_RE.test(text);
+}
+
 const number = (raw) => Number.parseFloat(String(raw).replace(',', '.'));
 
 // Trailing ".0" is noise on a shelf label: 1.0 L reads as 1 L.
@@ -109,10 +147,16 @@ function measureFor(key) {
 // The printed size, read from the model's size field first and the English name
 // second. Field-first is deliberate: the extractor typed that field as a size,
 // so it needs no disambiguation, while a name can also contain a model number.
-function readPrinted(sizeField, name) {
+function readPrinted(sizeField, name, { nonGrocery = false, context = '' } = {}) {
   for (const [source, raw] of [['size_field', sizeField], ['name', name]]) {
     const text = foldSizeText(raw);
     if (!text) continue;
+    // The device signal is read from the WHOLE product context, not just the
+    // fragment being parsed: a model that put "5G" in the size field alone
+    // ("size": "5G") gives that field no device markers of its own, while the
+    // name beside it is unmistakably a phone. Measured: 14 of the live false
+    // positives arrived exactly that way.
+    const deviceText = `${text} ${context}`;
 
     const packMeasure = PACK_MEASURE_RE.exec(text);
     if (packMeasure) {
@@ -127,7 +171,12 @@ function readPrinted(sizeField, name) {
     const measure = MEASURE_RE.exec(text);
     if (measure) {
       const unit = measureFor(measure[2]);
-      if (unit) return { source, kind: 'measure', quantity: number(measure[1]), unit, pack: 1, printed: measure[0].trim() };
+      // A network generation is refused OUTRIGHT rather than falling through to
+      // the count branches: "5G" is not a count either, and letting it continue
+      // would only swap one invented quantity for another.
+      if (unit && !isNetworkGeneration(measure[1], measure[2], deviceText, nonGrocery)) {
+        return { source, kind: 'measure', quantity: number(measure[1]), unit, pack: 1, printed: measure[0].trim() };
+      }
     }
     const countWord = COUNT_WORD_RE.exec(text);
     if (countWord) {
@@ -163,9 +212,18 @@ function countWordFor(count, countUnit = DEFAULT_COUNT) {
 //   display_en — the shopper-facing English label
 //   display_ar — the shopper-facing Arabic label
 //   canonical  — matching.js parseSize() output, unchanged (the comparison view)
-export function parsePackageSize({ size = null, name = null, packCount = null } = {}) {
+// `nonGrocery` is DISAMBIGUATION CONTEXT, not policy. It never changes what a
+// magnitude means; it only tells the reader that a bare `5G` on this product is
+// a radio, not five grams — the same kind of hint `size_field`-before-`name`
+// precedence already encodes. Callers that do not know the product class omit
+// it and get byte-identical behaviour to before this option existed.
+export function parsePackageSize({
+  size = null, name = null, packCount = null, nonGrocery = false,
+} = {}) {
   const canonical = parseSize(name || '', [size, packCount].filter(Boolean).join(' '));
-  const printed = readPrinted(size, name) || readPrinted(packCount, null);
+  const context = `${name || ''} ${size || ''}`;
+  const printed = readPrinted(size, name, { nonGrocery, context })
+    || readPrinted(packCount, null, { nonGrocery, context });
   if (!printed) {
     if (!canonical?.unit) return null;
     // A bonus pack ("8 + 2") prints no unit word, so nothing above matches it —

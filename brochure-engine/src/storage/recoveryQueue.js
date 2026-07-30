@@ -346,7 +346,7 @@ export function createRecoveryQueue(db) {
            q.claim_until, q.next_attempt_at, q.last_error, q.meta,
            q.created_at, q.updated_at, q.queued_at,
            o.image_url, o.price, o.currency, o.name, o.name_ar, o.search_text,
-           o.valid_to,
+           o.valid_to, o.category,
            v.version AS verdict_version, v.accepted AS verdict_accepted,
            v.missing AS verdict_missing, v.mandatory AS verdict_mandatory,
            v.quantity_status, v.quantity_basis,
@@ -381,6 +381,12 @@ export function createRecoveryQueue(db) {
       name_ar: row.name_ar,
       search_text: row.search_text,
       valid_to: row.valid_to,
+      // v2 · the retailer's classification. The runner hands `item.offer`
+      // straight to `evaluateBusinessAcceptance`, so without this column a
+      // re-judged recovery item would be classified GROCERY by the fail-safe
+      // and a television would stay rejected forever no matter which processor
+      // ran. The queue still knows nothing about what the value MEANS.
+      category: row.category ?? null,
     },
     // Current enrichment, so a caller can re-test servability without a second
     // query. Shaped as `servable()` expects rather than as the DB row.

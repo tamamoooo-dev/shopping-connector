@@ -239,25 +239,31 @@ await test('acceptanceSummary counts conditions separately, and they OVERLAP', a
   close();
 });
 
-await test('the summary is version-scoped, so a v2 is never averaged with v1', async () => {
-  const { store, close } = freshStore([{ id: 'a:r:d4d:v1' }, { id: 'a:r:d4d:v2' }]);
+await test('the summary is version-scoped, so one gate version is never averaged with another', async () => {
+  // The "other" version must be one that CANNOT become real, or this test
+  // quietly stops testing anything the day it ships. It was originally spelled
+  // `business-acceptance-v2`, which collided with the real v2 on 2026-07-30 —
+  // both fixtures landed in the same bucket and the scoping assertion failed
+  // for the right reason. A far-future sentinel keeps the property honest.
+  const OTHER_VERSION = 'business-acceptance-v999';
+  assert.notEqual(BUSINESS_ACCEPTANCE_VERSION, OTHER_VERSION, 'the sentinel must never be the live version');
+  const { store, close } = freshStore([{ id: 'a:r:d4d:cur' }, { id: 'a:r:d4d:other' }]);
   await store.saveVisionOutcome({
-    attempt: attempt('a:r:d4d:v1'), canonicalRow: null, acceptance: acceptedVerdict,
+    attempt: attempt('a:r:d4d:cur'), canonicalRow: null, acceptance: acceptedVerdict,
   });
   await store.saveVisionOutcome({
-    attempt: attempt('a:r:d4d:v2'),
+    attempt: attempt('a:r:d4d:other'),
     canonicalRow: null,
-    // A hypothetical future gate version, to prove scoping works before one exists.
-    acceptance: { ...acceptedVerdict, version: 'business-acceptance-v2', accepted: false, missing: ['price'] },
+    acceptance: { ...acceptedVerdict, version: OTHER_VERSION, accepted: false, missing: ['price'] },
   });
   const all = await store.acceptanceSummary();
   assert.equal(all.judged, 2);
-  const v1 = await store.acceptanceSummary({ version: BUSINESS_ACCEPTANCE_VERSION });
-  assert.equal(v1.judged, 1);
-  assert.equal(v1.accepted, 1);
-  const v2 = await store.acceptanceSummary({ version: 'business-acceptance-v2' });
-  assert.equal(v2.judged, 1);
-  assert.equal(v2.rejected, 1);
+  const current = await store.acceptanceSummary({ version: BUSINESS_ACCEPTANCE_VERSION });
+  assert.equal(current.judged, 1);
+  assert.equal(current.accepted, 1);
+  const other = await store.acceptanceSummary({ version: OTHER_VERSION });
+  assert.equal(other.judged, 1);
+  assert.equal(other.rejected, 1);
   close();
 });
 
