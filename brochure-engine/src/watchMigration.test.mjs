@@ -23,7 +23,10 @@ const PRE = [
   'migrate-2026-07-profiles.sql',
   'migrate-2026-07-27-price-watch-v2.sql',
 ];
-const MIGRATION = 'migrate-2026-07-29-watch-product-anchor.sql';
+const MIGRATIONS = [
+  'migrate-2026-07-29-watch-product-anchor.sql',
+  'migrate-2026-07-30-watch-identity-state.sql',
+];
 
 const fixture = createSqliteD1(PRE);
 try {
@@ -57,12 +60,14 @@ try {
   ok(before === 4, 'four live-shaped rows exist pre-migration');
 
   // --- 1. the migration applies ------------------------------------------------
-  raw.exec(readFileSync(MIGRATION, 'utf8'));
+  for (const migration of MIGRATIONS) raw.exec(readFileSync(migration, 'utf8'));
   ok(true, 'the migration applies cleanly to a live-shaped database');
 
   const cols = raw.prepare('PRAGMA table_info(watches)').all().map((r) => r.name);
   for (const c of ['registry_product_id', 'spec', 'scope',
-    'last_resolution', 'last_resolution_reason', 'resolved_at']) {
+    'last_resolution', 'last_resolution_reason', 'resolved_at', 'anchor_state',
+    'source_snapshot', 'anchor_provenance', 'candidate_snapshot',
+    'monitoring_health', 'monitoring_health_reason']) {
     ok(cols.includes(c), `added column ${c}`);
   }
   // Additive: nothing the previous deployment wrote was removed.
@@ -82,10 +87,12 @@ try {
   ok(raw.prepare('SELECT COUNT(*) AS n FROM watches').get().n === before, 'no row lost');
   const reg = raw.prepare("SELECT * FROM watches WHERE id = 'w_registry'").get();
   ok(reg.registry_product_id === 'pr_livechicken1', 'a registry watch is anchored by the migration');
+  ok(reg.anchor_state === 'anchored_registry', 'and receives the explicit Registry identity state');
   ok(reg.last_resolution === null, 'and is NOT stamped as waiting');
 
   const strict = raw.prepare("SELECT * FROM watches WHERE id = 'w_strict'").get();
   ok(strict.last_resolution === 'pending-migration', 'an unanchored watch IS stamped');
+  ok(strict.anchor_state === 'resolving', 'and re-enters system-owned resolution');
   ok(strict.last_price === 23.5, 'and its existing state is untouched');
   ok(strict.identity_family === 'chicken', 'including the v2 identity columns');
 
@@ -98,6 +105,11 @@ try {
   const store = createD1WatchStore(db);
   await store.setAnchor('w_strict', {
     registryProductId: 'pr_boundnow001', spec: null,
+    provider: null, productId: null, anchorState: 'anchored_registry',
+    anchorPolicyVersion: 'watch-identity-v3-2026-07-30',
+    anchorConfidence: 1, anchorMargin: 1,
+    anchorProvenance: '{"kind":"test"}',
+    monitoringHealth: 'unchecked',
     lastResolution: null, lastResolutionReason: null,
   });
   const bound = await store.get('w_strict');
@@ -123,6 +135,8 @@ try {
     id: 'w_new', profileId: 'profile-live-1', kind: 'grocery', scope: 'market',
     query: 'milk', label: 'Almarai Milk 1 L', targetPrice: 5, currency: 'SAR',
     registryProductId: 'pr_milk00000001', spec: null, active: true,
+    anchorState: 'anchored_registry', monitoringHealth: 'unchecked',
+    anchorPolicyVersion: 'watch-identity-v3-2026-07-30',
     createdAt: '2026-07-29T00:00:00Z',
   });
   ok((await store.get('w_new')).registryProductId === 'pr_milk00000001', 'create() round-trips');

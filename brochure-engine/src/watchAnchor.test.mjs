@@ -227,28 +227,28 @@ const baseWatch = (over = {}) => {
   const created = await anchorWatch({ registryStore: store }, baseWatch(), listing());
   ok(created.watch.registryProductId === product.id, 'an existing product is attached');
 
-  // A product nothing has ever seen: create-on-doubt mints it, supervised.
+  // A product nothing has ever seen stays system-owned. Watches never mint or
+  // teach shared Registry identity merely to clear an identity workflow.
   const fresh = await anchorWatch(
     { registryStore: store }, baseWatch(),
     listing({ name: 'Almarai Full Fat Yoghurt 400 g', brand: 'Almarai', size: '400 g' }),
   );
-  ok(fresh.watch.registryProductId != null, 'an unseen product is minted, not refused');
-  ok(fresh.created != null, 'and the mint is reported so it can be reviewed');
+  ok(fresh.watch.registryProductId == null, 'an unseen product does not mint Registry identity');
+  ok(fresh.watch.anchorState === 'resolving', 'and remains retryable without asking an empty question');
 
   // A LEXICON GAP ("zabadi" is not in the family vocabulary) must produce a
-  // question, never a guess. This is the honest failure mode: the system says
-  // "I cannot identify this" instead of quietly attaching to something close.
+  // system-owned resolution, never a guess or an empty user question.
   const gap = await anchorWatch(
     { registryStore: store }, baseWatch(),
     listing({ name: 'Almarai Zabadi Full Fat 400 g', brand: 'Almarai', size: '400 g' }),
   );
-  ok(gap.needsConfirmation === true, 'an unreadable family asks rather than guesses');
+  ok(gap.watch.anchorState === 'resolving', 'an unreadable family remains system-owned');
   ok(gap.watch.registryProductId == null, 'and anchors nothing');
 
-  // A listing too thin to identify -> needs-confirmation, never a guess.
+  // A listing too thin to identify cannot produce an actionable ambiguity set.
   const thin = await anchorWatch({ registryStore: store }, baseWatch(), { name: 'Pepsi 1 L', brand: 'Pepsi' });
-  ok(thin.needsConfirmation === true, 'ambiguity asks the user');
-  ok(thin.watch.lastResolution === RESOLUTION.NEEDS_CONFIRMATION, 'and holds an explicit state');
+  ok(thin.needsConfirmation !== true, 'no candidate means no confirmation request');
+  ok(thin.watch.anchorState === 'resolving', 'and holds an explicit retryable state');
   ok(thin.watch.registryProductId == null, 'with no anchor guessed');
 }
 

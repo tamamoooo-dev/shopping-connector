@@ -130,6 +130,7 @@ try {
     'migrate-2026-07-profiles.sql',
     'migrate-2026-07-27-price-watch-v2.sql',
     'migrate-2026-07-29-watch-product-anchor.sql',
+    'migrate-2026-07-30-watch-identity-state.sql',
   ]);
   const canonical = createSqliteD1(['schema.sql']);
   try {

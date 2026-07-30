@@ -210,7 +210,7 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
   const body = await capped.json();
   ok('the STORAGE bound refuses at MAX_WATCH_ROWS', capped.status === 409);
   ok('and the error names why the rows are there',
-    /awaiting confirmation/.test(body.error), body.error);
+    /awaiting identity resolution/.test(body.error), body.error);
 }
 
 // --- legacy adoption (pre-profile watches) ---
@@ -360,7 +360,21 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
     { date: '2026-07-29' },
   );
   await ctx.registryStore.createProduct(product, profileTokens(decodeProfile(product.token_profile)));
-  const confirm = await patch(ctx, `/watches?id=${id}&profile=${A}`, { registryProductId: product.id });
+  const candidateVersion = 'wc_route_test';
+  await ctx.watchStore.setAnchor(id, {
+    ...created.watch,
+    anchorState: 'confirmation_required',
+    candidateSnapshot: JSON.stringify({
+      version: candidateVersion,
+      reason: 'route test ambiguity',
+      candidates: [{ type: 'registry', productId: product.id }],
+    }),
+    lastResolution: 'needs-confirmation',
+  });
+  const confirm = await patch(ctx, `/watches?id=${id}&profile=${A}`, {
+    registryProductId: product.id,
+    candidateVersion,
+  });
   ok('PATCH /watches confirmation executes',
     confirm.status === 200 && (await confirm.json()).watch.registryProductId === product.id);
 }

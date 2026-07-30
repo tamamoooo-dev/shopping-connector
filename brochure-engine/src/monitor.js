@@ -61,10 +61,9 @@ import {
   unitPriceFor,
   watchQuantity,
 } from './priceWatch.js';
-import { listingIdentityCandidate, productFromListing } from './identity/listingCandidate.js';
+import { listingIdentityCandidate } from './identity/listingCandidate.js';
 import { productForWatch, verifyListing } from './identity/verify.js';
-import { resolveIdentityCandidate } from './registry/resolver.js';
-import { decodeProfile, profileTokens } from './registry/model.js';
+import { resolveIdentityCandidate, TUNING } from './registry/resolver.js';
 import {
   comparesByUnitPrice,
   countExclusion,
@@ -75,6 +74,19 @@ import {
   specFromListing,
   validateSpec,
 } from './identity/spec.js';
+import {
+  WATCH_POLICY_VERSION,
+  WATCH_IDENTITY_STATE,
+  MONITORING_HEALTH,
+  buildCandidateSnapshot,
+  inferIdentityState,
+  inferMonitoringHealth,
+  isTrustedSourceIdentity,
+  parseWatchJson,
+  rankSourceCandidates,
+  sourceSnapshot,
+  verifySourceListing,
+} from './watchIdentity.js';
 
 // The live search providers a grocery watch sweeps (search-connector ids),
 // most reliable first. Best-effort stores (amazon, noon) are included — a
@@ -138,6 +150,14 @@ function specFromBody(b) {
   return validateSpec(spec).valid ? JSON.stringify(spec) : null;
 }
 
+const ANCHORED_STATES = new Set([
+  WATCH_IDENTITY_STATE.ANCHORED_REGISTRY,
+  WATCH_IDENTITY_STATE.ANCHORED_SOURCE,
+  WATCH_IDENTITY_STATE.ANCHORED_SPEC,
+]);
+
+const isAnchoredState = (state) => ANCHORED_STATES.has(state);
+
 // --- validation (the open write API's gate) -----------------------------------
 // Returns { watch } or { error }. Everything is length- and range-bounded; the
 // watch id and bookkeeping fields are always server-generated.
@@ -187,6 +207,13 @@ export function buildWatch(body) {
   if (kind === 'registry' && !/^pr_[a-z0-9]+$/.test(productId || '')) {
     return { error: 'registry watches need a registry productId (pr_…)' };
   }
+  const suppliedRegistryProductId = String(
+    b.registryProductId || b.listing?.registryProductId ||
+    (/^pr_[a-z0-9]+$/.test(String(b.listing?.productId || '')) ? b.listing.productId : ''),
+  ).trim().slice(0, 80) || null;
+  if (suppliedRegistryProductId && !/^pr_[a-z0-9]+$/.test(suppliedRegistryProductId)) {
+    return { error: 'registryProductId must be a Registry product id (pr_…)' };
+  }
 
   const url = (v) => {
     const s = String(v || '').trim().slice(0, 400);
@@ -207,7 +234,15 @@ export function buildWatch(body) {
   // arrive either way: as a pack price plus a readable size (the product-card
   // flow, converted here), or as a unit price the user typed directly ("any
   // chicken breast under 30 SAR/kg"), which needs no reference pack at all.
-  const spec = b.spec ? parseSpec(b.spec) : null;
+  const specText = specFromBody(b);
+  const relaxedRequested =
+    b.matchBrand === false || b.matchSize === false || b.matchVariant === false;
+  if (relaxedRequested && !specText) {
+    return {
+      error: 'This flexible watch does not contain enough identity evidence to define a product class.',
+    };
+  }
+  const spec = parseSpec(specText);
   const statedUnitPrice = Number(b.targetUnitPrice);
   const statedUnitLabel = String(b.unitLabel || '').trim().slice(0, 24) || null;
   const statedUnit = Number.isFinite(statedUnitPrice) && statedUnitPrice > 0 && statedUnitLabel
@@ -220,6 +255,37 @@ export function buildWatch(body) {
     };
   }
 
+  const listing = b.listing || {
+    id: productId,
+    provider,
+    name: label || query,
+    brand: b.brand || null,
+    size: b.sizeText || null,
+    image: url(b.image),
+    link: url(b.link),
+  };
+  const snapshot = sourceSnapshot(listing, {
+    id: productId, provider, label, query, brand: b.brand, sizeText: b.sizeText,
+    image: url(b.image), link: url(b.link),
+  });
+  const registryProductId = suppliedRegistryProductId || (kind === 'registry' ? productId : null);
+  const trustedSource = !registryProductId && !spec &&
+    kind === 'product' && isTrustedSourceIdentity(provider, productId);
+  const anchorState = registryProductId
+    ? WATCH_IDENTITY_STATE.ANCHORED_REGISTRY
+    : spec
+      ? WATCH_IDENTITY_STATE.ANCHORED_SPEC
+      : trustedSource
+        ? WATCH_IDENTITY_STATE.ANCHORED_SOURCE
+        : WATCH_IDENTITY_STATE.RESOLVING;
+  const provenance = registryProductId
+    ? { kind: 'declared-registry', productId: registryProductId }
+    : spec
+      ? { kind: 'declared-spec' }
+      : trustedSource
+        ? { kind: 'trusted-source', provider, productId }
+        : { kind: 'creation-snapshot' };
+
   return {
     watch: {
       id: newId('w'),
@@ -227,11 +293,11 @@ export function buildWatch(body) {
       kind,
       label,
       query,
-      provider: kind === 'product' ? provider : null,
+      provider,
       // kind 'product': a CACHE of where this identity currently sits in the
       // store's catalog (refreshed automatically when the retailer moves it).
       // kind 'registry': the registry's own stable id, which IS the identity.
-      productId: kind === 'product' || kind === 'registry' ? productId : null,
+      productId,
       // `kind` is retained (it is NOT NULL, and the previous deployment keys off
       // it) but `scope` is the behavioural switch now: kind used to select a
       // whole resolution STRATEGY, and there is only one of those left.
@@ -239,8 +305,26 @@ export function buildWatch(body) {
       // THE ANCHOR. A registry watch already carries one. Every other watch is
       // anchored by `anchorWatch` below, in the foreground, with the user
       // present — never inferred later by an unattended check.
-      registryProductId: kind === 'registry' ? productId : null,
-      spec: specFromBody(b),
+      registryProductId,
+      spec: specText,
+      anchorState,
+      sourceSnapshot: JSON.stringify(snapshot),
+      anchorProvenance: JSON.stringify(provenance),
+      anchorConfidence: isAnchoredState(anchorState) ? 1 : null,
+      anchorMargin: isAnchoredState(anchorState) ? 1 : null,
+      anchorPolicyVersion: WATCH_POLICY_VERSION,
+      candidateSnapshot: null,
+      resolutionAttempts: 0,
+      lastResolutionAttemptAt: null,
+      identityResolutionReason: trustedSource
+        ? 'Trusted Amazon source identity.'
+        : registryProductId
+          ? 'Registry identity supplied by the selected product.'
+          : spec
+            ? 'Product class declared by the user.'
+            : 'Resolving product identity.',
+      monitoringHealth: isAnchoredState(anchorState) ? MONITORING_HEALTH.UNCHECKED : null,
+      monitoringHealthReason: null,
       link: url(b.link),
       image: url(b.image),
       targetPrice: Math.round(targetPrice * 100) / 100,
@@ -259,40 +343,15 @@ export function buildWatch(body) {
   };
 }
 
-// --- anchoring (the ONE place identity is resolved) -------------------------------
-// Resolution happens ONCE, when the watch is created, IN THE FOREGROUND, with
-// the user present to adjudicate. This is the whole safety argument of the
-// design: an ambiguous identity is settled by a human at the moment they are
-// looking at the product, instead of by an unattended cron at 05:45 that can
-// only choose between guessing and going quiet.
-//
-// Returns { watch } with an anchor, or { watch, needsConfirmation, candidates }
-// when the resolver could not decide alone. Never throws on ambiguity.
-// `dryRun` answers "what WOULD this do?" without writing anything — no mint,
-// no anchor. The migration is the one moment this subsystem creates registry
-// products, and a mint survives an engine rollback, so the operator gets to
-// see the exact list before it happens rather than after.
-export async function anchorWatch(ctx, watch, listing, { dryRun = false } = {}) {
-  // A Flexible Watch is anchored by declaration — its class was pinned by the
-  // user, so there is nothing to infer and it can never be ambiguous.
-  if (watch.spec || watch.registryProductId) return { watch };
-  if (!ctx.registryStore) {
-    return {
-      watch: {
-        ...watch,
-        lastResolution: RESOLUTION.UNRESOLVABLE,
-        lastResolutionReason: 'The product registry is unavailable.',
-      },
-    };
-  }
+// --- anchoring (the ONE place watch identity is resolved) -----------------------
 
-  // A legacy watch has no live listing, but its row already stores the brand
-  // and size the v2 build derived. Those are the two attributes that dominate
-  // resolution, so throwing them away and re-deriving from the label alone
-  // would make the backfill resolve WORSE than the data allows — and every
-  // watch that fails to resolve becomes a question for the user.
-  const source = listing || {
+function watchSourceListing(watch, listing = null) {
+  if (listing) return listing;
+  const stored = parseWatchJson(watch.sourceSnapshot);
+  if (stored) return stored;
+  return {
     id: watch.productId,
+    provider: watch.provider,
     name: watch.label || watch.query,
     brand: watch.brandId || null,
     size: watch.sizeUnit && Number(watch.sizeTotal) > 0
@@ -301,55 +360,354 @@ export async function anchorWatch(ctx, watch, listing, { dryRun = false } = {}) 
     link: watch.link,
     image: watch.image,
   };
-  const candidate = listingIdentityCandidate(source);
-  if (!candidate) {
+}
+
+function identitySearchProviders(watch) {
+  if (watch.kind === 'product' && MONITOR_PROVIDERS.includes(watch.provider)) {
+    return [watch.provider];
+  }
+  return MONITOR_PROVIDERS;
+}
+
+// Amazon and Noon are deliberately best-effort search sources. Their outages
+// must not make a five-grocer identity sweep "incomplete"; a product-scoped
+// watch still requires its one selected provider to answer.
+const REQUIRED_IDENTITY_PROVIDERS = new Set(['panda', 'tamimi', 'danube', 'lulu', 'ninja']);
+
+async function searchWatchIdentitySources(ctx, watch, reference) {
+  const providers = identitySearchProviders(watch);
+  if (!ctx.searchClient || !providers.length) {
+    return {
+      entries: [], attempted: providers.length, succeeded: 0, failed: providers.length,
+      coverageComplete: false, notes: ['catalog search unavailable'],
+    };
+  }
+  const entries = [];
+  const notes = [];
+  let succeeded = 0;
+  let failed = 0;
+  const succeededProviders = new Set();
+  await Promise.all(providers.map(async (provider) => {
+    try {
+      const rows = await ctx.searchClient.search(
+        provider,
+        retrievalQuery(watch, null, null) || reference.name || watch.label,
+        CANDIDATE_SEARCH_LIMIT,
+      );
+      succeeded += 1;
+      succeededProviders.add(provider);
+      for (const row of (rows || []).slice(0, CANDIDATE_SEARCH_LIMIT)) {
+        entries.push({
+          provider,
+          listing: { ...row, provider },
+        });
+      }
+    } catch (error) {
+      failed += 1;
+      notes.push(`${provider}: ${error.message}`);
+    }
+  }));
+  const required = watch.kind === 'product'
+    ? providers
+    : providers.filter((provider) => REQUIRED_IDENTITY_PROVIDERS.has(provider));
+  const coverageComplete = required.length > 0 &&
+    required.every((provider) => succeededProviders.has(provider));
+  let historyEntries = [];
+  if (ctx.historyStore?.searchIdentities) {
+    try {
+      const rows = await ctx.historyStore.searchIdentities({
+        q: reference.name || watch.query || watch.label,
+        limit: 60,
+      });
+      historyEntries = (rows || []).map((row) => ({
+        provider: row.store || null,
+        productId: null,
+        name: row.name || row.name_ar || null,
+        nameAr: row.name_ar || null,
+        brand: null,
+        size: row.size_unit && Number(row.size_total) > 0
+          ? { unit: row.size_unit, value: Number(row.size_total) }
+          : null,
+        count: Number(row.size_pack) > 1 ? Number(row.size_pack) : null,
+        family: null,
+        cut: null,
+        processing: null,
+        variety: null,
+        image: row.image_url || null,
+        link: row.source_url || null,
+        weeksSeen: Number(row.weeks_seen) || 1,
+      }));
+    } catch (error) {
+      notes.push(`price-history: ${error.message}`);
+    }
+  }
+  return {
+    entries, historyEntries, attempted: providers.length, succeeded, failed,
+    coverageComplete, notes,
+  };
+}
+
+async function registryCandidateViews(ctx, decision) {
+  if (!ctx.registryStore) return [];
+  const diagnostics = (decision?.matchCandidates || [])
+    .filter((candidate) => !candidate.vetoed && Number(candidate.score) >= TUNING.tReview)
+    .sort((a, b) => Number(b.score) - Number(a.score))
+    .slice(0, 8);
+  const ids = diagnostics.map((candidate) => candidate.productId).filter(Boolean);
+  if (!ids.length) return [];
+  const [rows, sightings] = await Promise.all([
+    ctx.registryStore.getProducts(ids),
+    ctx.registryStore.sightingsForProducts
+      ? ctx.registryStore.sightingsForProducts(ids)
+      : Promise.resolve([]),
+  ]);
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const evidenceByProduct = new Map();
+  for (const sighting of sightings) {
+    const held = evidenceByProduct.get(sighting.product_id) || {
+      image: null, link: null, stores: new Set(),
+    };
+    held.image ||= sighting.o_image_url || null;
+    held.link ||= sighting.o_source_url || null;
+    if (sighting.store) held.stores.add(sighting.store);
+    evidenceByProduct.set(sighting.product_id, held);
+  }
+  return diagnostics.flatMap((diagnostic) => {
+    const product = byId.get(diagnostic.productId);
+    if (!product || product.status === 'merged') return [];
+    const evidence = evidenceByProduct.get(product.id);
+    return [{
+      type: 'registry',
+      productId: product.id,
+      provider: null,
+      name: product.display_name || product.display_name_ar || product.id,
+      nameAr: product.display_name_ar || null,
+      brand: product.brand_text || product.brand_slug || null,
+      size: product.size_unit && product.size_total != null
+        ? { unit: product.size_unit, value: product.size_total }
+        : null,
+      count: product.size_pack > 1 ? product.size_pack : null,
+      image: evidence?.image || null,
+      link: evidence?.link || null,
+      score: Number(diagnostic.score),
+      sourceCount: evidence?.stores?.size || 0,
+      providers: [...(evidence?.stores || [])],
+      evidence: ['registry-review'],
+    }];
+  });
+}
+
+function resolvedWatch(watch, fields) {
+  return {
+    ...watch,
+    registryProductId: null,
+    spec: null,
+    candidateSnapshot: null,
+    monitoringHealth: MONITORING_HEALTH.UNCHECKED,
+    monitoringHealthReason: null,
+    lastResolution: null,
+    lastResolutionReason: null,
+    anchorPolicyVersion: WATCH_POLICY_VERSION,
+    lastResolutionAttemptAt: new Date().toISOString(),
+    resolutionAttempts: Number(watch.resolutionAttempts || 0) + 1,
+    ...fields,
+  };
+}
+
+// Resolves a watch without granting any new evidence to the shared Registry.
+// `settle` is used by the versioned legacy backfill: after a complete catalog
+// sweep with no actionable evidence, the user-facing outcome is unresolvable.
+export async function anchorWatch(ctx, watch, listing, {
+  dryRun = false,
+  settle = false,
+} = {}) {
+  const currentState = inferIdentityState(watch);
+  if (isAnchoredState(currentState)) {
     return {
       watch: {
         ...watch,
-        lastResolution: RESOLUTION.UNRESOLVABLE,
-        lastResolutionReason: 'This listing carries no usable product name.',
+        anchorState: currentState,
+        monitoringHealth: inferMonitoringHealth(watch) || MONITORING_HEALTH.UNCHECKED,
       },
     };
   }
-
-  const decision = await resolveIdentityCandidate(
-    candidate,
-    { offerId: `watch:${watch.id}`, store: watch.provider || null, region: null },
-    ctx.registryStore,
-  );
-
-  if (decision.outcome === 'attach' && decision.productId) {
-    return { watch: { ...watch, registryProductId: decision.productId } };
+  if (watch.spec) {
+    return {
+      watch: resolvedWatch(watch, {
+        spec: watch.spec,
+        anchorState: WATCH_IDENTITY_STATE.ANCHORED_SPEC,
+        anchorProvenance: JSON.stringify({ kind: 'declared-spec' }),
+        anchorConfidence: 1,
+        anchorMargin: 1,
+        identityResolutionReason: 'Product class declared by the user.',
+      }),
+    };
+  }
+  if (watch.registryProductId) {
+    return {
+      watch: resolvedWatch(watch, {
+        registryProductId: watch.registryProductId,
+        anchorState: WATCH_IDENTITY_STATE.ANCHORED_REGISTRY,
+        anchorProvenance: JSON.stringify({
+          kind: 'declared-registry', productId: watch.registryProductId,
+        }),
+        anchorConfidence: 1,
+        anchorMargin: 1,
+        identityResolutionReason: 'Registry identity supplied by the selected product.',
+      }),
+    };
   }
 
-  // CREATE-ON-DOUBT (REGISTRY-DESIGN §3 P1) reaching the online world: a watch
-  // on a product no flyer has ever carried mints that product from the listing
-  // the user is looking at. A false split heals later by merge; forcing the
-  // watch onto a near-miss product would pollute invisibly.
-  if (decision.outcome === 'create') {
-    const product = productFromListing(source, { date: new Date().toISOString().slice(0, 10) });
-    if (product) {
-      if (dryRun) return { watch, wouldCreate: product, dryRun: true };
-      await ctx.registryStore.createProduct(
-        product, profileTokens(decodeProfile(product.token_profile)),
-      );
-      return { watch: { ...watch, registryProductId: product.id }, created: product };
+  const source = watchSourceListing(watch, listing);
+  const reference = sourceSnapshot(source, {
+    id: watch.productId, provider: watch.provider, label: watch.label, query: watch.query,
+    brand: watch.brandId, image: watch.image, link: watch.link,
+  });
+
+  // Amazon ASIN is an approved source identity for Amazon scope. No Registry
+  // vocabulary or candidate lookup may turn it into a user question.
+  if (watch.kind === 'product' &&
+      isTrustedSourceIdentity(watch.provider, watch.productId)) {
+    return {
+      watch: resolvedWatch(watch, {
+        anchorState: WATCH_IDENTITY_STATE.ANCHORED_SOURCE,
+        provider: watch.provider,
+        productId: watch.productId,
+        sourceSnapshot: JSON.stringify(reference),
+        anchorProvenance: JSON.stringify({
+          kind: 'trusted-source', provider: watch.provider, productId: watch.productId,
+        }),
+        anchorConfidence: 1,
+        anchorMargin: 1,
+        identityResolutionReason: 'Trusted Amazon source identity.',
+      }),
+      sourceAnchored: true,
+    };
+  }
+
+  let registryDecision = null;
+  const identityCandidate = listingIdentityCandidate(source);
+  if (identityCandidate && ctx.registryStore) {
+    registryDecision = await resolveIdentityCandidate(
+      identityCandidate,
+      { offerId: `watch:${watch.id}`, store: watch.provider || null, region: null },
+      ctx.registryStore,
+      { includeDiagnostics: true },
+    );
+    if (registryDecision.outcome === 'attach' && registryDecision.productId) {
+      return {
+        watch: resolvedWatch(watch, {
+          registryProductId: registryDecision.productId,
+          anchorState: WATCH_IDENTITY_STATE.ANCHORED_REGISTRY,
+          sourceSnapshot: JSON.stringify(reference),
+          anchorProvenance: JSON.stringify({
+            kind: 'registry-auto',
+            score: registryDecision.score,
+            productId: registryDecision.productId,
+          }),
+          anchorConfidence: registryDecision.score,
+          anchorMargin: null,
+          identityResolutionReason: 'Veto-free Registry identity match.',
+        }),
+      };
     }
   }
 
-  // Review, or a read too thin to mint. The user picks — and until they do the
-  // watch holds an EXPLICIT waiting state and monitors nothing.
-  const candidates = (decision.matchCandidates || []).slice(0, 5);
+  const search = await searchWatchIdentitySources(ctx, watch, reference);
+  const ranked = rankSourceCandidates(reference, search.entries, search);
+  if (ranked.autoCandidate) {
+    const winner = ranked.autoCandidate;
+    return {
+      watch: resolvedWatch(watch, {
+        anchorState: WATCH_IDENTITY_STATE.ANCHORED_SOURCE,
+        provider: winner.provider,
+        productId: winner.productId,
+        sourceSnapshot: JSON.stringify(winner.snapshot),
+        anchorProvenance: JSON.stringify({
+          kind: 'catalog-auto',
+          evidence: winner.runnerEvidence,
+          providers: winner.providers,
+          coverageComplete: ranked.coverageComplete,
+        }),
+        anchorConfidence: winner.score,
+        anchorMargin: ranked.margin,
+        identityResolutionReason: 'Unique high-confidence live catalog identity.',
+      }),
+      sourceAnchored: true,
+      ranked,
+    };
+  }
+
+  const registryCandidates = await registryCandidateViews(ctx, registryDecision);
+  const sourceCandidates = ranked.plausible;
+  const choices = [...sourceCandidates, ...registryCandidates]
+    .filter((candidate) => candidate.image && candidate.name &&
+      (candidate.brand || candidate.size || candidate.count))
+    .sort((a, b) => Number(b.score || 0) - Number(a.score || 0))
+    .slice(0, 8);
+  const reviewableSingle = choices.length === 1 &&
+    Number(choices[0].score) >= TUNING.tReview &&
+    Boolean(reference.image || reference.brand || reference.size);
+  if (choices.length >= 2 || reviewableSingle) {
+    const snapshot = buildCandidateSnapshot(
+      choices,
+      choices.length >= 2
+        ? 'Several materially different products remain plausible.'
+        : 'One medium-confidence product can be compared with the selected listing.',
+    );
+    const next = {
+      ...watch,
+      anchorState: WATCH_IDENTITY_STATE.CONFIRMATION_REQUIRED,
+      sourceSnapshot: JSON.stringify(reference),
+      candidateSnapshot: JSON.stringify(snapshot),
+      anchorPolicyVersion: WATCH_POLICY_VERSION,
+      resolutionAttempts: Number(watch.resolutionAttempts || 0) + 1,
+      lastResolutionAttemptAt: new Date().toISOString(),
+      identityResolutionReason: snapshot.reason,
+      monitoringHealth: null,
+      monitoringHealthReason: null,
+      // Backward compatibility for the previous storefront.
+      lastResolution: RESOLUTION.NEEDS_CONFIRMATION,
+      lastResolutionReason: snapshot.reason,
+    };
+    return {
+      watch: next,
+      confirmationRequired: true,
+      needsConfirmation: true,
+      candidates: snapshot.candidates,
+      candidateVersion: snapshot.version,
+      ranked,
+    };
+  }
+
+  const unavailable = !search.coverageComplete && search.succeeded === 0;
+  const state = settle && !unavailable
+    ? WATCH_IDENTITY_STATE.UNRESOLVABLE
+    : WATCH_IDENTITY_STATE.RESOLVING;
+  const reason = unavailable
+    ? 'Product identity could not be checked because the catalog was unavailable.'
+    : 'No actionable product identity could be established from current evidence.';
   return {
     watch: {
       ...watch,
-      lastResolution: RESOLUTION.NEEDS_CONFIRMATION,
-      lastResolutionReason: candidates.length
-        ? `${candidates.length} products could match this listing.`
-        : 'This listing does not name enough of the product to identify it.',
+      anchorState: state,
+      sourceSnapshot: JSON.stringify(reference),
+      candidateSnapshot: null,
+      anchorPolicyVersion: WATCH_POLICY_VERSION,
+      resolutionAttempts: Number(watch.resolutionAttempts || 0) + 1,
+      lastResolutionAttemptAt: new Date().toISOString(),
+      identityResolutionReason: reason,
+      monitoringHealth: null,
+      monitoringHealthReason: null,
+      // Backward compatibility for the previous storefront.
+      lastResolution: state === WATCH_IDENTITY_STATE.UNRESOLVABLE
+        ? RESOLUTION.UNRESOLVABLE
+        : RESOLUTION.PENDING_MIGRATION,
+      lastResolutionReason: reason,
     },
-    needsConfirmation: true,
-    candidates,
+    resolving: state === WATCH_IDENTITY_STATE.RESOLVING,
+    unresolvable: state === WATCH_IDENTITY_STATE.UNRESOLVABLE,
+    ranked,
   };
 }
 
@@ -366,26 +724,6 @@ export async function anchorWatch(ctx, watch, listing, { dryRun = false } = {}) 
 //   kind 'registry'            -> already anchored (the SQL migration copied it)
 //   grocery, any gate relaxed  -> FLEXIBLE: the relaxed gates ARE the spec
 //   everything else            -> STRICT: resolve the stored label to a product
-// One reviewable row per product this migration would create. Everything an
-// operator needs to judge a mint WITHOUT opening the registry: which watch
-// caused it, the exact identity dimensions it was minted from, and the display
-// name it will carry.
-function mintLine(watch, product) {
-  return {
-    productId: product.id,
-    displayName: product.display_name,
-    fromWatch: watch.id,
-    fromLabel: watch.label || watch.query,
-    brand: product.brand_text || null,
-    family: product.family || null,
-    size: product.size_unit && product.size_total != null
-      ? `${product.size_total} ${product.size_unit}`
-        + (product.size_pack > 1 ? ` x${product.size_pack}` : '')
-      : null,
-    tokens: Object.keys(decodeProfile(product.token_profile)),
-  };
-}
-
 // The default is deliberately SMALL. Measured in production 2026-07-29 against
 // a 7,082-product registry: resolving even a handful of watches in one
 // invocation exceeds the Worker CPU limit (error 1101), and the cost is
@@ -401,7 +739,8 @@ export async function resolveLegacyWatches(ctx, { limit = 3, dryRun = false, ret
   const report = {
     startedAt: new Date().toISOString(),
     dryRun,
-    scanned: 0, anchored: 0, specced: 0, needsConfirmation: 0, unresolvable: 0,
+    scanned: 0, anchored: 0, sourceAnchored: 0, specced: 0,
+    needsConfirmation: 0, resolving: 0, unresolvable: 0,
     minted: [], lines: [],
   };
   const watches = await ctx.watchStore.list({});
@@ -415,11 +754,13 @@ export async function resolveLegacyWatches(ctx, { limit = 3, dryRun = false, ret
     // never visited. Re-resolving them is also pointless: the outcome cannot
     // change without a registry change or a human, and `retry` asks for that
     // deliberately.
+    const beforeState = inferIdentityState(watch);
     if (isMonitorable(watch)) continue;
-    if (!retry && UNANCHORED.has(watch.lastResolution)
-        && watch.lastResolution !== RESOLUTION.PENDING_MIGRATION) continue;
+    if (!retry && beforeState !== WATCH_IDENTITY_STATE.RESOLVING) continue;
+    if (!retry && beforeState === WATCH_IDENTITY_STATE.RESOLVING &&
+        watch.lastResolutionAttemptAt) continue;
     report.scanned += 1;
-    const line = { id: watch.id, label: watch.label };
+    const line = { id: watch.id, label: watch.label, beforeState };
 
     // A relaxed v2 gate means the user asked for a CLASS. That intent survives
     // as a spec — this is the capability the redesign had to preserve.
@@ -429,72 +770,73 @@ export async function resolveLegacyWatches(ctx, { limit = 3, dryRun = false, ret
     if (relaxed) {
       const spec = specFromLegacyWatch(watch);
       if (validateSpec(spec).valid) {
+        const next = resolvedWatch(watch, {
+          spec: JSON.stringify(spec),
+          anchorState: WATCH_IDENTITY_STATE.ANCHORED_SPEC,
+          anchorProvenance: JSON.stringify({ kind: 'legacy-spec' }),
+          anchorConfidence: 1,
+          anchorMargin: 1,
+          identityResolutionReason: 'Legacy flexible intent preserved as a product class.',
+        });
         if (!dryRun) {
-          await ctx.watchStore.setAnchor(watch.id, {
-            spec: JSON.stringify(spec), lastResolution: null, lastResolutionReason: null,
-          });
+          await ctx.watchStore.setAnchor(watch.id, next);
         }
         report.specced += 1;
         report.lines.push({ ...line, outcome: 'spec', spec });
         continue;
       }
+      const next = {
+        ...watch,
+        anchorState: WATCH_IDENTITY_STATE.UNRESOLVABLE,
+        anchorPolicyVersion: WATCH_POLICY_VERSION,
+        identityResolutionReason: 'No product class could be derived from this watch.',
+        monitoringHealth: null,
+        monitoringHealthReason: null,
+        lastResolution: RESOLUTION.UNRESOLVABLE,
+        lastResolutionReason: 'No product class could be derived from this watch.',
+        resolutionAttempts: Number(watch.resolutionAttempts || 0) + 1,
+        lastResolutionAttemptAt: new Date().toISOString(),
+      };
       if (!dryRun) {
-        await ctx.watchStore.setAnchor(watch.id, {
-          lastResolution: RESOLUTION.UNRESOLVABLE,
-          lastResolutionReason: 'No product class could be derived from this watch.',
-        });
+        await ctx.watchStore.setAnchor(watch.id, next);
       }
       report.unresolvable += 1;
       report.lines.push({ ...line, outcome: 'unresolvable' });
       continue;
     }
 
-    // Otherwise the watch meant ONE product. Resolve from the stored label plus
-    // the brand and size the row already carries. Zero subrequests.
-    const anchored = await anchorWatch(ctx, watch, null, { dryRun });
-
-    // A DRY RUN reports what would happen and writes nothing.
-    if (anchored.wouldCreate) {
+    // Strict legacy watches are rehydrated from the live catalog before the
+    // Registry's conservative review band can become a user interaction.
+    const anchored = await anchorWatch(ctx, watch, null, { dryRun, settle: true });
+    if (!dryRun) await ctx.watchStore.setAnchor(watch.id, anchored.watch);
+    const state = inferIdentityState(anchored.watch);
+    if (state === WATCH_IDENTITY_STATE.ANCHORED_SOURCE) {
       report.anchored += 1;
-      report.minted.push(mintLine(watch, anchored.wouldCreate));
-      report.lines.push({ ...line, outcome: 'anchored', wouldMint: anchored.wouldCreate.id });
-      continue;
-    }
-
-    if (anchored.watch.registryProductId) {
-      if (!dryRun) {
-        await ctx.watchStore.setAnchor(watch.id, {
-          registryProductId: anchored.watch.registryProductId,
-          lastResolution: null, lastResolutionReason: null,
-        });
-      }
+      report.sourceAnchored += 1;
+    } else if (state === WATCH_IDENTITY_STATE.ANCHORED_REGISTRY) {
       report.anchored += 1;
-      if (anchored.created) report.minted.push(mintLine(watch, anchored.created));
-      report.lines.push({
-        ...line, outcome: 'anchored',
-        productId: anchored.watch.registryProductId,
-        minted: anchored.created ? anchored.created.id : null,
-      });
-      continue;
+    } else if (state === WATCH_IDENTITY_STATE.CONFIRMATION_REQUIRED) {
+      report.needsConfirmation += 1;
+    } else if (state === WATCH_IDENTITY_STATE.RESOLVING) {
+      report.resolving += 1;
+    } else {
+      report.unresolvable += 1;
     }
-    if (!dryRun) {
-      await ctx.watchStore.setAnchor(watch.id, {
-        lastResolution: anchored.watch.lastResolution,
-        lastResolutionReason: anchored.watch.lastResolutionReason,
-      });
-    }
-    if (anchored.watch.lastResolution === RESOLUTION.NEEDS_CONFIRMATION) report.needsConfirmation += 1;
-    else report.unresolvable += 1;
     report.lines.push({
       ...line,
-      outcome: anchored.watch.lastResolution,
-      reason: anchored.watch.lastResolutionReason,
+      outcome: state,
+      productId: anchored.watch.registryProductId || anchored.watch.productId || null,
+      provider: anchored.watch.provider || null,
+      confidence: anchored.watch.anchorConfidence ?? null,
+      margin: anchored.watch.anchorMargin ?? null,
+      candidateCount: parseWatchJson(anchored.watch.candidateSnapshot)?.candidates?.length || 0,
+      evidence: parseWatchJson(anchored.watch.anchorProvenance),
+      reason: anchored.watch.identityResolutionReason || anchored.watch.lastResolutionReason,
     });
   }
   report.finishedAt = new Date().toISOString();
-  // The invariant this whole exercise exists to hold.
   report.stillPending = (await ctx.watchStore.list({}))
-    .filter((w) => !isMonitorable(w) && !UNANCHORED.has(w.lastResolution)).length;
+    .filter((w) => inferIdentityState(w) === WATCH_IDENTITY_STATE.RESOLVING).length;
   return report;
 }
 
@@ -512,8 +854,16 @@ export async function diagnoseWatch(ctx, watch) {
     id: watch.id,
     label: watch.label,
     anchor: anchor
-      ? { kind: anchor.kind, productId: anchor.productId || null, spec: anchor.spec || null }
+      ? {
+          kind: anchor.kind,
+          productId: anchor.productId || null,
+          provider: anchor.provider || null,
+          spec: anchor.spec || null,
+        }
       : null,
+    identityState: inferIdentityState(watch),
+    monitoringHealth: inferMonitoringHealth(watch),
+    monitoringHealthReason: watch.monitoringHealthReason || null,
     lastResolution: watch.lastResolution || null,
     lastResolutionReason: watch.lastResolutionReason || null,
     resolvedAt: watch.resolvedAt || null,
@@ -558,7 +908,12 @@ export async function diagnoseWatch(ctx, watch) {
     const candidate = listingIdentityCandidate(entry.listing);
     const decision = anchor.kind === 'product'
       ? verifyListing(entry.listing, product)
-      : matchesSpec(candidate, anchor.spec);
+      : anchor.kind === 'source'
+        ? verifySourceListing(anchor.snapshot, { ...entry.listing, provider: entry.store }, {
+            provider: anchor.provider,
+            productId: anchor.productId,
+          })
+        : matchesSpec(candidate, anchor.spec);
     out.candidates.push({
       store: entry.store,
       source: entry.source,
@@ -588,44 +943,191 @@ export async function diagnoseWatch(ctx, watch) {
 // The products a user may pick from when confirming an ambiguous watch. Read
 // only — picking is a separate, explicit write.
 export async function watchCandidates(ctx, watch) {
-  if (!ctx.registryStore || !watch) return [];
-  const candidate = listingIdentityCandidate({
-    id: watch.productId, name: watch.label || watch.query, brand: null, size: null,
-  });
-  if (!candidate) return [];
-  const decision = await resolveIdentityCandidate(
-    candidate,
-    { offerId: `watch:${watch.id}`, store: watch.provider || null, region: null },
-    ctx.registryStore,
-    { includeDiagnostics: true },
-  );
-  const ids = (decision.matchCandidates || [])
-    .map((c) => c.productId || c.id)
-    .filter(Boolean)
-    .slice(0, 8);
-  if (!ids.length) return [];
-  const rows = await ctx.registryStore.getProducts(ids);
-  return rows.map((r) => ({
-    productId: r.id,
-    name: r.display_name || r.display_name_ar || r.id,
-    brand: r.brand_text || r.brand_slug || null,
-    size: r.size_unit && r.size_total ? `${r.size_total} ${r.size_unit}` : null,
-  }));
+  if (!watch || inferIdentityState(watch) !== WATCH_IDENTITY_STATE.CONFIRMATION_REQUIRED) {
+    return { version: null, reason: null, candidates: [] };
+  }
+  const snapshot = parseWatchJson(watch.candidateSnapshot);
+  if (!snapshot || !Array.isArray(snapshot.candidates) || !snapshot.candidates.length) {
+    return { version: null, reason: null, candidates: [] };
+  }
+  return {
+    version: snapshot.version,
+    reason: snapshot.reason || watch.identityResolutionReason || null,
+    candidates: snapshot.candidates,
+  };
 }
 
 // The user's answer. Binding is ONE write and teaches the registry nothing —
 // human confirmation is high-quality evidence, but feeding it into the token
 // profile is a separate decision this change deliberately does not take.
-export async function confirmWatchProduct(ctx, watch, productId) {
+export async function confirmWatchProduct(ctx, watch, productId, candidateVersion = null) {
   if (!/^pr_[a-z0-9]+$/.test(String(productId || ''))) {
     return { error: 'A registry product id (pr_…) is required.' };
   }
+  const snapshot = parseWatchJson(watch.candidateSnapshot);
+  if (!snapshot || snapshot.version !== candidateVersion ||
+      !snapshot.candidates?.some((candidate) => (
+        candidate.type === 'registry' && candidate.productId === productId
+      ))) {
+    return { error: 'This confirmation choice is stale or was not offered for this watch.' };
+  }
   const [product] = await ctx.registryStore.getProducts([productId]);
   if (!product) return { error: 'That product is not in the registry.' };
-  await ctx.watchStore.setAnchor(watch.id, {
-    registryProductId: product.id, lastResolution: null, lastResolutionReason: null,
+  const next = resolvedWatch(watch, {
+    registryProductId: product.id,
+    anchorState: WATCH_IDENTITY_STATE.ANCHORED_REGISTRY,
+    anchorProvenance: JSON.stringify({
+      kind: 'human-confirmed-registry',
+      productId: product.id,
+      candidateVersion,
+    }),
+    anchorConfidence: 1,
+    anchorMargin: null,
+    identityResolutionReason: 'Product selected by the user from an actionable ambiguity set.',
   });
+  await ctx.watchStore.setAnchor(watch.id, next);
   return { productId: product.id };
+}
+
+export async function confirmWatchSource(
+  ctx,
+  watch,
+  { provider, productId, candidateVersion } = {},
+) {
+  const snapshot = parseWatchJson(watch.candidateSnapshot);
+  const candidate = snapshot?.candidates?.find((choice) => (
+    choice.type === 'source' &&
+    choice.provider === provider &&
+    String(choice.productId) === String(productId)
+  ));
+  if (!snapshot || snapshot.version !== candidateVersion || !candidate) {
+    return { error: 'This confirmation choice is stale or was not offered for this watch.' };
+  }
+  const next = resolvedWatch(watch, {
+    anchorState: WATCH_IDENTITY_STATE.ANCHORED_SOURCE,
+    provider: candidate.provider,
+    productId: String(candidate.productId),
+    sourceSnapshot: JSON.stringify(candidate.snapshot || sourceSnapshot(candidate)),
+    anchorProvenance: JSON.stringify({
+      kind: 'human-confirmed-source',
+      provider: candidate.provider,
+      productId: String(candidate.productId),
+      candidateVersion,
+    }),
+    anchorConfidence: 1,
+    anchorMargin: null,
+    identityResolutionReason: 'Source product selected by the user from an actionable ambiguity set.',
+  });
+  await ctx.watchStore.setAnchor(watch.id, next);
+  return { provider: candidate.provider, productId: String(candidate.productId) };
+}
+
+export async function declineWatchCandidates(ctx, watch, candidateVersion) {
+  const snapshot = parseWatchJson(watch.candidateSnapshot);
+  if (!snapshot || snapshot.version !== candidateVersion) {
+    return { error: 'This confirmation choice is stale.' };
+  }
+  const next = {
+    ...watch,
+    anchorState: WATCH_IDENTITY_STATE.RESOLVING,
+    candidateSnapshot: null,
+    identityResolutionReason: 'The offered products were rejected; awaiting new identity evidence.',
+    anchorPolicyVersion: WATCH_POLICY_VERSION,
+    monitoringHealth: null,
+    monitoringHealthReason: null,
+    lastResolution: RESOLUTION.PENDING_MIGRATION,
+    lastResolutionReason: 'The offered products were rejected; awaiting new identity evidence.',
+  };
+  await ctx.watchStore.setAnchor(watch.id, next);
+  return { state: next.anchorState };
+}
+
+// Optional repair never erases an established anchor. Source anchors may adopt
+// a verified key rotation; Registry/spec anchors return diagnostics only.
+export async function repairWatch(ctx, watch) {
+  const state = inferIdentityState(watch);
+  if (state === WATCH_IDENTITY_STATE.ANCHORED_REGISTRY ||
+      state === WATCH_IDENTITY_STATE.ANCHORED_SPEC) {
+    return { watch, retained: true, diagnostics: await diagnoseWatch(ctx, watch) };
+  }
+  if (state === WATCH_IDENTITY_STATE.ANCHORED_SOURCE) {
+    const anchor = watchAnchor(watch);
+    const reference = anchor.snapshot;
+    if (ctx.registryStore) {
+      const registryCandidate = listingIdentityCandidate({
+        id: reference.productId,
+        name: reference.name || reference.nameAr,
+        nameAr: reference.nameAr,
+        brand: reference.brand,
+        size: reference.size?.value && reference.size?.unit
+          ? `${reference.count && reference.count > 1 ? `${reference.count} x ` : ''}`
+            + `${reference.size.value} ${reference.size.unit}`
+          : null,
+        image: reference.image,
+      });
+      if (registryCandidate) {
+        const decision = await resolveIdentityCandidate(
+          registryCandidate,
+          { offerId: `watch-repair:${watch.id}`, store: watch.provider || null, region: null },
+          ctx.registryStore,
+          { includeDiagnostics: true },
+        );
+        if (decision.outcome === 'attach' && decision.productId) {
+          const next = resolvedWatch(watch, {
+            anchorState: WATCH_IDENTITY_STATE.ANCHORED_REGISTRY,
+            registryProductId: decision.productId,
+            sourceSnapshot: watch.sourceSnapshot,
+            anchorProvenance: JSON.stringify({
+              kind: 'trusted-cross-store-promotion',
+              previousProvider: watch.provider,
+              previousProductId: watch.productId,
+              score: decision.score,
+            }),
+            anchorConfidence: decision.score,
+            anchorMargin: null,
+            identityResolutionReason: 'Source anchor promoted to a trusted Registry identity.',
+          });
+          await ctx.watchStore.setAnchor(watch.id, next);
+          return { watch: next, repaired: true, promoted: true };
+        }
+      }
+    }
+    const search = await searchWatchIdentitySources(ctx, watch, reference);
+    const ranked = rankSourceCandidates(reference, search.entries, search);
+    if (ranked.autoCandidate) {
+      const candidate = ranked.autoCandidate;
+      const next = resolvedWatch(watch, {
+        anchorState: WATCH_IDENTITY_STATE.ANCHORED_SOURCE,
+        provider: candidate.provider,
+        productId: String(candidate.productId),
+        sourceSnapshot: JSON.stringify(candidate.snapshot),
+        anchorProvenance: JSON.stringify({
+          kind: 'source-repair',
+          previousProvider: watch.provider,
+          previousProductId: watch.productId,
+          evidence: candidate.runnerEvidence,
+        }),
+        anchorConfidence: candidate.score,
+        anchorMargin: ranked.margin,
+        identityResolutionReason: 'Source identity continuity verified during repair.',
+      });
+      await ctx.watchStore.setAnchor(watch.id, next);
+      return { watch: next, repaired: true };
+    }
+    return {
+      watch,
+      retained: true,
+      repaired: false,
+      reason: 'No unique source replacement passed the identity safety gates.',
+      candidates: ranked.plausible,
+    };
+  }
+  const result = await anchorWatch(ctx, {
+    ...watch,
+    anchorState: WATCH_IDENTITY_STATE.RESOLVING,
+  }, null, { settle: true });
+  await ctx.watchStore.setAnchor(watch.id, result.watch);
+  return { ...result, watch: result.watch };
 }
 
 export function buildWatchSettingsUpdate(body, watch) {
@@ -705,6 +1207,21 @@ export function parseSpec(value) {
 // The anchor a watch carries, or null. The single place that decides whether a
 // watch is monitorable — the cron, the caps and the UI all read this answer.
 export function watchAnchor(watch = {}) {
+  const identityState = inferIdentityState(watch);
+  if (identityState === WATCH_IDENTITY_STATE.ANCHORED_SOURCE && watch.provider && watch.productId) {
+    return {
+      kind: 'source',
+      provider: String(watch.provider).toLowerCase(),
+      productId: String(watch.productId),
+      snapshot: parseWatchJson(watch.sourceSnapshot) || sourceSnapshot({
+        provider: watch.provider,
+        productId: watch.productId,
+        name: watch.label || watch.query,
+        brand: watch.brandId,
+        image: watch.image,
+      }),
+    };
+  }
   if (watch.registryProductId) return { kind: 'product', productId: watch.registryProductId };
   const spec = parseSpec(watch.spec);
   if (spec && validateSpec(spec).valid) return { kind: 'spec', spec };
@@ -716,6 +1233,10 @@ export const isMonitorable = (watch) => watchAnchor(watch) != null;
 // The providers this watch sweeps. 'store' is one retailer, 'market' is all of
 // them. Legacy rows without `scope` fall back to what their old kind meant.
 export function watchProviders(watch = {}) {
+  const anchor = watchAnchor(watch);
+  if (anchor?.kind === 'source') {
+    return MONITOR_PROVIDERS.includes(anchor.provider) ? [anchor.provider] : [];
+  }
   const scope = watch.scope || (watch.kind === 'product' ? 'store' : 'market');
   if (scope === 'store') {
     return MONITOR_PROVIDERS.includes(watch.provider) ? [watch.provider] : [];
@@ -843,6 +1364,7 @@ export function retrievalQuery(watch, anchor, product) {
         .join(' ')
     : null;
   const candidates = [
+    anchor?.kind === 'source' && (anchor.snapshot?.name || anchor.snapshot?.nameAr),
     stripSizes(watch.query || ''),
     product?.display_name,
     fromSpec,
@@ -881,6 +1403,7 @@ export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false 
 
   let product = null;
   let rebindTo = null;
+  let sourceRebind = null;
   if (anchor.kind === 'product') {
     if (!ctx.registryStore) {
       return { price: null, resolution: RESOLUTION.PROVIDER_ERROR, reason: 'registry unavailable' };
@@ -905,6 +1428,10 @@ export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false 
   const target = watchTarget(watch, anchor);
   if (!target) {
     return { price: null, resolution: RESOLUTION.UNRESOLVABLE, reason: 'unit-price target unavailable' };
+  }
+
+  if (flyerOnly && anchor.kind === 'source') {
+    return { price: null, resolution: null, reason: null };
   }
 
   const sweep = flyerOnly
@@ -938,11 +1465,57 @@ export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false 
     entries.push(...(await sweepFlyers(ctx, query, notes)));
   }
 
+  let sourceWinner = null;
+  if (anchor.kind === 'source' && entries.length) {
+    const ranked = rankSourceCandidates(anchor.snapshot, entries, {
+      coverageComplete: sweep.failed === 0,
+      attempted: sweep.attempted,
+      succeeded: Math.max(0, sweep.attempted - sweep.failed),
+    });
+    sourceWinner = ranked.autoCandidate;
+    if (!sourceWinner) {
+      const direct = entries.find((entry) => {
+        const snapshot = sourceSnapshot(entry.listing, { provider: entry.store });
+        return snapshot.provider === anchor.provider && snapshot.productId === anchor.productId;
+      });
+      if (direct) sourceWinner = {
+        ...sourceSnapshot(direct.listing, { provider: direct.store }),
+        snapshot: sourceSnapshot(direct.listing, { provider: direct.store }),
+      };
+    }
+    if (sourceWinner?.snapshot?.productId &&
+        sourceWinner.snapshot.productId !== anchor.productId) {
+      sourceRebind = {
+        provider: sourceWinner.snapshot.provider || anchor.provider,
+        productId: sourceWinner.snapshot.productId,
+        snapshot: sourceWinner.snapshot,
+        confidence: sourceWinner.score || null,
+        margin: ranked.margin,
+        provenance: 'verified-source-rebind',
+      };
+    }
+  }
+
   let unpriced = 0;
   for (const entry of entries) {
-    const decision = anchor.kind === 'product'
-      ? verifyListing(entry.listing, product)
-      : matchesSpec(listingIdentityCandidate(entry.listing), anchor.spec);
+    let decision;
+    if (anchor.kind === 'product') {
+      decision = verifyListing(entry.listing, product);
+    } else if (anchor.kind === 'source') {
+      const candidate = sourceSnapshot(entry.listing, { provider: entry.store });
+      const winner = sourceWinner?.snapshot || sourceWinner;
+      const isWinner = winner && candidate.provider === winner.provider &&
+        candidate.productId === winner.productId;
+      decision = isWinner
+        ? verifySourceListing(anchor.snapshot, entry.listing, {
+            provider: entry.store,
+            productId: anchor.productId,
+            allowRotation: true,
+          })
+        : { matched: false, reason: 'not-selected-source-identity' };
+    } else {
+      decision = matchesSpec(listingIdentityCandidate(entry.listing), anchor.spec);
+    }
     if (!(decision.matched)) {
       countExclusion(exclusions, decision.failed || decision.reason);
       continue;
@@ -952,7 +1525,9 @@ export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false 
       unpriced += 1;
       continue;
     }
-    observations.push(observation);
+    observations.push(anchor.kind === 'source'
+      ? { ...observation, sourceReference: sourceWinner?.snapshot || anchor.snapshot }
+      : observation);
   }
 
   const detail = describeExclusions(exclusions);
@@ -971,17 +1546,17 @@ export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false 
       return {
         price: null, resolution: RESOLUTION.PROVIDER_ERROR, exclusions,
         reason: `No store answered (${sweep.failed}/${sweep.attempted} failed).`,
-        rebindTo,
+        rebindTo, sourceRebind,
       };
     }
     if (unpriced && !detail) {
       return {
-        price: null, resolution: RESOLUTION.NO_PRICE, exclusions, rebindTo,
+        price: null, resolution: RESOLUTION.NO_PRICE, exclusions, rebindTo, sourceRebind,
         reason: `Found ${unpriced} matching listing(s), none carrying a usable price.`,
       };
     }
     return {
-      price: null, resolution: RESOLUTION.NOT_FOUND, exclusions, rebindTo,
+      price: null, resolution: RESOLUTION.NOT_FOUND, exclusions, rebindTo, sourceRebind,
       reason: `${entries.length} candidate(s) seen, none matched` + (detail ? ` — excluded: ${detail}` : '.'),
     };
   }
@@ -993,6 +1568,7 @@ export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false 
     reason: null,
     exclusions,
     rebindTo,
+    sourceRebind,
     anchorKind: anchor.kind,
     // The resolved product travels WITH the observation so the fail-closed
     // gate can re-verify against the same thing this check decided against,
@@ -1000,6 +1576,9 @@ export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false 
     product,
     productId: product?.id || null,
     spec: anchor.kind === 'spec' ? anchor.spec : null,
+    sourceReference: anchor.kind === 'source'
+      ? (best.sourceReference || sourceWinner?.snapshot || anchor.snapshot)
+      : null,
   };
 }
 
@@ -1033,7 +1612,17 @@ export function validateNotificationObservation(watch, observation) {
   if (!observation.identityVerified) {
     const decision = anchor.kind === 'product'
       ? verifyListing(observation.offer, observation.product || null)
-      : matchesSpec(listingIdentityCandidate(observation.offer), anchor.spec);
+      : anchor.kind === 'source'
+        ? verifySourceListing(
+            observation.sourceReference || anchor.snapshot,
+            observation.offer,
+            {
+              provider: observation.store,
+              productId: observation.sourceReference?.productId || anchor.productId,
+              allowRotation: false,
+            },
+          )
+        : matchesSpec(listingIdentityCandidate(observation.offer), anchor.spec);
     if (!decision.matched) {
       return {
         valid: false,
@@ -1078,6 +1667,15 @@ export function buildNotificationPayload(watch, observation, target, alertType, 
   };
 }
 
+function monitoringHealthForResolution(resolution) {
+  if (resolution === RESOLUTION.OK) return MONITORING_HEALTH.OK;
+  if (resolution === RESOLUTION.NOT_FOUND) return MONITORING_HEALTH.NOT_FOUND;
+  if (resolution === RESOLUTION.NO_PRICE) return MONITORING_HEALTH.NO_PRICE;
+  if (resolution === RESOLUTION.PROVIDER_ERROR) return MONITORING_HEALTH.PROVIDER_ERROR;
+  if (resolution === RESOLUTION.UNRESOLVABLE) return MONITORING_HEALTH.ANCHOR_UNAVAILABLE;
+  return MONITORING_HEALTH.UNCHECKED;
+}
+
 // --- the check (evaluate + crossing + alert + notify) ---------------------------
 export async function checkWatch(ctx, watch, { flyerOnly = false } = {}) {
   const line = {
@@ -1096,6 +1694,8 @@ export async function checkWatch(ctx, watch, { flyerOnly = false } = {}) {
     checkedAt: now,
     lastResolution: best.resolution,
     lastResolutionReason: best.reason ?? null,
+    monitoringHealth: monitoringHealthForResolution(best.resolution),
+    monitoringHealthReason: best.reason ?? null,
     ...fields,
   });
 
@@ -1105,6 +1705,10 @@ export async function checkWatch(ctx, watch, { flyerOnly = false } = {}) {
   if (best.rebindTo && ctx.watchStore.rebindProduct) {
     line.rebound = best.rebindTo;
     await ctx.watchStore.rebindProduct(watch.id, best.rebindTo);
+  }
+  if (best.sourceRebind && ctx.watchStore.rebindSource) {
+    line.rebound = `${best.sourceRebind.provider}:${best.sourceRebind.productId}`;
+    await ctx.watchStore.rebindSource(watch.id, best.sourceRebind);
   }
 
   // resolution === null means "no change" — only the flyer-only pass produces
@@ -1208,7 +1812,26 @@ export async function checkWatches(ctx, { ids } = {}) {
   } else {
     watches = await ctx.watchStore.list({ activeOnly: true });
   }
-  for (const watch of watches) {
+  for (let watch of watches) {
+    const identityState = inferIdentityState(watch);
+    const lastAttempt = Date.parse(watch.lastResolutionAttemptAt || '');
+    const retryUnresolvable = identityState === WATCH_IDENTITY_STATE.UNRESOLVABLE &&
+      (watch.anchorPolicyVersion !== WATCH_POLICY_VERSION ||
+       !Number.isFinite(lastAttempt) ||
+       Date.now() - lastAttempt >= 7 * 24 * 60 * 60 * 1000);
+    if (identityState === WATCH_IDENTITY_STATE.RESOLVING || retryUnresolvable) {
+      try {
+        const result = await anchorWatch(ctx, watch, null, { settle: retryUnresolvable });
+        await ctx.watchStore.setAnchor(watch.id, result.watch);
+        watch = result.watch;
+      } catch (err) {
+        report.lines.push({
+          id: watch.id, label: watch.label, status: 'identity-retry-failed', price: null,
+          alerted: false, alertType: null, resolution: watch.lastResolution,
+          notes: [err.message],
+        });
+      }
+    }
     if (!isMonitorable(watch)) {
       // Not a failure and not silence: the watch already carries an explicit
       // waiting state (pending-migration / needs-confirmation / unresolvable)

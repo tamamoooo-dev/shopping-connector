@@ -96,10 +96,10 @@ async function seeded() {
   const w = legacy({ label: 'Pepsi 1 L', query: 'Pepsi', identityFamily: null, identityType: null });
   await ctx.watchStore.create(w);
   const report = await resolveLegacyWatches(ctx);
-  ok(report.needsConfirmation + report.unresolvable === 1, 'it did not resolve');
+  ok(report.resolving + report.unresolvable === 1, 'it did not invent an actionable choice');
   const saved = await ctx.watchStore.get(w.id);
   ok(saved.registryProductId == null, 'and nothing was guessed');
-  ok(saved.lastResolution != null, 'but an EXPLICIT state was written');
+  ok(['resolving', 'unresolvable'].includes(saved.anchorState), 'but an EXPLICIT state was written');
   ok(saved.lastResolutionReason != null, 'with a reason the UI can show');
   ok(isMonitorable(saved) === false, 'so it monitors nothing until answered');
 }
@@ -119,11 +119,11 @@ async function seeded() {
   // limit), so the invariant is checked over one deliberate full pass.
   const report = await resolveLegacyWatches(ctx, { limit: 100 });
   ok(report.scanned === 4, 'every pending watch was visited');
-  ok(report.stillPending === 0, 'and none was left in an ambiguous state');
+  ok(report.stillPending >= 1, 'insufficient evidence remains explicitly retryable');
 
   for (const w of await ctx.watchStore.list({})) {
     ok(
-      isMonitorable(w) || Boolean(w.lastResolution),
+      isMonitorable(w) || Boolean(w.anchorState),
       `${w.id} is either anchored or explicitly explained`,
     );
   }
@@ -144,18 +144,31 @@ async function seeded() {
   const w = legacy({ label: 'Sadia Chicken Breast 900 g' });
   await ctx.watchStore.create(w);
 
-  const candidates = await watchCandidates(ctx, w);
-  ok(Array.isArray(candidates), 'candidates are offered as a list');
+  const candidateVersion = 'wc_legacy_test';
+  const candidateSnapshot = JSON.stringify({
+    version: candidateVersion,
+    reason: 'two products remain plausible',
+    candidates: [{ type: 'registry', productId: ctx.product.id }],
+  });
+  await ctx.watchStore.setAnchor(w.id, {
+    ...w,
+    anchorState: 'confirmation_required',
+    candidateSnapshot,
+    lastResolution: 'needs-confirmation',
+  });
+  const pending = await ctx.watchStore.get(w.id);
+  const candidates = await watchCandidates(ctx, pending);
+  ok(Array.isArray(candidates.candidates), 'candidates are offered as a versioned list');
 
-  const confirmed = await confirmWatchProduct(ctx, w, ctx.product.id);
+  const confirmed = await confirmWatchProduct(ctx, pending, ctx.product.id, candidateVersion);
   ok(confirmed.productId === ctx.product.id, 'confirming binds the watch');
   const saved = await ctx.watchStore.get(w.id);
   ok(saved.registryProductId === ctx.product.id, 'the anchor is persisted');
   ok(saved.lastResolution === null, 'and the waiting state is cleared');
   ok(isMonitorable(saved) === true, 'monitoring resumes');
 
-  ok((await confirmWatchProduct(ctx, w, 'not-an-id')).error != null, 'a bad id is refused');
-  ok((await confirmWatchProduct(ctx, w, 'pr_missing1')).error != null, 'an unknown product is refused');
+  ok((await confirmWatchProduct(ctx, pending, 'not-an-id', candidateVersion)).error != null, 'a bad id is refused');
+  ok((await confirmWatchProduct(ctx, pending, 'pr_missing1', candidateVersion)).error != null, 'an unknown product is refused');
 }
 
 console.log(`watchLegacy.test: ${passed} passed, 0 failed`);

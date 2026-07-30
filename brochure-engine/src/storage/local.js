@@ -553,6 +553,10 @@ export function createMemoryOfferStore({
 export function createMemoryWatchStore() {
   const watches = new Map(); // id -> watch (doc shape, like rowToWatch output)
   const alerts = new Map(); // id -> alert (doc shape)
+  const anchored = (w) => (
+    ['anchored_registry', 'anchored_source', 'anchored_spec'].includes(w.anchorState) ||
+    (!w.anchorState && Boolean(w.registryProductId || w.spec))
+  );
   return {
     async create(watch) {
       watches.set(watch.id, { ...watch });
@@ -579,7 +583,7 @@ export function createMemoryWatchStore() {
     // work, so it must not occupy a slot.
     async count(profileId = null) {
       return [...watches.values()].filter(
-        (w) => w.active && (w.registryProductId || w.spec) && (!profileId || w.profileId === profileId),
+        (w) => w.active && anchored(w) && (!profileId || w.profileId === profileId),
       ).length;
     },
     async countRows(profileId = null) {
@@ -587,11 +591,41 @@ export function createMemoryWatchStore() {
     },
     async countUnanchored(profileId = null) {
       return [...watches.values()].filter(
-        (w) => w.active && !(w.registryProductId || w.spec) && (!profileId || w.profileId === profileId),
+        (w) => w.active && !anchored(w) && (!profileId || w.profileId === profileId),
       ).length;
     },
     async countActiveTotal() {
-      return [...watches.values()].filter((w) => w.active && (w.registryProductId || w.spec)).length;
+      return [...watches.values()].filter((w) => w.active && anchored(w)).length;
+    },
+    async identityStats(profileId = null) {
+      const states = {};
+      const provenance = {};
+      let zeroCandidateConfirmations = 0;
+      for (const w of watches.values()) {
+        if (!w.active || (profileId && w.profileId !== profileId)) continue;
+        const state = w.anchorState || 'legacy';
+        states[state] = (states[state] || 0) + 1;
+        try {
+          const kind = JSON.parse(w.anchorProvenance || '{}').kind;
+          if (kind) provenance[kind] = (provenance[kind] || 0) + 1;
+        } catch { /* diagnostic only */ }
+        if (state === 'confirmation_required') {
+          try {
+            const candidates = JSON.parse(w.candidateSnapshot || '{}').candidates;
+            if (!Array.isArray(candidates) || candidates.length === 0) {
+              zeroCandidateConfirmations += 1;
+            }
+          } catch {
+            zeroCandidateConfirmations += 1;
+          }
+        }
+      }
+      return {
+        states,
+        provenance,
+        confirmationRequired: states.confirmation_required || 0,
+        zeroCandidateConfirmations,
+      };
     },
     async adoptOrphans(profileId) {
       let n = 0;
@@ -610,6 +644,7 @@ export function createMemoryWatchStore() {
         'isBelow', 'isClose', 'checkedAt', 'lastPrice', 'lastPurchasePrice',
         'lastUnitLabel', 'lastStore', 'lastSource', 'lastName', 'lastLink',
         'lastResolution', 'lastResolutionReason', 'resolvedAt',
+        'monitoringHealth', 'monitoringHealthReason',
       ]) {
         if (key in fields) {
           w[key] = key === 'isBelow' || key === 'isClose' ? !!fields[key] : fields[key] ?? null;
@@ -623,14 +658,36 @@ export function createMemoryWatchStore() {
       w.registryProductId = registryProductId;
       return true;
     },
+    async rebindSource(id, {
+      provider, productId, snapshot, provenance, confidence, margin,
+    } = {}) {
+      const w = watches.get(id);
+      if (!w || w.anchorState !== 'anchored_source' || !provider || !productId || !snapshot) {
+        return false;
+      }
+      w.provider = provider;
+      w.productId = productId;
+      w.sourceSnapshot = JSON.stringify(snapshot);
+      w.anchorProvenance = JSON.stringify({
+        kind: provenance || 'verified-source-rebind', provider, productId,
+      });
+      w.anchorConfidence = confidence ?? null;
+      w.anchorMargin = margin ?? null;
+      return true;
+    },
     // Set the ANCHOR and the state explaining it — same boundary as D1.
-    async setAnchor(id, { registryProductId, spec, lastResolution, lastResolutionReason } = {}) {
+    async setAnchor(id, anchor = {}) {
       const w = watches.get(id);
       if (!w) return false;
-      w.registryProductId = registryProductId ?? null;
-      w.spec = spec ?? null;
-      w.lastResolution = lastResolution ?? null;
-      w.lastResolutionReason = lastResolutionReason ?? null;
+      for (const key of [
+        'registryProductId', 'spec', 'provider', 'productId', 'anchorState',
+        'sourceSnapshot', 'anchorProvenance', 'anchorConfidence', 'anchorMargin',
+        'anchorPolicyVersion', 'candidateSnapshot', 'resolutionAttempts',
+        'lastResolutionAttemptAt', 'identityResolutionReason', 'monitoringHealth',
+        'monitoringHealthReason', 'lastResolution', 'lastResolutionReason',
+      ]) {
+        w[key] = anchor[key] ?? null;
+      }
       return true;
     },
     async updateSettings(id, profileId, fields) {

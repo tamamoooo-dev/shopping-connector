@@ -278,12 +278,18 @@ export async function subsystemChecks(ctx, { storeRows, now = new Date() } = {})
       ? await ctx.watchStore.countUnanchored()
       : 0;
     const rows = ctx.watchStore.countRows ? await ctx.watchStore.countRows() : monitored;
+    const identity = ctx.watchStore.identityStats
+      ? await ctx.watchStore.identityStats()
+      : null;
     // Unanchored watches are expected DURING the migration and a smell after
     // it, so the count is always shown rather than folded into a total. It is
     // not a FAIL (the watches are fine, they are waiting on a person) and this
     // grid has no WARN, so the number itself is the signal.
     return {
+      status: identity?.zeroCandidateConfirmations ? 'FAIL' : 'PASS',
       detail: `${monitored} monitored · ${unanchored} awaiting anchor · `
+        + `${identity?.confirmationRequired || 0} confirmations · `
+        + `${identity?.zeroCandidateConfirmations || 0} empty confirmations · `
         + `${rows} rows · ${unseen} unseen alerts`,
     };
   });

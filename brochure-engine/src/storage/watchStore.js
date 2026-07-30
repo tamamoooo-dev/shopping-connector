@@ -50,6 +50,18 @@ export function watchToRow(w) {
     // THE ANCHOR: the registry product this watch is about. Resolved once, in
     // the foreground, at creation; only a registry MERGE ever moves it.
     registry_product_id: w.registryProductId ?? null,
+    anchor_state: w.anchorState ?? null,
+    source_snapshot: w.sourceSnapshot ?? null,
+    anchor_provenance: w.anchorProvenance ?? null,
+    anchor_confidence: w.anchorConfidence ?? null,
+    anchor_margin: w.anchorMargin ?? null,
+    anchor_policy_version: w.anchorPolicyVersion ?? null,
+    candidate_snapshot: w.candidateSnapshot ?? null,
+    resolution_attempts: w.resolutionAttempts ?? 0,
+    last_resolution_attempt_at: w.lastResolutionAttemptAt ?? null,
+    identity_resolution_reason: w.identityResolutionReason ?? null,
+    monitoring_health: w.monitoringHealth ?? null,
+    monitoring_health_reason: w.monitoringHealthReason ?? null,
     scope: w.scope ?? null,
     spec: w.spec ?? null,
     link: w.link ?? null,
@@ -77,6 +89,9 @@ export function watchToRow(w) {
     last_source: w.lastSource ?? null,
     last_name: w.lastName ?? null,
     last_link: w.lastLink ?? null,
+    last_resolution: w.lastResolution ?? null,
+    last_resolution_reason: w.lastResolutionReason ?? null,
+    resolved_at: w.resolvedAt ?? null,
   };
 }
 
@@ -91,6 +106,18 @@ export function rowToWatch(r) {
     provider: r.provider,
     productId: r.product_id,
     registryProductId: r.registry_product_id ?? null,
+    anchorState: r.anchor_state ?? null,
+    sourceSnapshot: r.source_snapshot ?? null,
+    anchorProvenance: r.anchor_provenance ?? null,
+    anchorConfidence: r.anchor_confidence ?? null,
+    anchorMargin: r.anchor_margin ?? null,
+    anchorPolicyVersion: r.anchor_policy_version ?? null,
+    candidateSnapshot: r.candidate_snapshot ?? null,
+    resolutionAttempts: r.resolution_attempts ?? 0,
+    lastResolutionAttemptAt: r.last_resolution_attempt_at ?? null,
+    identityResolutionReason: r.identity_resolution_reason ?? null,
+    monitoringHealth: r.monitoring_health ?? null,
+    monitoringHealthReason: r.monitoring_health_reason ?? null,
     // Legacy rows predate `scope`; their old `kind` says the same thing.
     scope: r.scope ?? (r.kind === 'product' ? 'store' : 'market'),
     link: r.link,
@@ -176,6 +203,8 @@ const STATE_COLS = {
   lastResolution: 'last_resolution',
   lastResolutionReason: 'last_resolution_reason',
   resolvedAt: 'resolved_at',
+  monitoringHealth: 'monitoring_health',
+  monitoringHealthReason: 'monitoring_health_reason',
 };
 
 export function createD1WatchStore(db) {
@@ -195,8 +224,12 @@ export function createD1WatchStore(db) {
               match_brand, match_size, match_variant, target_unit_price, unit_label,
               close_threshold, active, is_below, is_close, created_at, checked_at,
               last_price, last_purchase_price, last_unit_label, last_store, last_source,
-              last_name, last_link)
-           VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+              last_name, last_link, anchor_state, source_snapshot, anchor_provenance,
+              anchor_confidence, anchor_margin, anchor_policy_version, candidate_snapshot,
+              resolution_attempts, last_resolution_attempt_at, identity_resolution_reason,
+              monitoring_health, monitoring_health_reason, last_resolution,
+              last_resolution_reason, resolved_at)
+           VALUES (${Array(50).fill('?').join(',')})`,
         )
         .bind(
           r.id, r.profile_id, r.kind, r.label, r.query, r.provider, r.product_id,
@@ -206,6 +239,11 @@ export function createD1WatchStore(db) {
           r.target_unit_price, r.unit_label, r.close_threshold, r.active, r.is_below,
           r.is_close, r.created_at, r.checked_at, r.last_price, r.last_purchase_price,
           r.last_unit_label, r.last_store, r.last_source, r.last_name, r.last_link,
+          r.anchor_state, r.source_snapshot, r.anchor_provenance, r.anchor_confidence,
+          r.anchor_margin, r.anchor_policy_version, r.candidate_snapshot,
+          r.resolution_attempts, r.last_resolution_attempt_at, r.identity_resolution_reason,
+          r.monitoring_health, r.monitoring_health_reason, r.last_resolution,
+          r.last_resolution_reason, r.resolved_at,
         )
         .run();
       return watch;
@@ -244,7 +282,10 @@ export function createD1WatchStore(db) {
     // skipped by the check, so it consumes nothing the cap protects and must
     // not occupy a slot. Storage is bounded separately by countRows.
     async count(profileId = null) {
-      const where = 'active = 1 AND (registry_product_id IS NOT NULL OR spec IS NOT NULL)';
+      const where = `active = 1 AND (
+        anchor_state IN ('anchored_registry','anchored_source','anchored_spec')
+        OR (anchor_state IS NULL AND (registry_product_id IS NOT NULL OR spec IS NOT NULL))
+      )`;
       const row = profileId
         ? await db.prepare('SELECT COUNT(*) AS n FROM watches WHERE ' + where + ' AND profile_id = ?').bind(profileId).first()
         : await db.prepare('SELECT COUNT(*) AS n FROM watches WHERE ' + where).first();
@@ -263,7 +304,10 @@ export function createD1WatchStore(db) {
     // Watches awaiting the user's answer — surfaced in the cap error so the
     // pressure arrives with an explanation, not just a refusal.
     async countUnanchored(profileId = null) {
-      const where = 'active = 1 AND NOT (registry_product_id IS NOT NULL OR spec IS NOT NULL)';
+      const where = `active = 1 AND NOT (
+        anchor_state IN ('anchored_registry','anchored_source','anchored_spec')
+        OR (anchor_state IS NULL AND (registry_product_id IS NOT NULL OR spec IS NOT NULL))
+      )`;
       const row = profileId
         ? await db.prepare('SELECT COUNT(*) AS n FROM watches WHERE ' + where + ' AND profile_id = ?').bind(profileId).first()
         : await db.prepare('SELECT COUNT(*) AS n FROM watches WHERE ' + where).first();
@@ -273,9 +317,52 @@ export function createD1WatchStore(db) {
     // The global cron-budget backstop: monitored watches across all profiles.
     async countActiveTotal() {
       const row = await db
-        .prepare('SELECT COUNT(*) AS n FROM watches WHERE active = 1 AND (registry_product_id IS NOT NULL OR spec IS NOT NULL)')
+        .prepare(`SELECT COUNT(*) AS n FROM watches WHERE active = 1 AND (
+          anchor_state IN ('anchored_registry','anchored_source','anchored_spec')
+          OR (anchor_state IS NULL AND (registry_product_id IS NOT NULL OR spec IS NOT NULL))
+        )`)
         .first();
       return row?.n || 0;
+    },
+
+    async identityStats(profileId = null) {
+      const query = profileId
+        ? db.prepare(
+            `SELECT anchor_state, candidate_snapshot, anchor_provenance
+               FROM watches WHERE active = 1 AND profile_id = ?`,
+          ).bind(profileId)
+        : db.prepare(
+            `SELECT anchor_state, candidate_snapshot, anchor_provenance
+               FROM watches WHERE active = 1`,
+          );
+      const { results } = await query.all();
+      const states = {};
+      const provenance = {};
+      let zeroCandidateConfirmations = 0;
+      for (const row of results || []) {
+        const state = row.anchor_state || 'legacy';
+        states[state] = (states[state] || 0) + 1;
+        try {
+          const kind = JSON.parse(row.anchor_provenance || '{}').kind;
+          if (kind) provenance[kind] = (provenance[kind] || 0) + 1;
+        } catch { /* diagnostic only */ }
+        if (state === 'confirmation_required') {
+          try {
+            const candidates = JSON.parse(row.candidate_snapshot || '{}').candidates;
+            if (!Array.isArray(candidates) || candidates.length === 0) {
+              zeroCandidateConfirmations += 1;
+            }
+          } catch {
+            zeroCandidateConfirmations += 1;
+          }
+        }
+      }
+      return {
+        states,
+        provenance,
+        confirmationRequired: states.confirmation_required || 0,
+        zeroCandidateConfirmations,
+      };
     },
 
     async adoptOrphans(profileId) {
@@ -340,22 +427,59 @@ export function createD1WatchStore(db) {
       return (res?.meta?.changes || 0) > 0;
     },
 
+    async rebindSource(id, {
+      provider, productId, snapshot, provenance, confidence, margin,
+    } = {}) {
+      if (!provider || !productId || !snapshot) return false;
+      const res = await db
+        .prepare(
+          `UPDATE watches
+              SET provider = ?, product_id = ?, source_snapshot = ?,
+                  anchor_provenance = ?, anchor_confidence = ?, anchor_margin = ?,
+                  anchor_state = 'anchored_source'
+            WHERE id = ? AND anchor_state = 'anchored_source'`,
+        )
+        .bind(
+          provider, productId, JSON.stringify(snapshot),
+          JSON.stringify({
+            kind: provenance || 'verified-source-rebind',
+            provider,
+            productId,
+          }),
+          confidence ?? null, margin ?? null, id,
+        )
+        .run();
+      return (res?.meta?.changes || 0) > 0;
+    },
+
     // Set (or clear) a watch's ANCHOR and the state that explains it. The only
     // writer of registry_product_id + spec together, used by the one-time
     // legacy backfill and by the user's confirmation. Deliberately separate
     // from updateState: this changes what the watch is ABOUT, not how its last
     // check went.
-    async setAnchor(id, { registryProductId, spec, lastResolution, lastResolutionReason } = {}) {
+    async setAnchor(id, anchor = {}) {
       const res = await db
         .prepare(
           `UPDATE watches
-              SET registry_product_id = ?, spec = ?,
+              SET registry_product_id = ?, spec = ?, provider = ?, product_id = ?,
+                  anchor_state = ?, source_snapshot = ?, anchor_provenance = ?,
+                  anchor_confidence = ?, anchor_margin = ?, anchor_policy_version = ?,
+                  candidate_snapshot = ?, resolution_attempts = ?,
+                  last_resolution_attempt_at = ?, identity_resolution_reason = ?,
+                  monitoring_health = ?, monitoring_health_reason = ?,
                   last_resolution = ?, last_resolution_reason = ?
             WHERE id = ?`,
         )
         .bind(
-          registryProductId ?? null, spec ?? null,
-          lastResolution ?? null, lastResolutionReason ?? null, id,
+          anchor.registryProductId ?? null, anchor.spec ?? null,
+          anchor.provider ?? null, anchor.productId ?? null,
+          anchor.anchorState ?? null, anchor.sourceSnapshot ?? null,
+          anchor.anchorProvenance ?? null, anchor.anchorConfidence ?? null,
+          anchor.anchorMargin ?? null, anchor.anchorPolicyVersion ?? null,
+          anchor.candidateSnapshot ?? null, anchor.resolutionAttempts ?? 0,
+          anchor.lastResolutionAttemptAt ?? null, anchor.identityResolutionReason ?? null,
+          anchor.monitoringHealth ?? null, anchor.monitoringHealthReason ?? null,
+          anchor.lastResolution ?? null, anchor.lastResolutionReason ?? null, id,
         )
         .run();
       return (res?.meta?.changes || 0) > 0;

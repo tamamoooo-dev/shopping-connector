@@ -34,7 +34,10 @@ import {
   buildWatchSettingsUpdate,
   checkWatches,
   confirmWatchProduct,
+  confirmWatchSource,
+  declineWatchCandidates,
   diagnoseWatch,
+  repairWatch,
   resolveLegacyWatches,
   watchCandidates,
   MAX_WATCHES,
@@ -694,6 +697,9 @@ export async function handleRequest(request, ctx) {
       count: watches.length,
       max: MAX_WATCHES,
       unseenAlerts: await ctx.watchStore.countUnseen(profileParam),
+      identity: ctx.watchStore.identityStats
+        ? await ctx.watchStore.identityStats(profileParam)
+        : null,
       watches,
     });
   }
@@ -728,8 +734,8 @@ export async function handleRequest(request, ctx) {
         : 0;
       return json({
         error: `${MAX_WATCH_ROWS} watches stored`
-          + (pending ? `, ${pending} awaiting confirmation` : '')
-          + '. Confirm or delete some first.',
+          + (pending ? `, ${pending} awaiting identity resolution` : '')
+          + '. Resolve or delete some first.',
       }, 409);
     }
     // IDENTITY IS RESOLVED HERE — once, in the foreground, while the user is
@@ -742,8 +748,10 @@ export async function handleRequest(request, ctx) {
     await ctx.watchStore.create(anchored.watch);
     return json({
       watch: anchored.watch,
+      confirmationRequired: anchored.confirmationRequired === true,
       needsConfirmation: anchored.needsConfirmation === true,
       candidates: anchored.candidates || [],
+      candidateVersion: anchored.candidateVersion || null,
       createdProduct: anchored.created ? anchored.created.id : null,
     }, 201);
   }
@@ -767,7 +775,23 @@ export async function handleRequest(request, ctx) {
     // resolver could not settle alone. One write, owner-scoped.
     if (body && body.registryProductId != null) {
       if (!ctx.registryStore) return json({ error: 'Registry unavailable.' }, 503);
-      const result = await confirmWatchProduct(ctx, watch, body.registryProductId);
+      const result = await confirmWatchProduct(
+        ctx, watch, body.registryProductId, body.candidateVersion,
+      );
+      if (result.error) return json({ error: result.error }, 400);
+      return json({ watch: await ctx.watchStore.get(id) });
+    }
+    if (body && body.sourceProvider != null && body.sourceProductId != null) {
+      const result = await confirmWatchSource(ctx, watch, {
+        provider: body.sourceProvider,
+        productId: body.sourceProductId,
+        candidateVersion: body.candidateVersion,
+      });
+      if (result.error) return json({ error: result.error }, 400);
+      return json({ watch: await ctx.watchStore.get(id) });
+    }
+    if (body?.confirmationAction === 'none') {
+      const result = await declineWatchCandidates(ctx, watch, body.candidateVersion);
       if (result.error) return json({ error: result.error }, 400);
       return json({ watch: await ctx.watchStore.get(id) });
     }
@@ -785,7 +809,7 @@ export async function handleRequest(request, ctx) {
     const id = (url.searchParams.get('id') || '').trim();
     const watch = id ? await ctx.watchStore.get(id) : null;
     if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
-    return json({ candidates: await watchCandidates(ctx, watch) });
+    return json(await watchCandidates(ctx, watch));
   }
 
   // "Why is this watch quiet?" — the real retrieval and the real identity
@@ -800,6 +824,19 @@ export async function handleRequest(request, ctx) {
     const watch = id ? await ctx.watchStore.get(id) : null;
     if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
     return json(await diagnoseWatch(ctx, watch));
+  }
+
+  // User-initiated identity/monitoring repair. Established anchors are never
+  // erased: Registry/spec anchors return diagnostics and a source anchor may
+  // only rebind after passing the same continuity safety gates as monitoring.
+  if (path === '/watches/repair' && request.method === 'POST') {
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    const id = (url.searchParams.get('id') || '').trim();
+    const watch = id ? await ctx.watchStore.get(id) : null;
+    if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
+    const result = await repairWatch(ctx, watch);
+    return json({ ...result, watch: await ctx.watchStore.get(id) });
   }
 
   // The ONE-TIME legacy backfill: settle every pre-anchor watch into an

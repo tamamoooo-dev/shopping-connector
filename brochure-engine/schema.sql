@@ -189,6 +189,18 @@ CREATE TABLE IF NOT EXISTS watches (
   -- foreground, when the watch is created; a check only ever asks "is this
   -- listing that product?" (identity/verify.js). Moved only by a registry merge.
   registry_product_id TEXT,
+  -- Watch identity is separate from monitoring health. Source anchors are
+  -- intentionally local to one provider and never imply a Registry merge.
+  anchor_state TEXT,               -- resolving | anchored_* | confirmation_required | unresolvable | inactive
+  source_snapshot TEXT,            -- immutable JSON evidence captured at creation/rebind
+  anchor_provenance TEXT,          -- JSON: trusted-source, registry-auto, catalog-auto, human, repair
+  anchor_confidence REAL,
+  anchor_margin REAL,
+  anchor_policy_version TEXT,
+  candidate_snapshot TEXT,         -- versioned, actionable confirmation choices
+  resolution_attempts INTEGER NOT NULL DEFAULT 0,
+  last_resolution_attempt_at TEXT,
+  identity_resolution_reason TEXT,
   -- THE OTHER ANCHOR: a Flexible Watch is bound to a CLASS, not an instance —
   -- JSON of pinned identity dimensions ({"family":"chicken","cut":"breast"} =
   -- any chicken breast, any brand, any size, compared per kg). Keys present are
@@ -240,7 +252,9 @@ CREATE TABLE IF NOT EXISTS watches (
   -- says it SUCCEEDED. Keeping them apart is what makes a dead watch visible.
   last_resolution TEXT,
   last_resolution_reason TEXT,
-  resolved_at  TEXT
+  resolved_at  TEXT,
+  monitoring_health TEXT,          -- unchecked | ok | not_found | no_price | provider_error | anchor_unavailable
+  monitoring_health_reason TEXT
 );
 
 CREATE TABLE IF NOT EXISTS alerts (
@@ -266,6 +280,7 @@ CREATE INDEX IF NOT EXISTS ix_alerts_seen ON alerts(seen);
 -- Profile-scoped reads and the per-profile cap gate (Local Profile milestone).
 CREATE INDEX IF NOT EXISTS ix_watches_profile ON watches(profile_id, active);
 CREATE INDEX IF NOT EXISTS ix_watches_registry_product ON watches(registry_product_id);
+CREATE INDEX IF NOT EXISTS ix_watches_anchor_state ON watches(anchor_state, active);
 
 -- ---------------------------------------------------------------------------
 -- Operations Console (ops/ subsystem) — the audit timeline. One row per
