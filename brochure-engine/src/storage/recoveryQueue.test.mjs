@@ -667,4 +667,106 @@ await test('depth() reports per-condition buckets that OVERLAP, never a reject t
   close();
 });
 
+await test('known grocery is selected first and triage scopes separate the bulk', async () => {
+  const offers = [
+    { id: 'a:r:d4d:ng', name: 'Samsung TV', category: 'tv' },
+    { id: 'a:r:d4d:unknown', name: 'Mystery product', category: null },
+    { id: 'a:r:d4d:grocery', name: 'Basmati Rice', category: 'rice' },
+  ];
+  const { store, queue, close } = fresh(offers);
+  for (const offer of offers) {
+    await store.saveVisionOutcome({
+      attempt: attempt(offer.id, { accepted: false }),
+      canonicalRow: null,
+      acceptance: rejectVerdict,
+      // Simulates stale v1 queue rows before as-is reconciliation.
+      recovery: recoveryAdmission({ canonicalRow: null, acceptance: rejectVerdict }),
+    });
+  }
+  const all = await queue.list({ currentOn: TODAY, limit: 10 });
+  assert.deepEqual(all.map((item) => item.offerId), [
+    'a:r:d4d:grocery',
+    'a:r:d4d:unknown',
+    'a:r:d4d:ng',
+  ]);
+  assert.deepEqual(
+    (await queue.list({ currentOn: TODAY, scope: 'grocery' })).map((item) => item.offerId),
+    ['a:r:d4d:grocery'],
+  );
+  assert.deepEqual(
+    (await queue.list({ currentOn: TODAY, scope: 'uncategorized' })).map((item) => item.offerId),
+    ['a:r:d4d:unknown'],
+  );
+  assert.deepEqual(
+    (await queue.list({ currentOn: TODAY, scope: 'non_grocery' })).map((item) => item.offerId),
+    ['a:r:d4d:ng'],
+  );
+  const depth = await queue.depth({ currentOn: TODAY });
+  assert.deepEqual(depth.byProductClass, { grocery: 1, uncategorized: 1, non_grocery: 1 });
+  close();
+});
+
+await test('named/priced non-grocery is reconciled as-is without a recovery attempt', async () => {
+  const offers = [
+    { id: 'a:r:d4d:tv', name: 'Samsung 65 inch TV', category: 'tv' },
+    { id: 'a:r:d4d:shoe', name: null, name_ar: null, category: 'footwear' },
+    { id: 'a:r:d4d:rice', name: 'Basmati Rice', category: 'rice' },
+  ];
+  const { store, queue, close } = fresh(offers);
+  for (const offer of offers) {
+    await store.saveVisionOutcome({
+      attempt: attempt(offer.id, { accepted: false }),
+      canonicalRow: null,
+      acceptance: rejectVerdict,
+      recovery: recoveryAdmission({ canonicalRow: null, acceptance: rejectVerdict }),
+    });
+  }
+  const result = await store.reconcileNonGroceryAcceptance({ currentOn: TODAY });
+  assert.equal(result.resolved, 1);
+  assert.equal((await queue.get('a:r:d4d:tv')).status, RECOVERY_STATUS.RESOLVED);
+  assert.equal((await queue.get('a:r:d4d:tv')).verdict.accepted, true);
+  assert.equal((await queue.get('a:r:d4d:tv')).verdict.quantityBasis, 'unit');
+  assert.equal((await queue.get('a:r:d4d:shoe')).status, RECOVERY_STATUS.QUEUED);
+  assert.equal((await queue.get('a:r:d4d:rice')).status, RECOVERY_STATUS.QUEUED);
+  assert.equal((await queue.history('a:r:d4d:tv')).length, 0, 'no paid recovery attempt');
+  close();
+});
+
+await test('new named/priced non-grocery never enters Recovery or legacy OCR', async () => {
+  const tv = {
+    id: 'a:r:d4d:new-tv',
+    name: 'Samsung 65 inch TV',
+    category: 'tv',
+    price: 1999,
+    currency: 'SAR',
+  };
+  const { store, queue, raw, close } = fresh([tv]);
+  const acceptance = evaluateBusinessAcceptance({
+    offer: tv,
+    acceptedFields: [],
+    observation: { name: null },
+  });
+  const recovery = recoveryAdmission({
+    canonicalRow: null,
+    acceptance,
+    offer: tv,
+  });
+  assert.equal(recovery.complete, true);
+  assert.equal(recovery.reasons.acceptedAsIs, true);
+  await store.saveVisionOutcome({
+    attempt: attempt(tv.id, { accepted: false }),
+    canonicalRow: null,
+    acceptance,
+    recovery,
+  });
+  assert.equal(await queue.get(tv.id), null, 'no Recovery row is created');
+  assert.equal(
+    raw.prepare('SELECT COUNT(*) AS n FROM offer_ocr_queue WHERE offer_id = ?').get(tv.id).n,
+    0,
+    'no legacy OCR row is created',
+  );
+  assert.equal((await store.getAcceptanceVerdict(tv.id)).accepted, true);
+  close();
+});
+
 console.log(`\nS5 Recovery Queue platform: ${tests} tests OK`);

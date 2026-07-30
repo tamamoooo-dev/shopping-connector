@@ -1176,9 +1176,10 @@ export async function handleRequest(request, ctx) {
   }
 
   // S5.7 · AUTO recovery drain (VISION-PIPELINE.md C-8). Machine-guarded like
-  // every other drain, and INERT by default: the execution policy resolves to
-  // Manual/disarmed unless an operator armed it, so this route is a cheap no-op
-  // that makes no provider call.
+  // every other drain, and PAID WORK is inert by default: the execution policy
+  // resolves to Manual/disarmed unless an operator armed it. Free as-is
+  // non-grocery reconciliation may still close stale rows without a provider
+  // call.
   //
   // NOT WIRED TO A CRON, deliberately. This is left as an operator decision
   // rather than piled onto the enrich cron, whose per-invocation CPU and
@@ -1192,6 +1193,12 @@ export async function handleRequest(request, ctx) {
     if (!ctx.recoveryQueue || !ctx.recoveryRegistry) {
       return json({ error: 'Recovery Queue unavailable.' }, 503);
     }
+    // Free first pass: named/priced non-grocery is accepted from retailer data
+    // and must never consume a Medium call. This also drains stale v1 verdicts
+    // in bounded chunks after a deploy.
+    const reconciledAsIs = await ctx.enrichStore
+      ?.reconcileNonGroceryAcceptance({ currentOn: todayISO(), limit: 500 })
+      .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
     const policy = await readRecoveryPolicy(ctx.objectStore, { registry: ctx.recoveryRegistry });
     // Resolved PER PROCESSOR from the credential each descriptor declares, and
     // a processor declaring none gets none. Built once for the run, it would
@@ -1215,6 +1222,7 @@ export async function handleRequest(request, ctx) {
       },
       { currentOn: todayISO() },
     );
+    report.reconciledAsIs = reconciledAsIs || { available: false, scanned: 0, resolved: 0 };
     if (ctx.opsStore && !report.skipped) {
       await ctx.opsStore.record({
         ts: report.startedAt,

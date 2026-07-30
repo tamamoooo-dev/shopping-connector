@@ -7,17 +7,15 @@
 // tryLease CAS below — updating THIS row each fire so live progress survives the
 // browser closing.
 //
-// SINGLE LIVE JOB: id 'active' is the one running/most-recent job, upserted in
-// place. That is all the UI needs (start / poll / stop); a full job history is
-// deliberately out of scope — the ops_runs audit already records each hop.
+// NAMED LIVE JOB: id defaults to 'active' for the UI-visible Vision job.
+// Recovery uses id 'recovery' only as its cron coordinator lease. A full job
+// history is deliberately out of scope — ops_runs already records each hop.
 //
 // Interface:
 //   start({ scope, total, origin }) -> Promise<row>   (arms a fresh 'active' job)
 //   get()                           -> Promise<row|null>  (provider_limit parsed)
 //   update(patch)                   -> Promise<row|null>  (whitelisted columns)
 //   stop()                          -> Promise<row|null>  (status 'stopped')
-
-const ACTIVE = 'active';
 
 // Only these columns may be patched — a typo can never write a phantom column.
 const PATCHABLE = new Set([
@@ -35,7 +33,8 @@ function rowOut(r) {
   return { ...r, provider_limit: providerLimit };
 }
 
-export function createD1VisionJobStore(db) {
+export function createD1VisionJobStore(db, { id = 'active' } = {}) {
+  const jobId = String(id || 'active');
   return {
     async start({ scope = 'all', total = 0, origin = 'ops' } = {}) {
       const now = new Date().toISOString();
@@ -47,7 +46,34 @@ export function createD1VisionJobStore(db) {
               provider_limit, origin, lease_until)
            VALUES (?, 'running', ?, ?, 0, 0, 0, 0, ?, 0, ?, ?, NULL, NULL, NULL, ?, NULL)`,
         )
-        .bind(ACTIVE, scope, total, total, now, now, origin)
+        .bind(jobId, scope, total, total, now, now, origin)
+        .run();
+      return this.get();
+    },
+
+    // Idempotently arm a lease row without resetting a running job's progress
+    // or lease. Recovery uses id='recovery' in this same generic table, avoiding
+    // a second migration solely for a coordinator mutex.
+    async ensureRunning({ scope = 'all', origin = 'cron' } = {}) {
+      const now = new Date().toISOString();
+      await db
+        .prepare(
+          `INSERT INTO vision_jobs
+             (id, status, scope, total, processed, enriched, declined, failed,
+              remaining, hops, started_at, updated_at, origin, lease_until)
+           VALUES (?, 'running', ?, 0, 0, 0, 0, 0, 0, 0, ?, ?, ?, NULL)
+           ON CONFLICT(id) DO UPDATE SET
+             status = CASE WHEN vision_jobs.status = 'running'
+                           THEN vision_jobs.status ELSE 'running' END,
+             scope = excluded.scope,
+             updated_at = excluded.updated_at,
+             finished_at = CASE WHEN vision_jobs.status = 'running'
+                                THEN vision_jobs.finished_at ELSE NULL END,
+             origin = excluded.origin,
+             lease_until = CASE WHEN vision_jobs.status = 'running'
+                                THEN vision_jobs.lease_until ELSE NULL END`,
+        )
+        .bind(jobId, scope, now, now, origin)
         .run();
       return this.get();
     },
@@ -66,7 +92,7 @@ export function createD1VisionJobStore(db) {
              WHERE id = ? AND status = 'running'
                AND (lease_until IS NULL OR lease_until < ?)`,
         )
-        .bind(until, ACTIVE, now)
+        .bind(until, jobId, now)
         .run();
       return (res?.meta?.changes || 0) > 0;
     },
@@ -74,7 +100,7 @@ export function createD1VisionJobStore(db) {
     async get() {
       const row = await db
         .prepare('SELECT * FROM vision_jobs WHERE id = ?')
-        .bind(ACTIVE)
+        .bind(jobId)
         .first();
       return rowOut(row);
     },
@@ -95,7 +121,7 @@ export function createD1VisionJobStore(db) {
         binds.push(new Date().toISOString());
       }
       if (!cols.length) return this.get();
-      binds.push(ACTIVE);
+      binds.push(jobId);
       await db
         .prepare(`UPDATE vision_jobs SET ${cols.join(', ')} WHERE id = ?`)
         .bind(...binds)
@@ -110,7 +136,7 @@ export function createD1VisionJobStore(db) {
           `UPDATE vision_jobs SET status = 'stopped', updated_at = ?, finished_at = ?
              WHERE id = ? AND status = 'running'`,
         )
-        .bind(now, now, ACTIVE)
+        .bind(now, now, jobId)
         .run();
       return this.get();
     },

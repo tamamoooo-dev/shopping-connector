@@ -103,6 +103,7 @@ export function offerRow(overrides = {}) {
     offer_id: offerId,
     price: 5.99,
     currency: 'SAR',
+    category: 'rice',
     image_url: 'https://cdn.example/crop.jpg',
     valid_from: '2026-07-01',
     valid_to: '2026-07-31',
@@ -114,7 +115,7 @@ export function offerRow(overrides = {}) {
 export function insertOffers(raw, offers) {
   const columns = [
     'id', 'store', 'region', 'source', 'offer_id', 'name', 'name_ar', 'price',
-    'currency', 'image_url', 'valid_from', 'valid_to', 'detected_at',
+    'currency', 'image_url', 'valid_from', 'valid_to', 'detected_at', 'category',
   ];
   const statement = raw.prepare(
     `INSERT INTO offers (${columns.join(',')}) VALUES (${columns.map(() => '?').join(',')})`,

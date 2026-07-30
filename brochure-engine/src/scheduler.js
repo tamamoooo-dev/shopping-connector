@@ -287,3 +287,71 @@ export function createOcrEnrichDispatcher({ self, ingestSecret, origin = 'https:
     return body;
   };
 }
+
+// --- Recovery drain -----------------------------------------------------------
+// Same durable fan-out shape as Background Vision. Each child receives its own
+// Worker invocation and therefore its own external-subrequest budget; children
+// stay sequential so Medium's request rate remains flat. A child that scans no
+// work ends the fire early instead of issuing the remaining empty hops.
+export async function runRecoveryDrainFanOut(
+  dispatchBatch,
+  { maxBatches = 4 } = {},
+) {
+  const startedAt = new Date().toISOString();
+  const lines = [];
+  for (let i = 0; i < Math.max(1, Number(maxBatches) || 1); i += 1) {
+    try {
+      const result = await dispatchBatch();
+      lines.push({ ok: true, result });
+      const runs = result?.runs || [];
+      const scanned = runs.reduce((n, run) => n + Number(run.scanned || 0), 0);
+      const stopped = result?.skipped
+        || scanned === 0
+        || runs.some((run) => run.providerLimit || run.failed > 0);
+      if (stopped) break;
+    } catch (err) {
+      lines.push({ ok: false, error: err?.message || String(err) });
+      break;
+    }
+  }
+  const reports = lines.flatMap((line) => (line.ok ? line.result?.runs || [] : []));
+  return {
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    batches: lines.length,
+    ok: lines.filter((line) => line.ok).length,
+    failed: lines.filter((line) => !line.ok).length
+      + reports.reduce((n, run) => n + Number(run.failed || 0), 0),
+    scanned: reports.reduce((n, run) => n + Number(run.scanned || 0), 0),
+    attempted: reports.reduce((n, run) => n + Number(run.attempted || 0), 0),
+    recovered: reports.reduce((n, run) => n + Number(run.recovered || 0), 0),
+    reconciledAsIs: lines.reduce(
+      (n, line) => n + Number(line.ok ? line.result?.reconciledAsIs?.resolved || 0 : 0),
+      0,
+    ),
+    lines,
+  };
+}
+
+export function createRecoveryDrainDispatcher({
+  self,
+  ingestSecret,
+  origin = 'https://brochure-engine.internal',
+} = {}) {
+  if (!self || typeof self.fetch !== 'function') {
+    throw new Error('scheduler: a SELF service binding is required for the recovery dispatcher');
+  }
+  return async function dispatchRecoveryBatch() {
+    const res = await self.fetch(`${origin}/recovery-drain`, {
+      method: 'POST',
+      headers: { 'X-Ingest-Secret': ingestSecret || '' },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(`recovery drain -> HTTP ${res.status}`);
+      err.body = body;
+      throw err;
+    }
+    return body;
+  };
+}

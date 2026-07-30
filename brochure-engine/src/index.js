@@ -27,6 +27,8 @@ import {
   runEnrichDrain,
   createEnrichDispatcher,
   createOcrEnrichDispatcher,
+  runRecoveryDrainFanOut,
+  createRecoveryDrainDispatcher,
 } from './scheduler.js';
 import { createD1MetadataStore } from './storage/metadataStore.js';
 import {
@@ -43,6 +45,7 @@ import { createD1OpsStore } from './storage/opsStore.js';
 import { createD1EnrichStore } from './storage/enrichStore.js';
 import { createRecoveryQueue } from './storage/recoveryQueue.js';
 import { recoveryRegistry } from './recovery/processors/index.js';
+import { readRecoveryPolicy } from './recovery/policy.js';
 import { createD1VisionJobStore } from './storage/visionJobStore.js';
 import { createD1RegistryStore } from './storage/registryStore.js';
 import { builtArabicNamesEnabled } from './lexicon/arabicRollout.js';
@@ -89,6 +92,7 @@ const CRONS = {
   watches: '45 5 * * *', // daily Price Monitoring check (+ Monday registry maintenance)
   enrich: '10,30,50 * * * *', // steady-state vision drain (yields to a background job)
   visionDrain: '* * * * *', // Background Manual Vision: near-continuous drain while a job runs
+  recovery: '* * * * *', // armed Recovery: grocery-first SELF fan-out on the same idle tick
   brochureResume: '*/2 * * * *', // one safe page batch per pending D4D store
 };
 
@@ -100,6 +104,9 @@ const CRONS = {
 // on Mistral 429s (offers/mistralKeys.js), so this is a ceiling, not a floor.
 // Tune this single number if production measurement suggests a better value.
 const VISION_DRAIN_BATCHES = 4;
+// Same throughput shape as Background Vision: four fresh Worker invocations
+// per minute, each capped by recovery policy at 15 items by default.
+const RECOVERY_DRAIN_BATCHES = 4;
 // Single-writer lease held while a fire is draining. It MUST exceed a fire's
 // worst-case wall time, else it expires mid-drain and a second fire could write
 // concurrently. A K=4 fire is 4 × /enrich?limit=15 (measured ~30–75s each with
@@ -164,14 +171,19 @@ function buildContext(env) {
   const enrichStore = createD1EnrichStore(env.DB);
   // S5 Recovery Queue (VISION-PIPELINE.md C-8, C-9). Shares D1. Inert twice
   // over: the store reports not-ready until the migrations are applied, and the
-  // execution policy defaults to Manual/disarmed so nothing drains without an
-  // operator. The registry is the authority on which processors exist.
+  // execution policy defaults to Manual/disarmed so no PAID processor drains
+  // without an operator. Free as-is non-grocery reconciliation still runs.
+  // The registry is the authority on which processors exist.
   const recoveryQueue = createRecoveryQueue(env.DB);
   // Background Manual Vision job (Vision Milestone 2 §2): one durable 'active'
   // row the 1-minute `visionDrain` cron updates each fire, so a manual drain
   // runs to empty server-side and its progress survives the browser closing.
   // Shares D1; inert until an operator starts a job.
   const visionJobStore = createD1VisionJobStore(env.DB);
+  // A second row in the same generic job table is Recovery's coordinator
+  // lease. It prevents overlapping one-minute cron fires from multiplying the
+  // intended four-child Medium request rate.
+  const recoveryJobStore = createD1VisionJobStore(env.DB, { id: 'recovery' });
   // Product Registry (REGISTRY-DESIGN.md): products + sightings, shared D1.
   const registryStore = createD1RegistryStore(env.DB);
   // Model-scoped Mistral credentials. Dedicated bindings isolate Small, OCR,
@@ -201,6 +213,7 @@ function buildContext(env) {
     recoveryQueue,
     recoveryRegistry,
     visionJobStore,
+    recoveryJobStore,
     mistralPools,
     // Compatibility fields for older local/tests/callers. Production routing
     // consumes mistralPools directly and can therefore use all three Medium
@@ -294,8 +307,8 @@ export default {
     }
 
     // FOUR schedules share this handler (wrangler.toml [triggers]):
-    //   • "* * * * *"    — Background Manual Vision continuous drain (below);
-    //     a single cheap D1 read unless an operator has a job running.
+    //   • "* * * * *"    — shared background tick: Manual Vision when its job
+    //     is running; otherwise armed Recovery, plus free non-grocery cleanup.
     //   • "10,30,50 * * * *" — the steady-state vision-enrichment drain (below).
     //   • "45 5 * * *"  — DAILY Price Monitoring: check every active watch.
     //     Fanned out in batches via SELF (each batch gets its own subrequest
@@ -304,22 +317,74 @@ export default {
     //     registry maintenance.
     //   • "0 6 * * 2,3,5" — the WEEKLY brochure/offers pipeline (fan-out ->
     //     price capture -> retention), unchanged below.
-    // Background Manual Vision — the near-continuous drain (1-minute cron). When
-    // an operator has a job running, drain a bounded chunk each fire, paced only
-    // by Mistral; otherwise this is a single cheap D1 read and out. A D1 LEASE
-    // makes it the SOLE active resolution writer: no two fires overlap, and the
-    // steady 10/30/50 drain + Monday maintenance both yield to a running job.
+    // Shared one-minute background tick. Manual Vision has first priority while
+    // its job runs. Otherwise armed Recovery drains through fresh SELF children.
+    // Both paths hold their own D1 lease so cron fires cannot overlap.
     if (event.cron === '* * * * *') {
       ctx.waitUntil(
         (async () => {
           const context = buildContext(env);
-          if (!context.mistralPools.medium.some((slot) => slot.key)) return;
+          const today = new Date().toISOString().slice(0, 10);
+          // Zero-model cleanup runs whether Auto is armed or not. It retires
+          // named/priced TVs, bags, shoes, etc. under the user's as-is rule.
+          const reconciledAsIs = await context.enrichStore
+            .reconcileNonGroceryAcceptance({ currentOn: today, limit: 500 })
+            .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
           const job = await context.visionJobStore.get().catch(() => null);
-          if (!job || job.status !== 'running') return; // idle: one D1 read, done
+          if (!job || job.status !== 'running') {
+            // Recovery Auto is a durable background drain, not a one-button
+            // burst. SELF children mirror Background Vision: each receives a
+            // fresh external-subrequest budget and the next minute resumes.
+            const policy = await readRecoveryPolicy(
+              context.objectStore,
+              { registry: context.recoveryRegistry },
+            ).catch(() => null);
+            if (!policy?.armed) {
+              await context.recoveryJobStore.stop().catch(() => {});
+              return;
+            }
+            await context.recoveryJobStore
+              .ensureRunning({ scope: 'recovery', origin: 'cron' })
+              .catch(() => null);
+            if (!(await context.recoveryJobStore
+              .tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS })
+              .catch(() => false))) return;
+            const tr = Date.now();
+            try {
+              const drain = await runRecoveryDrainFanOut(
+                createRecoveryDrainDispatcher({
+                  self: env.SELF,
+                  ingestSecret: env.INGEST_SECRET,
+                }),
+                { maxBatches: RECOVERY_DRAIN_BATCHES },
+              );
+              await context.opsStore
+                .record({
+                  ts: drain.startedAt,
+                  action: 'cron:recovery',
+                  origin: 'cron',
+                  ok: drain.failed === 0,
+                  failed: drain.failed,
+                  elapsed_ms: Date.now() - tr,
+                  error: drain.lines?.find((line) => !line.ok)?.error || null,
+                  detail: {
+                    batches: drain.batches,
+                    scanned: drain.scanned,
+                    attempted: drain.attempted,
+                    recovered: drain.recovered,
+                    reconciledAsIs: reconciledAsIs.resolved,
+                  },
+                })
+                .catch(() => {});
+            } finally {
+              await context.recoveryJobStore.update({ lease_until: null }).catch(() => {});
+            }
+            return;
+          }
+          if (!context.mistralPools.medium.some((slot) => slot.key)) return;
           // Single-writer: only one fire drains at a time (atomic CAS lease).
           if (!(await context.visionJobStore.tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS }).catch(() => false))) return;
           const te = Date.now();
-          const today = new Date().toISOString().slice(0, 10);
           const pending = await context.enrichStore.countDebris(today).catch(() => 0);
           if (pending <= 0) {
             await context.visionJobStore

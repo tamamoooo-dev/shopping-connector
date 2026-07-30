@@ -616,6 +616,9 @@ function requireProcessor(ctx, id) {
 // be the tool second-guessing the person it exists to serve.
 async function runRecoveryDispatch(ctx, body) {
   requireRecovery(ctx);
+  const reconciledAsIs = await ctx.enrichStore
+    ?.reconcileNonGroceryAcceptance({ currentOn: todayISO(), limit: 500 })
+    .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
   const processor = requireProcessor(ctx, body?.processor);
   // An EXPLICIT but empty selection is a mistake, not an instruction to process
   // whatever is ready. Refused here rather than passed down, because the two
@@ -630,6 +633,10 @@ async function runRecoveryDispatch(ctx, body) {
     throw new OpsError('No offers selected. Omit offerIds to process the ready queue.');
   }
   const limit = Math.max(1, Math.min(Number(body?.limit) || 5, MAX_RECOVERY_DISPATCH));
+  const requestedScope = String(body?.scope || 'all');
+  const scope = ['grocery', 'uncategorized', 'non_grocery', 'all'].includes(requestedScope)
+    ? requestedScope
+    : 'all';
   const t0 = Date.now();
   const report = await runRecovery(
     {
@@ -642,6 +649,7 @@ async function runRecoveryDispatch(ctx, body) {
       currentOn: todayISO(),
       limit,
       offerIds,
+      scope,
       maxAttemptsPerItem: Number(body?.maxAttemptsPerItem) || 2,
     },
   );
@@ -656,6 +664,7 @@ async function runRecoveryDispatch(ctx, body) {
     detail: {
       processor: processor.id,
       explicit: !!offerIds,
+      scope,
       scanned: report.scanned,
       attempted: report.attempted,
       recovered: report.recovered,
@@ -668,7 +677,7 @@ async function runRecoveryDispatch(ctx, body) {
       staleClaims: report.staleClaims,
     },
   });
-  return { action: 'ops:recovery-dispatch', ok: true, report };
+  return { action: 'ops:recovery-dispatch', ok: true, report, reconciledAsIs };
 }
 
 // AUTO drain, run on demand. Same runner, and it DOES consult the policy — an
@@ -676,6 +685,9 @@ async function runRecoveryDispatch(ctx, body) {
 // makes no provider call and says why.
 async function runRecoveryDrain(ctx) {
   requireRecovery(ctx);
+  const reconciledAsIs = await ctx.enrichStore
+    ?.reconcileNonGroceryAcceptance({ currentOn: todayISO(), limit: 500 })
+    .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
   const policy = await readRecoveryPolicy(ctx.objectStore, { registry: ctx.recoveryRegistry });
   const t0 = Date.now();
   const report = await drainRecovery(
@@ -699,7 +711,7 @@ async function runRecoveryDrain(ctx) {
       detail: { processors: policy.processors, runs: report.runs.length },
     });
   }
-  return { action: 'ops:recovery-drain', ok: true, report, policy };
+  return { action: 'ops:recovery-drain', ok: true, report, policy, reconciledAsIs };
 }
 
 // Arm or disarm the execution policy. This is the spend decision (C-8), so it
@@ -1293,6 +1305,10 @@ async function apiRoute(request, ctx, url, sub) {
         requireRecovery(ctx);
         const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 25, 50));
         const processorId = (url.searchParams.get('processor') || '').trim();
+        const requestedScope = (url.searchParams.get('scope') || 'all').trim();
+        const scope = ['grocery', 'uncategorized', 'non_grocery', 'all'].includes(requestedScope)
+          ? requestedScope
+          : 'all';
         // Filtering by processor shows what THAT processor would actually pick
         // up — the queue's own exclusion plus the processor's `supports()`. The
         // two are asked separately on purpose: the queue does not know what a
@@ -1301,11 +1317,13 @@ async function apiRoute(request, ctx, url, sub) {
           currentOn: todayISO(),
           limit,
           excludeProcessor: processorId || null,
+          scope,
         });
         const processor = processorId ? ctx.recoveryRegistry.get(processorId) : null;
         return opsJson({
           count: items.length,
           processor: processorId || null,
+          scope,
           items: items.map((item) => ({
             offerId: item.offerId,
             status: item.status,
@@ -1320,6 +1338,8 @@ async function apiRoute(request, ctx, url, sub) {
             currency: item.offer.currency,
             imageUrl: item.offer.image_url,
             validTo: item.offer.valid_to,
+            category: item.offer.category,
+            productClass: item.offer.product_class,
             lastError: item.lastError,
             nextAttemptAt: item.nextAttemptAt,
             updatedAt: item.updatedAt,

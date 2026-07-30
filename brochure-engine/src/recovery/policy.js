@@ -34,9 +34,13 @@ export const RECOVERY_MODES = Object.freeze({ MANUAL: 'manual', AUTO: 'auto' });
 // Caps, applied even when armed. A runaway Auto drain is the failure this
 // feature is most likely to produce, so the bound is always present rather than
 // being something the operator has to remember to set.
-export const DEFAULT_MAX_ITEMS_PER_RUN = 25;
+// One crop fetch + one model request per offer on the Free-plan 50 external
+// subrequest budget. Fifteen leaves room for failover and provider retries;
+// the hard ceiling reflects the measured point above which recovery children
+// failed with "Too many subrequests".
+export const DEFAULT_MAX_ITEMS_PER_RUN = 15;
 export const DEFAULT_MAX_ATTEMPTS_PER_ITEM = 2;
-const MAX_ITEMS_CEILING = 100;
+const MAX_ITEMS_CEILING = 20;
 
 function clamp(value, fallback, ceiling) {
   const n = Number(value);

@@ -42,7 +42,11 @@ import {
 import { COMMERCE_SCORE_VERSION } from '../offers/commerceScore.js';
 // The mandatory set is imported, never restated: the calibration query below is
 // generated from it so a v2 condition cannot be silently missing from reports.
-import { MANDATORY_CONDITIONS } from '../offers/businessAcceptance.js';
+import {
+  MANDATORY_CONDITIONS,
+  evaluateBusinessAcceptance,
+} from '../offers/businessAcceptance.js';
+import { nonGroceryCategories } from '../lexicon/productClass.js';
 // S5 Recovery Queue (C-9). Only the two batch statements and the readiness
 // probe are needed here — the queue's own surface is used by the recovery
 // runner, not by the extraction store.
@@ -304,7 +308,7 @@ export function createD1EnrichStore(db) {
     async listDebris({ currentOn, limit = 15, scope = 'all' } = {}) {
       const { results } = await db
         .prepare(
-          `SELECT o.id, o.image_url, o.price, o.currency, o.category
+          `SELECT o.id, o.image_url, o.name, o.name_ar, o.price, o.currency, o.category
              FROM offers o
              LEFT JOIN offer_enrichments e ON e.id = o.id
              LEFT JOIN offer_extraction_attempts v
@@ -376,7 +380,7 @@ export function createD1EnrichStore(db) {
       if (!selected.length) return [];
       const { results } = await db
         .prepare(
-          `SELECT id, image_url, price, currency, category FROM offers
+          `SELECT id, image_url, name, name_ar, price, currency, category FROM offers
             WHERE id IN (${selected.map(() => '?').join(',')})
               AND image_url IS NOT NULL AND valid_to >= ?
             ORDER BY detected_at DESC`,
@@ -478,6 +482,128 @@ export function createD1EnrichStore(db) {
       };
     },
 
+    /**
+     * Re-judge stale Recovery rows after the product-class rule changes.
+     *
+     * Named/priced non-grocery is accepted AS-IS: no crop fetch and no model
+     * call. This method owns the atomic persistence boundary because it already
+     * owns both the acceptance verdict statement and Recovery's resolve
+     * statement. History is preserved; only the current verdict and queue
+     * lifecycle state change.
+     */
+    async reconcileNonGroceryAcceptance({
+      currentOn, limit = 500, now = new Date(),
+    } = {}) {
+      if (!(await recoveryStore.ready()) || !(await acceptanceVerdictsReady())) {
+        return { available: false, scanned: 0, resolved: 0 };
+      }
+      const categories = nonGroceryCategories();
+      const marks = categories.map(() => '?').join(',');
+      const { results } = await db
+        .prepare(
+          `SELECT o.id, o.name, o.name_ar, o.search_text, o.price, o.currency,
+                  o.category, o.valid_to
+             FROM offer_recovery_queue q
+             JOIN offers o ON o.id = q.offer_id
+            WHERE q.status IN ('queued', 'claimed')
+              AND o.valid_to >= ?
+              AND LOWER(TRIM(o.category)) IN (${marks})
+              AND (NULLIF(TRIM(o.name), '') IS NOT NULL
+                   OR NULLIF(TRIM(o.name_ar), '') IS NOT NULL)
+              AND o.price > 0
+            ORDER BY q.updated_at, q.offer_id
+            LIMIT ?`,
+        )
+        .bind(
+          currentOn,
+          ...categories,
+          Math.max(1, Math.min(Number(limit) || 500, 1000)),
+        )
+        .all();
+      const candidates = results || [];
+      const accepted = candidates
+        .map((offer) => ({
+          offer,
+          verdict: evaluateBusinessAcceptance({
+            offer,
+            acceptedFields: [],
+            observation: { name: offer.name || offer.name_ar || null },
+          }),
+        }))
+        .filter(({ verdict }) => verdict.accepted);
+      if (!accepted.length) {
+        return { available: true, scanned: candidates.length, resolved: 0 };
+      }
+
+      // Most rows share the UNIT basis, but real printed measures are allowed
+      // to win. Group identical verdict shapes so thousands of rows still
+      // commit in a handful of D1 statements rather than one statement each.
+      const groups = new Map();
+      for (const entry of accepted) {
+        const v = entry.verdict;
+        const key = JSON.stringify([
+          v.version,
+          v.accepted,
+          [...v.missing],
+          v.mandatory,
+          v.comparableQuantity?.status ?? null,
+          v.comparableQuantity?.basis ?? null,
+        ]);
+        if (!groups.has(key)) groups.set(key, { verdict: v, ids: [] });
+        groups.get(key).ids.push(entry.offer.id);
+      }
+      const decidedAt = now instanceof Date ? now.toISOString() : String(now);
+      const statements = [];
+      for (const { verdict, ids } of groups.values()) {
+        statements.push(db
+          .prepare(
+            `INSERT INTO offer_acceptance_verdicts
+               (offer_id, version, accepted, missing, mandatory, quantity_status,
+                quantity_basis, decided_at)
+             SELECT o.id, ?, ?, ?, ?, ?, ?, ?
+               FROM offers o
+              WHERE o.id IN (${ids.map(() => '?').join(',')})
+             ON CONFLICT(offer_id) DO UPDATE SET
+               version=excluded.version, accepted=excluded.accepted,
+               missing=excluded.missing, mandatory=excluded.mandatory,
+               quantity_status=excluded.quantity_status,
+               quantity_basis=excluded.quantity_basis,
+               decided_at=excluded.decided_at`,
+          )
+          .bind(
+            verdict.version,
+            verdict.accepted ? 1 : 0,
+            JSON.stringify([...verdict.missing]),
+            JSON.stringify(verdict.mandatory),
+            verdict.comparableQuantity?.status ?? null,
+            verdict.comparableQuantity?.basis ?? null,
+            decidedAt,
+            ...ids,
+          ));
+      }
+      const ids = accepted.map(({ offer }) => offer.id);
+      const idMarks = ids.map(() => '?').join(',');
+      statements.push(db
+        .prepare(
+          `UPDATE offer_recovery_queue
+              SET status = 'resolved', claimed_by = NULL, claim_until = NULL,
+                  claim_token = NULL, next_attempt_at = NULL, last_error = NULL,
+                  updated_at = ?
+            WHERE offer_id IN (${idMarks}) AND status <> 'dismissed'`,
+        )
+        .bind(decidedAt, ...ids));
+      // Transitional legacy queue: as-is acceptance must not leave OCR behind
+      // to spend on the same durable products.
+      statements.push(db
+        .prepare(
+          `UPDATE offer_ocr_queue SET status = 'completed', updated_at = ?
+            WHERE offer_id IN (${idMarks})`,
+        )
+        .bind(decidedAt, ...ids));
+      await db.batch(statements);
+      return { available: true, scanned: candidates.length, resolved: ids.length };
+    },
+
     async getAcceptanceVerdict(offerId) {
       if (!await acceptanceVerdictsReady()) return null;
       const row = await db
@@ -539,8 +665,14 @@ export function createD1EnrichStore(db) {
       recovery = null,
     }) {
       const statements = [attemptStatement(attempt)];
+      const acceptedAsIs = recovery?.complete === true
+        && recovery?.reasons?.acceptedAsIs === true;
       if (canonicalRow) {
         statements.push(canonicalStatement(canonicalRow));
+        statements.push(db.prepare('DELETE FROM offer_ocr_queue WHERE offer_id = ?').bind(attempt.offerId));
+      } else if (acceptedAsIs) {
+        // A named/priced durable needs no canonical model row and must not leak
+        // into the transitional OCR queue after Recovery correctly closes it.
         statements.push(db.prepare('DELETE FROM offer_ocr_queue WHERE offer_id = ?').bind(attempt.offerId));
       } else {
         statements.push(db
@@ -607,7 +739,12 @@ export function createD1EnrichStore(db) {
         }
       }
       await db.batch(statements);
-      return { stored: 1, queued: canonicalRow ? 0 : 1, verdictStored, recoveryQueued };
+      return {
+        stored: 1,
+        queued: canonicalRow || acceptedAsIs ? 0 : 1,
+        verdictStored,
+        recoveryQueued,
+      };
     },
 
     // S5 · THE RECOVERY COMMIT BOUNDARY. Attempt journal + canonical row + the

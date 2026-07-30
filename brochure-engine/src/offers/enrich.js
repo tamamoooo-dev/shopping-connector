@@ -98,10 +98,12 @@ export function servable(row) {
 //
 // "Servable canonical product" is the CONJUNCTION of every mandatory rule:
 //
-//     complete  =  servable(canonicalRow)  ∧  S4.accepted
+//     grocery complete      = servable(canonicalRow) ∧ S4.accepted
+//     non-grocery complete  = (servable(canonicalRow) ∨ accepted source name)
+//                             ∧ S4.accepted
 //
 // `servable()` above keeps its exact meaning — the 2026-07-21 canonical-identity
-// gate — and is one conjunct rather than the whole test. This is deliberately
+// gate — and is one path rather than the whole test. This is deliberately
 // NOT a redefinition of `servable()` and touches no read path: whether an
 // S4-rejected offer should also vanish from Search is a separate question with
 // a live production effect, and it is not settled here (C-9).
@@ -114,16 +116,28 @@ export function servable(row) {
 //
 // A FUTURE MANDATORY RULE ADDS A CONJUNCT HERE and needs no queue change, no
 // migration and no new status value. That is the property C-9 exists to buy.
-export function recoveryAdmission({ canonicalRow = null, acceptance = null, triggerReasons = [] } = {}) {
+export function recoveryAdmission({
+  canonicalRow = null, acceptance = null, triggerReasons = [], offer = null,
+} = {}) {
   const isServable = !!canonicalRow && servable(canonicalRow);
   const accepted = acceptance ? acceptance.accepted === true : null;
-  const complete = isServable && accepted !== false;
+  // Named/priced non-grocery is intentionally servable AS-IS. Its source name
+  // remains the read-path fallback when no canonical enrichment exists; paying
+  // another model to manufacture a canonical row for a television is not
+  // recovery work the user wants. Unknown categories fail safe to grocery.
+  const acceptedAsIs = !!offer && isNonGrocery(offer.category)
+    && accepted === true
+    && [offer.name, offer.name_ar].some(
+      (value) => typeof value === 'string' && value.trim().length > 0,
+    );
+  const complete = (isServable || acceptedAsIs) && accepted !== false;
   return {
     complete,
     // Metadata, never admission logic. Nothing reads this to decide whether the
     // offer belongs in the queue — `complete` already did.
     reasons: {
       servable: isServable,
+      ...(acceptedAsIs ? { acceptedAsIs: true } : {}),
       ...(acceptance
         ? { acceptance: { version: acceptance.version, missing: [...acceptance.missing] } }
         : {}),
@@ -1030,6 +1044,7 @@ export async function drainEnrichment(
           canonicalRow,
           acceptance,
           triggerReasons: validation.triggerReasons || [],
+          offer: d,
         });
         const outcome = await enrichStore.saveVisionOutcome({
           attempt: {

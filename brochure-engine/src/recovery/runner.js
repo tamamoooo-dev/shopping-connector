@@ -91,6 +91,7 @@ export async function runRecovery(
     limit = 10,
     currentOn,
     offerIds = null,
+    scope = 'all',
     maxAttemptsPerItem = 2,
     leaseMs,
     now = () => new Date(),
@@ -136,7 +137,9 @@ export async function runRecovery(
       ? (await Promise.all(offerIds.map((id) => queue.get(id)))).filter(Boolean)
       : [];
   } else {
-    items = await queue.list({ currentOn, limit, excludeProcessor: processor.id });
+    items = await queue.list({
+      currentOn, limit, excludeProcessor: processor.id, scope,
+    });
   }
   report.scanned = items.length;
 
@@ -266,7 +269,7 @@ export async function runRecovery(
       structured: canonicalRow?.structured_product ?? null,
       observation: canonicalRow ? null : (result?.observation ?? null),
     });
-    const admission = recoveryAdmission({ canonicalRow, acceptance });
+    const admission = recoveryAdmission({ canonicalRow, acceptance, offer: item.offer });
     const complete = admission.complete;
     const finishedAt = now().toISOString();
 
@@ -384,6 +387,10 @@ export async function drainRecovery(
         currentOn,
         limit: policy.maxItemsPerRun,
         maxAttemptsPerItem: policy.maxAttemptsPerItem,
+        // Automatic spend is grocery-only. Uncategorized remains visible in
+        // its own triage scope and can be dispatched deliberately; it can no
+        // longer become a huge anonymous tail after known grocery drains.
+        scope: 'grocery',
         now,
       },
     ));

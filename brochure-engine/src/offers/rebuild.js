@@ -93,7 +93,14 @@ export function rebuildRow(row, { identityNormalizationMode = 'strict' } = {}) {
     identity_candidate_version: IDENTITY_CANDIDATE_STORAGE_VERSION,
     changed: {
       candidate: beforeCandidate !== nextCandidate,
-      arabic: (beforeShadow?.built_arabic ?? null) !== (afterShadow?.built_arabic ?? null),
+      // BOTH Arabic fields, not just the built one. Comparing `built_arabic`
+      // alone silently skipped every row whose composed name was unchanged —
+      // including all NO_CATEGORY rows, where it is null before and after — so
+      // when `display_arabic` (the SERVED name) was introduced those rows were
+      // scanned, reported, and never written. Found by checking the served
+      // value in D1 after a full pass reported success.
+      arabic: (beforeShadow?.built_arabic ?? null) !== (afterShadow?.built_arabic ?? null)
+        || (beforeShadow?.display_arabic ?? null) !== (afterShadow?.display_arabic ?? null),
     },
     // Reported so a dry run can state the EFFECT, not just the diff count.
     dimensionsBefore: dimsOf(parsedBefore),

@@ -86,10 +86,20 @@ export const MANDATORY_CONDITIONS = Object.freeze([
   'english_name',
 ]);
 
-// M3 reuses S3's verdict rather than re-judging the name. The gate asks the
-// validator what it already decided; it does not look at the string.
-function englishNameAdmitted(acceptedFields) {
-  return Array.isArray(acceptedFields) && acceptedFields.includes('name_en');
+// Grocery M3 reuses S3's verdict rather than re-judging the name. Non-grocery
+// additionally accepts the retailer's existing source name under the explicit
+// as-is rule; it does not ask a paid model to validate a TV label twice.
+function englishNameAdmitted(acceptedFields, offer, nonGrocery) {
+  if (Array.isArray(acceptedFields) && acceptedFields.includes('name_en')) return true;
+  // User directive 2026-07-30: non-grocery stock is accepted as the retailer
+  // supplied it when it already has a name and price. Requiring Vision to
+  // independently accept the same name buys no grocery quality and is exactly
+  // what filled Recovery with TVs, bags and shoes. Grocery remains unchanged:
+  // only S3's accepted English name satisfies M3 there.
+  if (!nonGrocery) return false;
+  return [offer?.name, offer?.name_ar].some(
+    (value) => typeof value === 'string' && value.trim().length > 0,
+  );
 }
 
 /**
@@ -129,7 +139,7 @@ export function evaluateBusinessAcceptance({
   const mandatory = Object.freeze({
     price: hasUsableCommercePrice(offer || {}),
     comparable_quantity: quantity.status === COMPARABLE_QUANTITY_STATUS.RESOLVED,
-    english_name: englishNameAdmitted(acceptedFields),
+    english_name: englishNameAdmitted(acceptedFields, offer, nonGrocery),
   });
 
   // Per-condition, never aggregated. `missing: ['comparable_quantity']` is

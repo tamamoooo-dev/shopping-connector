@@ -23,6 +23,11 @@
 // atomic batch (see enqueueStatement below and enrichStore.js). The queue
 // stores what it is handed; it does not re-derive who belongs in it.
 
+import {
+  classifyProductClass,
+  nonGroceryCategories,
+} from '../lexicon/productClass.js';
+
 // Lifecycle verbs. Every value here must still make sense when every processor
 // that exists today has been replaced — which is why none of them names one.
 export const RECOVERY_STATUS = Object.freeze({
@@ -337,6 +342,27 @@ export function createRecoveryQueue(db) {
       return fallback;
     }
   };
+  const nonGrocery = nonGroceryCategories();
+  const nonGroceryMarks = nonGrocery.map(() => '?').join(',');
+  const categoryScope = (scope) => {
+    if (scope === 'grocery') {
+      return {
+        sql: `AND o.category IS NOT NULL AND TRIM(o.category) <> ''
+              AND LOWER(TRIM(o.category)) NOT IN (${nonGroceryMarks})`,
+        binds: nonGrocery,
+      };
+    }
+    if (scope === 'uncategorized') {
+      return { sql: `AND (o.category IS NULL OR TRIM(o.category) = '')`, binds: [] };
+    }
+    if (scope === 'non_grocery') {
+      return {
+        sql: `AND LOWER(TRIM(o.category)) IN (${nonGroceryMarks})`,
+        binds: nonGrocery,
+      };
+    }
+    return { sql: '', binds: [] };
+  };
 
   // The verdict is JOINED, never copied into the queue (C-9). It is keyed by
   // offer and upserted to the CURRENT verdict, so a join always shows an
@@ -387,6 +413,7 @@ export function createRecoveryQueue(db) {
       // and a television would stay rejected forever no matter which processor
       // ran. The queue still knows nothing about what the value MEANS.
       category: row.category ?? null,
+      product_class: classifyProductClass(row.category),
     },
     // Current enrichment, so a caller can re-test servability without a second
     // query. Shaped as `servable()` expects rather than as the DB row.
@@ -468,7 +495,9 @@ export function createRecoveryQueue(db) {
      *     processor that settled against the OLD observation has said nothing
      *     about the new one, so it gets to look again.
      */
-    async list({ currentOn, limit = 10, excludeProcessor = null, now = new Date() } = {}) {
+    async list({
+      currentOn, limit = 10, excludeProcessor = null, now = new Date(), scope = 'all',
+    } = {}) {
       if (!(await ready())) return [];
       const nowIso = now instanceof Date ? now.toISOString() : String(now);
       const settled = SETTLED_OUTCOMES.map((o) => `'${o}'`).join(',');
@@ -478,9 +507,11 @@ export function createRecoveryQueue(db) {
                               AND a.outcome IN (${settled})
                               AND (q.queued_at IS NULL OR a.started_at >= q.queued_at))`
         : '';
+      const selectedScope = categoryScope(scope);
       const binds = [nowIso, nowIso];
       if (excludeProcessor) binds.push(excludeProcessor);
-      binds.push(currentOn, Math.max(1, Math.min(Number(limit) || 10, 50)));
+      binds.push(...selectedScope.binds, currentOn, ...nonGrocery);
+      binds.push(Math.max(1, Math.min(Number(limit) || 10, 50)));
       const { results } = await db
         .prepare(
           `${ITEM_SELECT}
@@ -488,8 +519,15 @@ export function createRecoveryQueue(db) {
                    OR (q.status = 'claimed' AND (q.claim_until IS NULL OR q.claim_until <= ?)))
               AND (q.next_attempt_at IS NULL OR q.next_attempt_at <= ?)
               ${exclusion}
+              ${selectedScope.sql}
               AND o.valid_to >= ?
-            ORDER BY q.updated_at, q.offer_id
+            ORDER BY
+              CASE
+                WHEN o.category IS NULL OR TRIM(o.category) = '' THEN 1
+                WHEN LOWER(TRIM(o.category)) IN (${nonGroceryMarks}) THEN 2
+                ELSE 0
+              END,
+              q.updated_at, q.offer_id
             LIMIT ?`,
         )
         .bind(...binds)
@@ -549,7 +587,24 @@ export function createRecoveryQueue(db) {
         .catch(() => ({ results: [] }));
       const byMissingCondition = {};
       for (const row of conditions || []) byMissingCondition[row.condition] = row.n;
-      return { ready: true, byStatus, byMissingCondition, total };
+      const { results: classes } = await db
+        .prepare(
+          `SELECT CASE
+                    WHEN o.category IS NULL OR TRIM(o.category) = '' THEN 'uncategorized'
+                    WHEN LOWER(TRIM(o.category)) IN (${nonGroceryMarks}) THEN 'non_grocery'
+                    ELSE 'grocery'
+                  END AS product_class,
+                  COUNT(*) AS n
+             FROM offer_recovery_queue q
+             JOIN offers o ON o.id = q.offer_id
+            WHERE q.status IN ('queued', 'claimed') AND o.valid_to >= ?
+            GROUP BY product_class`,
+        )
+        .bind(...nonGrocery, currentOn)
+        .all();
+      const byProductClass = { grocery: 0, uncategorized: 0, non_grocery: 0 };
+      for (const row of classes || []) byProductClass[row.product_class] = row.n;
+      return { ready: true, byStatus, byMissingCondition, byProductClass, total };
     },
 
     /**

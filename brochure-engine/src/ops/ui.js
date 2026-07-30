@@ -261,8 +261,13 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
 
     <div class="card">
       <h2>Recovery Queue <span id="rqTag" class="tag">…</span></h2>
-      <div class="mut" style="margin-bottom:10px">Offers that did not become a servable canonical product. Recovery costs more per offer than the primary read, so nothing runs until you choose to spend.</div>
+      <div class="mut" style="margin-bottom:10px">Grocery recovery is prioritized. Named/priced non-grocery is accepted as supplied and never sent to a paid model.</div>
       <div id="rqDepth"><span class="spin"></span></div>
+      <div class="seg" id="rqScopeSeg" style="margin-top:10px">
+        <button data-rq-scope="grocery" class="on">Grocery</button>
+        <button data-rq-scope="uncategorized">Uncategorized</button>
+        <button data-rq-scope="non_grocery">Non-grocery attention</button>
+      </div>
       <div id="rqProcWrap" style="display:none;margin-top:12px">
         <div class="mut" style="margin-bottom:6px">Processor</div>
         <div class="seg" id="rqProcSeg"></div>
@@ -408,7 +413,10 @@ document.querySelectorAll("nav button").forEach(function (b) {
     $("#v-" + b.dataset.v).classList.add("active");
     stopPoll();
     if (b.dataset.v === "home" || b.dataset.v === "stores") loadOverview();
-    if (b.dataset.v === "vision") { loadQueue(); loadRecovery(); loadVisionJob(); loadVisionModel(); startPoll(function () { loadProgress(); loadVisionJob(); }, 5000); }
+    if (b.dataset.v === "vision") {
+      loadQueue(); loadRecovery(); loadVisionJob(); loadVisionModel();
+      startPoll(function () { loadProgress(); loadVisionJob(); loadRecovery(); }, 5000);
+    }
     if (b.dataset.v === "more") { loadMore(); loadMoreOps(); }
   };
 });
@@ -1107,6 +1115,7 @@ function renderProduct(d) {
    is no hard-coded processor name below, and there must never be one. */
 var rqState = null;
 var rqProc = null;
+var rqScope = "grocery";
 var rqBusy = false;
 
 function loadRecovery() { return api("recovery").then(renderRecovery).catch(function () {}); }
@@ -1132,6 +1141,7 @@ function renderRecovery(r) {
   var d = r.depth || {};
   var byStatus = d.byStatus || {};
   var cond = d.byMissingCondition || {};
+  var classes = d.byProductClass || {};
   var queued = (byStatus.queued || 0) + (byStatus.claimed || 0);
   var p = r.policy || {};
   tag.textContent = p.armed ? "auto" : "manual";
@@ -1141,9 +1151,14 @@ function renderRecovery(r) {
   $("#rqDepth").innerHTML =
     '<div class="qgrid">' +
       kpiBox(queued, "awaiting recovery") +
-      kpiBox(byStatus.resolved || 0, "recovered") +
+      kpiBox(byStatus.resolved || 0, "resolved / accepted") +
       kpiBox((byStatus.exhausted || 0) + (byStatus.dismissed || 0), "closed") +
     "</div><div style='height:8px'></div>" +
+    '<div class="mut" style="margin-bottom:4px">Active queue by product class</div>' +
+    kvl("Grocery — reviewed first", classes.grocery || 0) +
+    kvl("Uncategorized — strict fallback", classes.uncategorized || 0) +
+    kvl("Non-grocery needing name / price", classes.non_grocery || 0) +
+    "<div style='height:8px'></div>" +
     (condKeys.length
       ? '<div class="mut" style="margin-bottom:4px">Missing conditions — these OVERLAP, so they do not sum to the queue.</div>' +
         condKeys.map(function (k) { return kvl("· " + k.replace(/_/g, " "), cond[k]); }).join("")
@@ -1155,6 +1170,21 @@ function renderRecovery(r) {
           .map(function (k) { return k.replace(/_/g, " ") + " " + r.acceptance.onlyCondition[k]; })
           .join(" · ") || "none") + "</div>"
       : "");
+
+  $("#rqScopeSeg").querySelectorAll("button").forEach(function (b) {
+    b.className = b.dataset.rqScope === rqScope ? "on" : "";
+    b.disabled = rqBusy;
+    b.onclick = function () {
+      rqScope = b.dataset.rqScope;
+      renderRecovery(rqState);
+      var box = $("#rqItems");
+      if (box.dataset.open === "1") {
+        box.dataset.open = "0";
+        box.innerHTML = "";
+        $("#rqItemsBtn").onclick();
+      }
+    };
+  });
 
   /* Processor selection, straight from the registry. */
   var procs = r.processors || [];
@@ -1205,7 +1235,7 @@ function renderRecovery(r) {
   /* Auto arming. Manual is the default and every read failure lands there. */
   $("#rqAuto").innerHTML =
     "<h3 style='margin:0 0 6px'>Execution</h3>" +
-    kvl("Mode", p.armed ? "Auto — the queue drains itself" : "Manual — nothing runs unless you press a button") +
+    kvl("Mode", p.armed ? "Auto — grocery drains every minute; safe to close this page" : "Manual — no paid recovery runs") +
     (p.processors && p.processors.length ? kvl("Armed processors", p.processors.join(", ")) : "") +
     (p.unknownProcessors && p.unknownProcessors.length
       ? '<div class="warnBox" style="margin-top:6px">Policy names processors that no longer exist: ' +
@@ -1215,7 +1245,7 @@ function renderRecovery(r) {
     '<div class="btnGrid" style="margin-top:10px">' +
       '<button class="' + (p.armed ? "ghost" : "primary") + '" id="rqArmBtn">' +
         (p.armed ? "Disarm Auto" : "Arm Auto…") + "</button>" +
-      '<button class="ghost" id="rqDrainBtn"' + (p.armed ? "" : " disabled") + ">Run Auto now</button>" +
+      '<button class="ghost" id="rqDrainBtn"' + (p.armed ? "" : " disabled") + ">Run one batch now</button>" +
     "</div>";
   $("#rqArmBtn").onclick = function () { rqToggleAuto(p); };
   $("#rqDrainBtn").onclick = function () { rqRunAuto(); };
@@ -1227,8 +1257,9 @@ function rqToggleAuto(p) {
     ? confirmSheet("Disarm Auto", "The queue stops draining itself. Queued items stay queued and nothing is lost.", false)
     : confirmSheet(
         "Arm Auto recovery",
-        "The queue will drain itself using " + (sel ? sel.label : "the selected processor") +
-        ", up to " + (rqState.maxDispatch || 10) + " items per run, WITHOUT asking again. " +
+        "Known grocery will drain itself using " + (sel ? sel.label : "the selected processor") +
+        ", up to " + (rqState.maxDispatch || 10) + " items per child, WITHOUT asking again. " +
+        "Uncategorized stays separate for deliberate review. " +
         "Recovery costs materially more per offer than the primary read. Disarm to stop.",
         true);
   ask.then(function (ok) {
@@ -1266,14 +1297,17 @@ $("#rqDispatchBtn").onclick = function () {
     : "";
   confirmSheet(
     "Process next " + max + " with " + sel.label,
-    "Runs " + sel.label + " over the next " + max + " queued offers." + cost +
+    "Runs " + sel.label + " over the next " + max + " " +
+    rqScope.replace(/_/g, " ") + " offers." + cost +
     " Each offer is judged again by Business Acceptance afterwards — only that closes an item.",
     false
   ).then(function (ok) {
     if (!ok) return;
     var b = $("#rqDispatchBtn");
     rqBusy = true; b.disabled = true; b.innerHTML = '<span class="spin"></span>';
-    api("recovery/dispatch", { body: { confirm: true, processor: sel.id, limit: max } })
+    api("recovery/dispatch", {
+      body: { confirm: true, processor: sel.id, limit: max, scope: rqScope },
+    })
       .then(function (r) {
         rqBusy = false;
         var rep = r.report || {};
@@ -1290,13 +1324,15 @@ $("#rqItemsBtn").onclick = function () {
   if (box.dataset.open === "1") { box.dataset.open = "0"; box.innerHTML = ""; return; }
   box.dataset.open = "1";
   box.innerHTML = '<span class="spin"></span>';
-  api("recovery/items?limit=25" + (rqProc ? "&processor=" + encodeURIComponent(rqProc) : ""))
+  api("recovery/items?limit=25&scope=" + encodeURIComponent(rqScope) +
+      (rqProc ? "&processor=" + encodeURIComponent(rqProc) : ""))
     .then(function (r) {
       box.innerHTML = r.items.length
         ? r.items.map(function (it) {
             return '<div class="row" style="align-items:flex-start">' +
               '<div style="flex:1"><b dir="auto">' + esc(it.name || it.nameAr || it.offerId) + "</b>" +
               '<div class="mut">' + esc((it.missing || []).join(", ").replace(/_/g, " ") || "not servable") +
+              " · " + esc(it.category || "uncategorized") +
               (it.attempts ? " · " + it.attempts + " attempt(s)" : "") +
               (it.supported === false ? " · not supported by this processor" : "") +
               "</div></div>" +

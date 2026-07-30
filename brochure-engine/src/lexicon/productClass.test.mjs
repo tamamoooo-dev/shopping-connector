@@ -187,11 +187,12 @@ await test('a grocery item with no size is STILL rejected — the gate did not g
   assert.deepEqual([...verdict.missing], ['comparable_quantity']);
 });
 
-await test('leniency does not rescue a MISSING PRICE or a missing English name', () => {
-  // v2 widened exactly one condition. The other two are untouched, so a
-  // non-grocery offer can still fail — measured: 52 of the 2,123 live ones do.
+await test('non-grocery accepts the retailer name as-is but never rescues a missing price or name', () => {
+  // The recovery queue is for grocery quality. A TV that already has a source
+  // name and price does not need a second paid read merely because Vision did
+  // not independently accept the same name.
   const noPrice = evaluateBusinessAcceptance({
-    offer: { price: null, currency: 'SAR', category: 'tv' },
+    offer: { price: null, currency: 'SAR', category: 'tv', name: 'Samsung TV' },
     acceptedFields: NAMED,
     observation: { name: 'Samsung TV' },
   });
@@ -200,6 +201,12 @@ await test('leniency does not rescue a MISSING PRICE or a missing English name',
     offer: offer('tv'), acceptedFields: [], observation: { name: 'Samsung TV' },
   });
   assert.deepEqual([...noName.missing], ['english_name']);
+  const sourceNamed = evaluateBusinessAcceptance({
+    offer: { ...offer('tv'), name: 'Samsung TV' },
+    acceptedFields: [],
+    observation: { name: null },
+  });
+  assert.equal(sourceNamed.accepted, true);
 });
 
 await test('an explicit productClass overrides the category, for callers that know better', () => {

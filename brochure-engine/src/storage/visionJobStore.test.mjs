@@ -26,6 +26,15 @@ function fakeDb() {
             row = { id, status: 'running', scope, total, processed: 0, enriched: 0, declined: 0, failed: 0, remaining, hops: 0, started_at: started, updated_at: updated, finished_at: null, last_error: null, provider_limit: null, origin, lease_until: null };
             return { meta: { changes: 1 } };
           }
+          if (/INSERT INTO vision_jobs/.test(sql)) {
+            const [id, scope, started, updated, origin] = b;
+            if (!row) {
+              row = { id, status: 'running', scope, total: 0, processed: 0, enriched: 0, declined: 0, failed: 0, remaining: 0, hops: 0, started_at: started, updated_at: updated, finished_at: null, last_error: null, provider_limit: null, origin, lease_until: null };
+            } else if (row.id === id && row.status !== 'running') {
+              row = { ...row, status: 'running', scope, updated_at: updated, finished_at: null, origin, lease_until: null };
+            }
+            return { meta: { changes: 1 } };
+          }
           // Lease CAS — MUST be tested before the generic SET update.
           if (/SET lease_until = \?\s+WHERE id = \? AND status = 'running'/.test(sql)) {
             const [until, id, now] = b;
@@ -54,6 +63,18 @@ function fakeDb() {
       return stmt;
     },
   };
+}
+
+{
+  const store = createD1VisionJobStore(fakeDb(), { id: 'recovery' });
+  await store.ensureRunning({ scope: 'recovery' });
+  check('a named coordinator row can be armed without a new table',
+    (await store.get()).id === 'recovery' && (await store.get()).status === 'running');
+  check('the named row uses the same single-writer lease',
+    await store.tryLease({ nowMs: 2_000_000, leaseMs: 120000 }));
+  await store.ensureRunning({ scope: 'recovery' });
+  check('ensureRunning preserves a live lease instead of resetting it',
+    (await store.get()).lease_until != null);
 }
 
 console.log('visionJobStore lease (single-writer):');
