@@ -1230,6 +1230,22 @@ export function watchAnchor(watch = {}) {
 
 export const isMonitorable = (watch) => watchAnchor(watch) != null;
 
+// The daily schedule is expected to revisit a watch within 24 hours. A small
+// grace period prevents the UI from offering a manual action while that cycle
+// is merely a little late. Provider failures are immediately retryable; an
+// anchored watch that has never run is also eligible.
+export const MANUAL_REFRESH_STALE_MS = 26 * 60 * 60 * 1000;
+
+export function manualRefreshReason(watch, now = Date.now()) {
+  if (!watch || watch.active === false || !isMonitorable(watch)) return null;
+  const health = inferMonitoringHealth(watch);
+  if (health === MONITORING_HEALTH.PROVIDER_ERROR) return 'provider_failure';
+  if (health === MONITORING_HEALTH.UNCHECKED || !watch.checkedAt) return 'not_yet_checked';
+  const checkedAt = Date.parse(watch.checkedAt);
+  if (Number.isFinite(checkedAt) && now - checkedAt >= MANUAL_REFRESH_STALE_MS) return 'stale';
+  return null;
+}
+
 // The providers this watch sweeps. 'store' is one retailer, 'market' is all of
 // them. Legacy rows without `scope` fall back to what their old kind meant.
 export function watchProviders(watch = {}) {
@@ -1677,7 +1693,10 @@ function monitoringHealthForResolution(resolution) {
 }
 
 // --- the check (evaluate + crossing + alert + notify) ---------------------------
-export async function checkWatch(ctx, watch, { flyerOnly = false } = {}) {
+export async function checkWatch(ctx, watch, {
+  flyerOnly = false,
+  allowIdentityRebind = true,
+} = {}) {
   const line = {
     id: watch.id, label: watch.label, status: 'no-data', price: null,
     alerted: false, alertType: null, resolution: null, notes: [],
@@ -1702,11 +1721,11 @@ export async function checkWatch(ctx, watch, { flyerOnly = false } = {}) {
   // A registry MERGE relocated the identity: re-point the anchor before
   // anything else, so the next check starts from the survivor. This is the one
   // write that may move what a watch is ABOUT, and only the registry triggers it.
-  if (best.rebindTo && ctx.watchStore.rebindProduct) {
+  if (allowIdentityRebind && best.rebindTo && ctx.watchStore.rebindProduct) {
     line.rebound = best.rebindTo;
     await ctx.watchStore.rebindProduct(watch.id, best.rebindTo);
   }
-  if (best.sourceRebind && ctx.watchStore.rebindSource) {
+  if (allowIdentityRebind && best.sourceRebind && ctx.watchStore.rebindSource) {
     line.rebound = `${best.sourceRebind.provider}:${best.sourceRebind.productId}`;
     await ctx.watchStore.rebindSource(watch.id, best.sourceRebind);
   }

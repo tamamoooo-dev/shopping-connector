@@ -32,6 +32,7 @@ import {
   anchorWatch,
   buildWatch,
   buildWatchSettingsUpdate,
+  checkWatch,
   checkWatches,
   confirmWatchProduct,
   confirmWatchSource,
@@ -39,6 +40,7 @@ import {
   diagnoseWatch,
   repairWatch,
   resolveLegacyWatches,
+  manualRefreshReason,
   watchCandidates,
   MAX_WATCHES,
   MAX_WATCHES_TOTAL,
@@ -837,6 +839,22 @@ export async function handleRequest(request, ctx) {
     if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
     const result = await repairWatch(ctx, watch);
     return json({ ...result, watch: await ctx.watchStore.get(id) });
+  }
+
+  // User-initiated monitoring retry for ONE owned watch. This intentionally
+  // calls the same evaluator as cron but not the batch wrapper: batch retry may
+  // resolve identity, while Refresh Now is forbidden from changing identity.
+  if (path === '/watches/refresh' && request.method === 'POST') {
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    const id = (url.searchParams.get('id') || '').trim();
+    if (!id) return json({ error: "Missing required parameter 'id'." }, 400);
+    const watch = await ctx.watchStore.get(id);
+    if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
+    const reason = manualRefreshReason(watch);
+    if (!reason) return json({ error: 'This watch does not need a manual refresh.' }, 409);
+    const result = await checkWatch(ctx, watch, { allowIdentityRebind: false });
+    return json({ reason, result, watch: await ctx.watchStore.get(id) });
   }
 
   // The ONE-TIME legacy backfill: settle every pre-anchor watch into an

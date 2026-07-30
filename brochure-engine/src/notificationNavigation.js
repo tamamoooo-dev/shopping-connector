@@ -2,6 +2,8 @@
 // editions. Super Search is the stable destination; an observed Amazon product
 // URL is the sole direct-link exception.
 
+import { structuredSearchQuery } from './structuredSearchQuery.js';
+
 export const SUPER_SEARCH_URL =
   'https://tamamoooo-dev.github.io/live-shopping-assistant/';
 
@@ -45,9 +47,10 @@ export function notificationDestination(watch = {}, observation = {}) {
 
   const productId = anchorProductId(watch);
   const registry = /^pr_[a-z0-9]+$/i.test(productId);
+  const identityQuery = structuredSearchQuery(watch, observation);
   const candidates = registry
-    ? [watch.label, observation.name, watch.query]
-    : [watch.query, watch.label, observation.name];
+    ? [identityQuery, watch.label, observation.name, watch.query]
+    : [identityQuery, watch.query, watch.label, observation.name];
   const query = clean(candidates.find((value) => clean(value)));
   const params = new URLSearchParams();
   if (query) params.set('q', query);
