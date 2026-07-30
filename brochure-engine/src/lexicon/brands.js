@@ -57,6 +57,39 @@ export const BRAND_RESOLUTION_STATUS = Object.freeze({
 export const LEXICON_ONLY_BRANDS = Object.freeze([
   { slug: 'arwa', en: 'Arwa', ar: 'أروى' },
   { slug: 'baskin-robbins', en: 'Baskin Robbins', ar: 'باسكن روبنز' },
+
+  // --- 2026-07-30 brand-Arabic pass -------------------------------------------
+  // The Arabic Builder appends `display_ar`; a brand with no Arabic form is
+  // DROPPED from the built name. With built names now serving (§47 armed), that
+  // is the single largest cause of "the brand is missing from the name".
+  // RANKED BY MEASURED PRODUCTION VOLUME — the top-60 observed brands of the
+  // 2026-07-28+ ingest, of which 21 (808 rows) had no Arabic form; brand
+  // survived on only 71.8% of rows in that head. Every entry below is a brand
+  // whose Arabic rendering is standard in the KSA market.
+  //
+  // DELIBERATELY NOT ADDED, per this file's "never add a guess" rule:
+  //   · `Asstd` (37 rows) — not a brand at all. It is the model reading
+  //     "Assorted" as one; mapping it would stamp a fake company on every
+  //     assorted tile.
+  //   · `TM` (31 rows) — two letters with no unambiguous referent.
+  { slug: 'philips', en: 'Philips', ar: 'فيليبس' },
+  { slug: 'always', en: 'Always', ar: 'أولويز' },
+  { slug: 'kraft', en: 'Kraft', ar: 'كرافت' },
+  { slug: 'honor', en: 'Honor', ar: 'هونر' },
+  { slug: 'panda', en: 'Panda', ar: 'بنده' },
+  { slug: 'saudia', en: 'Saudia', ar: 'السعودية' },
+  { slug: 'impex', en: 'Impex', ar: 'إمبكس' },
+  { slug: 'ikon', en: 'Ikon', ar: 'أيكون' },
+  { slug: 'olsenmark', en: 'Olsenmark', ar: 'أولسنمارك' },
+  { slug: 'clikon', en: 'Clikon', ar: 'كليكون' },
+  { slug: 'nikai', en: 'Nikai', ar: 'نيكاي' },
+  { slug: 'baseus', en: 'Baseus', ar: 'بيسوس' },
+  { slug: 'prime', en: 'Prime', ar: 'برايم' },
+  { slug: 'royal', en: 'Royal', ar: 'رويال' },
+  { slug: 'grand', en: 'Grand', ar: 'جراند' },
+  { slug: 'gloria', en: 'Gloria', ar: 'غلوريا' },
+  { slug: 'super-dine', en: 'Super Dine', ar: 'سوبر داين' },
+  { slug: 'vltava', en: 'Vltava', ar: 'فلتافا' },
 ]);
 
 // --- alias table ---------------------------------------------------------------

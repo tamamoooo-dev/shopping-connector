@@ -12,7 +12,15 @@ compatibility_date = "2025-06-01"
 EXTRACTION_STRATEGY = "vision-first"
 IDENTITY_NORMALIZATION_MODE = "strict"
 OCR_FALLBACK_ENABLED = "false"
-BUILT_ARABIC_NAMES_ENABLED = "false"
+# ARMED 2026-07-30 by explicit user decision, with the trade-off on the table.
+# The built Arabic name is generated from the English structure instead of the
+# model's Arabic. Adjudicated on 400 production rows first (HANDOFF §11 TODO -2b
+# step b): it is 0% Latin vs 7.8% observed and it removes the model's garbage
+# (جينة→جبن, جملة→جبن, شيبان dropped) — but 64% of built names are SHORTER than
+# observed because brand and variety are dropped whenever the Arabic brand
+# lexicon does not know the brand (~20% coverage). The user accepted that and
+# asked for it live while the builder is improved. Reverting is this one value.
+BUILT_ARABIC_NAMES_ENABLED = "true"
 # Policy B brochure navigation circuit breakers (fractions, 0..1). Ambiguous
 # and disagreeing rows always fail individually; exceeding either target-level
 # rate suppresses every hotspot-only fallback for that ingest.
