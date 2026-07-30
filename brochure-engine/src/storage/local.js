@@ -127,7 +127,9 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
     async listDebris({ currentOn, limit = 15, scope = 'all' } = {}) {
       return (await listOffers())
         .filter((o) => !rows.has(o.id) && (!currentOn || (o.valid_to && o.valid_to >= currentOn)) && visionEligible(o, scope))
-        .sort((a, b) => String(b.detected_at).localeCompare(String(a.detected_at)))
+        // Expiry-first, arrival-order tiebreak — the twin of the D1 ORDER BY.
+        .sort((a, b) => String(a.valid_to).localeCompare(String(b.valid_to))
+          || String(a.detected_at).localeCompare(String(b.detected_at)))
         .slice(0, Math.max(1, Math.min(Number(limit) || 15, 50)))
         .map((o) => ({
           id: o.id,

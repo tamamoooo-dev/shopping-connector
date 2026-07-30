@@ -3,7 +3,10 @@
 // This is intentionally a pure boundary module. It imports no Registry, search,
 // ranking, history, retailer, price, or product-id code. It never resolves or
 // compares products; it only normalizes information already present in the
-// structured extraction observation.
+// structured extraction observation. lexicon/shopping.js is a pure vocabulary
+// table and keeps that property.
+
+import { resolveCategory, resolveDescriptors, DESCRIPTOR_ROLES } from '../lexicon/shopping.js';
 
 export const IDENTITY_NORMALIZATION_MODES = Object.freeze({
   STRICT: 'strict',
@@ -157,6 +160,109 @@ const PACKAGE_TYPE_RULES = Object.freeze([
   ['Sachet', ['sachet', 'sachets', 'ظرف', 'اظرف']],
   ['Pack', ['pack', 'packs', 'packet', 'packets', 'عبوة', 'عبوات']],
 ]);
+
+// --- lexicon-backed classification (2026-07-30) ---------------------------------
+// The four rule tables above are a meat-and-dairy vocabulary — 20 families, 8
+// cuts, 8 processings, 9 varieties — that was being applied to a whole
+// supermarket. MEASURED over 3,000 production rows: a family resolved on only
+// 27.1% of offers, and just 6.9% reached the two discriminating dimensions
+// registry/candidate.js requires, so 93% of the catalogue could never mint a
+// product identity no matter how good the extraction was.
+//
+// The engine already owns the right vocabulary — lexicon/shopping.js, 382
+// categories carrying family+aisle and 126 role-tagged descriptors, with
+// longest-phrase matching. Same measurement against it: family 73.9%,
+// mintable 52.1%. The rules below stay as the fallback for rows with no
+// English name; English is the documented source of truth (HISTORY §47) and
+// carries ~100% of enriched rows.
+//
+// TWO SAFETY PROPERTIES ARE PRESERVED DELIBERATELY, because dropping either
+// showed up as a wrong identity in the measurement:
+//
+//   1. AMBIGUITY IS NULL, never a guess. classifyFeature() below returns null
+//      when a field has conflicting evidence. A multi-product tile
+//      ("Minced Mutton/Chicken/Beef") resolves three categories of equal width
+//      and the raw resolver just returns the last one — so we re-resolve past
+//      the winner and drop the family when a rival names a DIFFERENT family.
+//      Same rule for descriptors: two distinct values in one role means null.
+//
+//   2. THE CATEGORY'S OWN TOKENS ARE SKIPPED when reading descriptors. Without
+//      this, "Cooking Cream" yields family=cream AND variety=cream-ingredient —
+//      one observation wearing two hats, which would satisfy the
+//      two-dimension rule with a single piece of evidence. That is precisely
+//      the merge the rule exists to prevent.
+const SPAN = (span) => {
+  const out = new Set();
+  for (let i = span[0]; i < span[1]; i += 1) out.add(i);
+  return out;
+};
+
+// The one unambiguous descriptor for a role, or null when the tile names more
+// than one (assorted/multi-variant packs).
+function soleDescriptor(descriptors, roles) {
+  const hits = descriptors.filter((d) => roles.includes(d.role));
+  if (!hits.length) return null;
+  const ids = new Set(hits.map((d) => d.id));
+  return ids.size === 1 ? hits[0].id : null;
+}
+
+// Lexicon ids are lowercase slugs ('mozzarella-cheese'); every value this module
+// has ever emitted is Title Case ('Chicken'). The Registry compares
+// identityFields ACROSS products, and 13k stored candidates already carry the
+// Title Case form — emitting raw slugs would make every new reading fail to
+// match its own history and silently mint duplicates. Title-casing keeps the
+// overlapping vocabulary (Chicken, Cheese, Milk, Rice, Oil, Water, Juice …)
+// byte-identical to what is already stored.
+const candidateValue = (slug) => (slug ? titleCaseLatin(String(slug).replace(/-/g, ' ')) : null);
+
+export function classifyFromLexicon(englishName, diagnostics = {}) {
+  const name = String(englishName || '');
+  const category = resolveCategory(name);
+  if (!category) {
+    diagnostics.lexicon = { decision: 'unresolved', category: null };
+    return { family: null, variety: null };
+  }
+  // Rival categories: anything the taxonomy still matches once the winner's
+  // own tokens are out of the way. A rival in a different family means the
+  // tile is advertising more than one product line — refuse to pick.
+  const skip = SPAN(category.span);
+  const rival = resolveCategory(name, { skipTokens: skip });
+  const rivalFamily = rival ? (rival.family || rival.aisle || rival.id) : null;
+  const family = category.family || category.aisle || category.id;
+  const contested = !!rival && rivalFamily !== family;
+
+  const descriptors = resolveDescriptors(name, { skipTokens: skip }) || [];
+  // The sub-type is a SECOND dimension only when the taxonomy resolved strictly
+  // below the family (mozzarella-cheese under cheese). When category.id IS the
+  // family, the evidence has already been spent on `family` and variety must
+  // come from a descriptor instead.
+  const subType = category.family && category.id !== category.family ? category.id : null;
+
+  diagnostics.lexicon = {
+    decision: contested ? 'contested' : 'classified',
+    category: category.id,
+    matchedPhrase: category.matched_phrase,
+    rival: rival ? rival.id : null,
+    descriptors: descriptors.map((d) => `${d.id}:${d.role}`),
+  };
+
+  // `cut` and `processing` are NOT taken from the lexicon. Its form/preparation
+  // roles are descriptive rather than identity-bearing and measured badly here:
+  // "Dove Invisible DRY Deodorant" became processing=Dried, "Juice Glass 3Pc
+  // SET" became cut=Set. The legacy tables below are purpose-built for those
+  // two dimensions, cover Arabic as well as English, and stay authoritative.
+  return {
+    family: contested ? null : candidateValue(family),
+    variety: contested
+      ? null
+      : candidateValue(
+        subType
+          ?? soleDescriptor(descriptors, [
+            DESCRIPTOR_ROLES.FLAVOR, DESCRIPTOR_ROLES.GRADE, DESCRIPTOR_ROLES.ATTRIBUTE,
+          ]),
+      ),
+  };
+}
 
 function classifyFeature(field, texts, rules, diagnostics) {
   const hits = [];
@@ -421,12 +527,38 @@ export function buildIdentityCandidate(input, { mode, now = () => Date.now() } =
     ['variety', normalizedValues.variety],
   ].filter(([, value]) => value).map(([source, value]) => ({ source, text: normalizeClassifierText(value) }));
   const classificationDecisions = {};
-  const family = classifyFeature('family', classificationSources, FAMILY_RULES, classificationDecisions);
-  const cut = classifyFeature('cut', classificationSources, CUT_RULES, classificationDecisions);
-  const processing = classifyFeature('processing', classificationSources, PROCESSING_RULES, classificationDecisions);
-  const variety = classifyFeature('variety', classificationSources, VARIETY_RULES, classificationDecisions);
+  // English is the source of truth (HISTORY §47). The legacy rule tables remain
+  // the fallback for the rare row that carries no English name at all, so an
+  // Arabic-only observation still classifies as well as it ever did.
+  const lexical = normalizedValues.productName
+    ? classifyFromLexicon(normalizedValues.productName, classificationDecisions)
+    : null;
+  const legacy = (field, rules) =>
+    classifyFeature(field, classificationSources, rules, classificationDecisions);
+  // THE LEXICON IS THE GATE; THE LEGACY TABLE IS THE REFINEMENT.
+  //
+  // Neither vocabulary dominates the other, so neither one wins outright:
+  //
+  //   • The lexicon knows what IS a product. The legacy table classifies by
+  //     bare token presence, so "Prayer Mat Turkey" became poultry and a
+  //     degreaser became Fish. When the lexicon resolves no category at all,
+  //     the answer is null — the legacy table may not invent one.
+  //   • The legacy table is more PRECISE where it does fire. The lexicon
+  //     collapses lamb/turkey/beef into one `meat` family; the legacy rules
+  //     keep them apart, and 13k stored candidates already carry those exact
+  //     values. Preferring legacy inside the gate keeps every existing product
+  //     identity comparable instead of orphaning it behind a renamed family.
+  //
+  // So: no category => null. Category + legacy hit => the legacy value.
+  // Category + legacy silent => the lexicon value (this is the new coverage).
+  const gated = (lexicalValue, legacyValue) =>
+    (lexical ? (lexicalValue == null ? null : legacyValue ?? lexicalValue) : legacyValue);
+  const family = gated(lexical?.family, legacy('family', FAMILY_RULES));
+  const variety = gated(lexical?.variety, legacy('variety', VARIETY_RULES));
+  const cut = legacy('cut', CUT_RULES);
+  const processing = legacy('processing', PROCESSING_RULES);
   for (const field of ['family', 'cut', 'processing', 'variety']) {
-    if (classificationDecisions[field].decision === 'conflict') {
+    if (classificationDecisions[field]?.decision === 'conflict') {
       rejectedFields.push({ field, reason: 'Conflicting visible classification evidence', value: classificationDecisions[field].matches.map((match) => match.value) });
     }
   }

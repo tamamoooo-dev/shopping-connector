@@ -274,6 +274,23 @@ export function createD1EnrichStore(db) {
     );
 
   return {
+    // ORDERING IS EXPIRY-FIRST, NOT NEWEST-FIRST (2026-07-30).
+    //
+    // This was `ORDER BY o.detected_at DESC` — a LIFO queue. Vision is an
+    // INGESTION step with finite throughput (~5k/day), and the weekly drop is
+    // bursty: 2026-07-28 ingested 13,367 offers in one day. Under LIFO every
+    // fresh arrival preempts the backlog, so the EARLIEST offers of a burst are
+    // served last and can pass their valid_to before Vision ever reads them.
+    // Measured the morning after that drop: four whole stores sat at exactly
+    // ZERO vision attempts (aljazera 575, cityflower 495, amarket 467, othaim
+    // 429) while later-arriving stores were fully drained — and every one of
+    // those offers rendered raw OCR debris in Search and the flyer viewer.
+    //
+    // `valid_to ASC` spends the budget on whatever expires soonest, which is
+    // exactly the offer most likely to be lost forever if it waits another
+    // cycle; `detected_at ASC` breaks ties in arrival order so a burst drains
+    // front-to-back instead of eating itself. The WHERE clause already excludes
+    // expired rows, so this never favours something that can no longer be shown.
     async listDebris({ currentOn, limit = 15, scope = 'all' } = {}) {
       const { results } = await db
         .prepare(
@@ -285,7 +302,7 @@ export function createD1EnrichStore(db) {
             WHERE e.id IS NULL AND v.offer_id IS NULL ${SCOPE_WHERE[scope] ?? SCOPE_WHERE.all}
               AND o.image_url IS NOT NULL AND o.valid_to >= ?
               AND ${USABLE_PRICE_SQL}
-            ORDER BY o.detected_at DESC LIMIT ?`,
+            ORDER BY o.valid_to ASC, o.detected_at ASC LIMIT ?`,
         )
         .bind(currentOn, Math.max(1, Math.min(Number(limit) || 15, 50)))
         .all();

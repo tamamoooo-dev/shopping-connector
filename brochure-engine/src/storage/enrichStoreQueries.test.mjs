@@ -60,6 +60,36 @@ await test('listDebris executes and admits only priced, cropped, current offers'
   close();
 });
 
+// REGRESSION PIN (2026-07-30): the queue must not be LIFO.
+//
+// It was `ORDER BY detected_at DESC`. Vision has finite throughput and the
+// weekly drop is bursty (13,367 offers on 2026-07-28), so newest-first meant
+// each fresh arrival preempted the backlog and a burst's EARLIEST offers were
+// served last — four stores were still at exactly zero vision attempts two days
+// later, serving raw OCR debris the whole time. Expiring-soonest-first spends
+// the budget where it is about to be lost for good.
+await test('listDebris drains expiring-soonest first, then in arrival order', async () => {
+  const { store, close } = freshStore([
+    // Ingested LAST but valid longest — must not jump the queue.
+    { id: 'a:r:d4d:newest', price: 5, currency: 'SAR', valid_to: '2026-08-30', detected_at: '2026-07-19T23:00:00.000Z' },
+    // Ingested FIRST in the burst, expiring soonest — must be served first.
+    { id: 'a:r:d4d:urgent', price: 5, currency: 'SAR', valid_to: '2026-07-21', detected_at: '2026-07-18T01:00:00.000Z' },
+    // Same expiry as the next one; arrival order breaks the tie.
+    { id: 'a:r:d4d:midB', price: 5, currency: 'SAR', valid_to: '2026-08-01', detected_at: '2026-07-18T09:00:00.000Z' },
+    { id: 'a:r:d4d:midA', price: 5, currency: 'SAR', valid_to: '2026-08-01', detected_at: '2026-07-18T03:00:00.000Z' },
+  ]);
+  const debris = await store.listDebris({ currentOn: CURRENT_ON, limit: 50 });
+  assert.deepEqual(
+    debris.map((r) => r.id),
+    ['a:r:d4d:urgent', 'a:r:d4d:midA', 'a:r:d4d:midB', 'a:r:d4d:newest'],
+  );
+  // The starvation case in one assertion: a limited budget must reach the
+  // oldest, soonest-to-expire offer rather than the newest arrival.
+  const oneShot = await store.listDebris({ currentOn: CURRENT_ON, limit: 1 });
+  assert.deepEqual(oneShot.map((r) => r.id), ['a:r:d4d:urgent']);
+  close();
+});
+
 await test('countDebris returns exactly the number listDebris would hand out', async () => {
   const { store, close } = freshStore(MIXED);
   const [listed, counted] = await Promise.all([
