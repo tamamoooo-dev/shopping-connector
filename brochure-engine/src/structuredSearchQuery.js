@@ -63,6 +63,7 @@ function firstField(sources, fields) {
 export function structuredSearchQuery(watch = {}, observation = {}) {
   const sources = [
     objectValue(watch.sourceSnapshot),
+    objectValue(watch.searchIdentity),
     objectValue(watch.spec),
     objectValue(watch.identityCandidate),
     objectValue(observation.sourceSnapshot),

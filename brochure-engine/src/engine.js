@@ -49,6 +49,7 @@ import {
 import { getHotspotsDoc } from './hotspots.js';
 import { getBrowseSummaryDoc, getBrowseOffersDoc } from './browse/api.js';
 import { detectBrand } from './browse/brands.js';
+import { watchesWithSearchIdentity } from './watchSearchIdentity.js';
 import {
   collectD4dBatch,
   isD4dRegion,
@@ -694,7 +695,8 @@ export async function handleRequest(request, ctx) {
     // NULL) belong to this personal tool's single pre-profile user — the
     // first profile to list watches claims them. Idempotent no-op after.
     await ctx.watchStore.adoptOrphans(profileParam);
-    const watches = await ctx.watchStore.list({ profileId: profileParam });
+    const storedWatches = await ctx.watchStore.list({ profileId: profileParam });
+    const watches = await watchesWithSearchIdentity(ctx.registryStore, storedWatches);
     return json({
       count: watches.length,
       max: MAX_WATCHES,

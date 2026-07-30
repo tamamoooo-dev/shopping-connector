@@ -55,6 +55,7 @@ import {
 } from './offers/contract.js';
 import { applyEnrichment } from './offers/enrich.js';
 import { notificationDestination } from './notificationNavigation.js';
+import { registryProductSearchIdentity } from './watchSearchIdentity.js';
 import {
   effectivePurchasePrice,
   quantityForOffer,
@@ -1795,7 +1796,20 @@ export async function checkWatch(ctx, watch, {
     line.alertType = alertType;
     if (ctx.notifier) {
       try {
-        await ctx.notifier.send(buildNotificationPayload(watch, best, target, alertType, verified));
+        let notificationWatch = watch;
+        if (!watch.sourceSnapshot && watch.registryProductId && ctx.registryStore) {
+          try {
+            const landed = await productForWatch(ctx.registryStore, watch.registryProductId);
+            const searchIdentity = registryProductSearchIdentity(landed.product);
+            if (searchIdentity) notificationWatch = { ...watch, searchIdentity };
+          } catch {
+            // Search navigation is an enhancement; notification delivery must
+            // still fall back to the unchanged label if Registry is unavailable.
+          }
+        }
+        await ctx.notifier.send(
+          buildNotificationPayload(notificationWatch, best, target, alertType, verified),
+        );
       } catch (err) {
         line.notes.push(`notify: ${err.message}`);
       }
