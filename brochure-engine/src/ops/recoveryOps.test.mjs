@@ -91,7 +91,13 @@ const invented = defineProcessor({
 
 async function buildCtx({ without = [], processors = [invented] } = {}) {
   const { db, raw, close } = createSqliteD1(FULL, { without });
-  insertOffers(raw, [{ id: OFFER }]);
+  // valid_to must outlive the WALL CLOCK, not the fixture date. Every route
+  // under test reaches the queue through the ops HTTP surface, which resolves
+  // `currentOn` from todayISO() internally and has no injection point, and the
+  // queue selection filters `o.valid_to >= currentOn`. With offerRow's default
+  // (2026-07-31) these tests passed until that date and then reported
+  // 'scanned: 0' forever — a time bomb, not a regression.
+  insertOffers(raw, [{ id: OFFER, valid_to: '2099-01-01' }]);
   const enrichStore = createD1EnrichStore(db);
   const recoveryQueue = createRecoveryQueue(db);
   const verdict = evaluateBusinessAcceptance({
