@@ -727,50 +727,65 @@ export function createD1EnrichStore(db) {
       }
       const decidedAt = now instanceof Date ? now.toISOString() : String(now);
       const statements = [];
+      // D1 caps BOUND PARAMETERS PER QUERY at 100, so every `IN (...)` list here
+      // is chunked. Found in production, not in test: the local fixtures resolve
+      // 3-4 rows and the first live fire had 344 candidates, which built a single
+      // statement with 351 binds, threw, and was swallowed by the caller's
+      // `.catch()` into a silent `resolved: 0`. Chunk well under the cap.
+      const CHUNK = 40;
+      const chunked = (ids) => {
+        const out = [];
+        for (let i = 0; i < ids.length; i += CHUNK) out.push(ids.slice(i, i + CHUNK));
+        return out;
+      };
       for (const { verdict, ids: groupIds } of groups.values()) {
-        statements.push(db
-          .prepare(
-            `INSERT INTO offer_acceptance_verdicts
-               (offer_id, version, accepted, missing, mandatory, quantity_status,
-                quantity_basis, decided_at)
-             SELECT o.id, ?, ?, ?, ?, ?, ?, ?
-               FROM offers o
-              WHERE o.id IN (${groupIds.map(() => '?').join(',')})
-             ON CONFLICT(offer_id) DO UPDATE SET
-               version=excluded.version, accepted=excluded.accepted,
-               missing=excluded.missing, mandatory=excluded.mandatory,
-               quantity_status=excluded.quantity_status,
-               quantity_basis=excluded.quantity_basis,
-               decided_at=excluded.decided_at`,
-          )
-          .bind(
-            verdict.version,
-            verdict.accepted ? 1 : 0,
-            JSON.stringify([...verdict.missing]),
-            JSON.stringify(verdict.mandatory),
-            verdict.comparableQuantity?.status ?? null,
-            verdict.comparableQuantity?.evidence ?? null,
-            decidedAt,
-            ...groupIds,
-          ));
+        for (const part of chunked(groupIds)) {
+          statements.push(db
+            .prepare(
+              `INSERT INTO offer_acceptance_verdicts
+                 (offer_id, version, accepted, missing, mandatory, quantity_status,
+                  quantity_basis, decided_at)
+               SELECT o.id, ?, ?, ?, ?, ?, ?, ?
+                 FROM offers o
+                WHERE o.id IN (${part.map(() => '?').join(',')})
+               ON CONFLICT(offer_id) DO UPDATE SET
+                 version=excluded.version, accepted=excluded.accepted,
+                 missing=excluded.missing, mandatory=excluded.mandatory,
+                 quantity_status=excluded.quantity_status,
+                 quantity_basis=excluded.quantity_basis,
+                 decided_at=excluded.decided_at`,
+            )
+            .bind(
+              verdict.version,
+              verdict.accepted ? 1 : 0,
+              JSON.stringify([...verdict.missing]),
+              JSON.stringify(verdict.mandatory),
+              verdict.comparableQuantity?.status ?? null,
+              verdict.comparableQuantity?.evidence ?? null,
+              decidedAt,
+              ...part,
+            ));
+        }
       }
       const resolvedIds = accepted.map(({ offer }) => offer.id);
-      const idMarks = resolvedIds.map(() => '?').join(',');
-      statements.push(db
-        .prepare(
-          `UPDATE offer_recovery_queue
-              SET status = 'resolved', claimed_by = NULL, claim_until = NULL,
-                  claim_token = NULL, next_attempt_at = NULL, last_error = NULL,
-                  updated_at = ?
-            WHERE offer_id IN (${idMarks}) AND status <> 'dismissed'`,
-        )
-        .bind(decidedAt, ...resolvedIds));
-      statements.push(db
-        .prepare(
-          `UPDATE offer_ocr_queue SET status = 'completed', updated_at = ?
-            WHERE offer_id IN (${idMarks})`,
-        )
-        .bind(decidedAt, ...resolvedIds));
+      for (const part of chunked(resolvedIds)) {
+        const idMarks = part.map(() => '?').join(',');
+        statements.push(db
+          .prepare(
+            `UPDATE offer_recovery_queue
+                SET status = 'resolved', claimed_by = NULL, claim_until = NULL,
+                    claim_token = NULL, next_attempt_at = NULL, last_error = NULL,
+                    updated_at = ?
+              WHERE offer_id IN (${idMarks}) AND status <> 'dismissed'`,
+          )
+          .bind(decidedAt, ...part));
+        statements.push(db
+          .prepare(
+            `UPDATE offer_ocr_queue SET status = 'completed', updated_at = ?
+              WHERE offer_id IN (${idMarks})`,
+          )
+          .bind(decidedAt, ...part));
+      }
       await db.batch(statements);
       return { available: true, scanned: candidates.length, resolved: resolvedIds.length };
     },

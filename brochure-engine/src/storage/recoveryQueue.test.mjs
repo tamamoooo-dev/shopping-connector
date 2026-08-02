@@ -782,6 +782,41 @@ await test('basis-priced stock is reconciled from data we already own, at zero c
   close();
 });
 
+await test('the basis re-judge survives a batch bigger than D1 allows in one query', async () => {
+  // FOUND IN PRODUCTION, NOT IN TEST. D1 caps bound parameters per query at 100.
+  // Every fixture above resolves 3-4 rows, so the batch builder shipped with a
+  // single `IN (...)` list; the first live fire had 344 candidates, built a
+  // statement with 351 binds, threw, and the caller's `.catch()` turned it into
+  // a silent `resolved: 0` that looked exactly like "nothing to do".
+  //
+  // 150 rows is comfortably past the cap and past one 40-id chunk.
+  const N = 150;
+  const offers = Array.from({ length: N }, (_, i) => ({
+    id: `a:r:d4d:bulk${i}`, name: 'Fresh Produce', category: 'fresh-fruits',
+  }));
+  const { store, queue, close } = fresh(offers);
+  for (const offer of offers) {
+    await store.saveVisionOutcome({
+      attempt: attempt(offer.id, { accepted: true }),
+      canonicalRow: {
+        id: offer.id, name: 'Apple Royal Gala Brazil', size: 'Per Kg',
+        corroboration: 1, enriched_at: AT,
+      },
+      acceptance: rejectVerdict,
+      recovery: recoveryAdmission({ canonicalRow: null, acceptance: rejectVerdict }),
+    });
+  }
+  const result = await store.reconcilePriceBasisAcceptance({ currentOn: TODAY, limit: 500 });
+  assert.equal(result.resolved, N, 'every candidate commits, not just the first chunk');
+  // Spot-check the ends, so a chunking off-by-one cannot pass.
+  for (const id of ['a:r:d4d:bulk0', `a:r:d4d:bulk${N - 1}`]) {
+    const item = await queue.get(id);
+    assert.equal(item.status, RECOVERY_STATUS.RESOLVED, id);
+    assert.equal(item.verdict.quantityBasis, 'price_basis', id);
+  }
+  close();
+});
+
 await test('the basis re-judge never retires a row for some OTHER reason', async () => {
   // A televison passes the gate on the v2 UNIT basis, and the prefilter's
   // "%each%" test is loose enough to offer it up. Retiring it here would make
