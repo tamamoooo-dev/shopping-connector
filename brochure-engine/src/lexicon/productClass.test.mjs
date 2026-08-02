@@ -4,9 +4,9 @@
 
 import assert from 'node:assert/strict';
 import { classifyProductClass, isNonGrocery, nonGroceryCategories, PRODUCT_CLASS } from './productClass.js';
-import { resolveComparableQuantity, COMPARABLE_QUANTITY_BASIS, COMPARABLE_QUANTITY_STATUS } from './comparableQuantity.js';
+import { resolveComparableQuantity, COMPARABLE_QUANTITY_EVIDENCE, COMPARABLE_QUANTITY_STATUS } from './comparableQuantity.js';
 import { parsePackageSize } from './packageSize.js';
-import { evaluateBusinessAcceptance } from '../offers/businessAcceptance.js';
+import { BUSINESS_ACCEPTANCE_VERSION, evaluateBusinessAcceptance } from '../offers/businessAcceptance.js';
 
 let tests = 0;
 const test = async (name, fn) => {
@@ -63,7 +63,7 @@ await test('the catalogue is exposed for the console, sorted and non-empty', () 
 await test('a TV with nothing printed RESOLVES on the unit basis', () => {
   const q = resolveComparableQuantity({ name: 'Samsung 65 inch QLED TV', nonGrocery: true });
   assert.equal(q.status, COMPARABLE_QUANTITY_STATUS.RESOLVED);
-  assert.equal(q.basis, COMPARABLE_QUANTITY_BASIS.UNIT);
+  assert.equal(q.evidence, COMPARABLE_QUANTITY_EVIDENCE.UNIT);
   assert.equal(q.source, 'product_class');
 });
 
@@ -85,10 +85,10 @@ await test('⚠️ a REAL magnitude still wins — unit is a floor, never a ceil
   // and a 7 kg washing machine are truly measure-comparable and must not be
   // demoted to "1 item" just because their category is lenient.
   const kettle = resolveComparableQuantity({ size: '1.7 L', name: 'Kettle', nonGrocery: true });
-  assert.equal(kettle.basis, COMPARABLE_QUANTITY_BASIS.MEASURE);
+  assert.equal(kettle.evidence, COMPARABLE_QUANTITY_EVIDENCE.MEASURE);
   assert.equal(kettle.unitPriceComparable, true);
   const washer = resolveComparableQuantity({ size: '7 kg', name: 'Washing Machine', nonGrocery: true });
-  assert.equal(washer.basis, COMPARABLE_QUANTITY_BASIS.MEASURE);
+  assert.equal(washer.evidence, COMPARABLE_QUANTITY_EVIDENCE.MEASURE);
 });
 
 // --- 3. the 5G parser guard --------------------------------------------------
@@ -161,7 +161,7 @@ await test('END TO END: a TV is ACCEPTED under v2 where v1 rejected it', () => {
   });
   assert.equal(verdict.accepted, true);
   assert.deepEqual([...verdict.missing], []);
-  assert.equal(verdict.comparableQuantity.basis, COMPARABLE_QUANTITY_BASIS.UNIT);
+  assert.equal(verdict.comparableQuantity.evidence, COMPARABLE_QUANTITY_EVIDENCE.UNIT);
 });
 
 await test('END TO END: a phone is accepted on UNIT, not on a fabricated 5 g', () => {
@@ -173,7 +173,7 @@ await test('END TO END: a phone is accepted on UNIT, not on a fabricated 5 g', (
     observation: { name: 'Vivo Y31s 8GB/256GB 5G' },
   });
   assert.equal(verdict.accepted, true);
-  assert.equal(verdict.comparableQuantity.basis, COMPARABLE_QUANTITY_BASIS.UNIT);
+  assert.equal(verdict.comparableQuantity.evidence, COMPARABLE_QUANTITY_EVIDENCE.UNIT);
   assert.equal(verdict.comparableQuantity.unitPriceComparable, false);
 });
 
@@ -219,11 +219,16 @@ await test('an explicit productClass overrides the category, for callers that kn
   assert.equal(forced.accepted, true);
 });
 
-await test('the verdict is stamped v2, so it can never be averaged with a v1 row (R3)', () => {
+await test('the verdict carries the CURRENT gate version, never a shared one (R3)', () => {
+  // Pinned to the constant rather than to a literal: the point of R3 is that a
+  // verdict is always attributable to the rule that produced it, and every
+  // version bump must be a deliberate edit of that constant — not of this test.
+  // (v3, 2026-08-02, added the price basis to M2.)
   const verdict = evaluateBusinessAcceptance({
     offer: offer('tv'), acceptedFields: NAMED, observation: { name: 'Samsung TV' },
   });
-  assert.equal(verdict.version, 'business-acceptance-v2');
+  assert.equal(verdict.version, BUSINESS_ACCEPTANCE_VERSION);
+  assert.match(verdict.version, /^business-acceptance-v\d+$/);
 });
 
 console.log(`\nProduct class + non-grocery acceptance (v2): ${tests} tests OK`);

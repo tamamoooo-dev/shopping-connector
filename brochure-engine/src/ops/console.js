@@ -619,6 +619,9 @@ async function runRecoveryDispatch(ctx, body) {
   const reconciledAsIs = await ctx.enrichStore
     ?.reconcileNonGroceryAcceptance({ currentOn: todayISO(), limit: 500 })
     .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
+  const reconciledPriceBasis = await ctx.enrichStore
+    ?.reconcilePriceBasisAcceptance({ currentOn: todayISO(), limit: 500 })
+    .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
   const processor = requireProcessor(ctx, body?.processor);
   // An EXPLICIT but empty selection is a mistake, not an instruction to process
   // whatever is ready. Refused here rather than passed down, because the two
@@ -677,7 +680,7 @@ async function runRecoveryDispatch(ctx, body) {
       staleClaims: report.staleClaims,
     },
   });
-  return { action: 'ops:recovery-dispatch', ok: true, report, reconciledAsIs };
+  return { action: 'ops:recovery-dispatch', ok: true, report, reconciledAsIs, reconciledPriceBasis };
 }
 
 // AUTO drain, run on demand. Same runner, and it DOES consult the policy — an
@@ -687,6 +690,9 @@ async function runRecoveryDrain(ctx) {
   requireRecovery(ctx);
   const reconciledAsIs = await ctx.enrichStore
     ?.reconcileNonGroceryAcceptance({ currentOn: todayISO(), limit: 500 })
+    .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
+  const reconciledPriceBasis = await ctx.enrichStore
+    ?.reconcilePriceBasisAcceptance({ currentOn: todayISO(), limit: 500 })
     .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
   const policy = await readRecoveryPolicy(ctx.objectStore, { registry: ctx.recoveryRegistry });
   const t0 = Date.now();
@@ -711,7 +717,7 @@ async function runRecoveryDrain(ctx) {
       detail: { processors: policy.processors, runs: report.runs.length },
     });
   }
-  return { action: 'ops:recovery-drain', ok: true, report, policy, reconciledAsIs };
+  return { action: 'ops:recovery-drain', ok: true, report, policy, reconciledAsIs, reconciledPriceBasis };
 }
 
 // Arm or disarm the execution policy. This is the spend decision (C-8), so it

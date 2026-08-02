@@ -701,6 +701,67 @@ console.log('applyEnrichment:');
     applyEnrichment(o4, row({ e_match_text: null })) === 'ocr haystack' && o4.enriched === true);
 }
 
+// --- the unit price on the read contract (2026-08-02) ---------------------------
+// The last mile of the price-basis work: a per-kilo price that resolves in the
+// projection but never reaches `rowToOffer` is still invisible to a shopper,
+// which is exactly where this bug lived for the frontend half.
+console.log('applyEnrichment · unit price:');
+{
+  const row = (over = {}) => ({
+    search_text: 'ocr haystack', e_name: 'Vision Name', e_name_ar: 'اسم',
+    e_corroboration: 0.8, e_match_text: 'vision haystack',
+    e_size: null, e_unit: null, ...over,
+  });
+
+  const basisOffer = { name: null, nameAr: null, price: 7.99 };
+  applyEnrichment(basisOffer, row({ e_name: 'Apple Royal Gala Brazil', e_size: 'Per Kg' }));
+  check('a per-kilo price reaches the contract as a PRINTED unit price',
+    basisOffer.unitPrice?.value === 7.99 && basisOffer.unitPrice.unit === 'kg'
+    && basisOffer.unitPrice.source === 'printed');
+  check('the basis itself is exposed, with its provenance',
+    basisOffer.priceBasis?.unit === 'kg' && basisOffer.priceBasis.source === 'size_field');
+  check('the printed size string reaches the contract too',
+    basisOffer.size === 'Per Kg');
+
+  const unitFieldOffer = { name: null, nameAr: null, price: 39.99 };
+  applyEnrichment(unitFieldOffer, row({ e_name: 'FRESH VEAL - BONE IN', e_unit: 'KILO' }));
+  check('the extractor `unit` field — preserved since §44, consumed since now',
+    unitFieldOffer.unitPrice?.value === 39.99 && unitFieldOffer.priceBasis?.source === 'unit_field');
+
+  const arabicOffer = { name: null, nameAr: null, price: 12.99 };
+  applyEnrichment(arabicOffer, row({
+    e_name: 'Yellow Banana', e_name_ar: 'موز اصغر للكيلو',
+    search_text: 'موز اصغر للكيلو yellow banana per kg',
+  }));
+  check('the retailer Arabic channel resolves a basis nothing else states',
+    arabicOffer.unitPrice?.value === 12.99 && arabicOffer.unitPrice.unit === 'kg');
+
+  const packOffer = { name: null, nameAr: null, price: 12.5 };
+  applyEnrichment(packOffer, row({ e_name: 'Almarai Milk 2 L', e_size: '2 L' }));
+  check('a pack price is still DERIVED by division, and says so',
+    packOffer.unitPrice?.value === 6.25 && packOffer.unitPrice.unit === 'l'
+    && packOffer.unitPrice.source === 'derived' && packOffer.priceBasis === null);
+
+  const noneOffer = { name: null, nameAr: null, price: 30 };
+  applyEnrichment(noneOffer, row({ e_name: 'Nebo Makeup Kit -9090', search_text: 'nebo makeup kit' }));
+  check('no size and no basis stays null — never a fabricated unit price',
+    noneOffer.unitPrice === null && noneOffer.priceBasis === null);
+
+  // An unservable reading is one the vision-canonical gate refused to display.
+  // Deriving a unit price from a name we will not show would smuggle it back in.
+  const unservable = { name: 'OCR Name', nameAr: null, price: 7.99 };
+  applyEnrichment(unservable, row({
+    e_name: 'Apple Royal Gala Brazil', e_size: 'Per Kg', e_corroboration: 0.1,
+  }));
+  check('an UNSERVABLE enrichment contributes no size, unit or basis',
+    unservable.size === null && unservable.priceBasis === null);
+
+  const priceless = { name: null, nameAr: null, price: null };
+  applyEnrichment(priceless, row({ e_name: 'Apple Royal Gala Brazil', e_size: 'Per Kg' }));
+  check('a priceless offer yields no unit price and does not throw',
+    priceless.unitPrice === null);
+}
+
 // --- /offers overlay (end-to-end through handleRequest) ------------------------
 console.log('overlay:');
 {
@@ -742,6 +803,29 @@ console.log('overlay:');
   });
   const nb = await noEnrich.json();
   check('no enrichment rows -> exact OCR fallback behavior', nb.offers.every((o) => o.name == null && !o.enriched));
+
+  // The unit price must survive all the way into the JSON a client parses.
+  // Everything upstream of this can be correct and the shopper still sees
+  // nothing, which is precisely how the per-kilo gap survived so long.
+  const freshRes = await handleRequest(new Request('http://x/offers?q=apple'), {
+    registry: {},
+    offerStore: {
+      search: async () => [offerRow('e:apple', {
+        price: 7.99, category: 'fresh-fruits',
+        name_ar: 'تفاح رويال جالا برازيلي للكيلو',
+        search_text: 'تفاح رويال جالا برازيلي للكيلو apple royal gala brazil per kg',
+        e_name: 'Apple Royal Gala Brazil', e_name_ar: 'تفاح رويال جالا برازيلي',
+        e_size: 'Per Kg', e_unit: null,
+        e_corroboration: 0.8, e_match_text: 'apple royal gala brazil',
+      })],
+    },
+  });
+  const apple = (await freshRes.json()).offers.find((o) => o.id === 'e:apple');
+  check('/offers serves the per-kilo unit price on the wire',
+    apple?.unitPrice?.value === 7.99 && apple.unitPrice.unit === 'kg'
+    && apple.unitPrice.source === 'printed');
+  check('/offers serves the basis and the printed size beside it',
+    apple?.priceBasis?.unit === 'kg' && apple.size === 'Per Kg');
 }
 
 if (failures) {

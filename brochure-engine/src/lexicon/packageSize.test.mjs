@@ -73,5 +73,47 @@ console.log('\npurity:');
 check('same input, same output',
   JSON.stringify(parsePackageSize({ size: '6x250ml' })) === JSON.stringify(parsePackageSize({ size: '6x250ml' })));
 
+
+console.log('\nspellings the COMPARISON reader accepted but the PRINTED reader did not (2026-08-02):');
+{
+  // Objective parsing defects, not judgement calls: `matching.js unitFor()` has
+  // always read these, so `parsePackageSize` refusing them meant the two readers
+  // disagreed about whether a size EXISTS. Measured on the live catalogue, that
+  // cost 104 offers their comparable quantity and 26 their unit price.
+  const cases = [
+    ['450 غ', 450, 'g', 1, 'a bare Arabic gram abbreviation'],
+    ['36.8 غ', 36.8, 'g', 1, 'the same with a decimal'],
+    ['700 GRM', 700, 'g', 1, 'the GRM spelling'],
+    ['360ml×24', 360, 'ml', 24, 'a multiplier written with ×'],
+    ['٤٠٠ جرام*٢', 400, 'g', 2, 'an Arabic unit followed by a * multiplier'],
+    ['٩٠ مل*٤', 90, 'ml', 4, 'the same in millilitres'],
+  ];
+  for (const [size, quantity, unit, pack, why] of cases) {
+    const parsed = parsePackageSize({ size });
+    check(`${why}: "${size}"`,
+      parsed?.quantity === quantity && parsed?.unit === unit && parsed?.pack === pack);
+  }
+  // The multiplier fix removed a `(?![a-z])` guard from MEASURE_PACK_RE only.
+  // `foldSizeText` turns × and * into the ASCII letter `x`, which that guard
+  // then treated as the start of a longer unit word.
+  check('the guard is still enforced where it is needed (plain measure)',
+    parsePackageSize({ size: '5 gallons' })?.unit !== 'g');
+  check('a short unit still cannot eat a longer word',
+    parsePackageSize({ size: '400 grams' })?.quantity === 400);
+}
+
+console.log('\nthe two readers must never disagree about whether a size exists:');
+{
+  // The invariant the fixes above restore. A printed reader that refuses what
+  // the comparison reader accepts produces exactly the bug this fixed: a
+  // product admitted with no denominator, or served with no unit price.
+  for (const size of ['450 غ', '700 GRM', '360ml×24', '٤٠٠ جرام*٢', '1Ltr', '330 ml', '5kg']) {
+    const printed = parsePackageSize({ size });
+    const canonical = parseSize('', size);
+    check(`"${size}": both readers see a size`,
+      !!(printed?.unit || printed?.count) === !!canonical.unit);
+  }
+}
+
 console.log(failures ? `\n${failures} FAILED` : '\nAll Package Size tests passed.');
 process.exit(failures ? 1 : 0);

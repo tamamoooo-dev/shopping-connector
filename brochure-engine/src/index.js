@@ -330,6 +330,11 @@ export default {
           const reconciledAsIs = await context.enrichStore
             .reconcileNonGroceryAcceptance({ currentOn: today, limit: 500 })
             .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
+          // Same zero-model cleanup for basis-priced stock: fresh produce,
+          // butchery, fish and deli priced "PER KG" (gate v3).
+          const reconciledBasis = await context.enrichStore
+            .reconcilePriceBasisAcceptance({ currentOn: today, limit: 500 })
+            .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
           const job = await context.visionJobStore.get().catch(() => null);
           if (!job || job.status !== 'running') {
             // Recovery Auto is a durable background drain, not a one-button
@@ -373,6 +378,7 @@ export default {
                     attempted: drain.attempted,
                     recovered: drain.recovered,
                     reconciledAsIs: reconciledAsIs.resolved,
+                    reconciledPriceBasis: reconciledBasis.resolved,
                   },
                 })
                 .catch(() => {});

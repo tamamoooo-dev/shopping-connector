@@ -75,7 +75,32 @@ import {
 //
 // REVERTING is two edits with no migration: restore the version string and stop
 // passing `nonGrocery` below. Stored v1 verdicts are untouched either way.
-export const BUSINESS_ACCEPTANCE_VERSION = 'business-acceptance-v2';
+//
+// ---------------------------------------------------------------------------
+// v3 · 2026-08-02 — PRICE-BASIS-AWARE M2.
+//
+// THE MANDATORY SET IS AGAIN UNCHANGED, and for the same reason as v2: what
+// changed is what COUNTS as a resolved comparable quantity. `comparableQuantity`
+// v3 gains a PRICE_BASIS basis (lexicon/priceBasis.js), because M2's own
+// justification — "without it a price is a number with no denominator" — is
+// precisely satisfied by a price that STATES its denominator. "APPLE ROYAL GALA
+// — PER KG — 7.99" is not a price without a denominator; it is the clearest
+// denominator in the catalogue, and v2 rejected it.
+//
+// MEASURED on the live catalogue (2026-08-01): 4,747 offers were rejected on
+// `comparable_quantity` ABSENT, of which 710 carry a legible per-kilo or
+// per-piece basis and flip to accepted here. Fresh produce, butchery, fish,
+// nuts and deli are the bulk of them.
+//
+// EFFECTIVELY MONOTONIC for acceptance, which is why it ships live rather than
+// behind a flag: a basis can only ADD a resolved quantity where there was none,
+// or replace a magnitude that came out of the same expression as the basis
+// marker itself. No offer that v2 accepted is rejected by v3.
+//
+// REVERTING is one edit and no migration: restore the version string and stop
+// threading `unit`/`text` at the call sites. Stored v1/v2 verdicts are
+// untouched either way.
+export const BUSINESS_ACCEPTANCE_VERSION = 'business-acceptance-v3';
 
 // The mandatory set, ordered. This array IS the contract: adding to it is a new
 // version, and the per-condition `missing` list is derived from it so the two
@@ -121,6 +146,16 @@ export function evaluateBusinessAcceptance({
   observation = null,
   productClass = null,
 } = {}) {
+  // v3 · the two evidence channels the price basis reads that neither the
+  // Structured Product nor the stored observation carries as a typed field:
+  // the extractor's `unit` (Expanded JSON, §44 — preserved but never consumed
+  // until now) and the offer's own bilingual text. Read from the OFFER ROW for
+  // the text, exactly like price and product class (C-2): "للكيلو" is stated by
+  // the retailer, not by the model, and 899 live offers state it nowhere else.
+  const basisUnit = observation?.unit ?? structured?.observed?.unit ?? null;
+  const basisText = [offer?.name_ar, offer?.searchText ?? offer?.search_text]
+    .filter((value) => typeof value === 'string' && value.trim())
+    .join(' ') || null;
   // v2 · read from the OFFER ROW, like price (C-2), and never from the model.
   // The retailer already told us this is a phone; asking a vision model to
   // re-derive that would be paying for a fact we were given for free, and would
@@ -133,8 +168,10 @@ export function evaluateBusinessAcceptance({
 
   const quantity = comparableQuantity
     ?? (structured
-      ? comparableQuantityFromStructured(structured, { nonGrocery })
-      : resolveComparableQuantity({ ...(observation || {}), nonGrocery }));
+      ? comparableQuantityFromStructured(structured, { nonGrocery, unit: basisUnit, text: basisText })
+      : resolveComparableQuantity({
+        ...(observation || {}), nonGrocery, unit: basisUnit, text: basisText,
+      }));
 
   const mandatory = Object.freeze({
     price: hasUsableCommercePrice(offer || {}),

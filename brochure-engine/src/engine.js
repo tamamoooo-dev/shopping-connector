@@ -1199,6 +1199,11 @@ export async function handleRequest(request, ctx) {
     const reconciledAsIs = await ctx.enrichStore
       ?.reconcileNonGroceryAcceptance({ currentOn: todayISO(), limit: 500 })
       .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
+    // Same zero-cost principle, different rule: a price that states its own
+    // denominator ("PER KG") never needed a model call either (gate v3).
+    const reconciledBasis = await ctx.enrichStore
+      ?.reconcilePriceBasisAcceptance({ currentOn: todayISO(), limit: 500 })
+      .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
     const policy = await readRecoveryPolicy(ctx.objectStore, { registry: ctx.recoveryRegistry });
     // Resolved PER PROCESSOR from the credential each descriptor declares, and
     // a processor declaring none gets none. Built once for the run, it would
@@ -1223,6 +1228,7 @@ export async function handleRequest(request, ctx) {
       { currentOn: todayISO() },
     );
     report.reconciledAsIs = reconciledAsIs || { available: false, scanned: 0, resolved: 0 };
+    report.reconciledPriceBasis = reconciledBasis || { available: false, scanned: 0, resolved: 0 };
     if (ctx.opsStore && !report.skipped) {
       await ctx.opsStore.record({
         ts: report.startedAt,

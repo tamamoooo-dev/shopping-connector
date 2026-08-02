@@ -47,6 +47,7 @@ import {
   evaluateBusinessAcceptance,
 } from '../offers/businessAcceptance.js';
 import { nonGroceryCategories } from '../lexicon/productClass.js';
+import { COMPARABLE_QUANTITY_EVIDENCE } from '../lexicon/comparableQuantity.js';
 // S5 Recovery Queue (C-9). Only the two batch statements and the readiness
 // probe are needed here — the queue's own surface is used by the recovery
 // runner, not by the extraction store.
@@ -150,7 +151,28 @@ export const CANON_HAYSTACK_SQL =
 // applyEnrichment() can overlay without a second query.
 export function enrichRowCols(enabled = false) {
   return `e.name AS e_name, ${enrichmentNameArSql(enabled)} AS e_name_ar, ` +
-    'e.match_text AS e_match_text, e.corroboration AS e_corroboration';
+    'e.match_text AS e_match_text, e.corroboration AS e_corroboration, ' +
+    // The printed size and the extractor's `unit` observation, for the price
+    // basis (offers/enrich.js applyUnitPrice). `unit` lives inside
+    // extraction_json because it was preserved before anything consumed it;
+    // json_extract is cheaper than a migration and keeps the column verbatim.
+    "e.size AS e_size, json_extract(e.extraction_json, '$.unit') AS e_unit";
+}
+
+// The JS twin of that `json_extract`, for the memory store (storage/local.js).
+// Kept in THIS file, beside the SQL it mirrors, so the two cannot drift apart
+// unnoticed — the same discipline `enrichRowCols` already documents.
+export function readExtractionUnit(extractionJson) {
+  if (!extractionJson) return null;
+  try {
+    const parsed = typeof extractionJson === 'string'
+      ? JSON.parse(extractionJson)
+      : extractionJson;
+    const unit = parsed && typeof parsed === 'object' ? parsed.unit : null;
+    return typeof unit === 'string' && unit.trim() ? unit : null;
+  } catch {
+    return null;
+  }
 }
 
 export const ENRICH_ROW_COLS = enrichRowCols(false);
@@ -238,7 +260,7 @@ export function createD1EnrichStore(db) {
       JSON.stringify([...(verdict.missing || [])]),
       JSON.stringify(verdict.mandatory || {}),
       verdict.comparableQuantity?.status ?? null,
-      verdict.comparableQuantity?.basis ?? null,
+      verdict.comparableQuantity?.evidence ?? null,
       decidedAt,
     );
 
@@ -547,7 +569,7 @@ export function createD1EnrichStore(db) {
           [...v.missing],
           v.mandatory,
           v.comparableQuantity?.status ?? null,
-          v.comparableQuantity?.basis ?? null,
+          v.comparableQuantity?.evidence ?? null,
         ]);
         if (!groups.has(key)) groups.set(key, { verdict: v, ids: [] });
         groups.get(key).ids.push(entry.offer.id);
@@ -576,7 +598,7 @@ export function createD1EnrichStore(db) {
             JSON.stringify([...verdict.missing]),
             JSON.stringify(verdict.mandatory),
             verdict.comparableQuantity?.status ?? null,
-            verdict.comparableQuantity?.basis ?? null,
+            verdict.comparableQuantity?.evidence ?? null,
             decidedAt,
             ...ids,
           ));
@@ -604,6 +626,155 @@ export function createD1EnrichStore(db) {
       return { available: true, scanned: candidates.length, resolved: ids.length };
     },
 
+    /**
+     * Re-judge stale Recovery rows after the PRICE BASIS rule changes (gate v3,
+     * 2026-08-02). The sibling of `reconcileNonGroceryAcceptance`, deliberately
+     * a separate method rather than a branch inside it: the two rules admit
+     * different populations for different reasons, and a shared method would
+     * make "why was this offer accepted" answerable only by re-reading both.
+     *
+     * ZERO COST. A per-kilo price is legible in data we already own — the
+     * extractor's `unit` field, the size field it wrote "Per Kg" into, and the
+     * retailer's own bilingual text. Nothing here fetches a crop or calls a
+     * model; the offers were queued for Recovery precisely because v2 could not
+     * see the denominator that was printed on them all along.
+     *
+     * ANY CATEGORY. Fresh produce is where basis pricing is the norm, but deli,
+     * butchery, fish, nuts and loose confectionery price the same way, and a
+     * category filter here would rebuild the Fresh-specific fix this work
+     * exists to avoid. The SQL prefilter is a cheap text test; the GATE is what
+     * decides, exactly as everywhere else.
+     */
+    async reconcilePriceBasisAcceptance({
+      currentOn, limit = 500, now = new Date(),
+    } = {}) {
+      if (!(await recoveryStore.ready()) || !(await acceptanceVerdictsReady())) {
+        return { available: false, scanned: 0, resolved: 0 };
+      }
+      // A deliberately GENEROUS prefilter: it only has to avoid scanning the
+      // whole queue, and every candidate is judged properly below. Anything it
+      // lets through that carries no real basis simply fails the gate again.
+      // ONE haystack, built from every field the basis reader itself reads.
+      // Testing a subset of them is how a fixture like "FRESH VEAL - BONE IN"
+      // with `unit: "KILO"` — basis in the unit field and nowhere else — gets
+      // silently skipped before the gate ever sees it.
+      const hay = "LOWER(COALESCE(e.size,'') || ' ' || COALESCE(e.name,'') || ' '"
+        + " || COALESCE(json_extract(e.extraction_json,'$.unit'),''))";
+      const arabicHay = "(COALESCE(o.name_ar,'') || ' ' || COALESCE(o.search_text,''))";
+      const marker = '('
+        + [`${hay} LIKE '%kg%'`, `${hay} LIKE '%kilo%'`, `${hay} LIKE '%/pc%'`,
+          `${hay} LIKE '%per pc%'`, `${hay} LIKE '%piece%'`, `${hay} LIKE '%each%'`]
+          .join(' OR ')
+        + ' OR ' + ["'%للكيلو%'", "'%بالكيلو%'", "'%للحبة%'", "'%للحبه%'"]
+          .map((needle) => `${arabicHay} LIKE ${needle}`).join(' OR ')
+        + ')';
+      const { results } = await db
+        .prepare(
+          `SELECT o.id, o.name, o.name_ar, o.search_text, o.price, o.currency,
+                  o.category, o.valid_to,
+                  e.name AS e_name, e.size AS e_size,
+                  json_extract(e.extraction_json, '$.unit') AS e_unit
+             FROM offer_recovery_queue q
+             JOIN offers o ON o.id = q.offer_id
+             JOIN offer_enrichments e ON e.id = q.offer_id
+            WHERE q.status IN ('queued', 'claimed')
+              AND o.valid_to >= ?
+              AND o.price > 0
+              AND ${marker}
+            ORDER BY q.updated_at, q.offer_id
+            LIMIT ?`,
+        )
+        .bind(currentOn, Math.max(1, Math.min(Number(limit) || 500, 1000)))
+        .all();
+      const candidates = results || [];
+      const accepted = candidates
+        .map((row) => ({
+          offer: row,
+          verdict: evaluateBusinessAcceptance({
+            // The offer row carries the price, the class and the bilingual text
+            // the basis reader needs (C-2: never the model for these).
+            offer: row,
+            // The name that already cleared S3 — a basis cannot rescue a product
+            // with no usable English identity, and must not be able to.
+            acceptedFields: row.e_name ? ['name_en'] : [],
+            observation: {
+              name: row.e_name || row.name || row.name_ar || null,
+              size: row.e_size || null,
+              unit: row.e_unit || null,
+            },
+          }),
+        }))
+        .filter(({ verdict }) => verdict.accepted
+          // ONLY a price basis may resolve a row here. A candidate that passes
+          // for some other reason is not this rule's business and belongs to
+          // whatever pass owns it, so it is left queued rather than quietly
+          // retired under the wrong justification.
+          && verdict.comparableQuantity?.evidence === COMPARABLE_QUANTITY_EVIDENCE.PRICE_BASIS);
+      if (!accepted.length) {
+        return { available: true, scanned: candidates.length, resolved: 0 };
+      }
+
+      const groups = new Map();
+      for (const entry of accepted) {
+        const v = entry.verdict;
+        const key = JSON.stringify([
+          v.version, v.accepted, [...v.missing], v.mandatory,
+          v.comparableQuantity?.status ?? null,
+          v.comparableQuantity?.evidence ?? null,
+        ]);
+        if (!groups.has(key)) groups.set(key, { verdict: v, ids: [] });
+        groups.get(key).ids.push(entry.offer.id);
+      }
+      const decidedAt = now instanceof Date ? now.toISOString() : String(now);
+      const statements = [];
+      for (const { verdict, ids: groupIds } of groups.values()) {
+        statements.push(db
+          .prepare(
+            `INSERT INTO offer_acceptance_verdicts
+               (offer_id, version, accepted, missing, mandatory, quantity_status,
+                quantity_basis, decided_at)
+             SELECT o.id, ?, ?, ?, ?, ?, ?, ?
+               FROM offers o
+              WHERE o.id IN (${groupIds.map(() => '?').join(',')})
+             ON CONFLICT(offer_id) DO UPDATE SET
+               version=excluded.version, accepted=excluded.accepted,
+               missing=excluded.missing, mandatory=excluded.mandatory,
+               quantity_status=excluded.quantity_status,
+               quantity_basis=excluded.quantity_basis,
+               decided_at=excluded.decided_at`,
+          )
+          .bind(
+            verdict.version,
+            verdict.accepted ? 1 : 0,
+            JSON.stringify([...verdict.missing]),
+            JSON.stringify(verdict.mandatory),
+            verdict.comparableQuantity?.status ?? null,
+            verdict.comparableQuantity?.evidence ?? null,
+            decidedAt,
+            ...groupIds,
+          ));
+      }
+      const resolvedIds = accepted.map(({ offer }) => offer.id);
+      const idMarks = resolvedIds.map(() => '?').join(',');
+      statements.push(db
+        .prepare(
+          `UPDATE offer_recovery_queue
+              SET status = 'resolved', claimed_by = NULL, claim_until = NULL,
+                  claim_token = NULL, next_attempt_at = NULL, last_error = NULL,
+                  updated_at = ?
+            WHERE offer_id IN (${idMarks}) AND status <> 'dismissed'`,
+        )
+        .bind(decidedAt, ...resolvedIds));
+      statements.push(db
+        .prepare(
+          `UPDATE offer_ocr_queue SET status = 'completed', updated_at = ?
+            WHERE offer_id IN (${idMarks})`,
+        )
+        .bind(decidedAt, ...resolvedIds));
+      await db.batch(statements);
+      return { available: true, scanned: candidates.length, resolved: resolvedIds.length };
+    },
+
     async getAcceptanceVerdict(offerId) {
       if (!await acceptanceVerdictsReady()) return null;
       const row = await db
@@ -617,7 +788,10 @@ export function createD1EnrichStore(db) {
         accepted: row.accepted === 1,
         missing: JSON.parse(row.missing),
         mandatory: JSON.parse(row.mandatory),
-        comparableQuantity: { status: row.quantity_status, basis: row.quantity_basis },
+        // The COLUMN keeps its name (no migration; the values are unchanged
+        // across v3 and v4), but the read shape follows the projection so a
+        // caller can compare a stored verdict with a fresh one field by field.
+        comparableQuantity: { status: row.quantity_status, evidence: row.quantity_basis },
         decidedAt: row.decided_at,
       };
     },

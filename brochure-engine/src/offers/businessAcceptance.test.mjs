@@ -73,7 +73,7 @@ test('a container-basis product PASSES the gate and scores 0 on package_size (R8
     offer, acceptedFields: accepted, structured,
   });
   assert.equal(verdict.accepted, true);
-  assert.equal(verdict.comparableQuantity.basis, 'container');
+  assert.equal(verdict.comparableQuantity.evidence, 'container');
   assert.equal(verdict.comparableQuantity.unitPriceComparable, false);
 
   const commerce = calculateCommerceScore(structured, offer);

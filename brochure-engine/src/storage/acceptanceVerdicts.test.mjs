@@ -278,14 +278,14 @@ await test('summary condition keys are generated FROM the gate, not restated', a
   close();
 });
 
-await test('the Comparable Quantity basis is retained for calibration (R8)', async () => {
+await test('the Comparable Quantity evidence is retained for calibration (R8)', async () => {
   const { store, close } = freshStore([{ id: 'a:r:d4d:q' }]);
   await store.saveVisionOutcome({
     attempt: attempt('a:r:d4d:q'), canonicalRow: null, acceptance: acceptedVerdict,
   });
   const stored = await store.getAcceptanceVerdict('a:r:d4d:q');
   assert.equal(stored.comparableQuantity.status, acceptedVerdict.comparableQuantity.status);
-  assert.equal(stored.comparableQuantity.basis, acceptedVerdict.comparableQuantity.basis ?? null);
+  assert.equal(stored.comparableQuantity.evidence, acceptedVerdict.comparableQuantity.evidence ?? null);
   close();
 });
 

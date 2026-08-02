@@ -34,7 +34,14 @@ const MEASURE_UNITS = [
   { label: 'L', en: ['litres', 'litre', 'liters', 'liter', 'ltr', 'lt', 'l', 'لتر', 'ليتر'], ar: 'لتر', unit: 'l' },
   { label: 'ml', en: ['ml', 'millilitre', 'milliliter', 'مل', 'مليلتر'], ar: 'مل', unit: 'ml' },
   { label: 'kg', en: ['kgs', 'kg', 'kilos', 'kilo', 'kilogram', 'كجم', 'كغم', 'كيلو', 'كيلوجرام'], ar: 'كجم', unit: 'kg' },
-  { label: 'g', en: ['grams', 'gram', 'gms', 'gm', 'gr', 'g', 'جم', 'جرام', 'غرام', 'غم'], ar: 'جم', unit: 'g' },
+  // ORDER IS LOAD-BEARING within a shared prefix: longest first, so 'grm' is
+  // tried before 'gr' and the Arabic 'غرام'/'غم' before the bare 'غ'. Getting
+  // this wrong truncates the word and silently changes the magnitude's unit.
+  // `grm`/`غ` added 2026-08-02: both appear in the live corpus ("700 GRM",
+  // "450 غ") and `matching.js unitFor()` already accepted them, so the PRINTED
+  // reader was refusing sizes the COMPARISON reader could read — the two must
+  // not disagree about whether a size exists.
+  { label: 'g', en: ['grams', 'gram', 'grms', 'grm', 'gms', 'gm', 'gr', 'g', 'جم', 'جرام', 'غرام', 'غم', 'غ'], ar: 'جم', unit: 'g' },
 ];
 
 // Count words -> Arabic singular/plural. Arabic numeral agreement is a real
@@ -87,7 +94,15 @@ const NUM = '\\d+(?:[.,]\\d+)?';
 // "6 x 250 ml" / "2 X 1.5 Ltr" — a pack multiplier followed by a measurement.
 const PACK_MEASURE_RE = new RegExp(`(\\d{1,3})\\s*x\\s*(${NUM})\\s*(${MEASURE_ALT})(?![a-z])`, 'iu');
 // "250 ml x 6" — the reverse spelling.
-const MEASURE_PACK_RE = new RegExp(`(${NUM})\\s*(${MEASURE_ALT})(?![a-z])\\s*x\\s*(\\d{1,3})`, 'iu');
+//
+// NO `(?![a-z])` HERE, unlike the plain measure below. That guard exists to stop
+// a short unit matching the head of a longer word ('g' inside 'gram'), and the
+// required `x<digits>` suffix already provides that boundary. With the guard in
+// place the multiplier itself defeated the match — `foldSizeText` turns `×`/`*`
+// into `x`, so "360ml×24" and "٤٠٠ جرام*٢" fold to "360mlx24" and "400 جرام x2",
+// whose unit is followed by an ASCII letter. Measured: those two spellings alone
+// account for live rows whose pack size the printed reader could not see.
+const MEASURE_PACK_RE = new RegExp(`(${NUM})\\s*(${MEASURE_ALT})\\s*x\\s*(\\d{1,3})`, 'iu');
 // "330 ml", "5kg", "190G"
 const MEASURE_RE = new RegExp(`(${NUM})\\s*(${MEASURE_ALT})(?![a-z])`, 'iu');
 // "40's", "12 Rolls", "6 pcs"
@@ -131,6 +146,24 @@ function isNetworkGeneration(quantityText, unitKey, text, nonGrocery) {
   if (String(unitKey).trim().toLowerCase() !== 'g') return false;
   return nonGrocery || DEVICE_SPEC_RE.test(text);
 }
+
+// --- KNOWN RESIDUAL: a grade range that carries its own unit -------------------
+//
+// "SHRIMP 50 / 60 KG" is a grade (pieces per kilo) priced by the kilo, and
+// MEASURE_RE reads the 60 as a sixty-kilo package. A guard for `N-N UNIT` was
+// built and MEASURED against the live catalogue on 2026-08-02, then withdrawn:
+// it corrected 2 offers and broke 2 others, because "Ethiopian Lamb Whole
+// (7 - 9 Kg)" and "Alyoum Fresh Chicken (1100/1200g)" use the identical
+// notation for the true weight of the single item being sold, priced as an
+// item. The two readings are structurally indistinguishable and the project
+// refuses to guess (see the `5G` guard above, which ships only because TWO
+// independent signals separate the cases).
+//
+// Most of this class is already handled without a parser change: wherever the
+// grade sits beside an explicit basis marker ("Sea Bream 200-300 /Kg",
+// "CASHEW W320/KG"), `lexicon/priceBasis.js` reads the marker and the price
+// basis outranks the fabricated magnitude. What remains is the handful whose
+// range and unit touch with no marker at all. Written down rather than hidden.
 
 const number = (raw) => Number.parseFloat(String(raw).replace(',', '.'));
 

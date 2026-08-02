@@ -732,6 +732,75 @@ await test('named/priced non-grocery is reconciled as-is without a recovery atte
   close();
 });
 
+await test('basis-priced stock is reconciled from data we already own, at zero cost', async () => {
+  // The population this whole change exists for. Every row below was queued for
+  // Recovery under gate v2 with `comparable_quantity` ABSENT; three of them
+  // printed their denominator all along, in three different places.
+  const offers = [
+    { id: 'a:r:d4d:apple', name: null, name_ar: 'تفاح رويال جالا للكيلو', category: 'fresh-fruits' },
+    { id: 'a:r:d4d:veal', name: 'FRESH VEAL - BONE IN', category: 'meat-fresh-chilled' },
+    { id: 'a:r:d4d:lettuce', name: 'Iceberg Lettuce/pc', category: 'fresh-vegetables' },
+    // No basis anywhere: must stay queued. A re-judge that retires this row is
+    // retiring a product that still needs a real reading.
+    { id: 'a:r:d4d:cushion', name: 'Novelty Cushion', category: 'home-furnishing-decor' },
+  ];
+  const rows = {
+    // The basis in the SIZE field — the commonest production shape.
+    'a:r:d4d:apple': { name: 'Apple Royal Gala Brazil', size: 'Per Kg', extraction_json: null },
+    // The basis in the extractor's `unit` field ONLY.
+    // extraction_json is stored as an OBJECT (the store serialises it), which is
+    // what makes `json_extract(..., '$.unit')` able to read it back.
+    'a:r:d4d:veal': { name: 'FRESH VEAL - BONE IN', size: null, extraction_json: { unit: 'KILO' } },
+    // The basis in the NAME.
+    'a:r:d4d:lettuce': { name: 'Iceberg Lettuce/pc', size: null, extraction_json: null },
+    'a:r:d4d:cushion': { name: 'Novelty Cushion', size: null, extraction_json: null },
+  };
+  const { store, queue, close } = fresh(offers);
+  for (const offer of offers) {
+    await store.saveVisionOutcome({
+      attempt: attempt(offer.id, { accepted: true }),
+      canonicalRow: {
+        id: offer.id, corroboration: 1, enriched_at: AT, ...rows[offer.id],
+      },
+      acceptance: rejectVerdict,
+      recovery: recoveryAdmission({ canonicalRow: null, acceptance: rejectVerdict }),
+    });
+  }
+  const result = await store.reconcilePriceBasisAcceptance({ currentOn: TODAY });
+  assert.equal(result.resolved, 3, 'three legible bases, three resolutions');
+  for (const id of ['a:r:d4d:apple', 'a:r:d4d:veal', 'a:r:d4d:lettuce']) {
+    const item = await queue.get(id);
+    assert.equal(item.status, RECOVERY_STATUS.RESOLVED, id);
+    assert.equal(item.verdict.accepted, true, id);
+    assert.equal(item.verdict.quantityBasis, 'price_basis', id);
+    assert.equal((await queue.history(id)).length, 0, `${id}: no paid recovery attempt`);
+  }
+  assert.equal(
+    (await queue.get('a:r:d4d:cushion')).status, RECOVERY_STATUS.QUEUED,
+    'a product with no basis must not be retired by this pass',
+  );
+  close();
+});
+
+await test('the basis re-judge never retires a row for some OTHER reason', async () => {
+  // A televison passes the gate on the v2 UNIT basis, and the prefilter's
+  // "%each%" test is loose enough to offer it up. Retiring it here would make
+  // "why was this accepted" unanswerable from the verdict alone, so the pass
+  // resolves ONLY rows whose comparable quantity is a price basis.
+  const tv = { id: 'a:r:d4d:tv2', name: 'Samsung 65 inch TV Each', category: 'tv' };
+  const { store, queue, close } = fresh([tv]);
+  await store.saveVisionOutcome({
+    attempt: attempt(tv.id, { accepted: true }),
+    canonicalRow: { id: tv.id, name: 'Samsung 65 inch TV Each', corroboration: 1, enriched_at: AT },
+    acceptance: rejectVerdict,
+    recovery: recoveryAdmission({ canonicalRow: null, acceptance: rejectVerdict }),
+  });
+  const result = await store.reconcilePriceBasisAcceptance({ currentOn: TODAY });
+  assert.equal(result.resolved, 0);
+  assert.equal((await queue.get(tv.id)).status, RECOVERY_STATUS.QUEUED);
+  close();
+});
+
 await test('new named/priced non-grocery never enters Recovery or legacy OCR', async () => {
   const tv = {
     id: 'a:r:d4d:new-tv',

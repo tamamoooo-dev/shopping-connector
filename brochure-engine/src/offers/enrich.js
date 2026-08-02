@@ -57,6 +57,11 @@ import {
 import { resolveBrand } from '../lexicon/brands.js';
 import { isNonGrocery } from '../lexicon/productClass.js';
 import {
+  COMPARABLE_QUANTITY_EVIDENCE,
+  resolveComparableQuantity,
+  unitPriceFromReference,
+} from '../lexicon/comparableQuantity.js';
+import {
   BUSINESS_ACCEPTANCE_VERSION,
   MANDATORY_CONDITIONS,
   evaluateBusinessAcceptance,
@@ -65,6 +70,7 @@ import {
   buildArabicShadow,
   withArabicBuilderShadow,
 } from '../lexicon/arabicRollout.js';
+import { correctArabicProductName } from '../lexicon/arabicTypoCorrection.js';
 
 // --- the enrichment record -----------------------------------------------------
 // Enrichment:
@@ -164,13 +170,77 @@ export function applyEnrichment(offer, row) {
     name_ar: row?.e_name_ar ?? null,
     corroboration: row?.e_corroboration,
   };
-  if (servable(enr)) {
+  const isServable = servable(enr);
+  if (isServable) {
     offer.name = enr.name;
     offer.nameAr = enr.name_ar;
     offer.enriched = true;
-    return row.e_match_text || row.search_text || '';
   }
+  // The PRICE BASIS and the size it was read beside (2026-08-02). Both are
+  // additive fields on the read contract and neither can change which offers
+  // are returned or how they rank — `unitPrice` is a label the client would
+  // otherwise have to re-derive from a name, which is exactly what it was doing
+  // and exactly why per-kilo produce showed no unit price at all.
+  //
+  // Derived here rather than stored, following the same rule as `brand_id` and
+  // the Arabic builder: the reader is pure, so the answer is recomputable from
+  // columns already selected. No column, no migration.
+  applyUnitPrice(offer, row, isServable);
+  if (isServable) return row.e_match_text || row.search_text || '';
   return row?.search_text || '';
+}
+
+// The read-path projection of the basis. Separate and exported so the two
+// mirrors can be compared field by field, and so a caller holding a row without
+// enrichment columns still gets a correct (empty) answer rather than a throw.
+export function applyUnitPrice(offer, row, isServable = true) {
+  // Only a SERVABLE reading may contribute its size/unit: an unservable
+  // enrichment is one the vision-canonical gate already refused to display, and
+  // a unit price derived from a name we will not show is not evidence.
+  const size = isServable ? (row?.e_size ?? null) : null;
+  const unit = isServable ? (row?.e_unit ?? null) : null;
+  // `offer.name` is ALREADY the canonical display name — the caller overlaid the
+  // vision reading above when servable, and left the OCR name otherwise. Reading
+  // it from the offer rather than re-picking a column is what keeps this
+  // correct across both query shapes (`SELECT o.*` and the aliased ops query).
+  const name = offer?.name ?? null;
+
+  // v4 · ONE projection, shared with the Business Acceptance Gate. The read path
+  // used to re-derive the size, the basis and the arithmetic itself, which is
+  // how the gate and the pricer came to disagree about a "40's" tissue pack.
+  // Asking the same question in the same place makes that class of drift
+  // unrepresentable.
+  const quantity = resolveComparableQuantity({
+    size,
+    name,
+    unit,
+    // The retailer's own bilingual text, where 899 live offers state the basis
+    // and nothing else does.
+    text: [offer?.nameAr, row?.search_text].filter(Boolean).join(' ') || null,
+    nonGrocery: isNonGrocery(offer?.category ?? row?.category ?? null),
+  });
+
+  offer.size = size;
+  offer.sellingMode = quantity.sellingMode;
+  offer.priceBasis = quantity.evidence === COMPARABLE_QUANTITY_EVIDENCE.PRICE_BASIS
+    ? {
+      unit: quantity.unit,
+      quantity: quantity.quantity,
+      // The projection prefixes its source with the evidence class
+      // ("price_basis:size_field") so a stored verdict is self-describing. The
+      // wire contract already says WHICH evidence in `unitPrice.source`, so the
+      // prefix would be noise here — the client wants the field it was read from.
+      source: String(quantity.source || '').replace(/^price_basis:/, '') || null,
+    }
+    : null;
+  const up = unitPriceFromReference(offer.price, quantity.reference);
+  // `source` lets the client tell a PRINTED unit price (the flyer stated it)
+  // from a DERIVED one (we divided by a package). It never has to guess, and a
+  // future ranker can prefer the printed one without re-reading any text.
+  offer.unitPrice = up
+    ? { ...up, source: offer.priceBasis ? 'printed' : 'derived' }
+    : null;
+  return offer.unitPrice;
 }
 
 // --- corroboration -------------------------------------------------------------
@@ -556,9 +626,18 @@ function extractionModel(diagnostics, visionModel, ocrModel) {
   return visionModel;
 }
 
-function identityFromExtraction(result, mode) {
+function canonicalExtraction(extracted) {
+  if (!extracted) return extracted;
+  const arabicName = correctArabicProductName({
+    englishName: extracted.productName,
+    arabicName: extracted.arabicName,
+  });
+  return arabicName === extracted.arabicName ? extracted : { ...extracted, arabicName };
+}
+
+function identityFromExtraction(result, mode, extracted = result.extraction) {
   return buildIdentityCandidate(
-    { ...result.extraction, confidence: result.confidence },
+    { ...extracted, confidence: result.confidence },
     { mode },
   );
 }
@@ -571,11 +650,14 @@ function identityFromExtraction(result, mode) {
 // like the Brand Lexicon (§45) it is derivable on read and nothing is
 // persisted; `enrichStore` binds columns explicitly, so it cannot reach D1.
 //
-// STAGED ROLLOUT (user directive, 2026-07-26): `name_ar` below permanently
-// carries the model's observed Arabic. The built name and its diagnostics are
-// persisted inside extraction_json; the global read-path flag decides which
-// presentation to expose and can never mutate this source record.
+// `name_ar` below carries the canonical extraction Arabic: normally byte-for-
+// byte observed text, or one explicitly reviewed typo token when the English
+// name proves the intended word. The untouched model output remains in
+// extraction_json for audit. The built name and its diagnostics are persisted
+// there too; the global read-path policy still decides which presentation to
+// expose.
 export function productKnowledge(extracted, observation, commerceContext = {}) {
+  extracted = canonicalExtraction(extracted);
   return buildArabicShadow({
     name_en: extracted.productName,
     name_ar: extracted.arabicName,
@@ -606,9 +688,11 @@ export function canonicalRowFromResult(offerId, crop, result, {
   enrichedAt = new Date().toISOString(),
   commerceContext = {},
 } = {}) {
-  const extracted = result.extraction;
+  const extracted = canonicalExtraction(result.extraction);
   const hasName = !!(extracted.productName || extracted.arabicName);
-  const identity = hasName ? identityFromExtraction(result, identityNormalizationMode) : null;
+  const identity = hasName
+    ? identityFromExtraction(result, identityNormalizationMode, extracted)
+    : null;
   const observation = preservedObservation(result?.diagnostics?.visionOutput);
   const knowledge = productKnowledge(extracted, observation, commerceContext);
   return {
@@ -721,8 +805,8 @@ export async function enrichOffer(
     runVision: () => observeVisionBytes(crop, { apiKey, model, fetchImpl }),
     runOcr: () => observeOcrBytes(crop, { apiKey, model: ocrModel, fetchImpl }),
   });
-  const identity = identityFromExtraction(result, identityNormalizationMode);
-  const extracted = result.extraction;
+  const extracted = canonicalExtraction(result.extraction);
+  const identity = identityFromExtraction(result, identityNormalizationMode, extracted);
   if (!extracted.productName && !extracted.arabicName) return null;
   const observation = preservedObservation(result.diagnostics.visionOutput);
   const knowledge = productKnowledge(extracted, observation, offer);
@@ -746,7 +830,7 @@ export async function enrichOffer(
     // Brand Lexicon (HISTORY §45) — additive; `brand` above stays verbatim.
     brandIdentity: resolveBrand(extracted.brand),
     // Structured Product + Arabic Builder (HISTORY §47) — additive; `nameAr`
-    // above stays the model's observed Arabic. Serving selection is downstream.
+    // above is the canonical one-token-safe Arabic. Serving selection is downstream.
     ...knowledge,
   };
 }
@@ -794,9 +878,9 @@ export async function enrichWithFailover(
   if (!extractedAttempt) return null;
   const { crop, result } = extractedAttempt;
   if (onDiagnostics) await onDiagnostics(result.diagnostics);
-  const identity = identityFromExtraction(result, identityNormalizationMode);
+  const extracted = canonicalExtraction(result.extraction);
+  const identity = identityFromExtraction(result, identityNormalizationMode, extracted);
   if (onIdentityDiagnostics) await onIdentityDiagnostics(identity.diagnostics);
-  const extracted = result.extraction;
   if (!extracted.productName && !extracted.arabicName) return null;
   const observation = preservedObservation(result.diagnostics.visionOutput);
   const knowledge = productKnowledge(extracted, observation, offer);
@@ -820,7 +904,7 @@ export async function enrichWithFailover(
     // Brand Lexicon (HISTORY §45) — additive; `brand` above stays verbatim.
     brandIdentity: resolveBrand(extracted.brand),
     // Structured Product + Arabic Builder (HISTORY §47) — additive; `nameAr`
-    // above stays the model's observed Arabic. Serving selection is downstream.
+    // above is the canonical one-token-safe Arabic. Serving selection is downstream.
     ...knowledge,
   };
 }

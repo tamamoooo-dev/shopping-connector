@@ -149,6 +149,12 @@ export function buildStructuredProduct(observation = {}) {
       brand: brandObserved ?? null,
       size: sizeObserved ?? null,
       package_type: packageTypeObserved ?? null,
+      // The Expanded JSON `unit` field, carried verbatim. It is NOT a size — it
+      // holds a price basis ("Per Kg"), a size unit ("g"), a currency ("SAR") or
+      // a device spec ("mah") depending on the crop, so only
+      // lexicon/priceBasis.js is allowed to interpret it. Kept here so the
+      // Structured Product stays a complete record of what was observed.
+      unit: observation.unit ?? null,
     },
     brand,
     category: null,

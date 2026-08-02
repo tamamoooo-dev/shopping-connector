@@ -23,6 +23,8 @@ import {
   parseSize,
   stripSizes,
 } from './matching.js';
+import { PRICE_BASIS_STATUS, resolvePriceBasis } from './lexicon/priceBasis.js';
+import { REFERENCE_UNITS, unitPriceFromReference } from './lexicon/comparableQuantity.js';
 
 const VARIANT_PHRASES = [
   'full fat', 'low fat', 'skimmed', 'lactose free', 'sugar free', 'zero sugar',
@@ -66,7 +68,7 @@ export function variantKey(text, family = null) {
   return [...found].sort().join('|');
 }
 
-export function watchQuantity(name, sizeField = '') {
+export function watchQuantity(name, sizeField = '', { unit = null, text = null } = {}) {
   const parsed = parseSize(name, sizeField);
   if (parsed?.unit && Number.isFinite(parsed.total) && parsed.total > 0) return parsed;
 
@@ -76,21 +78,53 @@ export function watchQuantity(name, sizeField = '') {
     const total = Number(sheets[1]);
     return { unit: 'sheets', each: 1, pack: total, total, src: 'count' };
   }
+
+  // LAST, and only when nothing above found a magnitude: the price may state its
+  // own denominator ("PER KG", "/PC", "للكيلو"). Strictly additive — a watch
+  // whose listing already parsed a size is untouched, so no existing target
+  // price is renormalised by this branch. `sizeResolved` is false by
+  // construction here, which is exactly the condition the reader wants.
+  const basis = resolvePriceBasis({ unit, size: sizeField, name, text, sizeResolved: false });
+  if (basis.status === PRICE_BASIS_STATUS.RESOLVED) {
+    // Shaped like every other quantity here: `total` is the amount, `unit` is
+    // what it is measured in. v3 also set a `pricing: 'per_unit'` flag that told
+    // the arithmetic below to take a different branch; there is no different
+    // branch any more, because there never needed to be one.
+    return {
+      unit: basis.unit,
+      each: basis.quantity,
+      pack: 1,
+      total: basis.quantity,
+      src: 'price_basis',
+    };
+  }
   return parsed;
 }
 
+// ONE division. `quantity` may be a `parseSize()` output (unit g/ml/pcs), a
+// sheets count, or a price basis (unit kg/l/piece) — they differ only in the
+// unit their `total` is expressed in, so they are converted to a reference and
+// divided once. v3 branched on a `pricing` flag instead, and that branch is
+// exactly where the multi-buy defect lived (see `quantityForOffer`).
 export function unitPriceFor(price, quantity) {
-  const p = Number(price);
+  return unitPriceFromReference(price, referenceOf(quantity));
+}
+
+// A quantity in whatever unit it arrived in -> the denominator, in the unit a
+// shopper compares in. Mirrors `comparableQuantity.js referenceFrom()`, plus the
+// two shapes only Price Monitoring produces (sheets, and a basis already in
+// reference units).
+function referenceOf(quantity) {
   const total = Number(quantity?.total);
-  if (!Number.isFinite(p) || p <= 0 || !Number.isFinite(total) || total <= 0) return null;
-  if (quantity.unit === 'g') return { value: (p * 1000) / total, unit: 'kg', label: 'SAR/kg' };
-  if (quantity.unit === 'ml') return { value: (p * 1000) / total, unit: 'l', label: 'SAR/L' };
-  if (quantity.unit === 'sheets') {
-    return { value: (p * 100) / total, unit: '100-sheets', label: 'SAR/100 Sheets' };
+  if (!Number.isFinite(total) || total <= 0) return null;
+  if (quantity.unit === 'g') return { quantity: total / 1000, unit: 'kg' };
+  if (quantity.unit === 'ml') return { quantity: total / 1000, unit: 'l' };
+  if (quantity.unit === 'sheets') return { quantity: total / 100, unit: '100-sheets' };
+  if (quantity.unit === 'pcs') {
+    return quantity.src === 'count-weak' ? null : { quantity: total, unit: 'piece' };
   }
-  if (quantity.unit === 'pcs' && quantity.src !== 'count-weak') {
-    return { value: p / total, unit: 'piece', label: 'SAR/Piece' };
-  }
+  // Already a reference unit — a price basis, which needs no conversion.
+  if (REFERENCE_UNITS.includes(quantity.unit)) return { quantity: total, unit: quantity.unit };
   return null;
 }
 
@@ -191,10 +225,23 @@ export function effectivePurchasePrice(candidate = {}) {
 }
 
 export function quantityForOffer(candidate = {}) {
-  const base = watchQuantity(candidate.name, candidate.size);
+  const base = watchQuantity(candidate.name, candidate.size, {
+    unit: candidate.unit ?? null,
+    text: [candidate.nameAr, candidate.name_ar].find((v) => typeof v === 'string' && v.trim()) ?? null,
+  });
   if (!base?.unit || !base.total) return base;
   const terms = purchaseTerms(candidate);
   if (terms.received <= 1) return base;
+  // A multi-buy scales what the shopper RECEIVES, and it scales it the same way
+  // whatever the denominator is: "buy 2 get 1" on a 1.7 kg bag is 5.1 kg for two
+  // bags' money, and on a per-kilo price it is 3 kg for two kilos' money.
+  //
+  // v3 exempted a stated denominator here, reasoning that "you cannot multiply
+  // per-kilo". That was the pricing-mode error in miniature, and it was wrong in
+  // the expensive direction: `effectivePurchasePrice` still scaled the PRICE by
+  // `paid`, so a per-kilo product under "buy 2 get 1" reported 8.00 SAR/kg
+  // against an undiscounted 4.00 — a promotion that doubled the advertised unit
+  // price. Latent only because nothing populates `promotion` yet.
   return {
     ...base,
     pack: (base.pack || 1) * terms.received,
