@@ -16,6 +16,7 @@ import {
 } from './mapping.js';
 import { offerBadges } from './deals.js';
 import { BRAND_BY_SLUG } from './brands.js';
+import { applyUnitPrice } from '../offers/enrich.js';
 
 // Browse V1.1 (2026-07-16): the homepage keeps only the rails that earn their
 // place with real data — Biggest Drops and Lowest Ever. Exceptional Deals /
@@ -33,6 +34,18 @@ function cardDoc(row, today) {
   const aisleId = refineAisle(canonicalAisle(row.source, row.category), row);
   const aisle = AISLE_BY_ID.get(aisleId);
   const brand = row.brand_slug ? BRAND_BY_SLUG.get(row.brand_slug) : null;
+  // The PER-ITEM price, through the SAME read-path projection /offers uses —
+  // `applyUnitPrice` is called, not reimplemented, so Browse can never grow its
+  // own opinion of a pack (offers/enrich.js is the one home for that arithmetic).
+  //
+  // Only `eachPrice` is served. The projection also computes a unit price here,
+  // and that one is NOT carried: this query omits `search_text` for cost, and
+  // measured on all 74,173 priced offers that omission changes 1,488 unit prices
+  // while changing ZERO each-prices. Serving the unit price from this row would
+  // mean a Browse card and a Search card disagreeing about the same offer —
+  // exactly the cross-surface drift the per-item price was just fixed for.
+  const priced = { name: row.name, nameAr: row.name_ar, price: row.price, category: row.category };
+  applyUnitPrice(priced, row, row.servable === 1);
   return {
     brand: brand ? { slug: brand.slug, en: brand.en, ar: brand.ar } : null,
     id: row.id,
@@ -58,6 +71,7 @@ function cardDoc(row, today) {
     aisle: aisleId,
     dept: aisle ? aisle.dept : null,
     badges: offerBadges(row, today),
+    eachPrice: priced.eachPrice,
   };
 }
 

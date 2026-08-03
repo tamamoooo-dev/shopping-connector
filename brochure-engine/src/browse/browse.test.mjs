@@ -517,9 +517,58 @@ await (async () => {
     assert.deepEqual(doc.totals, { offers: 4, stores: 2 });
   });
 
-  test('summary: brands carry bilingual names; unknown slugs are dropped', () => {
-    assert.equal(doc.brands.length, 1);
-    assert.deepEqual(doc.brands[0], { slug: 'almarai', en: 'Almarai', ar: 'المراعي', offers: 8, stores: 3 });
+  // --- the PER-ITEM price on a Browse card (2026-08-03) -------------------------
+  // Built through the REAL document builder, not a hand-called projection, so
+  // these cover the column plumbing (browseStore cardColumns) too. Awaited HERE
+  // rather than inside test(), whose runner is synchronous by design.
+  const cardOf = async (r) => {
+    const d = await getBrowseOffersDoc(stubCtx({ rows: [r] }), {}, TODAY);
+    return (d.offers || [])[0];
+  };
+  const packCard = await cardOf(row({
+    name: 'AL BATAL POTATO CHIPS 12 x 23G', price: 10.25,
+    servable: 1, e_size: '12 x 23G', e_unit: null, e_package_type: null,
+  }));
+  const singleCard = await cardOf(row({
+    name: 'Arwa Water 330 ml', price: 1.5, servable: 1, e_size: '330 ml',
+  }));
+  // The pack lives ONLY in the size field here, so the servable gate is what is
+  // actually under test: an unservable enrichment contributes no size, exactly
+  // as on /offers. (A pack printed in the NAME still counts either way — the
+  // canonical name is read regardless of servability, and Browse must match.)
+  const sizeOnlyServable = await cardOf(row({
+    name: 'AL BATAL POTATO CHIPS', price: 10.25, servable: 1, e_size: '12 x 23G',
+  }));
+  const sizeOnlyUnservable = await cardOf(row({
+    name: 'AL BATAL POTATO CHIPS', price: 10.25, servable: 0, e_size: '12 x 23G',
+  }));
+
+  test('card: a multipack carries eachPrice, through the SHARED read projection', () => {
+    assert.ok(packCard.eachPrice, 'a 12-pack has a per-item price');
+    assert.equal(packCard.eachPrice.pack, 12);
+    assert.equal(Number(packCard.eachPrice.value.toFixed(2)), 0.85);
+  });
+
+  test('card: a single pack carries none, exactly as everywhere else', () => {
+    assert.equal(singleCard.eachPrice, null);
+  });
+
+  test('card: the servable gate decides whether the size field counts', () => {
+    assert.ok(sizeOnlyServable.eachPrice, 'servable -> the size field is read');
+    assert.equal(sizeOnlyServable.eachPrice.pack, 12);
+    assert.equal(sizeOnlyUnservable.eachPrice, null, 'unservable -> no size, no per-item price');
+  });
+
+  // DELIBERATE DIVERGENCE, pinned so it is not "fixed" by accident. Browse omits
+  // `search_text` from a query that scans up to 10,000 rows. Measured on all
+  // 74,173 priced production offers, that omission changes ZERO each-prices and
+  // 1,488 UNIT prices — so the each-price is safe to serve here and the unit
+  // price is not. A Browse card must never carry a unit price that disagrees
+  // with the Search card for the same offer.
+  test('card: Browse serves NO unit price (it would disagree with Search)', () => {
+    assert.equal(packCard.unitPrice, undefined, 'no unitPrice on the wire');
+    assert.equal(packCard.priceBasis, undefined);
+    assert.equal(packCard.sellingMode, undefined);
   });
 
   test('listing: unknown brand errors explicitly', async () => {

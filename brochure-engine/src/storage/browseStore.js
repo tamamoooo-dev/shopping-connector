@@ -16,7 +16,9 @@
 import {
   FROZEN_MARK_TERMS, PROCESSED_MARK_TERMS, FRESH_GUARD_TERMS,
 } from '../browse/mapping.js';
-import { ENRICH_JOIN, CANON_NAME_SQL, canonicalNameArSql } from './enrichStore.js';
+import {
+  ENRICH_JOIN, CANON_NAME_SQL, SERVABLE_SQL, canonicalNameArSql,
+} from './enrichStore.js';
 
 // Slim projection: everything a Browse card needs, nothing more (search_text
 // stays out — it is matching payload, ~600 chars/row of dead weight here).
@@ -58,7 +60,20 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
     o.price, o.old_price, o.currency, o.category,
     o.image_url, o.source_url, o.valid_from, o.valid_to, o.detected_at,
     o.identity, o.brand_slug, pi.weeks_seen, pi.first_seen,
-    h.min_price, h.max_price, h.points`;
+    h.min_price, h.max_price, h.points,
+    -- The three enrichment fields the PER-ITEM price needs (browse/api.js
+    -- cardDoc). Deliberately NOT o.search_text, which the /offers path also
+    -- feeds to the projection: measured on all 74,173 priced offers, omitting it
+    -- changes the each-price on ZERO of them -- it can only ever contribute a
+    -- PRICE BASIS, which carries pack 1 and is refused by gate 4 regardless.
+    -- It changes 1,488 UNIT prices, which is why Browse serves no unit price
+    -- rather than a second, quieter one. The candidates() query scans up to
+    -- 10,000 rows and search_text is the full OCR haystack; these three are
+    -- small. NOTE: no backticks in this comment -- it lives inside a JS
+    -- template literal, where one would end the string.
+    ${SERVABLE_SQL} AS servable, e.size AS e_size,
+    json_extract(e.extraction_json, '$.unit') AS e_unit,
+    json_extract(e.extraction_json, '$.package_type') AS e_package_type`;
   const markNames = `(ifnull(${CANON_NAME_SQL},'') || ' ' || ifnull(${canonicalNameAr},''))`;
   const likeAny = (terms) => terms.map((t) => `${markNames} LIKE '%${t}%'`).join(' OR ');
   const frozenMarkSql = `((${likeAny(FROZEN_MARK_TERMS)})
