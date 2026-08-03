@@ -165,6 +165,52 @@ function isNetworkGeneration(quantityText, unitKey, text, nonGrocery) {
 // basis outranks the fabricated magnitude. What remains is the handful whose
 // range and unit touch with no marker at all. Written down rather than hidden.
 
+// --- a package that holds TWO different magnitudes ------------------------------
+//
+// "MELLO GLASS CLEANER 2 x 650ml + 400ml FREE" is a real live size expression,
+// and the printed reader sees only its first term: pack 2 of 650 ml. What the
+// shopper carries home is three bottles and 1.7 litres, so BOTH the pack count
+// and the total are understated.
+//
+// This flag does not repair either number — the unit price for these rows is
+// knowingly left exactly as it is served today (a repair would change 270-odd
+// live values and needs its own measurement). It exists so that a consumer which
+// must not be wrong about "one item" can decline: a per-item price computed from
+// pack 2 would advertise 11.49 SAR for a bottle in a pack that also contains a
+// different bottle.
+//
+// THE CONNECTOR IS THE WHOLE RULE, and it is `+` alone:
+//
+//   "2 x 650ml + 400ml FREE"  — ADDITION. Two different things in one package.
+//   "5 x 83g / 90g"           — ALTERNATIVE. One packet, printed either way,
+//                               because the flyer covers two flavours. Measured
+//                               on the live catalogue this spelling is common
+//                               and its per-item price (7.50 / 5 = 1.50) is
+//                               correct, so a `/` must never raise the flag.
+//
+// A `+` that joins COUNTS rather than measures is likewise not this case:
+// "300mL (2 + 1 FREE)" is three identical 300 ml cans and "10 + 2 rolls" is
+// twelve identical rolls — `matching.js` bonusPack() already resolves both, and
+// they are homogeneous packages whatever the total turns out to be. So the test
+// requires a second MEASURE, not merely a second number.
+function isHeterogeneous(text) {
+  const segments = String(text).split('+');
+  if (segments.length < 2) return false;
+  const magnitudes = [];
+  for (const segment of segments) {
+    const m = MEASURE_RE.exec(segment);
+    if (!m) continue;
+    const unit = measureFor(m[2]);
+    if (!unit) continue;
+    // Compared in ONE base unit per family, so "2 x 1.5L + 500ML" is seen for
+    // what it is: 1500 against 500, not 1.5 against 500.
+    const base = unit.unit === 'l' || unit.unit === 'kg' ? 1000 : 1;
+    magnitudes.push({ value: number(m[1]) * base, family: unit.unit === 'l' || unit.unit === 'ml' ? 'volume' : 'mass' });
+  }
+  if (magnitudes.length < 2) return false;
+  return magnitudes.some((a) => magnitudes.some((b) => a.family === b.family && a.value !== b.value));
+}
+
 const number = (raw) => Number.parseFloat(String(raw).replace(',', '.'));
 
 // Trailing ".0" is noise on a shelf label: 1.0 L reads as 1 L.
@@ -191,15 +237,19 @@ function readPrinted(sizeField, name, { nonGrocery = false, context = '' } = {})
     // positives arrived exactly that way.
     const deviceText = `${text} ${context}`;
 
+    // Computed from the expression the reading is taken FROM, so the flag always
+    // describes the same text as the magnitude beside it.
+    const heterogeneous = isHeterogeneous(text);
+
     const packMeasure = PACK_MEASURE_RE.exec(text);
     if (packMeasure) {
       const unit = measureFor(packMeasure[3]);
-      if (unit) return { source, kind: 'pack_measure', quantity: number(packMeasure[2]), unit, pack: Number(packMeasure[1]), printed: packMeasure[0].trim() };
+      if (unit) return { source, kind: 'pack_measure', quantity: number(packMeasure[2]), unit, pack: Number(packMeasure[1]), printed: packMeasure[0].trim(), heterogeneous };
     }
     const measurePack = MEASURE_PACK_RE.exec(text);
     if (measurePack) {
       const unit = measureFor(measurePack[2]);
-      if (unit) return { source, kind: 'pack_measure', quantity: number(measurePack[1]), unit, pack: Number(measurePack[3]), printed: measurePack[0].trim() };
+      if (unit) return { source, kind: 'pack_measure', quantity: number(measurePack[1]), unit, pack: Number(measurePack[3]), printed: measurePack[0].trim(), heterogeneous };
     }
     const measure = MEASURE_RE.exec(text);
     if (measure) {
@@ -208,7 +258,7 @@ function readPrinted(sizeField, name, { nonGrocery = false, context = '' } = {})
       // the count branches: "5G" is not a count either, and letting it continue
       // would only swap one invented quantity for another.
       if (unit && !isNetworkGeneration(measure[1], measure[2], deviceText, nonGrocery)) {
-        return { source, kind: 'measure', quantity: number(measure[1]), unit, pack: 1, printed: measure[0].trim() };
+        return { source, kind: 'measure', quantity: number(measure[1]), unit, pack: 1, printed: measure[0].trim(), heterogeneous };
       }
     }
     const countWord = COUNT_WORD_RE.exec(text);
@@ -242,6 +292,9 @@ function countWordFor(count, countUnit = DEFAULT_COUNT) {
 //   unit       — 'ml' | 'l' | 'g' | 'kg' | null (null = a countable package)
 //   pack       — how many units the package holds (1 when not a multipack)
 //   printed    — the source expression, verbatim-ish (folded, lowercased)
+//   heterogeneous — the expression ADDS a second, different magnitude
+//                ("2 x 650ml + 400ml FREE"), so `quantity`/`pack` describe only
+//                its first term. Reported, never repaired (see isHeterogeneous).
 //   display_en — the shopper-facing English label
 //   display_ar — the shopper-facing Arabic label
 //   canonical  — matching.js parseSize() output, unchanged (the comparison view)
@@ -279,6 +332,9 @@ export function parsePackageSize({
       count,
       pack: canonical.pack ?? 1,
       printed: null,
+      // Nothing was printed to be heterogeneous ABOUT: this branch exists because
+      // no measure expression matched at all.
+      heterogeneous: false,
       source: 'canonical',
       display_en: count ? `${count} pcs` : null,
       display_ar: count ? `${count} ${countWordFor(count)}` : null,
@@ -312,6 +368,7 @@ export function parsePackageSize({
     count: printed.kind === 'count' ? printed.quantity : null,
     pack,
     printed: printed.printed,
+    heterogeneous: !!printed.heterogeneous,
     source: printed.source,
     display_en,
     display_ar,

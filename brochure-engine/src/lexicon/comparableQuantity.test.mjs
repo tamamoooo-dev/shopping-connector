@@ -6,6 +6,7 @@ import {
   COMPARABLE_QUANTITY_VERSION,
   SELLING_MODE,
   comparableQuantityFromStructured,
+  eachPriceFrom,
   projectComparableQuantity,
   resolveComparableQuantity,
   unitPriceFromReference,
@@ -485,6 +486,177 @@ test('v4 · contradiction NEVER changes admission — measured at 0 status chang
     const cq = resolveComparableQuantity(observation);
     assert.equal(cq.status, COMPARABLE_QUANTITY_STATUS.RESOLVED, JSON.stringify(observation));
     assert.equal(cq.reference, null, JSON.stringify(observation));
+  }
+});
+
+// --- the PER-ITEM price (2026-08-03) --------------------------------------------
+// Every string below is a VERBATIM live production size/name, taken from the
+// 74,173-offer measurement that preceded the feature.
+
+const eachOf = (price, observation, options = {}) => eachPriceFrom(
+  price, resolveComparableQuantity(observation), options,
+);
+
+test('each · a multipack states the price of one item', () => {
+  // 12 x 23 g crisps at 10.25: the unit price says 37.14 SAR/kg, which answers
+  // "is this good value" and not "what does one bag cost".
+  const each = eachOf(10.25, { size: '12 x 23G', name: 'AL BATAL POTATO CHIPS' });
+  assert.equal(Number(each.value.toFixed(2)), 0.85);
+  assert.equal(each.pack, 12);
+});
+
+test('each · it is DERIVED FROM the reference, so it never contradicts the unit price', () => {
+  const cq = resolveComparableQuantity({ size: '6 x 1.5L', name: 'Water' });
+  const unit = unitPriceFromReference(5.0, cq.reference);
+  const each = eachPriceFrom(5.0, cq);
+  // The identity that must hold on every card: each = unitPrice x one item.
+  assert.equal(Number((each.value / 1.5).toFixed(6)), Number(unit.value.toFixed(6)));
+  assert.equal(Number(each.value.toFixed(2)), 0.83);
+});
+
+test('each · a count pack prices one piece', () => {
+  const each = eachOf(24.99, { size: '24 ROLL', name: 'FINE DELUXE TOILET PAPER' });
+  assert.equal(Number(each.value.toFixed(2)), 1.04);
+  assert.equal(each.pack, 24);
+});
+
+test('each · gate 3 · a single pack has no "one item" worth printing', () => {
+  assert.equal(eachOf(3.5, { size: '330 ml', name: 'Arwa Bottled Water 330 ml' }), null);
+});
+
+test('each · gate 2 · a continuous product has no item to price', () => {
+  // "per kg" yields a 1 kg reference. Dividing it by a pack of 1 would advertise
+  // the cost of one kilogram as though a shopper could pick one up.
+  const cq = resolveComparableQuantity({ name: 'SALMON FILLET KG', unit: 'Per Kg' });
+  assert.equal(cq.sellingMode, SELLING_MODE.CONTINUOUS);
+  assert.equal(eachPriceFrom(45.0, cq), null);
+});
+
+test('each · gate 1 · a contradicted offer has no reference and so no item price', () => {
+  const cq = resolveComparableQuantity({ name: 'Pears Rosemary Per KG', size: '10 KG' });
+  assert.equal(cq.reference, null);
+  assert.equal(eachPriceFrom(9.99, cq), null);
+});
+
+test('each · gate 6 · a bonus pack whose printed pack understates the canonical count', () => {
+  // "10 + 2 rolls" prints 2 and canonicalises to 12. The unit price survives
+  // that (it only uses the canonical total); an item price would not.
+  const cq = resolveComparableQuantity({ size: '10 + 2 rolls', name: 'Kitchen towels' });
+  assert.deepEqual(cq.reference, { quantity: 12, unit: 'piece' });
+  assert.equal(cq.pack, 2);
+  assert.equal(eachPriceFrom(11.99, cq), null);
+});
+
+test('each · gate 6 · a per-sheet count beside a per-box reference', () => {
+  // "5 + 1 FREE 70's" — 6 boxes of 70 sheets. The printed reader sees 70.
+  assert.equal(eachOf(19.99, { size: "5 + 1 FREE 70's", name: 'Kleenex Facial Tissues' }), null);
+});
+
+test('each · gate 6 · a HOMOGENEOUS bonus pack is NOT refused', () => {
+  // Measured: 1+1 and 24+4 resolve correctly on both sides, and refusing them
+  // would withdraw exactly the answer the shopper wants. A multi-buy veto would
+  // have thrown these away — which is why there is no multi-buy veto.
+  const each = eachOf(11.99, { size: '1 + 1 FREE', name: 'SIGNAL SOFT TOOTHBRUSH' });
+  assert.equal(Number(each.value.toFixed(2)), 6.0);
+  assert.equal(each.pack, 2);
+});
+
+test('each · gate 5 · a package holding TWO different magnitudes', () => {
+  // "2 x 650ml + 400ml FREE" is three bottles, not two, and 1.7 L, not 1.3.
+  const cq = resolveComparableQuantity({
+    size: '2 x 650ml + 400ml FREE', name: 'DAC GLASS CLEANER',
+  });
+  assert.equal(cq.heterogeneous, true);
+  assert.equal(eachPriceFrom(22.99, cq), null);
+});
+
+test('each · gate 5 · a "/" ALTERNATIVE is one packet, not two magnitudes', () => {
+  // "5 x 83g / 90g" is one packet printed two ways because the flyer covers two
+  // flavours. 7.50 / 5 = 1.50 is correct and must not be refused.
+  const cq = resolveComparableQuantity({
+    size: '5 x 83g / 90g', name: 'Indomie Instant Noodles Spicy Curry / Chicken',
+  });
+  assert.equal(cq.heterogeneous, false);
+  assert.equal(Number(eachOf(7.5, {
+    size: '5 x 83g / 90g', name: 'Indomie Instant Noodles Spicy Curry / Chicken',
+  }).value.toFixed(2)), 1.5);
+});
+
+test('each · gate 5 · a "+" joining COUNTS is a homogeneous package', () => {
+  // "300mL (2 + 1 FREE)" is three identical cans; the + carries no second
+  // magnitude, so the flag must stay down.
+  const cq = resolveComparableQuantity({ size: '300mL (2 + 1 FREE)', name: 'Glade Air Freshener' });
+  assert.equal(cq.heterogeneous, false);
+  assert.equal(Number(eachPriceFrom(23.99, cq).value.toFixed(2)), 8.0);
+});
+
+test('each · gate 7 · a SET is not a multipack — you cannot buy one pot', () => {
+  // 599.99 for ten pieces is 60.00 each, arithmetically true and practically
+  // false. Keyed on package_type, never on category (user decision 2026-08-03).
+  const cq = resolveComparableQuantity({ size: '10pcs', name: 'cooking set 10pcs turkiye' });
+  assert.ok(cq.reference, 'the count still resolves — only the presentation is refused');
+  assert.equal(eachPriceFrom(599.99, cq, { packageType: 'set' }), null);
+  assert.equal(eachPriceFrom(599.99, cq, { packageType: 'kit' }), null);
+  // The same package type on the projection, for callers that supply one there.
+  assert.equal(eachPriceFrom(599.99, projectComparableQuantity(
+    { present: true, count: 10, pack: 10, quantity: null, unit: null, source: 'size_field', canonical: { unit: 'pcs', pack: 10, total: 10, src: 'count' } },
+    { id: 'set', en: 'set', ar: 'طقم' },
+  )), null);
+});
+
+test('each · gate 7 · the NAME token catches what package_type does not label', () => {
+  // Measured: package_type is null on 67% of qualifying offers and on every
+  // cookware set in the live sample. A refusal may read a weaker signal than an
+  // assertion may — being wrong here withholds a price, never invents one.
+  const cq = resolveComparableQuantity({ size: '10pcs', name: 'cooking set 10pcs turkiye' });
+  // The measured gap itself, asserted so it cannot be forgotten: this live offer
+  // carries NO package_type, so the semantic field alone lets 60.00 SAR through.
+  assert.ok(eachPriceFrom(599.99, cq, { packageType: null }));
+  assert.equal(eachPriceFrom(599.99, cq, { packageType: null, name: 'cooking set 10pcs turkiye' }), null);
+  for (const name of ['KORKMAZ ASTRON STAINLESS STEEL 8PCS COOKING SET', 'Girls 2 Pcs set', 'Art Kit 12 Pcs', 'طقم قدور 8 قطع']) {
+    assert.equal(eachPriceFrom(299, resolveComparableQuantity({ name, size: '8pcs' }), { name }), null, name);
+  }
+});
+
+test('each · gate 7 · the name token does not fire on ordinary multipacks', () => {
+  // 0 food-category false positives measured; these are the shapes that must
+  // survive it. "Sunset"/"Kitkat" must not be read as "set"/"kit".
+  for (const [name, size] of [
+    ['AL BATAL POTATO CHIPS', '12 x 23G'],
+    ['Sunset Orange Juice', '6 x 200ml'],
+    ['KITKAT Chunky Multipack', '4 x 40g'],
+    ['Almarai Fresh Milk', '2 x 1.5L'],
+  ]) {
+    assert.ok(eachPriceFrom(10, resolveComparableQuantity({ name, size }), { name }), name);
+  }
+});
+
+test('each · gate 7 · a real container is NOT a set', () => {
+  const each = eachOf(14.99, { size: '6 x 120G', name: 'PALMOLIVE NATURALS BATH SOAP' }, { packageType: 'pack' });
+  assert.equal(Number(each.value.toFixed(2)), 2.5);
+});
+
+test('each · a piece reference gives the unit price back, by construction', () => {
+  // 30 eggs: SAR/Piece IS the per-item price. The feature adds wording here,
+  // not information — asserted so nobody later "fixes" it into two numbers.
+  const cq = resolveComparableQuantity({ size: '30 pcs', name: 'Fresh Eggs 30 pcs' });
+  const unit = unitPriceFromReference(20.0, cq.reference);
+  const each = eachPriceFrom(20.0, cq);
+  assert.equal(each.value, unit.value);
+  assert.equal(Number(each.value.toFixed(2)), 0.67);
+});
+
+test('each · never invents a price where there is no unit price', () => {
+  // The strongest invariant: eachPrice is a presentation of unitPrice, so it
+  // cannot exist without one. `price / pack` would have broken this.
+  for (const observation of [
+    { name: 'Samsung 65 inch TV', nonGrocery: true },
+    { name: 'Rice Bag', packageType: 'bag' },
+    { name: 'NRF110N26S Refrigerator', nonGrocery: true },
+  ]) {
+    const cq = resolveComparableQuantity(observation);
+    assert.equal(unitPriceFromReference(100, cq.reference), null, JSON.stringify(observation));
+    assert.equal(eachPriceFrom(100, cq), null, JSON.stringify(observation));
   }
 });
 

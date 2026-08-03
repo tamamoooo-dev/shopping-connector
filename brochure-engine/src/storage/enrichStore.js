@@ -156,23 +156,35 @@ export function enrichRowCols(enabled = false) {
     // basis (offers/enrich.js applyUnitPrice). `unit` lives inside
     // extraction_json because it was preserved before anything consumed it;
     // json_extract is cheaper than a migration and keeps the column verbatim.
-    "e.size AS e_size, json_extract(e.extraction_json, '$.unit') AS e_unit";
+    "e.size AS e_size, json_extract(e.extraction_json, '$.unit') AS e_unit, " +
+    // `package_type` rides the same json_extract for the same reason, and is
+    // read by the per-item price: a `set` is a package whose items cannot be
+    // bought one at a time (comparableQuantity.js eachPriceFrom, gate 7).
+    "json_extract(e.extraction_json, '$.package_type') AS e_package_type";
 }
 
-// The JS twin of that `json_extract`, for the memory store (storage/local.js).
+// The JS twin of those `json_extract`s, for the memory store (storage/local.js).
 // Kept in THIS file, beside the SQL it mirrors, so the two cannot drift apart
 // unnoticed — the same discipline `enrichRowCols` already documents.
-export function readExtractionUnit(extractionJson) {
+function readExtractionField(extractionJson, field) {
   if (!extractionJson) return null;
   try {
     const parsed = typeof extractionJson === 'string'
       ? JSON.parse(extractionJson)
       : extractionJson;
-    const unit = parsed && typeof parsed === 'object' ? parsed.unit : null;
-    return typeof unit === 'string' && unit.trim() ? unit : null;
+    const value = parsed && typeof parsed === 'object' ? parsed[field] : null;
+    return typeof value === 'string' && value.trim() ? value : null;
   } catch {
     return null;
   }
+}
+
+export function readExtractionUnit(extractionJson) {
+  return readExtractionField(extractionJson, 'unit');
+}
+
+export function readExtractionPackageType(extractionJson) {
+  return readExtractionField(extractionJson, 'package_type');
 }
 
 export const ENRICH_ROW_COLS = enrichRowCols(false);

@@ -183,14 +183,29 @@ const ABSENT = Object.freeze({
   reference: null,
   sellingMode: null,
   unitPriceComparable: false,
+  packageType: null,
+  heterogeneous: false,
   source: null,
   version: COMPARABLE_QUANTITY_VERSION,
 });
 
 const positive = (value) => Number.isFinite(value) && value > 0;
 
+// `packageType` and `heterogeneous` are PROVENANCE, added 2026-08-03 for the
+// per-item price. Neither is a fourth fact about the quantity: the first is
+// `resolvePackageType()`'s answer carried on every branch instead of only the
+// container one, and the second is `parsePackageSize()`'s own flag passed
+// through. Nothing recomputes either.
+//
+// THE VERSION DELIBERATELY DOES NOT BUMP. v2, v3 and v4 each bumped because a
+// stored row's MEANING changed — new evidence values that flip a verdict, and a
+// deleted field a v3 reader would mis-read. These two are purely additive and
+// nothing persists them (`offer_acceptance_verdicts` stores `quantity_status`
+// and `quantity_basis`, both scalars, both untouched), so a reader that has
+// never heard of them reads every field it knows, correctly.
 function resolved({
   evidence, quantity, unit, pack, source, reference = null, sellingMode = null,
+  packageType = null, heterogeneous = false,
 }) {
   return Object.freeze({
     status: COMPARABLE_QUANTITY_STATUS.RESOLVED,
@@ -200,6 +215,8 @@ function resolved({
     pack: Math.max(1, Number(pack) || 1),
     reference: reference ? Object.freeze({ ...reference }) : null,
     sellingMode,
+    packageType,
+    heterogeneous: !!heterogeneous,
     // Kept as a convenience for readers that only want the yes/no, but it is now
     // DERIVED and can no longer disagree with the thing it describes. It used to:
     // a "40's" tissue pack reported `unitPriceComparable: true` while the pricing
@@ -251,6 +268,135 @@ export function unitPriceFromReference(price, reference) {
   return { value: p / q, unit: reference.unit, label };
 }
 
+// --- the PER-ITEM price (2026-08-03) --------------------------------------------
+//
+// A SECOND PRESENTATION OF THE SAME ARITHMETIC, not a second denominator. The
+// unit price answers "which of these is better value"; this answers the other
+// question a shopper asks in front of a multipack — "what does one of them
+// cost" — and today they answer it with mental division or not at all.
+//
+// IT IS DERIVED FROM `reference`, NEVER FROM `price / pack`. The two are the
+// same number whenever both are defined, and that is exactly why the derivation
+// must go through the reference: every refusal the model already makes then
+// propagates for free (a CONTRADICTED offer has no reference, so it can have no
+// per-item price either), and the two figures on a product card cannot
+// disagree with each other by construction. `price / pack` would be a new
+// denominator entering the model through the back door, which is what rule 1 of
+// the v4 header forbids.
+//
+// MEASURED FIRST (2026-08-03, all 74,173 priced production offers): 6,917 offers
+// pass, 17.1% of those that carry a unit price. 5,109 have a mass/volume
+// reference — genuinely new information — and 1,808 have a piece reference,
+// where this equals the unit price already and only the wording changes.
+export const EACH_PRICE_VERSION = 'each-price-v1';
+
+// Gate 7. A `set` is a package whose items are NOT separately purchasable, so a
+// per-item price is arithmetically true and practically false: the live
+// catalogue prices a ten-piece cookware set at 599.99, and "60.00 SAR each"
+// invites a purchase that cannot be made. 580 of the 6,917 candidates are sets
+// (8.4%), concentrated in cookware, dining and luggage.
+//
+// KEYED ON `package_type`, NEVER ON CATEGORY (user decision, 2026-08-03): one
+// category holds both true multipacks and kits, and `package_type` is the field
+// that already draws the distinction. A category exclusion would drop a 6-pack
+// of drinking glasses along with the 8-piece pot set.
+const NOT_SEPARATELY_PURCHASABLE = Object.freeze(new Set(['set']));
+
+// ...AND A NAME-TOKEN FALLBACK, because the field is right and the DATA is thin.
+// Measured 2026-08-03 on the shipped gates: `package_type` is null on 4,599 of
+// the 6,885 qualifying offers (67%) and null on every cookware set in the
+// sample, so the field alone removed 192 of 580 named sets and left "60.00 SAR
+// each" on a ten-piece cookware set.
+//
+// THIS IS A REFUSAL, NOT AN ASSERTION, and the distinction is what makes it
+// admissible where `productName.js`-style word derivation is not. Being wrong
+// costs one WITHHELD per-item price on a real multipack; it can never put a
+// wrong number on a card. Precision measured on the same corpus: of the 388
+// survivors this catches, 0 sit in any food category.
+//
+// Still not a category rule — it reads the product's own word for what it is.
+//
+// The boundaries are Unicode lookarounds, not `\b`: `\b` is defined against
+// ASCII `\w`, so `\bطقم\b` matches NOTHING in an Arabic name — the guard would
+// have been silently English-only in a bilingual catalogue. They also do the job
+// `\b` was there for: "Sunset" and "KITKAT" are not sets.
+const SET_IN_NAME_RE = /(?<![\p{L}\p{N}])(sets?|kits?|طقم|أطقم|اطقم)(?![\p{L}\p{N}])/iu;
+
+/**
+ * The price of ONE item inside a multipack, or null when that cannot be stated
+ * honestly. `quantity` is a `projectComparableQuantity()` result.
+ *
+ * Returns `{ value, pack }` — the pack rides along so a caller can render the
+ * relationship ("12 x 23 g") without re-parsing anything.
+ *
+ * `packageType` may be supplied separately for callers whose projection was
+ * built without one. The read path does exactly that on purpose: giving the
+ * projection a package type would make its CONTAINER branch reachable and
+ * change `sellingMode` for magnitude-less offers, which is not this feature's
+ * business (offers/enrich.js applyUnitPrice).
+ */
+export function eachPriceFrom(price, quantity, { packageType = null, name = null } = {}) {
+  const unitPrice = unitPriceFromReference(price, quantity?.reference);
+  // 1 · no reference, no arithmetic. Inherits the weak count, the `5G` guard and
+  //     the contradicted refusal without restating any of them.
+  if (!unitPrice) return null;
+  // 2 · a continuous product has no "one of them" to price. Without this, a
+  //     "per kg" offer would advertise the cost of one kilogram as an item.
+  if (quantity.sellingMode !== SELLING_MODE.DISCRETE) return null;
+  // 3 · the whole feature. A single pack's item price IS its price, and printing
+  //     it twice tells the shopper nothing.
+  if (!(quantity.pack > 1)) return null;
+  // 4 · only a printed magnitude or a real count describes a pack. A stated
+  //     price basis carries pack 1 by construction, and container/unit evidence
+  //     has no reference at all — this is belt and braces over gate 1.
+  if (quantity.evidence !== COMPARABLE_QUANTITY_EVIDENCE.MEASURE
+    && quantity.evidence !== COMPARABLE_QUANTITY_EVIDENCE.COUNT) return null;
+  // 5 · a package holding two different magnitudes ("2 x 650ml + 400ml FREE")
+  //     was read from its first term only, so `pack` understates the items.
+  if (quantity.heterogeneous) return null;
+  // 7 · a kit is not a multipack. (Numbered out of order because 6 is the
+  //     arithmetic check below and reads better last.)
+  const resolvedType = resolvePackageType(packageType)?.id ?? quantity.packageType;
+  if (NOT_SEPARATELY_PURCHASABLE.has(resolvedType)) return null;
+  if (name && SET_IN_NAME_RE.test(String(name))) return null;
+
+  const each = quantity.reference.quantity / quantity.pack;
+  if (!(each > 0)) return null;
+
+  // 6 · DO THE PRINTED PACK AND THE CANONICAL REFERENCE DESCRIBE THE SAME
+  //     PACKAGE? The unit price survives a disagreement here — it only ever uses
+  //     the canonical total — but a per-item price divides that total by a pack
+  //     read from the OTHER side, so it is wrong whenever they part company.
+  //     Two shapes, one question:
+  //
+  //     count   — the printed pack IS the canonical count, exactly. "10 + 2
+  //               rolls" prints 2 against a reference of 12; "5 + 1 FREE 70's"
+  //               prints 70 sheets against a reference of 6 boxes. Both refused.
+  //     measure — the printed magnitude of one item must equal reference/pack,
+  //               within the 3% `matching.js sizeContradicts()` already uses to
+  //               decide two sizes are the same size. No second tolerance is
+  //               invented here.
+  if (quantity.evidence === COMPARABLE_QUANTITY_EVIDENCE.COUNT) {
+    if (quantity.pack !== quantity.reference.quantity) return null;
+  } else {
+    const printedEach = printedInReferenceUnit(quantity);
+    if (printedEach == null) return null;
+    if (Math.abs(printedEach - each) / Math.max(printedEach, each) > 0.03) return null;
+  }
+
+  return { value: unitPrice.value * each, pack: quantity.pack };
+}
+
+// The PRINTED per-item magnitude expressed in the reference's unit, so the two
+// readings are comparable. Returns null when the projection printed no magnitude.
+function printedInReferenceUnit(quantity) {
+  const q = Number(quantity.quantity);
+  if (!positive(q)) return null;
+  if (quantity.unit === 'g' || quantity.unit === 'ml') return q / 1000;
+  if (quantity.unit === 'kg' || quantity.unit === 'l' || quantity.unit === 'piece') return q;
+  return null;
+}
+
 // Did the size parser find a printed magnitude (a measure or a real count)?
 // The projection asks this in two places and they must agree exactly.
 const sizePresent = (parsedSize) => !!(parsedSize?.present
@@ -298,8 +444,16 @@ function referencesAgree(packReference, priceBasis) {
 export function projectComparableQuantity(parsedSize = null, packageType = null, {
   nonGrocery = false, priceBasis = null,
 } = {}) {
+  // Carried on EVERY branch, not just the container one. What a thing is packed
+  // in is true of a 6 x 1.5 L multipack exactly as it is true of a bare carton;
+  // the container branch is simply the only one that previously had a use for it.
+  const provenance = {
+    packageType: packageType?.id ?? null,
+    heterogeneous: !!parsedSize?.heterogeneous,
+  };
   const basisResolved = priceBasis?.status === PRICE_BASIS_STATUS.RESOLVED;
   const basisProjection = () => resolved({
+    ...provenance,
     evidence: COMPARABLE_QUANTITY_EVIDENCE.PRICE_BASIS,
     quantity: priceBasis.quantity,
     unit: priceBasis.unit,
@@ -336,6 +490,7 @@ export function projectComparableQuantity(parsedSize = null, packageType = null,
     const packReference = referenceFrom(parsedSize.canonical);
     if (packReference && !referencesAgree(packReference, priceBasis)) {
       return resolved({
+        ...provenance,
         evidence: COMPARABLE_QUANTITY_EVIDENCE.CONTRADICTED,
         // The printed magnitude is still what a shopper SEES on the card, so it
         // stays as the display quantity. Only the arithmetic is withheld.
@@ -360,6 +515,7 @@ export function projectComparableQuantity(parsedSize = null, packageType = null,
   //     grouping and arithmetic are possible.
   if (parsedSize?.present && parsedSize.unit && positive(parsedSize.quantity)) {
     return resolved({
+      ...provenance,
       evidence: COMPARABLE_QUANTITY_EVIDENCE.MEASURE,
       quantity: parsedSize.quantity,
       unit: parsedSize.unit,
@@ -378,6 +534,7 @@ export function projectComparableQuantity(parsedSize = null, packageType = null,
   //     `parsePackageSize()` has already collapsed both to a count for display.
   if (parsedSize?.present && positive(parsedSize.count)) {
     return resolved({
+      ...provenance,
       evidence: COMPARABLE_QUANTITY_EVIDENCE.COUNT,
       quantity: parsedSize.count,
       unit: 'piece',
@@ -412,6 +569,7 @@ export function projectComparableQuantity(parsedSize = null, packageType = null,
   //     separate bit.
   if (packageType?.id) {
     return resolved({
+      ...provenance,
       evidence: COMPARABLE_QUANTITY_EVIDENCE.CONTAINER,
       quantity: null,
       unit: packageType.id,
@@ -430,6 +588,7 @@ export function projectComparableQuantity(parsedSize = null, packageType = null,
   //     that print nothing at all, never a ceiling on the ones that do.
   if (nonGrocery) {
     return resolved({
+      ...provenance,
       evidence: COMPARABLE_QUANTITY_EVIDENCE.UNIT,
       quantity: 1,
       unit: 'item',

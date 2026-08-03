@@ -58,6 +58,7 @@ import { resolveBrand } from '../lexicon/brands.js';
 import { isNonGrocery } from '../lexicon/productClass.js';
 import {
   COMPARABLE_QUANTITY_EVIDENCE,
+  eachPriceFrom,
   resolveComparableQuantity,
   unitPriceFromReference,
 } from '../lexicon/comparableQuantity.js';
@@ -240,6 +241,23 @@ export function applyUnitPrice(offer, row, isServable = true) {
   offer.unitPrice = up
     ? { ...up, source: offer.priceBasis ? 'printed' : 'derived' }
     : null;
+  // The PER-ITEM price (2026-08-03) — "what does one of the six bottles cost".
+  // Additive and display-only: it is a second presentation of `unitPrice`, never
+  // a second comparison denominator, so nothing may rank, group, alert or sort
+  // on it. Null for every offer that is not a trustworthy multipack, which is
+  // most of them (17.1% of unit-priced offers pass).
+  //
+  // THE PACKAGE TYPE IS PASSED HERE, NOT INTO THE PROJECTION ABOVE, and that is
+  // deliberate. Handing it to `resolveComparableQuantity` would make the
+  // CONTAINER branch reachable on the read path for the first time, flipping
+  // `offer.sellingMode` from null to 'discrete' on every magnitude-less bagged
+  // offer — a real, unmeasured change to a field the client already consumes,
+  // smuggled in behind an additive one. The gate needs the package type; the
+  // projection does not need to change to give it one.
+  offer.eachPrice = eachPriceFrom(offer.price, quantity, {
+    packageType: isServable ? (row?.e_package_type ?? null) : null,
+    name,
+  });
   return offer.unitPrice;
 }
 
