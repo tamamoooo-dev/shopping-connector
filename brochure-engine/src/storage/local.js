@@ -410,6 +410,7 @@ export function createMemoryOfferStore({
         e_package_type: readExtractionPackageType(e?.extraction_json),
         e_match_text: e?.match_text ?? null,
         e_corroboration: e?.corroboration ?? null,
+        e_model: e?.model ?? null,
       };
     });
   };

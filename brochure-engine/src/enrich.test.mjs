@@ -779,7 +779,7 @@ console.log('overlay:');
   const rows = [
     offerRow('e:good', {
       e_name: 'Tanzanian Mutton', e_name_ar: 'خروف تنزاني',
-      e_corroboration: 0.8, e_match_text: 'tanzanian mutton',
+      e_corroboration: 0.8, e_match_text: 'tanzanian mutton', e_model: 'mistral-medium-latest',
     }),
     offerRow('e:bad', {
       e_name: 'Cucumber', e_name_ar: 'خيار',
@@ -795,6 +795,7 @@ console.log('overlay:');
   const good = body.offers.find((o) => o.id === 'e:good');
   const bad = body.offers.find((o) => o.id === 'e:bad');
   check('servable enrichment overlays name + flag', good && good.name === 'Tanzanian Mutton' && good.enriched === true);
+  check('servable enrichment exposes its model', good && good.enrichmentModel === 'mistral-medium-latest');
   check('enriched name reaches ranking (name match outranks)', body.offers[0].id === 'e:good');
   check('uncorroborated enrichment never serves a name', !bad || (bad.name == null && !bad.enriched));
   const noEnrich = await handleRequest(new Request('http://x/offers?q=mutton'), {

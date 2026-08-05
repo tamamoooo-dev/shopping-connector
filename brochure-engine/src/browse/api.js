@@ -72,6 +72,8 @@ function cardDoc(row, today) {
     dept: aisle ? aisle.dept : null,
     badges: offerBadges(row, today),
     eachPrice: priced.eachPrice,
+    enriched: row.servable === 1,
+    enrichmentModel: row.servable === 1 ? row.e_model || null : null,
   };
 }
 

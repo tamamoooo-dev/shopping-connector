@@ -180,6 +180,7 @@ check('flyerRefFromUrl null on non-leaflet URL',
           e_name_ar: 'شيبية جبنة كريم مطبوخة (2 × 500 جم)',
           e_corroboration: 1,
           e_match_text: 'puck processed analogue cream cheese spread',
+          e_model: 'mistral-medium-latest',
         },
         // Not servable (below CORROBORATION_FLOOR): must KEEP its OCR names.
         {
@@ -199,7 +200,8 @@ check('flyerRefFromUrl null on non-leaflet URL',
   check('servable vision names replace OCR debris in the flyer viewer',
     doc.offers['94188402'].name === 'Puck Processed Analogue Cream Cheese Spread (2 x 500g)' &&
     doc.offers['94188402'].nameAr === 'شيبية جبنة كريم مطبوخة (2 × 500 جم)' &&
-    doc.offers['94188402'].enriched === true,
+    doc.offers['94188402'].enriched === true &&
+    doc.offers['94188402'].enrichmentModel === 'mistral-medium-latest',
     JSON.stringify(doc.offers['94188402']));
   check('an unservable reading leaves the OCR names untouched',
     doc.offers['94188405'].name === null &&
@@ -220,7 +222,7 @@ check('flyerRefFromUrl null on non-leaflet URL',
   await createD1OfferStore(db).byFlyer('hyperpanda', 'central', '751686');
   const sql = captured.join(' ');
   check('byFlyer joins offer_enrichments and aliases its columns',
-    /offer_enrichments/i.test(sql) && /e_name\b/.test(sql) && /e_corroboration\b/.test(sql),
+    /offer_enrichments/i.test(sql) && /e_name\b/.test(sql) && /e_corroboration\b/.test(sql) && /e_model\b/.test(sql),
     sql);
 }
 

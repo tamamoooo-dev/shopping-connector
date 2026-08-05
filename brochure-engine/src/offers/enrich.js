@@ -176,6 +176,7 @@ export function applyEnrichment(offer, row) {
     offer.name = enr.name;
     offer.nameAr = enr.name_ar;
     offer.enriched = true;
+    offer.enrichmentModel = row?.e_model ?? null;
   }
   // The PRICE BASIS and the size it was read beside (2026-08-02). Both are
   // additive fields on the read contract and neither can change which offers

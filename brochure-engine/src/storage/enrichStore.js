@@ -151,7 +151,7 @@ export const CANON_HAYSTACK_SQL =
 // applyEnrichment() can overlay without a second query.
 export function enrichRowCols(enabled = false) {
   return `e.name AS e_name, ${enrichmentNameArSql(enabled)} AS e_name_ar, ` +
-    'e.match_text AS e_match_text, e.corroboration AS e_corroboration, ' +
+    'e.match_text AS e_match_text, e.corroboration AS e_corroboration, e.model AS e_model, ' +
     // The printed size and the extractor's `unit` observation, for the price
     // basis (offers/enrich.js applyUnitPrice). `unit` lives inside
     // extraction_json because it was preserved before anything consumed it;

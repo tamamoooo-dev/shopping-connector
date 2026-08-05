@@ -71,7 +71,7 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
     -- 10,000 rows and search_text is the full OCR haystack; these three are
     -- small. NOTE: no backticks in this comment -- it lives inside a JS
     -- template literal, where one would end the string.
-    ${SERVABLE_SQL} AS servable, e.size AS e_size,
+    ${SERVABLE_SQL} AS servable, e.model AS e_model, e.size AS e_size,
     json_extract(e.extraction_json, '$.unit') AS e_unit,
     json_extract(e.extraction_json, '$.package_type') AS e_package_type`;
   const markNames = `(ifnull(${CANON_NAME_SQL},'') || ' ' || ifnull(${canonicalNameAr},''))`;
