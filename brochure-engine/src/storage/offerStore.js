@@ -372,6 +372,7 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
           e.name AS e_name, e.name_ar AS e_name_ar, e.brand AS e_brand,
           e.size AS e_size, e.confidence AS e_confidence,
           e.corroboration AS e_corroboration, e.mint_verdict AS e_mint_verdict,
+          e.model AS e_model,
           e.crop_url AS e_crop_url, e.enriched_at AS e_enriched_at,
           ${servable} AS e_servable,
           s.product_id AS s_product_id, s.match_band AS s_match_band,

@@ -7,6 +7,7 @@
 // Run: node src/ops/console.test.mjs
 
 import { handleOps, OPS_PATH } from './console.js';
+import { CONSOLE_HTML } from './ui.js';
 import { handleRequest } from '../engine.js';
 import {
   createMemoryMetadataStore,
@@ -578,7 +579,7 @@ const post = (ctx, path, body, headers = {}) =>
       ? { id, store: 'alpha', region: 'central', name: 'A', name_ar: null, price: 5, currency: 'SAR', image_url: null, source_url: null, valid_to: inWeek, detected_at: 'x', search_text: 'x', category: null, old_price: null }
       : null;
   ctx.offerStore.inspectorFeed = async () => [
-    { id: 'alpha:central:d4d:A', store: 'alpha', price: 5, currency: 'SAR', image_url: null, o_name: 'A', e_name: null, e_servable: 0, e_enriched_at: null, s_match_band: null, e_corroboration: null },
+    { id: 'alpha:central:d4d:A', store: 'alpha', price: 5, currency: 'SAR', image_url: null, o_name: 'A', e_name: null, e_servable: 0, e_model: 'mistral-medium-latest', e_enriched_at: null, s_match_band: null, e_corroboration: null },
   ];
   ctx.offerStore.oldestUnenrichedAge = async () => new Date(Date.now() - 3600000).toISOString();
 
@@ -600,7 +601,9 @@ const post = (ctx, path, body, headers = {}) =>
   check('diagnostics names the un-instrumented metrics', diag.notInstrumented.length === 3 && 'd1' in diag.probes && diag.queueAgeMs > 0);
 
   const ins = await (await req(ctx, '/api/inspector?filter=all', { headers: auth })).json();
-  check('inspector feed returns items + echoes filter', ins.filter === 'all' && ins.items.length === 1);
+  check('inspector feed returns items + enrichment model + echoes filter', ins.filter === 'all' && ins.items.length === 1 && ins.items[0].e_model === 'mistral-medium-latest');
+  check('admin inspector owns the enrichment color legend',
+    CONSOLE_HTML.includes('enrichDot missing') && CONSOLE_HTML.includes('enrichDot enriched') && CONSOLE_HTML.includes('enrichDot medium'));
 
   const one = await (await req(ctx, '/api/inspect?id=alpha:central:d4d:A', { headers: auth })).json();
   check('inspect composes offer + ocr + vision(none) + registry', one.offer.id === 'alpha:central:d4d:A' && one.ocr.name === 'A' && one.vision === null && one.product === null);

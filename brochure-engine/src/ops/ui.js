@@ -19,7 +19,7 @@ export const CONSOLE_HTML = `<!doctype html>
 :root{
   --bg:#0b1220;--card:#111a2e;--card2:#16223c;--line:#22304f;
   --text:#e6ecf7;--mut:#8ea0bf;--acc:#4f8ef7;
-  --ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--unk:#64748b;
+  --ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--medium:#a855f7;--unk:#64748b;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -41,6 +41,12 @@ main{padding:14px;max-width:640px;margin:0 auto}
 .dot{width:10px;height:10px;border-radius:50%;flex:none}
 .dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}
 .dot.warn{background:var(--warn)}.dot.unk{background:var(--unk)}
+.enrichDot{display:inline-block;width:12px;height:12px;flex:0 0 12px;border:2px solid var(--card);
+  border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.4)}
+.enrichDot.missing{background:var(--bad)}.enrichDot.enriched{background:var(--ok)}
+.enrichDot.medium{background:var(--medium)}
+.enrichLegend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:0 0 10px;color:var(--mut);font-size:12px}
+.enrichLegend span{display:inline-flex;gap:5px;align-items:center}
 .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:auto;flex:none}
 .b-ok{background:rgba(34,197,94,.15);color:var(--ok)}
 .b-bad{background:rgba(239,68,68,.15);color:var(--bad)}
@@ -239,6 +245,11 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
         <button data-ins="registry">Registry</button>
       </div>
       <div id="insOffer">
+        <div class="enrichLegend" aria-label="Enrichment status legend">
+          <span><i class="enrichDot missing"></i>not enriched</span>
+          <span><i class="enrichDot enriched"></i>enriched</span>
+          <span><i class="enrichDot medium"></i>Medium</span>
+        </div>
         <input type="text" id="insQ" placeholder="Search offers (OCR / vision name)…">
         <div class="chips" id="insChips">
           <span class="chip on" data-f="all">all</span>
@@ -993,6 +1004,11 @@ function insBadge(it) {
   if (it.e_enriched_at != null) return '<span class="badge b-warn">ocr</span>';
   return '<span class="badge b-unk">raw</span>';
 }
+function enrichmentDot(it) {
+  var state = !it.e_servable ? "missing" : /medium/i.test(String(it.e_model || "")) ? "medium" : "enriched";
+  var label = state === "missing" ? "Not enriched" : state === "medium" ? "Enriched with Medium" : "Enriched";
+  return '<span class="enrichDot ' + state + '" role="img" aria-label="' + label + '" title="' + label + '"></span>';
+}
 function loadInspector() {
   $("#insList").innerHTML = '<span class="spin"></span>';
   var q = $("#insQ").value.trim();
@@ -1001,6 +1017,7 @@ function loadInspector() {
     $("#insList").innerHTML = d.items.map(function (it) {
       var name = it.e_name || it.o_name || it.e_name_ar || it.o_name_ar || it.id;
       return '<div class="insRow" data-id="' + esc(it.id) + '">' +
+        enrichmentDot(it) +
         (it.image_url ? '<img class="thumb" src="' + esc(it.image_url) + '" loading="lazy" alt="">' : '<div class="thumb"></div>') +
         '<div class="meta"><b dir="auto">' + esc(name) + "</b>" +
         '<div class="mut">' + esc(it.store) + (it.price != null ? " · " + esc(it.price) + " " + esc(it.currency || "") : "") +
@@ -1034,6 +1051,7 @@ function renderInspect(d) {
     "</div>";
   if (vis) {
     h += kvl("Vision brand / size", [vis.brand, vis.size].filter(Boolean).join(" · ") || "—") +
+      kvl("Enrichment model", vis.model || "—") +
       kvl("Confidence / corroboration", (vis.confidence == null ? "—" : vis.confidence) + " / " + (vis.corroboration == null ? "—" : vis.corroboration)) +
       kvl("Servable", vis.servable ? "yes" : "no — OCR fallback") +
       kvl("Mint verdict", vis.mintVerdict || "unresolved");
