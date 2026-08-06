@@ -51,6 +51,18 @@ const SORTS = {
   ending: 'o.valid_to ASC, o.price ASC',
 };
 
+// The outer half of a brand-listing CTE cannot refer to the original `o`
+// alias. Keep the ordering byte-for-byte equivalent to SORTS so SQL-level
+// pagination does not change the order users already see.
+const OUTER_SORTS = {
+  discount: `(CASE WHEN old_price > price
+               THEN (old_price - price) * 1.0 / old_price ELSE 0 END) DESC,
+             price ASC`,
+  price: 'price ASC',
+  newest: 'detected_at DESC, price ASC',
+  ending: 'valid_to ASC, price ASC',
+};
+
 export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}) {
   const canonicalNameAr = canonicalNameArSql(builtArabicNamesEnabled);
   const cardColumns = `
@@ -78,6 +90,15 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
   const likeAny = (terms) => terms.map((t) => `${markNames} LIKE '%${t}%'`).join(' OR ');
   const frozenMarkSql = `((${likeAny(FROZEN_MARK_TERMS)})
     OR ((${likeAny(PROCESSED_MARK_TERMS)}) AND NOT (${likeAny(FRESH_GUARD_TERMS)})))`;
+  // SQL twin of browse/api.js dedupeRows. Brand counts, family counts and
+  // paged brand cards must describe the same real-world deals. The identity is
+  // strongest; identity-less OCR rows use the canonical displayed name/image.
+  const dealKeySql = `(CASE WHEN o.identity IS NOT NULL THEN
+      'i:' || ifnull(o.store,'') || ':' || o.identity || ':' || printf('%.15g', o.price)
+    ELSE 'f:' || ifnull(o.store,'') || ':' || printf('%.15g', o.price) || ':' ||
+      coalesce(nullif(${CANON_NAME_SQL},''), nullif(${canonicalNameAr},''),
+               nullif(o.image_url,''), o.id)
+    END)`;
 
   return {
     // Live-offer counts per (source, provider category) — the market floor's
@@ -111,11 +132,12 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
     async brandCounts(currentOn) {
       const { results } = await db
         .prepare(
-          `SELECT brand_slug, COUNT(*) AS n, COUNT(DISTINCT store) AS stores
-             FROM offers
-            WHERE valid_to >= ? AND brand_slug IS NOT NULL
-              AND brochure_id IS NOT NULL AND page_index IS NOT NULL
-            GROUP BY brand_slug ORDER BY n DESC`,
+          `SELECT o.brand_slug, COUNT(DISTINCT ${dealKeySql}) AS n,
+                  COUNT(DISTINCT o.store) AS stores
+             FROM offers o ${ENRICH_JOIN}
+            WHERE o.valid_to >= ? AND o.brand_slug IS NOT NULL
+              AND o.brochure_id IS NOT NULL AND o.page_index IS NOT NULL
+            GROUP BY o.brand_slug ORDER BY n DESC`,
         )
         .bind(currentOn)
         .all();
@@ -128,13 +150,20 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
     async brandFacets(brandSlug, currentOn) {
       const { results } = await db
         .prepare(
-          `SELECT o.source, o.category,
-                  (CASE WHEN ${frozenMarkSql} THEN 1 ELSE 0 END) AS frozen_marked,
-                  COUNT(*) AS n
-             FROM offers o ${ENRICH_JOIN}
-            WHERE o.valid_to >= ? AND o.brand_slug = ?
-              AND o.brochure_id IS NOT NULL AND o.page_index IS NOT NULL
-            GROUP BY o.source, o.category, frozen_marked`,
+          `WITH ranked AS (
+             SELECT o.source, o.category,
+                    (CASE WHEN ${frozenMarkSql} THEN 1 ELSE 0 END) AS frozen_marked,
+                    ROW_NUMBER() OVER (
+                      PARTITION BY ${dealKeySql}
+                      ORDER BY o.valid_to DESC, o.id ASC
+                    ) AS deal_rank
+               FROM offers o ${ENRICH_JOIN}
+              WHERE o.valid_to >= ? AND o.brand_slug = ?
+                AND o.brochure_id IS NOT NULL AND o.page_index IS NOT NULL
+           )
+           SELECT source, category, frozen_marked, COUNT(*) AS n
+             FROM ranked WHERE deal_rank = 1
+            GROUP BY source, category, frozen_marked`,
         )
         .bind(currentOn, brandSlug)
         .all();
@@ -194,10 +223,28 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
         where.push('o.valid_to <= ?');
         binds.push(maxValidTo);
       }
-      const sql = `SELECT ${cardColumns} FROM offers o ${HISTORY_JOIN}
-        WHERE ${where.join(' AND ')}
-        ORDER BY ${SORTS[sort] || SORTS.discount}
-        LIMIT ? OFFSET ?`;
+      // Brand listings dedupe BEFORE LIMIT/OFFSET. The previous API-level
+      // dedupe ran after pagination, so a page requesting 24 cards could
+      // return 22 and the next offset skipped real products. Other Browse
+      // routes keep their established query plan; this fixes the brand surface
+      // without widening the change.
+      const sql = brand
+        ? `WITH ranked AS (
+             SELECT ${cardColumns},
+                    ROW_NUMBER() OVER (
+                      PARTITION BY ${dealKeySql}
+                      ORDER BY o.valid_to DESC, ${SORTS[sort] || SORTS.discount}, o.id ASC
+                    ) AS deal_rank
+               FROM offers o ${HISTORY_JOIN}
+              WHERE ${where.join(' AND ')}
+           )
+           SELECT * FROM ranked WHERE deal_rank = 1
+            ORDER BY ${OUTER_SORTS[sort] || OUTER_SORTS.discount}
+            LIMIT ? OFFSET ?`
+        : `SELECT ${cardColumns} FROM offers o ${HISTORY_JOIN}
+            WHERE ${where.join(' AND ')}
+            ORDER BY ${SORTS[sort] || SORTS.discount}
+            LIMIT ? OFFSET ?`;
       binds.push(Math.max(1, Math.min(Number(limit) || 60, 120)));
       binds.push(Math.max(0, Math.min(Number(offset) || 0, 5000)));
       const { results } = await db.prepare(sql).bind(...binds).all();
