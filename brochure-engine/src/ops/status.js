@@ -23,6 +23,9 @@ import { flyerRefFromUrl } from '../hotspots.js';
 // never goes a full day+ without a cron row.
 export const COVERAGE_THRESHOLD = 70;
 export const SCHEDULER_MAX_GAP_H = 30;
+// The resume cron advances a pending brochure every two minutes. A job that has
+// not moved for five minutes is stalled, not an indefinitely healthy publish.
+export const PUBLICATION_PROGRESS_MAX_GAP_MS = 5 * 60 * 1000;
 
 // System Confidence weights (renormalized over the components that apply).
 export const CONFIDENCE_WEIGHTS = {
@@ -43,10 +46,16 @@ const pct = (num, den) => (den > 0 ? Math.round((num / den) * 1000) / 10 : null)
 // the sweep (the Store Inspector and post-operation verification).
 export async function computeStoreRows(ctx, { now = new Date(), stores = null } = {}) {
   const today = todayISO(now);
-  const current = await ctx.metadataStore.listCurrent();
-  const offersByStore =
-    ctx.offerStore && ctx.offerStore.countsByStore ? await ctx.offerStore.countsByStore(today) : {};
-  const runs = ctx.opsStore ? await ctx.opsStore.list({ limit: 300 }) : [];
+  const [current, offersByStore, runs, pendingCollections] = await Promise.all([
+    ctx.metadataStore.listCurrent(),
+    ctx.offerStore && ctx.offerStore.countsByStore
+      ? ctx.offerStore.countsByStore(today)
+      : Promise.resolve({}),
+    ctx.opsStore ? ctx.opsStore.list({ limit: 300 }) : Promise.resolve([]),
+    ctx.collectionStore && ctx.collectionStore.listPending
+      ? ctx.collectionStore.listPending(24).catch(() => [])
+      : Promise.resolve([]),
+  ]);
 
   // Latest per-store ingest outcomes from the audit rows the /ingest children
   // write (newest first, so first sighting per store+kind wins).
@@ -111,24 +120,80 @@ export async function computeStoreRows(ctx, { now = new Date(), stores = null } 
     const coverage = hotspots ? pct(clickable, hotspots) : null;
     const slot = lastRun.get(provider.id) || { ok: null, fail: null };
     const failIsLatest = slot.fail && (!slot.ok || slot.fail.id > slot.ok.id);
+    const pending = pendingCollections.filter((job) => job.store === provider.id);
+    const publicationUpdatedAt = pending.reduce(
+      (latest, job) => (job.updated_at > latest ? job.updated_at : latest),
+      '',
+    ) || null;
+    const publicationError = pending.map((job) => job.last_error).find(Boolean) || null;
+    const publicationAgeMs = publicationUpdatedAt
+      ? now.getTime() - Date.parse(publicationUpdatedAt)
+      : null;
+    const publicationRecent =
+      publicationAgeMs != null &&
+      Number.isFinite(publicationAgeMs) &&
+      publicationAgeMs <= PUBLICATION_PROGRESS_MAX_GAP_MS;
+    // A new successful batch can legitimately follow an older failed attempt.
+    // Only let the pending job override that failure when D1 proves the
+    // publication progressed after the failed audit row.
+    const publicationNewerThanFailure =
+      !slot.fail || (publicationUpdatedAt && publicationUpdatedAt > slot.fail.ts);
+    const publishing =
+      pending.length > 0 &&
+      !publicationError &&
+      publicationRecent &&
+      publicationNewerThanFailure;
+    const publicationStalled = pending.length > 0 && !publicationError && !publicationRecent;
+    const publication = pending.length
+      ? {
+          state: publicationError ? 'failed' : publicationStalled ? 'stalled' : 'publishing',
+          regions: pending.length,
+          advertisedFlyers: pending.reduce(
+            (sum, job) => sum + Number(job.advertised_flyers || 0),
+            0,
+          ),
+          advertisedPages: pending.reduce(
+            (sum, job) => sum + Number(job.advertised_pages || 0),
+            0,
+          ),
+          collectedPages: pending.reduce(
+            (sum, job) => sum + Number(job.collected_pages || 0),
+            0,
+          ),
+          updatedAt: publicationUpdatedAt,
+          lastError: publicationError,
+        }
+      : null;
+    if (publication) {
+      publication.progress = publication.advertisedPages > 0
+        ? pct(publication.collectedPages, publication.advertisedPages)
+        : null;
+    }
 
-    // Status precedence: a failing ingest outranks everything; then no flyer at
-    // all; then a held-but-expired set; then weak tap coverage; else OK.
-    const status = failIsLatest
+    // An explicitly failed/stalled publication outranks everything. A recently
+    // advancing durable job is PUBLISHING, not STALE: the old flyer remains
+    // active intentionally until the final atomic commit.
+    const status = publicationError || publicationStalled
       ? 'FAIL'
-      : !cur.length
-        ? 'NO_FLYER'
-        : !fresh
-          ? 'STALE'
-          : coverage != null && coverage < COVERAGE_THRESHOLD
-            ? 'LOW_COVERAGE'
-            : 'OK';
+      : publishing
+        ? 'PUBLISHING'
+        : failIsLatest
+          ? 'FAIL'
+          : !cur.length
+            ? 'NO_FLYER'
+            : !fresh
+              ? 'STALE'
+              : coverage != null && coverage < COVERAGE_THRESHOLD
+                ? 'LOW_COVERAGE'
+                : 'OK';
 
     rows.push({
       store: provider.id,
       label: provider.label || provider.id,
       status,
       healthy: status === 'OK',
+      publishing,
+      publication,
       flyers,
       currentFlyers: cur.length,
       fresh,
@@ -140,11 +205,15 @@ export async function computeStoreRows(ctx, { now = new Date(), stores = null } 
       lastOkAt: slot.ok ? slot.ok.ts : null,
       lastOkMs: slot.ok ? slot.ok.elapsed_ms : null,
       lastFailAt: slot.fail ? slot.fail.ts : null,
-      lastError: slot.fail ? slot.fail.error : null,
+      lastError:
+        publicationError ||
+        (publicationStalled
+          ? `brochure publication stalled for ${Math.round(publicationAgeMs / 60000)} minutes`
+          : slot.fail ? slot.fail.error : null),
     });
   }
   // Unhealthy stores first — they must stand out on a phone screen.
-  const rank = { FAIL: 0, NO_FLYER: 1, STALE: 2, LOW_COVERAGE: 3, OK: 4 };
+  const rank = { FAIL: 0, NO_FLYER: 1, STALE: 2, PUBLISHING: 3, LOW_COVERAGE: 4, OK: 5 };
   rows.sort((a, b) => rank[a.status] - rank[b.status] || a.store.localeCompare(b.store));
   return rows;
 }
@@ -152,7 +221,9 @@ export async function computeStoreRows(ctx, { now = new Date(), stores = null } 
 // The stores an automated repair should target (the console's Repair Unhealthy
 // and Retry Failed operations both resolve their target list here).
 export function unhealthyStores(rows) {
-  return rows.filter((r) => !r.healthy).map((r) => r.store);
+  // A live durable publication already owns this repair. Dispatching another
+  // coordinator would duplicate source downloads and race the same manifest.
+  return rows.filter((r) => !r.healthy && r.status !== 'PUBLISHING').map((r) => r.store);
 }
 
 export function failedStores(rows) {

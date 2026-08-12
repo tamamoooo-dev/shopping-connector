@@ -433,8 +433,8 @@ document.querySelectorAll("nav button").forEach(function (b) {
 });
 
 /* ---------- shared render helpers ---------- */
-var STATUS_COLOR = { OK: "var(--ok)", LOW_COVERAGE: "var(--warn)", STALE: "var(--warn)", NO_FLYER: "var(--bad)", FAIL: "var(--bad)" };
-var STATUS_BADGE = { OK: "b-ok", LOW_COVERAGE: "b-warn", STALE: "b-warn", NO_FLYER: "b-bad", FAIL: "b-bad" };
+var STATUS_COLOR = { OK: "var(--ok)", PUBLISHING: "var(--warn)", LOW_COVERAGE: "var(--warn)", STALE: "var(--warn)", NO_FLYER: "var(--bad)", FAIL: "var(--bad)" };
+var STATUS_BADGE = { OK: "b-ok", PUBLISHING: "b-warn", LOW_COVERAGE: "b-warn", STALE: "b-warn", NO_FLYER: "b-bad", FAIL: "b-bad" };
 function statusBadge(s) {
   var cls = STATUS_BADGE[s] || (s === "PASS" ? "b-ok" : s === "FAIL" ? "b-bad" : s === "UNCONFIGURED" || s === "UNKNOWN" ? "b-unk" : "b-warn");
   return '<span class="badge ' + cls + '">' + esc(s).replace("_", " ") + "</span>";
@@ -500,10 +500,16 @@ function renderHome(o) {
 function renderStores(o) {
   $("#storeList").innerHTML = o.stores.map(function (r) {
     var col = STATUS_COLOR[r.status];
+    var publication = r.publication;
+    var publicationRow = publication && r.status === "PUBLISHING"
+      ? '<div class="mut">publishing ' + publication.collectedPages + "/" + publication.advertisedPages + " pages" +
+        (publication.progress == null ? "" : " آ· " + publication.progress + "%") + "</div>"
+      : "";
     return '<div class="row" style="display:block;cursor:pointer" data-store="' + esc(r.store) + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:center"><b>' + esc(r.label) + "</b>" + statusBadge(r.status) + "</div>" +
       '<div class="mut">' + r.currentFlyers + " flyers · " + r.hotspots + " hotspots · " + r.clickable + " clickable · " + r.offers + " offers" +
       " · ingest " + ago(r.lastOkAt || r.lastDetectedAt) + (r.lastOkMs ? " (" + ms(r.lastOkMs) + ")" : "") + "</div>" +
+      publicationRow +
       (r.lastError ? '<div class="mut" style="color:var(--bad)">' + esc(r.lastError) + "</div>" : "") +
       '<div class="bar"><i style="width:' + (r.coverage || 0) + "%;background:" + col + '"></i></div>' +
       '<div style="display:flex;justify-content:space-between"><span class="mut">coverage</span><b style="color:' + col + '">' +

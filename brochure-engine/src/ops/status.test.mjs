@@ -173,6 +173,47 @@ async function buildFixture() {
   console.log('store rows ✅');
 }
 
+// A resumable brochure intentionally leaves the expired flyer active until the
+// final atomic commit. The Ops table must show durable progress, not mislabel
+// that interval STALE, and Repair must not race a second coordinator over it.
+{
+  const ctx = await buildFixture();
+  ctx.collectionStore = {
+    async listPending() {
+      return [{
+        store: 'beta', region: 'central', advertised_flyers: 1,
+        advertised_pages: 110, collected_pages: 40, last_error: null,
+        updated_at: '2026-07-10T11:59:00Z',
+      }];
+    },
+  };
+  let rows = await computeStoreRows(ctx, { now: NOW });
+  let beta = rows.find((row) => row.store === 'beta');
+  check('active resumable publication is PUBLISHING, not STALE',
+    beta.status === 'PUBLISHING' && beta.publishing === true,
+    beta.status);
+  check('publication progress exposes the durable 40/110 page state',
+    beta.publication.collectedPages === 40 &&
+      beta.publication.advertisedPages === 110 &&
+      beta.publication.progress === 36.4,
+    JSON.stringify(beta.publication));
+  check('repair excludes a publication already in progress',
+    !unhealthyStores(rows).includes('beta'),
+    unhealthyStores(rows).join(','));
+
+  ctx.collectionStore.listPending = async () => [{
+    store: 'beta', region: 'central', advertised_flyers: 1,
+    advertised_pages: 110, collected_pages: 40, last_error: null,
+    updated_at: '2026-07-10T11:50:00Z',
+  }];
+  rows = await computeStoreRows(ctx, { now: NOW });
+  beta = rows.find((row) => row.store === 'beta');
+  check('publication with no resume progress becomes FAIL, not eternal PUBLISHING',
+    beta.status === 'FAIL' && beta.publication.state === 'stalled' && beta.lastError.includes('stalled'),
+    `${beta.status}/${beta.lastError}`);
+  console.log('publication progress status passed');
+}
+
 // --- subsystem checks + scheduler heartbeat --------------------------------------
 {
   const ctx = await buildFixture();
