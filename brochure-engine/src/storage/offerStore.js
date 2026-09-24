@@ -403,7 +403,12 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
               AND NOT EXISTS (
                 SELECT 1 FROM offers o WHERE o.id = p.id AND o.price_source IS NULL
               )
-              AND (CAST(p.offer_id AS INTEGER) % ?) = ?
+              -- D4D ids step by 3 and run consecutively per flyer, so id % n
+              -- is degenerate. Knuth multiplicative hash (high bits of the low
+              -- 32) spreads any stepping; the % 1000000007 first keeps the
+              -- product inside SQLite's 64-bit integers. Mirrored in local.js.
+              AND ((((CAST(p.offer_id AS INTEGER) % 1000000007) * 2654435761)
+                    % 4294967296) / 65536) % ? = ?
             ORDER BY p.valid_to ASC, p.detected_at ASC LIMIT ?`,
         )
         .bind(currentOn, n, k, Math.max(1, Math.min(Number(limit) || 10, 50)))

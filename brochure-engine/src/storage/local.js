@@ -380,6 +380,13 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
 // `enrichStore` (optional, a createMemoryEnrichStore) makes search() the local
 // twin of the D1 vision-canonical query: rows carry the aliased e_* columns and
 // match on the canonical haystack via the ONE gate (offers/enrich.js).
+// Twin of offerStore.listPricePending's shard hash (Knuth multiplicative, high
+// bits of the low 32). BigInt keeps it exact where JS numbers would round.
+function pendingShard(offerId, n) {
+  const id = BigInt(Math.trunc(Number(offerId)) || 0);
+  return Number((((id % 1000000007n) * 2654435761n) % 4294967296n) / 65536n % BigInt(n));
+}
+
 export function createMemoryOfferStore({
   enrichStore = null,
   builtArabicNamesEnabled = false,
@@ -513,7 +520,7 @@ export function createMemoryOfferStore({
       const n = Math.max(1, Math.min(Math.floor(Number(shards)) || 1, 16));
       const k = Math.max(0, Math.min(Math.floor(Number(shard)) || 0, n - 1));
       return [...pending.values()]
-        .filter((p) => (Math.trunc(Number(p.offer_id)) || 0) % n === k)
+        .filter((p) => pendingShard(p.offer_id, n) === k)
         .filter((p) => p.status === 'pending' && p.valid_to >= currentOn &&
           !(rows.has(p.id) && rows.get(p.id).price_source == null))
         .sort((a, b) => String(a.valid_to).localeCompare(String(b.valid_to)) ||
