@@ -179,6 +179,17 @@ export async function pruneStoredBytes(ctx, {
     }
   }
 
+  // The vision price fallback's queue only matters while its flyer is valid;
+  // decisions are kept a month past expiry for audit, then dropped.
+  if (ctx.offerStore && ctx.offerStore.prunePricePendingBefore) {
+    try {
+      const pendingCutoff = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+      report.pricePendingPruned = await ctx.offerStore.prunePricePendingBefore(pendingCutoff);
+    } catch (err) {
+      report.errors.push(`price pending: ${err.message}`);
+    }
+  }
+
   // Price-history identities unseen for a year (product discontinued, or an
   // OCR-name variant that never recurred) are dead weight; their points go
   // with them. Active products' histories are never touched, so lowest-ever

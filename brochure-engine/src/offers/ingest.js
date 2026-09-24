@@ -8,7 +8,7 @@
 // POSTs), so brochures (≤ ~43 subrequests) + offers (≤ ~4) fit one child's
 // Free-plan 50-subrequest budget.
 
-import { buildOffer, offerToRow } from './contract.js';
+import { buildOffer, isUnpriced, offerToRow, pricePendingRow } from './contract.js';
 import { deriveIdentity, recordOfferHistory } from '../priceHistory.js';
 import { detectBrand } from '../browse/brands.js';
 import {
@@ -127,6 +127,8 @@ export async function ingestOffersForTarget(ctx, provider, region) {
     fetched: 0,
     stored: 0,
     dropped: 0,
+    unpriced: 0,
+    visionPriced: 0,
     linked: 0,
     unbacked: 0,
     mappingAnomalies: 0,
@@ -150,16 +152,17 @@ export async function ingestOffersForTarget(ctx, provider, region) {
     const navigationByFlyer = await localNavigationByFlyer(ctx, provider.id, region);
 
     const detectedAt = new Date().toISOString();
+    const built = { store: provider.id, region, source: ctx.offersSource.name, detectedAt };
     const offers = [];
+    const unpriced = []; // [{ raw, row }] — the vision price fallback's intake
     for (const raw of raws) {
-      const offer = buildOffer(raw, {
-        store: provider.id,
-        region,
-        source: ctx.offersSource.name,
-        detectedAt,
-      });
+      const offer = buildOffer(raw, built);
       if (!offer) {
-        line.dropped += 1; // failed the sanity gates (no usable price/id)
+        // No usable source price (D4D since 2026-09-22): queue it for the
+        // vision price fallback (offers/priceFallback.js) instead of losing it.
+        const row = isUnpriced(raw) ? pricePendingRow(raw, built) : null;
+        if (row) unpriced.push({ raw, row });
+        else line.dropped += 1; // failed the sanity gates (no usable price/id)
         continue;
       }
       // Stamp the derived cross-week identity (the SAME derivation the price
@@ -174,6 +177,40 @@ export async function ingestOffersForTarget(ctx, provider, region) {
       // CURRENT offer on the next ingest with no backfill.
       offer.brandSlug = detectBrand(offer);
       offers.push(offer);
+    }
+
+    // Vision price fallback intake. A record the fallback already PRICED is
+    // rebuilt here as a normal offer with its accepted price, so it keeps the
+    // same navigation, identity, brand and history stamping as every other
+    // offer on each ingest. Everything else is (re)queued; the queue keeps its
+    // decisions across ingests, so nothing is read twice. Best-effort: a queue
+    // failure must never fail the ingest (the brochure publisher treats an
+    // offers-ingest error as fatal). NOTE the offers upsert itself writes
+    // price_source, so migrate-2026-09-24-price-fallback.sql must be applied
+    // BEFORE this Worker is deployed.
+    line.unpriced = unpriced.length;
+    if (unpriced.length && typeof ctx.offerStore.upsertPricePending === 'function') {
+      try {
+        const decided = new Map(
+          (await ctx.offerStore.pricePendingByIds(unpriced.map((u) => u.row.id)))
+            .map((p) => [p.id, p]),
+        );
+        for (const { raw, row } of unpriced) {
+          const p = decided.get(row.id);
+          if (p?.status !== 'accepted' || !(Number(p.price) > 0)) continue;
+          const offer = buildOffer({ ...raw, price: p.price, wasPrice: p.old_price }, built);
+          if (!offer) continue;
+          const ident = deriveIdentity(offer);
+          offer.identity = ident ? ident.id : null;
+          offer.brandSlug = detectBrand(offer);
+          offer.priceSource = 'vision';
+          offers.push(offer);
+          line.visionPriced += 1;
+        }
+        await ctx.offerStore.upsertPricePending(unpriced.map((u) => u.row));
+      } catch (err) {
+        line.priceFallbackError = err.message;
+      }
     }
 
     // Fetch the still-current stored rows once, before writing. They are part
@@ -291,6 +328,8 @@ export async function ingestOffers(ctx, { store } = {}) {
       fetched: t.fetched + l.fetched,
       stored: t.stored + l.stored,
       dropped: t.dropped + l.dropped,
+      unpriced: t.unpriced + (l.unpriced || 0),
+      visionPriced: t.visionPriced + (l.visionPriced || 0),
       linked: t.linked + l.linked,
       restored: t.restored + (l.restored || 0),
       unbacked: t.unbacked + l.unbacked,
@@ -301,6 +340,8 @@ export async function ingestOffers(ctx, { store } = {}) {
       fetched: 0,
       stored: 0,
       dropped: 0,
+      unpriced: 0,
+      visionPriced: 0,
       linked: 0,
       restored: 0,
       unbacked: 0,

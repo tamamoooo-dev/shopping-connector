@@ -385,6 +385,7 @@ export function createMemoryOfferStore({
   builtArabicNamesEnabled = false,
 } = {}) {
   const rows = new Map(); // id -> row (snake_case, like D1)
+  const pending = new Map(); // id -> price_pending row (snake_case, like D1)
 
   // The ENRICH_ROW_COLS twin, in ONE place. search() and byFlyer() both project
   // it, because the production bug this mirrors was precisely one read path
@@ -483,6 +484,45 @@ export function createMemoryOfferStore({
           .filter((r) => r.store === store && r.region === region && String(r.flyer_ref) === String(flyerRef))
           .slice(0, 2000),
       );
+    },
+    // price_pending twin (vision price fallback queue).
+    async upsertPricePending(newRows) {
+      for (const r of newRows) {
+        const prev = pending.get(r.id);
+        pending.set(r.id, prev
+          ? { ...prev, flyer_ref: r.flyer_ref ?? null, image_url: r.image_url, valid_to: r.valid_to ?? null, raw_json: r.raw_json }
+          : { status: 'pending', attempts: 0, reason: null, price: null, old_price: null, audit_json: null, resolved_at: null, ...r });
+      }
+      return { stored: newRows.length };
+    },
+    async pricePendingByIds(ids) {
+      return ids.map((id) => pending.get(id)).filter(Boolean);
+    },
+    async listPricePending({ currentOn, limit = 10 } = {}) {
+      return [...pending.values()]
+        .filter((p) => p.status === 'pending' && p.valid_to >= currentOn &&
+          !(rows.has(p.id) && rows.get(p.id).price_source == null))
+        .sort((a, b) => String(a.valid_to).localeCompare(String(b.valid_to)) ||
+          String(a.detected_at).localeCompare(String(b.detected_at)))
+        .slice(0, Math.max(1, Math.min(Number(limit) || 10, 50)));
+    },
+    async resolvePricePending(id, { status, price = null, oldPrice = null, reason = null, audit = null, at }) {
+      const p = pending.get(id);
+      if (p) Object.assign(p, { status, price, old_price: oldPrice, reason, audit_json: audit ? JSON.stringify(audit) : null, resolved_at: at });
+    },
+    async markPricePendingAttempt(id, { reason, reject = false, at }) {
+      const p = pending.get(id);
+      if (!p) return;
+      p.attempts += 1;
+      p.reason = reason;
+      if (reject) Object.assign(p, { status: 'rejected', resolved_at: at });
+    },
+    async prunePricePendingBefore(cutoffISO) {
+      let n = 0;
+      for (const [id, p] of pending) {
+        if (p.valid_to && p.valid_to < cutoffISO) { pending.delete(id); n += 1; }
+      }
+      return n;
     },
     async requiredFlyerRefs(store, region, currentOn) {
       return [...new Set(

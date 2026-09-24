@@ -213,6 +213,10 @@ export function offerToRow(o) {
     search_text: o.searchText,
     identity: o.identity ?? null,
     brand_slug: o.brandSlug ?? null,
+    // NULL = the source's own price (D4D); 'vision' = the price fallback
+    // (offers/priceFallback.js). A source-priced upsert writes NULL, so D4D
+    // always takes the row back the moment it publishes a price.
+    price_source: o.priceSource ?? null,
   };
 }
 
@@ -246,6 +250,7 @@ export function rowToOffer(r) {
     detectedAt: r.detected_at,
     identity: r.identity ?? null,
     brandSlug: r.brand_slug ?? null,
+    priceSource: r.price_source ?? null,
     // searchText is intentionally NOT exposed on the read API (raw OCR noise);
     // it exists to be matched against, not displayed.
   };
@@ -259,6 +264,34 @@ export function rowToOffer(r) {
 // words ("بيض" eggs -> "بيضاء" white), the "irrelevant brochure offers" bug.
 // Name-tier hits dominate so genuinely-named products outrank OCR-noise hits,
 // and compound look-alikes ("milk chocolate") are demoted. Pure & unit-tested.
+// --- the price fallback's queue (offers/priceFallback.js) ----------------------
+// True when a source record carries no usable selling price (D4D has sent
+// "0.000" for new flyers since 2026-09-22).
+export function isUnpriced(raw) {
+  const price = Number(raw && raw.price);
+  return !Number.isFinite(price) || price <= 0;
+}
+
+// An unpriced source record -> a price_pending row, or null when it can never
+// be read (no id, or no crop). The id is the offers id the record would get, so
+// the fallback's accepted offer and a later D4D-priced one are the same row.
+export function pricePendingRow(raw, { store, region, source, detectedAt }) {
+  const offerId = String(raw?.offerId ?? '');
+  if (!offerId || !raw.imageUrl) return null;
+  return {
+    id: `${store}:${region}:${source}:${offerId}`,
+    store,
+    region,
+    source,
+    offer_id: offerId,
+    flyer_ref: raw.flyerRef != null ? String(raw.flyerRef) : null,
+    image_url: raw.imageUrl,
+    valid_to: isoDate(raw.validTo),
+    raw_json: JSON.stringify(raw),
+    detected_at: detectedAt || new Date().toISOString(),
+  };
+}
+
 export function offerRelevance(offer, tokens, searchText) {
   if (!tokens.length) return 1;
   const name = canonicalMatchText(`${offer.name || ''} ${offer.nameAr || ''}`);

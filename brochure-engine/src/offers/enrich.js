@@ -304,7 +304,7 @@ export function needsEnrichment(offer) {
 
 // --- the vision call -----------------------------------------------------------
 
-const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions';
+export const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions';
 const MISTRAL_OCR_URL = 'https://api.mistral.ai/v1/ocr';
 export const DEFAULT_MODEL = 'mistral-medium-latest';
 export const DEFAULT_OCR_MODEL = 'mistral-ocr-latest';
@@ -602,7 +602,7 @@ async function fetchOfferCrop(offer, { fetchImpl = fetch, onCrop = null } = {}) 
   return { contentType, bytes, base64: toBase64(bytes), cropUrl: offer.imageUrl };
 }
 
-async function postMistral(url, body, { apiKey, fetchImpl, stage }) {
+export async function postMistral(url, body, { apiKey, fetchImpl, stage }) {
   const res = await fetchImpl(url, {
     method: 'POST',
     headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },

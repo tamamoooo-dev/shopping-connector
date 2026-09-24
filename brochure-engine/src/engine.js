@@ -19,6 +19,7 @@ import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offers/contract.js';
 import { drainEnrichment, drainOcrEnrichment, applyEnrichment, DEFAULT_MODEL } from './offers/enrich.js';
 import { drainVisionVerification } from './offers/visionVerification.js';
+import { drainPriceFallback } from './offers/priceFallback.js';
 import { rebuildRow, summarize } from './offers/rebuild.js';
 import { readVisionModelSetting } from './offers/visionModel.js';
 import { createKeyChain, latestMistralUsage } from './offers/mistralKeys.js';
@@ -1341,6 +1342,59 @@ export async function handleRequest(request, ctx) {
         detail: {
           processors: [...policy.processors],
           recovered: report.runs.reduce((n, r) => n + (r.recovered || 0), 0),
+        },
+      }).catch(() => {});
+    }
+    return json(report);
+  }
+
+  // Vision price fallback (offers/priceFallback.js): drain the queue of source
+  // records that arrived without a usable price, reading each crop with
+  // Ministral 3 14B from its OWN key pool until two consecutive readings agree,
+  // then checking the candidate against D4D's description. Cron-driven (index.js
+  // 10,30,50), one SELF child per batch; inert until a model and a key exist.
+  if (path === '/price-fallback' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.offerStore?.listPricePending) return json({ error: 'Offer store unavailable.' }, 503);
+    const cfg = ctx.priceFallback || {};
+    const keyChain = createPoolChain(ctx, 'ministral14', await mistralUsageSnapshot(ctx));
+    if (!cfg.model || !keyChain.hasKeys()) {
+      return json({ skipped: true, reason: !cfg.model ? 'no_model' : 'no_ministral14_key' });
+    }
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 10, 25));
+    const report = await drainPriceFallback(
+      { offerStore: ctx.offerStore, keyChain },
+      {
+        model: cfg.model,
+        currentOn: todayISO(),
+        limit,
+        maxReadings: cfg.maxReadings,
+        temperature: cfg.temperature,
+      },
+    );
+    if (report.accepted) await purgeBrowseCache(url); // new offers reshape the market floor
+    if (ctx.opsStore) {
+      await ctx.opsStore.record({
+        ts: report.startedAt,
+        action: 'price-fallback',
+        origin: 'cron',
+        ok: !report.stopped,
+        failed: report.errors.length,
+        elapsed_ms: Date.parse(report.finishedAt) - Date.parse(report.startedAt),
+        error: report.errors[0] || null,
+        detail: {
+          model: report.model,
+          scanned: report.scanned,
+          accepted: report.accepted,
+          rejected: report.rejected,
+          superseded: report.superseded,
+          deferred: report.deferred,
+          readings: report.readings,
+          reasons: report.reasons,
+          stopped: report.stopped || null,
+          keyUsage: report.keyUsage,
         },
       }).catch(() => {});
     }
