@@ -62,6 +62,7 @@ import {
 } from './recoveryQueue.js';
 import {
   completeVisionVerificationStatement,
+  compatibleVisionIdentity,
   continueVisionVerificationStatement,
   createD1VisionVerificationStore,
   enqueueVisionVerificationStatements,
@@ -1087,7 +1088,24 @@ export function createD1EnrichStore(db) {
         fingerprintHashes.push(currentHash);
         counts.set(currentHash, previousCount + 1);
       }
-      const verified = previousCount >= 1
+      // RE-CHECK (2026-09-24): an item already published by one reading is
+      // confirmed by a COMPATIBLE re-read (same English name; brand/count equal
+      // or missing on either side), and the re-read fills what the first read
+      // missed — a field the published row has is never taken away.
+      const published = candidateRow
+        ? await db.prepare('SELECT * FROM offer_enrichments WHERE id = ?')
+          .bind(attempt.offerId).first().catch(() => null)
+        : null;
+      const recheck = !!published?.name && compatibleVisionIdentity(published, candidateRow);
+      const rowToWrite = recheck
+        ? {
+          ...candidateRow,
+          brand: candidateRow.brand ?? published.brand ?? null,
+          size: candidateRow.size ?? published.size ?? null,
+          name_ar: candidateRow.name_ar ?? published.name_ar ?? null,
+        }
+        : candidateRow;
+      const verified = (previousCount >= 1 || recheck)
         && !!candidateRow
         && candidateRow.name != null
         && acceptance?.accepted !== false
@@ -1108,8 +1126,8 @@ export function createD1EnrichStore(db) {
       }
       if (verified) {
         statements.push(canonicalStatement({
-          ...candidateRow,
-          corroboration: Math.max(1, Number(candidateRow.corroboration) || 0),
+          ...rowToWrite,
+          corroboration: Math.max(1, Number(rowToWrite.corroboration) || 0),
         }));
         statements.push(completeVisionVerificationStatement(db, {
           offerId: attempt.offerId,

@@ -176,6 +176,44 @@ await test('Arabic never vetoes a match, while brand and count remain identity f
   );
 });
 
+// --- RE-CHECK fills what the first read missed (user directive 2026-09-24) -------
+await test('re-check: a re-read that finds the brand the first read missed confirms it and fills it', async () => {
+  const f = fresh();
+  const id = 's:r:d4d:1';
+  const noBrand = candidate(id, 'Arwa Water 330 ml', { brand: null, identity_candidate: { name: 'Arwa Water 330 ml', brand: null } });
+  assert.equal((await seed(f, id, noBrand, true)).published, true, 'published by one reading');
+  const out = await verifyOnce(f, id, candidate(id, 'Arwa Water 330 ml'));
+  assert.equal(out.verified, true, 'a missing brand is not a mismatch');
+  assert.equal(f.raw.prepare('SELECT brand FROM offer_enrichments').get().brand, 'Arwa', 'the re-check filled it');
+  assert.equal(await f.verificationStore.countPending(TODAY), 0);
+  f.close();
+});
+
+await test('re-check: a field the re-read lacks is never taken away', async () => {
+  const f = fresh();
+  const id = 's:r:d4d:1';
+  await seed(f, id, candidate(id, 'Arwa Water 330 ml'), true);
+  const out = await verifyOnce(f, id, candidate(id, 'Arwa Water 330 ml', { size: null, name_ar: null }));
+  assert.equal(out.verified, true);
+  const e = f.raw.prepare('SELECT size, name_ar FROM offer_enrichments').get();
+  assert.deepEqual([e.size, e.name_ar], ['330 ml', 'مياه أروى 330 مل'], 'size and Arabic kept from the published read');
+  f.close();
+});
+
+await test('re-check: a different product or a conflicting brand leaves the published read', async () => {
+  for (const other of [{ name: 'Nova Water 330 ml' }, { brand: 'Nova' }]) {
+    const f = fresh();
+    const id = 's:r:d4d:1';
+    await seed(f, id, candidate(id, 'Arwa Water 330 ml'), true);
+    const out = await verifyOnce(f, id, candidate(id, other.name || 'Arwa Water 330 ml', other.brand ? { brand: other.brand } : {}));
+    assert.equal(out.verified, false, `not the same product: ${JSON.stringify(other)}`);
+    const e = f.raw.prepare('SELECT name, brand FROM offer_enrichments').get();
+    assert.deepEqual([e.name, e.brand], ['Arwa Water 330 ml', 'Arwa'], 'the published read stays');
+    assert.equal(await f.verificationStore.countPending(TODAY), 1, 'still queued for another re-check');
+    f.close();
+  }
+});
+
 await test('a mismatch remains queued; a third read matching either prior read verifies it', async () => {
   const f = fresh();
   const first = candidate('s:r:d4d:1', 'Arwa Water 330 ml');

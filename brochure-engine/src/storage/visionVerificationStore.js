@@ -41,6 +41,25 @@ export function visionVerificationFingerprint(row) {
   });
 }
 
+// RE-CHECK identity (user directive 2026-09-24: "in the recheck stage we get
+// what we missed"). For an item already PUBLISHED by one reading, a re-read is
+// the same product when the English names agree; brand and pack count only
+// need to be compatible — equal, or missing on either side — so a re-read that
+// finds a brand or count the first read missed confirms it instead of
+// counting as a mismatch.
+export function compatibleVisionIdentity(published, candidate) {
+  const a = normalizedIdentityPart(published?.name);
+  const b = normalizedIdentityPart(candidate?.name);
+  if (!a || !b || a !== b) return false;
+  const brandA = normalizedIdentityPart(published?.brand);
+  const brandB = normalizedIdentityPart(candidate?.brand);
+  if (brandA && brandB && brandA !== brandB) return false;
+  const countA = verificationCount(published);
+  const countB = verificationCount(candidate);
+  if (countA != null && countB != null && countA !== countB) return false;
+  return true;
+}
+
 function base64Url(bytes) {
   let binary = '';
   for (const byte of bytes) binary += String.fromCharCode(byte);
