@@ -99,13 +99,16 @@ async function verifyOnce(f, id, row) {
 
 console.log('Stage-two Vision verification:');
 
-await test('accepted Stage 1 results are queued and are not servable after one read', async () => {
+// ONE READING (user decision 2026-09-24): an accepted Stage-1 read is published
+// at once and STILL queued, so Stage 2 re-checks it later instead of gating it.
+await test('accepted Stage 1 results are published after one read and still queued for the re-check', async () => {
   const f = fresh();
   const out = await seed(f, 's:r:d4d:1', candidate('s:r:d4d:1', 'Arwa Water 330 ml'), true);
   assert.equal(out.verificationQueued, true);
-  assert.equal(await f.verificationStore.countPending(TODAY), 1);
-  assert.equal((await f.enrichStore.coverage(TODAY)).verified, 0);
-  assert.equal(f.raw.prepare('SELECT COUNT(*) n FROM offer_enrichments').get().n, 0);
+  assert.equal(out.published, true);
+  assert.equal(await f.verificationStore.countPending(TODAY), 1, 'Stage 2 re-check still queued');
+  assert.equal(f.raw.prepare('SELECT COUNT(*) n FROM offer_enrichments').get().n, 1, 'served after one read');
+  assert.equal(f.raw.prepare('SELECT name FROM offer_enrichments').get().name, 'Arwa Water 330 ml');
   const queue = f.raw.prepare(
     'SELECT matched_fingerprint, match_count FROM offer_vision_verification_queue',
   ).get();
@@ -123,6 +126,18 @@ await test('rejected Stage 1 results enter the exact same queue', async () => {
   assert.equal(out.verificationQueued, true);
   const row = f.raw.prepare('SELECT initial_outcome FROM offer_vision_verification_queue').get();
   assert.equal(row.initial_outcome, 'rejected');
+  assert.equal(out.published, false);
+  assert.equal(f.raw.prepare('SELECT COUNT(*) n FROM offer_enrichments').get().n, 0, 'a rejected read is never published');
+  f.close();
+});
+
+await test('one reading: a missing brand and size never block publication (name + price are the requirement)', async () => {
+  const f = fresh();
+  const bare = { ...candidate('s:r:d4d:2', 'Tilapia Fish Per Kg'), brand: null, size: null };
+  const out = await seed(f, 's:r:d4d:2', bare, true);
+  assert.equal(out.published, true);
+  const e = f.raw.prepare('SELECT name, brand, size FROM offer_enrichments').get();
+  assert.deepEqual([e.name, e.brand, e.size], ['Tilapia Fish Per Kg', null, null]);
   f.close();
 });
 

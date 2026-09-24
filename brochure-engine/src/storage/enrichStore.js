@@ -949,6 +949,17 @@ export function createD1EnrichStore(db) {
             fingerprintHash,
           }),
         ];
+        // ONE READING (user decision 2026-09-24): a Stage-1 read that already
+        // clears the bar Stage 2 applies — a name, a business verdict that is
+        // not a rejection, corroboration at the servable floor — is published
+        // NOW, in this same batch. Brand and size never block it. Stage 2 still
+        // runs afterwards as the re-check: a match rewrites this row, a
+        // mismatch leaves the published read in place.
+        const publishNow = !!canonicalRow
+          && canonicalRow.name != null
+          && acceptance?.accepted !== false
+          && Number(canonicalRow.corroboration) >= CORROBORATION_FLOOR;
+        if (publishNow) statements.push(canonicalStatement(canonicalRow));
         const verdictStored = !!acceptance && await acceptanceVerdictsReady();
         if (verdictStored) {
           statements.push(acceptanceStatement(attempt.offerId, acceptance, attempt.attemptedAt));
@@ -960,6 +971,7 @@ export function createD1EnrichStore(db) {
           verdictStored,
           recoveryQueued: false,
           verificationQueued: true,
+          published: publishNow,
         };
       }
       const statements = [attemptStatement(attempt)];
