@@ -288,6 +288,26 @@ export function createOcrEnrichDispatcher({ self, ingestSecret, origin = 'https:
   };
 }
 
+// Vision price fallback child (engine.js POST /price-fallback).
+export function createPriceFallbackDispatcher({ self, ingestSecret, origin = 'https://brochure-engine.internal' } = {}) {
+  if (!self || typeof self.fetch !== 'function') {
+    throw new Error('scheduler: a SELF service binding (env.SELF) is required for the price fallback dispatcher');
+  }
+  return async function dispatchBatch(limit) {
+    const res = await self.fetch(`${origin}/price-fallback?limit=${encodeURIComponent(limit)}`, {
+      method: 'POST',
+      headers: { 'X-Ingest-Secret': ingestSecret || '' },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(`price fallback drain -> HTTP ${res.status}`);
+      err.body = body;
+      throw err;
+    }
+    return body;
+  };
+}
+
 // --- Recovery drain -----------------------------------------------------------
 // Same durable fan-out shape as Background Vision. Each child receives its own
 // Worker invocation and therefore its own external-subrequest budget; children

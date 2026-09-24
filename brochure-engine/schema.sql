@@ -142,7 +142,9 @@ CREATE TABLE IF NOT EXISTS offers (
   identity    TEXT,               -- derived cross-week identity (nullable) ->
                                   -- price_identities.id; Browse's history join
                                   -- (see migrate-2026-07-browse.sql)
-  brand_slug  TEXT                -- canonical brand (browse/brands.js), nullable
+  brand_slug  TEXT,               -- canonical brand (browse/brands.js), nullable
+  price_source TEXT               -- NULL = source (D4D) price; 'vision' = price
+                                  -- fallback (offers/priceFallback.js)
 );
 
 -- Idempotent ingest: one row per source product id per store+region.
@@ -161,33 +163,34 @@ CREATE INDEX IF NOT EXISTS ix_offers_identity ON offers(identity);
 CREATE INDEX IF NOT EXISTS ix_offers_category ON offers(category, valid_to);
 CREATE INDEX IF NOT EXISTS ix_offers_brand ON offers(brand_slug, valid_to);
 
--- Unpriced flyer items: source product records that carry NO price (D4D has
--- published new flyers' records with price "0.000" since 2026-09-22). They can
--- never be offers (price is NOT NULL above and every offers consumer relies on
--- it), so they live here and are read ONLY by the /brochures/hotspots join, to
--- give the flyer viewer its per-product tap targets and crops. See
--- offers/contract.js buildFlyerItem and migrate-2026-09-24-flyer-items.sql.
-CREATE TABLE IF NOT EXISTS flyer_items (
-  id          TEXT PRIMARY KEY,   -- `${store}:${region}:${source}:${offer_id}` (= the offers id)
-  store       TEXT NOT NULL,
-  region      TEXT NOT NULL,
-  source      TEXT NOT NULL,      -- offers source adapter (e.g. 'd4d')
-  offer_id    TEXT NOT NULL,      -- the source's per-product id (= hotspot offerId)
-  flyer_ref   TEXT NOT NULL,      -- the source's flyer id (the hotspots join key)
-  page_ref    TEXT,
-  name        TEXT,               -- best-effort display name (EN), from OCR
-  name_ar     TEXT,               -- best-effort display name (AR), from OCR
-  category_id TEXT,
-  category    TEXT,
-  image_url   TEXT,               -- the product's own flyer crop (CDN)
-  source_url  TEXT,               -- provenance only
-  valid_from  TEXT,
-  valid_to    TEXT,
-  detected_at TEXT NOT NULL
+-- Vision price fallback queue (offers/priceFallback.js): source records that
+-- arrived WITHOUT a usable price (D4D since 2026-09-22). Each is read by
+-- Ministral 3 14B until two consecutive readings agree, checked against D4D's
+-- own description, and decided exactly once: accepted (a normal offer with
+-- price_source='vision'), rejected, or superseded (D4D priced it meanwhile).
+-- See migrate-2026-09-24-price-fallback.sql.
+CREATE TABLE IF NOT EXISTS price_pending (
+  id            TEXT PRIMARY KEY,   -- `${store}:${region}:${source}:${offer_id}` (= the offers id)
+  store         TEXT NOT NULL,
+  region        TEXT NOT NULL,
+  source        TEXT NOT NULL,
+  offer_id      TEXT NOT NULL,
+  flyer_ref     TEXT,
+  image_url     TEXT NOT NULL,      -- the product crop the fallback reads
+  valid_to      TEXT,
+  raw_json      TEXT NOT NULL,      -- the unpriced source record, as ingested
+  status        TEXT NOT NULL DEFAULT 'pending'
+    CHECK(status IN ('pending', 'accepted', 'rejected', 'superseded')),
+  attempts      INTEGER NOT NULL DEFAULT 0, -- drains that ended in a transient error
+  reason        TEXT,               -- why rejected / superseded / last transient error
+  price         REAL,               -- the accepted price (status 'accepted' only)
+  old_price     REAL,
+  audit_json    TEXT,               -- the reading sequence, model, temperature
+  detected_at   TEXT NOT NULL,
+  resolved_at   TEXT
 );
 
-CREATE INDEX IF NOT EXISTS ix_flyer_items_flyer ON flyer_items(store, region, flyer_ref);
-CREATE INDEX IF NOT EXISTS ix_flyer_items_valid ON flyer_items(valid_to);
+CREATE INDEX IF NOT EXISTS ix_price_pending_queue ON price_pending(status, valid_to);
 
 -- ---------------------------------------------------------------------------
 -- Price Monitoring (the Keepa-inspired Personal Alerts feature — monitor.js).

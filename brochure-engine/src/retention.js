@@ -77,14 +77,14 @@ export async function pruneStoredBytes(ctx, { keepDays = 28, maxDeletes = 250, m
     }
   }
 
-  // Unpriced flyer items exist only for the flyer viewer, and a flyer's
-  // brochure is retired within weeks of expiry — a month is ample.
-  if (ctx.offerStore && ctx.offerStore.pruneFlyerItemsBefore) {
+  // The vision price fallback's queue only matters while its flyer is valid;
+  // decisions are kept a month past expiry for audit, then dropped.
+  if (ctx.offerStore && ctx.offerStore.prunePricePendingBefore) {
     try {
-      const itemCutoff = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
-      report.flyerItemsPruned = await ctx.offerStore.pruneFlyerItemsBefore(itemCutoff);
+      const pendingCutoff = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+      report.pricePendingPruned = await ctx.offerStore.prunePricePendingBefore(pendingCutoff);
     } catch (err) {
-      report.errors.push(`flyer items: ${err.message}`);
+      report.errors.push(`price pending: ${err.message}`);
     }
   }
 

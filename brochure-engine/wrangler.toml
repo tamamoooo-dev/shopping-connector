@@ -130,6 +130,17 @@ id = "38b0639256a34d1ebd7d96dcb55d0a9b"
 #   npx wrangler secret put MISTRAL_OCR_API_KEY
 #   npx wrangler secret put MISTRAL_OCR_API_KEY_BACKUP
 
+# Vision price fallback (src/offers/priceFallback.js): Ministral 3 14B reads the
+# crops of offers D4D published WITHOUT a price. Dedicated pool — it never falls
+# back to the Medium, Small or OCR secrets. Set any subset; with none set the
+# fallback is inert:
+#   npx wrangler secret put MINISTRAL_14B_API_KEY_1
+#   npx wrangler secret put MINISTRAL_14B_API_KEY_2
+#   npx wrangler secret put MINISTRAL_14B_API_KEY_3
+# Optional [vars] (defaults in code): PRICE_FALLBACK_MODEL (ministral-14b-2512),
+# PRICE_FALLBACK_MAX_READINGS (6), PRICE_FALLBACK_TEMPERATURE (0.3),
+# PRICE_FALLBACK_BATCHES (3 children per 10,30,50 fire; 0 disables).
+
 # OPS_TOKEN (guards the /__ops Operations Console — src/ops/) is a SEPARATE
 # secret for HUMAN operators; INGEST_SECRET stays machine-only. Make it long
 # and random. Until it is set, /__ops answers 503 (console locked):

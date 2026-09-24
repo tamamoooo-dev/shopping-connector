@@ -251,6 +251,21 @@ export const MISTRAL_POOL_DEFINITIONS = Object.freeze({
     model: 'mistral-ocr-latest',
     slots: [['ocr-1', 'OCR key']],
   },
+  // The price-fallback reader (offers/priceFallback.js): Ministral 3 14B,
+  // v25.12. `ministral-14b-2512` is the PINNED API name Mistral's model page
+  // lists (alias `ministral-14b-latest`), pinned for the same reason Small is:
+  // the fallback's behaviour is only known for a fixed build. A dedicated pool
+  // with NO fallback to any other pool's secrets — this path never spends
+  // Medium, Small or OCR quota.
+  ministral14: {
+    label: 'Ministral 3 14B',
+    model: 'ministral-14b-2512',
+    slots: [
+      ['ministral14-1', 'Ministral 14B key 1'],
+      ['ministral14-2', 'Ministral 14B key 2'],
+      ['ministral14-3', 'Ministral 14B key 3'],
+    ],
+  },
 });
 
 function poolEntry(pool, slot, key) {
@@ -294,6 +309,10 @@ export function buildMistralPools(env = {}) {
           || env.MISTRAL_API_KEY || env.MISTRAL_API_KEY_BACKUP,
       ),
     ],
+    // Dedicated secrets only (MINISTRAL_14B_API_KEY_1..3): an unset slot stays
+    // empty rather than borrowing another pool's key.
+    ministral14: MISTRAL_POOL_DEFINITIONS.ministral14.slots.map((slot, index) =>
+      poolEntry('ministral14', slot, env[`MINISTRAL_14B_API_KEY_${index + 1}`])),
   };
 }
 

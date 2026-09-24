@@ -27,6 +27,7 @@ import {
   runEnrichDrain,
   createEnrichDispatcher,
   createOcrEnrichDispatcher,
+  createPriceFallbackDispatcher,
   runRecoveryDrainFanOut,
   createRecoveryDrainDispatcher,
 } from './scheduler.js';
@@ -64,7 +65,8 @@ import { danubeProvider } from './providers/danube.js';
 import { tamimiProvider } from './providers/tamimi.js';
 import { nestoProvider } from './providers/nesto.js';
 import { d4dStoreProviders } from './providers/d4dStores.js';
-import { buildMistralPools } from './offers/mistralKeys.js';
+import { buildMistralPools, MISTRAL_POOL_DEFINITIONS } from './offers/mistralKeys.js';
+import { PRICE_FALLBACK_DEFAULTS } from './offers/priceFallback.js';
 
 // M1: Othaim via the official PdfIndexCollector. The other stores via the
 // reusable AggregatorCollector (D4D adapter) with an official-offers-page
@@ -121,6 +123,22 @@ const VISION_LEASE_MS = 300000;
 // so the CPU-heavy registry scoring never competes with enrichment in the same
 // invocation. 100 is the measured per-invocation ceiling headroom (HISTORY §40).
 const RESOLVE_LIMIT = 100;
+
+// PRICE_FALLBACK_MODEL (default: the ministral14 pool's pinned model),
+// PRICE_FALLBACK_MAX_READINGS (2..10), PRICE_FALLBACK_TEMPERATURE (0..1],
+// PRICE_FALLBACK_BATCHES (children per cron fire, 0 disables, max 6).
+function priceFallbackConfig(env) {
+  const num = (v, lo, hi, dflt) => {
+    const n = Number(v);
+    return v != null && v !== '' && Number.isFinite(n) && n >= lo && n <= hi ? n : dflt;
+  };
+  return {
+    model: String(env.PRICE_FALLBACK_MODEL || MISTRAL_POOL_DEFINITIONS.ministral14.model).trim(),
+    maxReadings: Math.floor(num(env.PRICE_FALLBACK_MAX_READINGS, 2, 10, PRICE_FALLBACK_DEFAULTS.maxReadings)),
+    temperature: num(env.PRICE_FALLBACK_TEMPERATURE, 0.01, 1, PRICE_FALLBACK_DEFAULTS.temperature),
+    batches: Math.floor(num(env.PRICE_FALLBACK_BATCHES, 0, 6, 3)),
+  };
+}
 
 function buildContext(env) {
   const useBuiltArabicNames = builtArabicNamesEnabled(env.BUILT_ARABIC_NAMES_ENABLED);
@@ -224,6 +242,9 @@ function buildContext(env) {
     mistralOcrKey: ocrKeys[0]?.key || null,
     mistralOcrKeyBackup: ocrKeys[1]?.key || null,
     ocrFallbackEnabled: String(env.OCR_FALLBACK_ENABLED ?? 'true').trim().toLowerCase() !== 'false',
+    // Vision price fallback (offers/priceFallback.js). Vars override the
+    // measured defaults; out-of-range values fall back to them.
+    priceFallback: priceFallbackConfig(env),
     // Runtime extraction policy; normalized inside offers/enrich.js. Unset or
     // invalid values safely retain the validated Vision First default.
     extractionStrategy: env.EXTRACTION_STRATEGY,
@@ -466,6 +487,27 @@ export default {
           }
         })().catch((err) => {
           console.error('brochure-engine Arabic Builder shadow backfill unavailable', err?.message || String(err));
+        }),
+      );
+      // Vision price fallback: its own waitUntil task and its own key pool, so
+      // a Ministral outage can never delay the Vision drain or OCR below.
+      // Sequential SELF children (each its own subrequest budget); a child that
+      // finds nothing to do, is skipped, or stops ends the fire early.
+      ctx.waitUntil(
+        (async () => {
+          const context = buildContext(env);
+          const cfg = context.priceFallback;
+          if (!cfg.batches || !context.mistralPools.ministral14.some((slot) => slot.key)) return;
+          const dispatch = createPriceFallbackDispatcher({ self: env.SELF, ingestSecret: env.INGEST_SECRET });
+          const lines = [];
+          for (let i = 0; i < cfg.batches; i += 1) {
+            const r = await dispatch(10);
+            lines.push({ scanned: r.scanned, accepted: r.accepted, rejected: r.rejected, stopped: r.stopped || null });
+            if (r.skipped || r.stopped || !r.scanned) break;
+          }
+          console.log('brochure-engine price fallback drain', JSON.stringify({ batches: lines.length, lines }));
+        })().catch((err) => {
+          console.error('brochure-engine price fallback unavailable', err?.message || String(err));
         }),
       );
       // OCR escalation is a separate waitUntil task. Its provider, quota, or

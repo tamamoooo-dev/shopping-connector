@@ -25,8 +25,8 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
        brochure_id, page_index, navigation_provenance, edition,
        name, name_ar, price, old_price, currency, category_id, category,
        image_url, source_url, valid_from, valid_to, detected_at, search_text,
-       identity, brand_slug)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+       identity, brand_slug, price_source)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
       flyer_ref=excluded.flyer_ref, page_ref=excluded.page_ref,
       brochure_id=excluded.brochure_id, page_index=excluded.page_index,
@@ -37,7 +37,8 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
       category=excluded.category, image_url=excluded.image_url,
       source_url=excluded.source_url, valid_from=excluded.valid_from,
       valid_to=excluded.valid_to, search_text=excluded.search_text,
-      identity=excluded.identity, brand_slug=excluded.brand_slug`;
+      identity=excluded.identity, brand_slug=excluded.brand_slug,
+      price_source=excluded.price_source`;
 
   const bindRow = (r) =>
     db.prepare(upsertStmt).bind(
@@ -46,28 +47,24 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
       r.name, r.name_ar, r.price, r.old_price, r.currency,
       r.category_id, r.category, r.image_url, r.source_url, r.valid_from,
       r.valid_to, r.detected_at, r.search_text, r.identity ?? null,
-      r.brand_slug ?? null,
+      r.brand_slug ?? null, r.price_source ?? null,
     );
 
-  // Unpriced flyer items (schema.sql flyer_items; offers/contract.js
-  // buildFlyerItem): read ONLY by the /brochures/hotspots join.
-  const flyerItemUpsertStmt = `
-    INSERT INTO flyer_items
-      (id, store, region, source, offer_id, flyer_ref, page_ref, name, name_ar,
-       category_id, category, image_url, source_url, valid_from, valid_to,
-       detected_at)
-    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+  // Vision price fallback queue (schema.sql price_pending; offers/priceFallback.js).
+  // A re-ingest refreshes the record but NEVER the decision: status, attempts
+  // and the accepted price survive, so each item is decided exactly once.
+  const pendingUpsertStmt = `
+    INSERT INTO price_pending
+      (id, store, region, source, offer_id, flyer_ref, image_url, valid_to,
+       raw_json, detected_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?)
     ON CONFLICT(id) DO UPDATE SET
-      flyer_ref=excluded.flyer_ref, page_ref=excluded.page_ref,
-      name=excluded.name, name_ar=excluded.name_ar,
-      category_id=excluded.category_id, category=excluded.category,
-      image_url=excluded.image_url, source_url=excluded.source_url,
-      valid_from=excluded.valid_from, valid_to=excluded.valid_to`;
-  const bindFlyerItem = (r) =>
-    db.prepare(flyerItemUpsertStmt).bind(
-      r.id, r.store, r.region, r.source, r.offer_id, r.flyer_ref, r.page_ref,
-      r.name, r.name_ar, r.category_id, r.category, r.image_url, r.source_url,
-      r.valid_from, r.valid_to, r.detected_at,
+      flyer_ref=excluded.flyer_ref, image_url=excluded.image_url,
+      valid_to=excluded.valid_to, raw_json=excluded.raw_json`;
+  const bindPending = (r) =>
+    db.prepare(pendingUpsertStmt).bind(
+      r.id, r.store, r.region, r.source, r.offer_id, r.flyer_ref ?? null,
+      r.image_url, r.valid_to ?? null, r.raw_json, r.detected_at,
     );
 
   return {
@@ -245,24 +242,6 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
       return results || [];
     },
 
-    async upsertFlyerItems(rows) {
-      for (let i = 0; i < rows.length; i += 40) {
-        await db.batch(rows.slice(i, i + 40).map(bindFlyerItem));
-      }
-      return { stored: rows.length };
-    },
-
-    async flyerItemsByFlyer(store, region, flyerRef) {
-      const { results } = await db
-        .prepare(
-          `SELECT * FROM flyer_items
-            WHERE store = ? AND region = ? AND flyer_ref = ? LIMIT 2000`,
-        )
-        .bind(store, region, String(flyerRef))
-        .all();
-      return results || [];
-    },
-
     // Exact D4D flyer references required by current indexed offers. These
     // rows include unavailable offers, so collection can restore their local
     // navigation rather than requiring an already-published brochure first.
@@ -365,6 +344,77 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
     },
 
     // Ops Vision Inspector: one offer row by full id (read-only drill-down).
+    async upsertPricePending(rows) {
+      for (let i = 0; i < rows.length; i += 40) {
+        await db.batch(rows.slice(i, i + 40).map(bindPending));
+      }
+      return { stored: rows.length };
+    },
+
+    // The ingest's lookup: which of these records already have a decision.
+    async pricePendingByIds(ids) {
+      const out = [];
+      for (let i = 0; i < ids.length; i += 40) {
+        const chunk = ids.slice(i, i + 40);
+        const { results } = await db
+          .prepare(`SELECT * FROM price_pending WHERE id IN (${chunk.map(() => '?').join(',')})`)
+          .bind(...chunk)
+          .all();
+        out.push(...(results || []));
+      }
+      return out;
+    },
+
+    // The drain's queue: undecided, still valid, soonest-expiring first, and
+    // never a record D4D has since priced (its offer row wins; see drain).
+    async listPricePending({ currentOn, limit = 10 } = {}) {
+      const { results } = await db
+        .prepare(
+          `SELECT p.* FROM price_pending p
+            WHERE p.status = 'pending' AND p.valid_to >= ?
+              AND NOT EXISTS (
+                SELECT 1 FROM offers o WHERE o.id = p.id AND o.price_source IS NULL
+              )
+            ORDER BY p.valid_to ASC, p.detected_at ASC LIMIT ?`,
+        )
+        .bind(currentOn, Math.max(1, Math.min(Number(limit) || 10, 50)))
+        .all();
+      return results || [];
+    },
+
+    async resolvePricePending(id, { status, price = null, oldPrice = null, reason = null, audit = null, at }) {
+      await db
+        .prepare(
+          `UPDATE price_pending
+              SET status = ?, price = ?, old_price = ?, reason = ?, audit_json = ?, resolved_at = ?
+            WHERE id = ?`,
+        )
+        .bind(status, price, oldPrice, reason, audit ? JSON.stringify(audit) : null, at, id)
+        .run();
+    },
+
+    // A transient failure: count it; `reject` closes the item for good.
+    async markPricePendingAttempt(id, { reason, reject = false, at }) {
+      await db
+        .prepare(
+          `UPDATE price_pending
+              SET attempts = attempts + 1, reason = ?,
+                  status = CASE WHEN ? THEN 'rejected' ELSE status END,
+                  resolved_at = CASE WHEN ? THEN ? ELSE resolved_at END
+            WHERE id = ?`,
+        )
+        .bind(reason, reject ? 1 : 0, reject ? 1 : 0, at, id)
+        .run();
+    },
+
+    async prunePricePendingBefore(cutoffISO) {
+      const res = await db
+        .prepare('DELETE FROM price_pending WHERE valid_to IS NOT NULL AND valid_to < ?')
+        .bind(cutoffISO)
+        .run();
+      return res?.meta?.changes || 0;
+    },
+
     async getById(id) {
       return (await db.prepare('SELECT * FROM offers WHERE id = ?').bind(id).first()) || null;
     },
@@ -447,14 +497,6 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
     async pruneExpiredBefore(cutoffISO) {
       const res = await db
         .prepare('DELETE FROM offers WHERE valid_to IS NOT NULL AND valid_to < ?')
-        .bind(cutoffISO)
-        .run();
-      return res?.meta?.changes || 0;
-    },
-
-    async pruneFlyerItemsBefore(cutoffISO) {
-      const res = await db
-        .prepare('DELETE FROM flyer_items WHERE valid_to IS NOT NULL AND valid_to < ?')
         .bind(cutoffISO)
         .run();
       return res?.meta?.changes || 0;
