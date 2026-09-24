@@ -182,6 +182,11 @@ export async function drainPriceFallback(
     model,
     currentOn,
     limit = 10,
+    // Parallel drains (2026-09-24): shard k of n takes only offer ids with
+    // id % n == k, so concurrent drains never read the same item. Scheduling
+    // only — model, readings, agreement and description check are unchanged.
+    shard = 0,
+    shards = 1,
     maxReadings = PRICE_FALLBACK_DEFAULTS.maxReadings,
     temperature = PRICE_FALLBACK_DEFAULTS.temperature,
     maxDrainAttempts = PRICE_FALLBACK_DEFAULTS.maxDrainAttempts,
@@ -210,7 +215,7 @@ export async function drainPriceFallback(
     report.finishedAt = now();
     return report;
   }
-  const rows = await offerStore.listPricePending({ currentOn, limit });
+  const rows = await offerStore.listPricePending({ currentOn, limit, shard, shards });
   report.scanned = rows.length;
 
   for (const row of rows) {

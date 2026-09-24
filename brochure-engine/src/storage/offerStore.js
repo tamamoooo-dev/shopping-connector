@@ -393,7 +393,9 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
 
     // The drain's queue: undecided, still valid, soonest-expiring first, and
     // never a record D4D has since priced (its offer row wins; see drain).
-    async listPricePending({ currentOn, limit = 10 } = {}) {
+    async listPricePending({ currentOn, limit = 10, shard = 0, shards = 1 } = {}) {
+      const n = Math.max(1, Math.min(Math.floor(Number(shards)) || 1, 16));
+      const k = Math.max(0, Math.min(Math.floor(Number(shard)) || 0, n - 1));
       const { results } = await db
         .prepare(
           `SELECT p.* FROM price_pending p
@@ -401,9 +403,10 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
               AND NOT EXISTS (
                 SELECT 1 FROM offers o WHERE o.id = p.id AND o.price_source IS NULL
               )
+              AND (CAST(p.offer_id AS INTEGER) % ?) = ?
             ORDER BY p.valid_to ASC, p.detected_at ASC LIMIT ?`,
         )
-        .bind(currentOn, Math.max(1, Math.min(Number(limit) || 10, 50)))
+        .bind(currentOn, n, k, Math.max(1, Math.min(Number(limit) || 10, 50)))
         .all();
       return results || [];
     },

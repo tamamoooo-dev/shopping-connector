@@ -1364,12 +1364,18 @@ export async function handleRequest(request, ctx) {
       return json({ skipped: true, reason: !cfg.model ? 'no_model' : 'no_ministral14_key' });
     }
     const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 10, 25));
+    // Optional parallel-drain shard (?shard=k&shards=n): concurrent callers
+    // take disjoint items. Omitted = the whole queue, as before.
+    const shards = Math.max(1, Math.min(Math.floor(Number(url.searchParams.get('shards'))) || 1, 16));
+    const shard = Math.max(0, Math.min(Math.floor(Number(url.searchParams.get('shard'))) || 0, shards - 1));
     const report = await drainPriceFallback(
       { offerStore: ctx.offerStore, keyChain },
       {
         model: cfg.model,
         currentOn: todayISO(),
         limit,
+        shard,
+        shards,
         maxReadings: cfg.maxReadings,
         temperature: cfg.temperature,
       },

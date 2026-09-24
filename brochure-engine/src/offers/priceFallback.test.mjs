@@ -310,4 +310,27 @@ assert.equal(isUnpriced({ price: 9.95 }), false);
   legacy.close();
 }
 
+// --- parallel drains (2026-09-24): shards partition the queue, rules untouched ----
+{
+  const later = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);
+  const today = new Date().toISOString().slice(0, 10);
+  const rows = Array.from({ length: 9 }, (_, i) => ({
+    id: `s:r:d4d:${97714460 + i}`, store: 's', region: 'r', source: 'd4d', offer_id: String(97714460 + i),
+    flyer_ref: 'f', image_url: `https://cdn.test/${i}.jpg`, valid_to: later, raw_json: '{}', detected_at: 'now',
+  }));
+  const ids = (list) => list.map((r) => r.offer_id).sort();
+  const { db, close } = createSqliteD1(['schema.sql']);
+  for (const store of [createMemoryOfferStore(), createD1OfferStore(db)]) {
+    await store.upsertPricePending(rows);
+    const all = ids(await store.listPricePending({ currentOn: today, limit: 50 }));
+    assert.equal(all.length, 9, 'no shard = the whole queue, as before');
+    const parts = [0, 1, 2].map(async (k) => ids(await store.listPricePending({ currentOn: today, limit: 50, shard: k, shards: 3 })));
+    const got = await Promise.all(parts);
+    assert.deepEqual(got.flat().sort(), all, 'the three shards together cover every item');
+    assert.equal(new Set(got.flat()).size, 9, 'and never the same item twice');
+    assert.ok(got.every((p) => p.length === 3));
+  }
+  close();
+}
+
 console.log('priceFallback.test: all passed');
