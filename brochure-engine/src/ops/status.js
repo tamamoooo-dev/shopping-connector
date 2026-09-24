@@ -76,10 +76,12 @@ export async function computeStoreRows(ctx, { now = new Date(), stores = null } 
     const flyers = [];
     let hotspots = 0;
     let clickable = 0;
+    let priced = 0;
     for (const row of cur) {
       const flyerRef = flyerRefFromUrl(row.source_url);
       let spots = 0;
       let linked = 0;
+      let pricedSpots = 0;
       // Tap-geometry snapshots exist only for image-set flyers; reading them is
       // a KV/R2 get + one D1 query — zero external subrequests.
       if (row.source_type === 'images' && ctx.objectStore) {
@@ -97,12 +99,25 @@ export async function computeStoreRows(ctx, { now = new Date(), stores = null } 
           if (spots && flyerRef && ctx.offerStore && ctx.offerStore.byFlyer) {
             const offerRows = await ctx.offerStore.byFlyer(provider.id, row.region, flyerRef);
             const held = new Set(offerRows.map((o) => String(o.offer_id)));
+            pricedSpots = spotIds.filter((id) => held.has(id)).length;
+            // The viewer's rule (hotspots.js getHotspotsDoc): a spot is also
+            // tappable when its product is queued unpriced (price pending /
+            // unavailable). Best-effort like the viewer: no queue -> priced only.
+            if (ctx.offerStore.pricePendingIdsByFlyer) {
+              try {
+                const queued = await ctx.offerStore.pricePendingIdsByFlyer(provider.id, row.region, flyerRef);
+                for (const id of queued) held.add(id);
+              } catch {
+                // price_pending missing -> priced spots only, as before
+              }
+            }
             linked = spotIds.filter((id) => held.has(id)).length;
           }
         }
       }
       hotspots += spots;
       clickable += linked;
+      priced += pricedSpots;
       flyers.push({
         id: row.id,
         edition: row.edition,
@@ -113,6 +128,7 @@ export async function computeStoreRows(ctx, { now = new Date(), stores = null } 
         detectedAt: row.detected_at,
         hotspots: spots,
         clickable: linked,
+        priced: pricedSpots,
       });
     }
 
@@ -199,6 +215,7 @@ export async function computeStoreRows(ctx, { now = new Date(), stores = null } 
       fresh,
       hotspots,
       clickable,
+      priced,
       offers: offersByStore[provider.id] || 0,
       coverage,
       lastDetectedAt: cur.reduce((m, r) => (r.detected_at > m ? r.detected_at : m), '') || null,

@@ -181,6 +181,7 @@ assert.deepEqual([doc.offers.U2.price, doc.offers.U2.priceSource, doc.offers.U2.
   await store.resolvePricePending(rows[1].id, { status: 'rejected', reason: 'no_agreement', at: 'now' });
   const got = await store.pricePendingByFlyer('shop', 'central', FLYER);
   assert.deepEqual(got.map((r) => [r.offer_id, r.status]).sort(), [['A', 'pending'], ['B', 'rejected']], 'by flyer, any decision, this store only');
+  assert.deepEqual((await store.pricePendingIdsByFlyer('shop', 'central', FLYER)).sort(), ['A', 'B'], 'ops: ids only, same rows');
   const plan = (await db.prepare(`EXPLAIN QUERY PLAN SELECT * FROM price_pending WHERE store = ? AND region = ? AND flyer_ref = ?`).bind('shop', 'central', FLYER).all()).results;
   assert.ok(plan.some((p) => /ix_price_pending_flyer/.test(p.detail)), `the flyer index is used: ${JSON.stringify(plan)}`);
   await assert.rejects(

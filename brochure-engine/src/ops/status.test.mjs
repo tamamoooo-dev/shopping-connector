@@ -214,6 +214,51 @@ async function buildFixture() {
   console.log('publication progress status passed');
 }
 
+// --- unpriced flyer products count as clickable (the viewer's rule) -------------
+// hotspots.js serves a spot when its product has an offers row OR a
+// price_pending row (price pending / unavailable), so ops must count the same
+// spots as clickable, and report the priced ones separately.
+{
+  const ctx = await buildFixture();
+  ctx.registry.zeta = provider('zeta');
+  await ctx.metadataStore.upsert({
+    id: 'zeta:central:2026-W28', store: 'zeta', region: 'central', edition: '2026-W28', title: null,
+    valid_from: lastWeek, valid_to: inWeek, detected_at: `${today}T06:00:00Z`, source_type: 'images',
+    source_url: 'https://agg.example/offers/zeta-9/777/weekly', pdf_url: null,
+    checksum: 'sha256:zeta', collector: 'd4d', storage_key: 'zeta/central/2026-W28',
+  });
+  ctx.objectStore.objects.set('brochures/zeta/central/2026-W28/hotspots.json', {
+    bytes: enc.encode(JSON.stringify({ pages: [{ index: 0, spots: ['U', 'V', 'W', 'X'].map((offerId) => ({ offerId, x: 0, y: 0, w: 0.1, h: 0.1 })) }] })),
+  });
+  await ctx.offerStore.upsertMany([{
+    id: 'zeta:central:d4d:U', store: 'zeta', region: 'central', source: 'd4d', offer_id: 'U', flyer_ref: '777',
+    price: 5, valid_from: lastWeek, valid_to: inWeek, detected_at: `${today}T06:00:00Z`, search_text: 'x',
+  }]);
+  const queued = (id) => ({
+    id: `zeta:central:d4d:${id}`, store: 'zeta', region: 'central', source: 'd4d', offer_id: id, flyer_ref: '777',
+    image_url: `https://cdn.example/${id}.jpg`, valid_to: inWeek, raw_json: '{}', detected_at: `${today}T06:00:00Z`,
+  });
+  await ctx.offerStore.upsertPricePending([queued('V'), queued('W')]);
+  await ctx.offerStore.resolvePricePending('zeta:central:d4d:W', { status: 'rejected', reason: 'no_agreement', at: today });
+
+  let zeta = (await computeStoreRows(ctx, { now: NOW, stores: ['zeta'] }))[0];
+  check('priced + pending + unavailable spots are all clickable (X has nothing)',
+    zeta.hotspots === 4 && zeta.clickable === 3 && zeta.priced === 1 && zeta.coverage === 75,
+    JSON.stringify({ h: zeta.hotspots, c: zeta.clickable, p: zeta.priced, cov: zeta.coverage }));
+  check('the flyer line carries the same split',
+    zeta.flyers[0].clickable === 3 && zeta.flyers[0].priced === 1, JSON.stringify(zeta.flyers[0]));
+  const alpha = (await computeStoreRows(ctx, { now: NOW, stores: ['alpha'] }))[0];
+  check('a fully priced store is unchanged (clickable == priced)',
+    alpha.clickable === 2 && alpha.priced === 2 && alpha.coverage === 100, JSON.stringify(alpha));
+
+  // No queue (migration not applied / lookup fails) -> priced spots only.
+  ctx.offerStore.pricePendingIdsByFlyer = async () => { throw new Error('no such table: price_pending'); };
+  zeta = (await computeStoreRows(ctx, { now: NOW, stores: ['zeta'] }))[0];
+  check('a queue failure falls back to priced spots only',
+    zeta.clickable === 1 && zeta.priced === 1, JSON.stringify({ c: zeta.clickable, p: zeta.priced }));
+  console.log('unpriced clickable coverage passed');
+}
+
 // --- subsystem checks + scheduler heartbeat --------------------------------------
 {
   const ctx = await buildFixture();

@@ -547,7 +547,7 @@ function renderStores(o) {
       : "";
     return '<div class="row" style="display:block;cursor:pointer" data-store="' + esc(r.store) + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:center"><b>' + esc(r.label) + "</b>" + statusBadge(r.status) + "</div>" +
-      '<div class="mut">' + r.currentFlyers + " flyers · " + r.hotspots + " hotspots · " + r.clickable + " clickable · " + r.offers + " offers" +
+      '<div class="mut">' + r.currentFlyers + " flyers · " + r.hotspots + " hotspots · " + r.clickable + " clickable" + (r.priced != null ? " (" + r.priced + " priced)" : "") + " · " + r.offers + " offers" +
       " · ingest " + ago(r.lastOkAt || r.lastDetectedAt) + (r.lastOkMs ? " (" + ms(r.lastOkMs) + ")" : "") + "</div>" +
       publicationRow +
       (r.lastError ? '<div class="mut" style="color:var(--bad)">' + esc(r.lastError) + "</div>" : "") +
@@ -583,7 +583,7 @@ function openStore(id) {
       (s.flyers.length ? s.flyers.map(function (f) {
         return '<div class="row" style="display:block"><b>' + esc(f.edition) + "</b>" +
           '<div class="mut">flyer ' + esc(f.flyerRef) + " · " + esc(f.sourceType) + " · valid to " + esc(f.validTo) +
-          " · " + f.hotspots + " spots / " + f.clickable + " clickable</div>" +
+          " · " + f.hotspots + " spots / " + f.clickable + " clickable" + (f.priced != null ? " (" + f.priced + " priced)" : "") + "</div>" +
           '<div class="mut">detected ' + ago(f.detectedAt) + " · " + esc(f.id) + "</div></div>";
       }).join("") : '<span class="mut">none held</span>') +
       '<h4 class="sec">Ingest runs</h4>' +

@@ -503,6 +503,12 @@ export function createMemoryOfferStore({
         .filter((p) => p.store === store && p.region === region && String(p.flyer_ref) === String(flyerRef))
         .slice(0, 2000);
     },
+    async pricePendingIdsByFlyer(store, region, flyerRef) {
+      return [...pending.values()]
+        .filter((p) => p.store === store && p.region === region && String(p.flyer_ref) === String(flyerRef))
+        .slice(0, 2000)
+        .map((p) => String(p.offer_id));
+    },
     async listPricePending({ currentOn, limit = 10 } = {}) {
       return [...pending.values()]
         .filter((p) => p.status === 'pending' && p.valid_to >= currentOn &&

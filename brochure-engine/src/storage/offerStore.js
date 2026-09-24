@@ -378,6 +378,19 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
       return results || [];
     },
 
+    // Just the ids of a flyer's queued products — the ops coverage sweep reads
+    // every current flyer and needs no raw records (ops/status.js).
+    async pricePendingIdsByFlyer(store, region, flyerRef) {
+      const { results } = await db
+        .prepare(
+          `SELECT offer_id FROM price_pending
+            WHERE store = ? AND region = ? AND flyer_ref = ? LIMIT 2000`,
+        )
+        .bind(store, region, String(flyerRef))
+        .all();
+      return (results || []).map((r) => String(r.offer_id));
+    },
+
     // The drain's queue: undecided, still valid, soonest-expiring first, and
     // never a record D4D has since priced (its offer row wins; see drain).
     async listPricePending({ currentOn, limit = 10 } = {}) {
