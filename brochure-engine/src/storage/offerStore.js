@@ -365,6 +365,19 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
       return out;
     },
 
+    // A flyer's queued (unpriced) products, whatever their decision — the
+    // brochure viewer shows them as price pending / unavailable (hotspots.js).
+    async pricePendingByFlyer(store, region, flyerRef) {
+      const { results } = await db
+        .prepare(
+          `SELECT * FROM price_pending
+            WHERE store = ? AND region = ? AND flyer_ref = ? LIMIT 2000`,
+        )
+        .bind(store, region, String(flyerRef))
+        .all();
+      return results || [];
+    },
+
     // The drain's queue: undecided, still valid, soonest-expiring first, and
     // never a record D4D has since priced (its offer row wins; see drain).
     async listPricePending({ currentOn, limit = 10 } = {}) {

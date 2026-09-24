@@ -256,6 +256,40 @@ export function rowToOffer(r) {
   };
 }
 
+// --- an unpriced product, as the brochure viewer shows it ------------------------
+// A price_pending row -> the read-API offer shape (rowToOffer's), with NO price:
+// `price` and `oldPrice` are null and `priceStatus` says why — 'pending' while
+// the vision price fallback may still price it, 'unavailable' once it has
+// rejected the item. The product itself is on the flyer either way, so its
+// hotspot is tappable; only actions that need a real price are withheld.
+//
+// Every other field comes from the SAME buildOffer the priced path uses
+// (names, ids, crop, dates), so the product looks identical before and after it
+// is priced, and keeps the same id: when the fallback accepts a price, the
+// normal offer row with that id simply takes its place in the viewer's join.
+// The stand-in price only opens buildOffer's price gate and is discarded here.
+export function unpricedOffer(pendingRow) {
+  let raw;
+  try {
+    raw = JSON.parse(pendingRow.raw_json);
+  } catch {
+    return null;
+  }
+  const built = buildOffer({ ...raw, price: 1, wasPrice: null }, {
+    store: pendingRow.store,
+    region: pendingRow.region,
+    source: pendingRow.source,
+    detectedAt: pendingRow.detected_at,
+  });
+  if (!built) return null;
+  const offer = rowToOffer(offerToRow(built));
+  offer.price = null;
+  offer.oldPrice = null;
+  offer.priceSource = null;
+  offer.priceStatus = pendingRow.status === 'rejected' ? 'unavailable' : 'pending';
+  return offer;
+}
+
 // --- query-side relevance (shared by the /offers read API) ---------------------
 // Word-boundary token matching with the bilingual synonym bridge, AND semantics:
 // every query token must match the offer's NAME or OCR text at word level (whole

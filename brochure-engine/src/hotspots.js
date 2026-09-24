@@ -36,6 +36,7 @@
 // page image (the stored webp shares the flyer's aspect ratio).
 
 import { applyEnrichment } from './offers/enrich.js';
+import { unpricedOffer } from './offers/contract.js';
 
 // --- pure parser ---------------------------------------------------------------
 // Flyer HTML -> [{ index, spots: [{ offerId, x, y, w, h }] }] (fractions 0..1),
@@ -198,6 +199,24 @@ export async function getHotspotsDoc(ctx, brochureId, { rowToOffer } = {}) {
       const offer = rowToOffer ? rowToOffer(r) : r;
       if (rowToOffer) applyEnrichment(offer, r);
       offers[r.offer_id] = offer;
+    }
+  }
+
+  // Products D4D published WITHOUT a price (price_pending) are still products on
+  // this flyer: their spots are tappable with price pending / unavailable
+  // (contract.js unpricedOffer). A priced offer row always wins — it is the
+  // same id, so a fallback-accepted price replaces the pending entry here with
+  // no extra logic. Best-effort: the queue can never break the priced join.
+  if (flyerRef && rowToOffer && ctx.offerStore && ctx.offerStore.pricePendingByFlyer) {
+    try {
+      const queued = await ctx.offerStore.pricePendingByFlyer(row.store, row.region, flyerRef);
+      for (const p of queued) {
+        if (offers[p.offer_id]) continue;
+        const offer = unpricedOffer(p);
+        if (offer) offers[p.offer_id] = offer;
+      }
+    } catch {
+      // no queue (migration not applied) -> priced spots only, as before
     }
   }
 

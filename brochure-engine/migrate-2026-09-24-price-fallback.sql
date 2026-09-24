@@ -41,3 +41,6 @@ CREATE TABLE IF NOT EXISTS price_pending (
 );
 
 CREATE INDEX IF NOT EXISTS ix_price_pending_queue ON price_pending(status, valid_to);
+-- The brochure viewer's join: a flyer's unpriced products are tappable (price
+-- pending / unavailable) before and regardless of the fallback's decision.
+CREATE INDEX IF NOT EXISTS ix_price_pending_flyer ON price_pending(store, region, flyer_ref);
