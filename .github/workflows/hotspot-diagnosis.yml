@@ -17,4 +17,4 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
-      - run: node debug/model-config-probe.mjs
+      - run: node debug/mistral-model-docs.mjs
