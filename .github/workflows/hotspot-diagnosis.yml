@@ -1,0 +1,20 @@
+# Read-only hotspot diagnosis (GETs against the production engine and D4D).
+# No secrets, no deploys, writes nothing. Runs only on pushes to this branch.
+name: hotspot-diagnosis
+on:
+  push:
+    branches: [claude/hotspot-diagnosis-2026-09]
+permissions: {}
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: brochure-engine
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node debug/hotspot-diagnosis.mjs
