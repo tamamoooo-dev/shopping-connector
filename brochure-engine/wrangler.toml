@@ -38,6 +38,11 @@ BUILT_ARABIC_NAMES_ENABLED = "true"
 # rate suppresses every hotspot-only fallback for that ingest.
 NAVIGATION_AMBIGUITY_RATE_THRESHOLD = "0"
 NAVIGATION_DISAGREEMENT_RATE_THRESHOLD = "0"
+# Vision price fallback drain: SELF children per 10,30,50 fire (code default 3,
+# max 6). Set to the max 2026-09-24 by user decision: unpriced flyer products
+# should be priced as fast as possible until the queue is empty (paid Workers
+# plan; Mistral budget confirmed). Only throughput changes, never the rules.
+PRICE_FALLBACK_BATCHES = "6"
 
 # Optional runtime extraction policy. Leave unset for the validated default
 # (`vision-first`), or configure in the Worker environment as one of:
