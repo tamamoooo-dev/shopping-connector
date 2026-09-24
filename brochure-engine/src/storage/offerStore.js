@@ -49,6 +49,27 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
       r.brand_slug ?? null,
     );
 
+  // Unpriced flyer items (schema.sql flyer_items; offers/contract.js
+  // buildFlyerItem): read ONLY by the /brochures/hotspots join.
+  const flyerItemUpsertStmt = `
+    INSERT INTO flyer_items
+      (id, store, region, source, offer_id, flyer_ref, page_ref, name, name_ar,
+       category_id, category, image_url, source_url, valid_from, valid_to,
+       detected_at)
+    VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
+    ON CONFLICT(id) DO UPDATE SET
+      flyer_ref=excluded.flyer_ref, page_ref=excluded.page_ref,
+      name=excluded.name, name_ar=excluded.name_ar,
+      category_id=excluded.category_id, category=excluded.category,
+      image_url=excluded.image_url, source_url=excluded.source_url,
+      valid_from=excluded.valid_from, valid_to=excluded.valid_to`;
+  const bindFlyerItem = (r) =>
+    db.prepare(flyerItemUpsertStmt).bind(
+      r.id, r.store, r.region, r.source, r.offer_id, r.flyer_ref, r.page_ref,
+      r.name, r.name_ar, r.category_id, r.category, r.image_url, r.source_url,
+      r.valid_from, r.valid_to, r.detected_at,
+    );
+
   return {
     async upsertMany(rows) {
       // D1 batch in chunks — one bound statement per row keeps us far under the
@@ -218,6 +239,24 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
         .prepare(
           `SELECT o.*, ${enrichmentColumns} FROM offers o ${ENRICH_JOIN}
             WHERE o.store = ? AND o.region = ? AND o.flyer_ref = ? LIMIT 2000`,
+        )
+        .bind(store, region, String(flyerRef))
+        .all();
+      return results || [];
+    },
+
+    async upsertFlyerItems(rows) {
+      for (let i = 0; i < rows.length; i += 40) {
+        await db.batch(rows.slice(i, i + 40).map(bindFlyerItem));
+      }
+      return { stored: rows.length };
+    },
+
+    async flyerItemsByFlyer(store, region, flyerRef) {
+      const { results } = await db
+        .prepare(
+          `SELECT * FROM flyer_items
+            WHERE store = ? AND region = ? AND flyer_ref = ? LIMIT 2000`,
         )
         .bind(store, region, String(flyerRef))
         .all();
@@ -408,6 +447,14 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
     async pruneExpiredBefore(cutoffISO) {
       const res = await db
         .prepare('DELETE FROM offers WHERE valid_to IS NOT NULL AND valid_to < ?')
+        .bind(cutoffISO)
+        .run();
+      return res?.meta?.changes || 0;
+    },
+
+    async pruneFlyerItemsBefore(cutoffISO) {
+      const res = await db
+        .prepare('DELETE FROM flyer_items WHERE valid_to IS NOT NULL AND valid_to < ?')
         .bind(cutoffISO)
         .run();
       return res?.meta?.changes || 0;

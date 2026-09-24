@@ -379,6 +379,7 @@ export function createMemoryOfferStore({
   builtArabicNamesEnabled = false,
 } = {}) {
   const rows = new Map(); // id -> row (snake_case, like D1)
+  const flyerItems = new Map(); // id -> flyer_items row (snake_case, like D1)
 
   // The ENRICH_ROW_COLS twin, in ONE place. search() and byFlyer() both project
   // it, because the production bug this mirrors was precisely one read path
@@ -477,6 +478,29 @@ export function createMemoryOfferStore({
           .filter((r) => r.store === store && r.region === region && String(r.flyer_ref) === String(flyerRef))
           .slice(0, 2000),
       );
+    },
+    // flyer_items twin (unpriced flyer items; read only by the hotspots join).
+    async upsertFlyerItems(newRows) {
+      for (const r of newRows) {
+        const prev = flyerItems.get(r.id);
+        flyerItems.set(r.id, prev ? { ...r, detected_at: prev.detected_at } : { ...r });
+      }
+      return { stored: newRows.length };
+    },
+    async flyerItemsByFlyer(store, region, flyerRef) {
+      return [...flyerItems.values()]
+        .filter((r) => r.store === store && r.region === region && String(r.flyer_ref) === String(flyerRef))
+        .slice(0, 2000);
+    },
+    async pruneFlyerItemsBefore(cutoffISO) {
+      let n = 0;
+      for (const [id, r] of flyerItems) {
+        if (r.valid_to && r.valid_to < cutoffISO) {
+          flyerItems.delete(id);
+          n += 1;
+        }
+      }
+      return n;
     },
     async requiredFlyerRefs(store, region, currentOn) {
       return [...new Set(

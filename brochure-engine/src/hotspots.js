@@ -36,6 +36,7 @@
 // page image (the stored webp shares the flyer's aspect ratio).
 
 import { applyEnrichment } from './offers/enrich.js';
+import { flyerItemRowToOffer } from './offers/contract.js';
 
 // --- pure parser ---------------------------------------------------------------
 // Flyer HTML -> [{ index, spots: [{ offerId, x, y, w, h }] }] (fractions 0..1),
@@ -198,6 +199,23 @@ export async function getHotspotsDoc(ctx, brochureId, { rowToOffer } = {}) {
       const offer = rowToOffer ? rowToOffer(r) : r;
       if (rowToOffer) applyEnrichment(offer, r);
       offers[r.offer_id] = offer;
+    }
+  }
+
+  // Unpriced flyer items (offers/contract.js buildFlyerItem) fill the spots no
+  // priced offer covers — D4D has published new flyers without prices since
+  // 2026-09-22, and without these the viewer has nothing to tap. A priced
+  // offers row always wins. Best-effort: a read failure (e.g. the flyer_items
+  // migration not yet applied) degrades to today's behaviour, never an error.
+  if (flyerRef && ctx.offerStore && ctx.offerStore.flyerItemsByFlyer) {
+    let items = [];
+    try {
+      items = await ctx.offerStore.flyerItemsByFlyer(row.store, row.region, flyerRef);
+    } catch {
+      items = [];
+    }
+    for (const r of items) {
+      if (!offers[r.offer_id]) offers[r.offer_id] = rowToOffer ? flyerItemRowToOffer(r) : r;
     }
   }
 

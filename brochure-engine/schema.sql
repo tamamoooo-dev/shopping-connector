@@ -161,6 +161,34 @@ CREATE INDEX IF NOT EXISTS ix_offers_identity ON offers(identity);
 CREATE INDEX IF NOT EXISTS ix_offers_category ON offers(category, valid_to);
 CREATE INDEX IF NOT EXISTS ix_offers_brand ON offers(brand_slug, valid_to);
 
+-- Unpriced flyer items: source product records that carry NO price (D4D has
+-- published new flyers' records with price "0.000" since 2026-09-22). They can
+-- never be offers (price is NOT NULL above and every offers consumer relies on
+-- it), so they live here and are read ONLY by the /brochures/hotspots join, to
+-- give the flyer viewer its per-product tap targets and crops. See
+-- offers/contract.js buildFlyerItem and migrate-2026-09-24-flyer-items.sql.
+CREATE TABLE IF NOT EXISTS flyer_items (
+  id          TEXT PRIMARY KEY,   -- `${store}:${region}:${source}:${offer_id}` (= the offers id)
+  store       TEXT NOT NULL,
+  region      TEXT NOT NULL,
+  source      TEXT NOT NULL,      -- offers source adapter (e.g. 'd4d')
+  offer_id    TEXT NOT NULL,      -- the source's per-product id (= hotspot offerId)
+  flyer_ref   TEXT NOT NULL,      -- the source's flyer id (the hotspots join key)
+  page_ref    TEXT,
+  name        TEXT,               -- best-effort display name (EN), from OCR
+  name_ar     TEXT,               -- best-effort display name (AR), from OCR
+  category_id TEXT,
+  category    TEXT,
+  image_url   TEXT,               -- the product's own flyer crop (CDN)
+  source_url  TEXT,               -- provenance only
+  valid_from  TEXT,
+  valid_to    TEXT,
+  detected_at TEXT NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS ix_flyer_items_flyer ON flyer_items(store, region, flyer_ref);
+CREATE INDEX IF NOT EXISTS ix_flyer_items_valid ON flyer_items(valid_to);
+
 -- ---------------------------------------------------------------------------
 -- Price Monitoring (the Keepa-inspired Personal Alerts feature — monitor.js).
 -- A watch is a user-set target price on either a specific identifiable product

@@ -259,6 +259,110 @@ export function rowToOffer(r) {
 // words ("بيض" eggs -> "بيضاء" white), the "irrelevant brochure offers" bug.
 // Name-tier hits dominate so genuinely-named products outrank OCR-noise hits,
 // and compound look-alikes ("milk chocolate") are demoted. Pure & unit-tested.
+// --- unpriced flyer items (the flyer viewer's side table) ----------------------
+// Since 2026-09-22 D4D publishes the per-product records of NEW flyers with
+// price and was_price "0.000" (verified live 2026-09-24: 0/500 priced for
+// Othaim, Tamimi and Prime; City Flower's 09-15 flyers still priced, its 09-22
+// flyer 0/228). buildOffer rightly refuses them — every `offers` consumer
+// (search, Browse, price history, watches, alerts) assumes a real price — but
+// that left current flyers with no structured rows at all, so the flyer viewer
+// had nothing to join its tap boxes to and fell back to bare pages.
+//
+// The record still carries everything the viewer needs: the product's flyer
+// crop, its flyer + page, validity and OCR text. A flyer item keeps exactly
+// that, in its own table (flyer_items) that ONLY the /brochures/hotspots join
+// reads. It never enters `offers`, so no price-based feature can see a row
+// without a price, and no price is ever invented for it.
+
+// True when the source record carries no usable selling price.
+export function isUnpriced(raw) {
+  const price = Number(raw && raw.price);
+  return !Number.isFinite(price) || price <= 0;
+}
+
+// A source record -> a price-less flyer item, or null. The id is the SAME id
+// buildOffer would give the record, so if the source later prices it, the
+// priced offers row simply takes precedence in the hotspots join.
+export function buildFlyerItem(raw, { store, region, source, detectedAt }) {
+  const offerId = String(raw.offerId ?? '');
+  const flyerRef = raw.flyerRef != null && raw.flyerRef !== '' ? String(raw.flyerRef) : null;
+  if (!offerId || !flyerRef) return null; // unjoinable without both
+  const { name, nameAr } = deriveNames(raw.description, raw.storeWords);
+  return {
+    id: `${store}:${region}:${source}:${offerId}`,
+    store,
+    region,
+    source,
+    offerId,
+    flyerRef,
+    pageRef: raw.pageRef != null ? String(raw.pageRef) : null,
+    name,
+    nameAr,
+    categoryId: raw.categoryId != null ? String(raw.categoryId) : null,
+    category: raw.category ?? null,
+    imageUrl: raw.imageUrl ?? null,
+    sourceUrl: raw.sourceUrl ?? null,
+    validFrom: isoDate(raw.validFrom),
+    validTo: isoDate(raw.validTo),
+    detectedAt: detectedAt || new Date().toISOString(),
+  };
+}
+
+export function flyerItemToRow(i) {
+  return {
+    id: i.id,
+    store: i.store,
+    region: i.region,
+    source: i.source,
+    offer_id: i.offerId,
+    flyer_ref: i.flyerRef,
+    page_ref: i.pageRef,
+    name: i.name,
+    name_ar: i.nameAr,
+    category_id: i.categoryId,
+    category: i.category,
+    image_url: i.imageUrl,
+    source_url: i.sourceUrl,
+    valid_from: i.validFrom,
+    valid_to: i.validTo,
+    detected_at: i.detectedAt,
+  };
+}
+
+// A flyer_items row in the read API's offer shape. `price` is null and
+// `unpriced` is true: the client shows "price on the flyer" and offers no
+// price-based action. Navigation/identity fields are null by construction.
+export function flyerItemRowToOffer(r) {
+  return {
+    id: r.id,
+    store: r.store,
+    region: r.region,
+    source: r.source,
+    offerId: r.offer_id,
+    flyerRef: r.flyer_ref,
+    pageRef: r.page_ref,
+    brochureId: null,
+    pageIndex: null,
+    navigationProvenance: null,
+    edition: null,
+    name: r.name,
+    nameAr: r.name_ar,
+    price: null,
+    oldPrice: null,
+    currency: 'SAR',
+    categoryId: r.category_id,
+    category: r.category,
+    imageUrl: r.image_url,
+    sourceUrl: null, // provenance only, as in rowToOffer
+    validFrom: r.valid_from,
+    validTo: r.valid_to,
+    detectedAt: r.detected_at,
+    identity: null,
+    brandSlug: null,
+    unpriced: true,
+  };
+}
+
 export function offerRelevance(offer, tokens, searchText) {
   if (!tokens.length) return 1;
   const name = canonicalMatchText(`${offer.name || ''} ${offer.nameAr || ''}`);

@@ -77,6 +77,17 @@ export async function pruneStoredBytes(ctx, { keepDays = 28, maxDeletes = 250, m
     }
   }
 
+  // Unpriced flyer items exist only for the flyer viewer, and a flyer's
+  // brochure is retired within weeks of expiry — a month is ample.
+  if (ctx.offerStore && ctx.offerStore.pruneFlyerItemsBefore) {
+    try {
+      const itemCutoff = new Date(Date.now() - 30 * 86400000).toISOString().slice(0, 10);
+      report.flyerItemsPruned = await ctx.offerStore.pruneFlyerItemsBefore(itemCutoff);
+    } catch (err) {
+      report.errors.push(`flyer items: ${err.message}`);
+    }
+  }
+
   // Price-history identities unseen for a year (product discontinued, or an
   // OCR-name variant that never recurred) are dead weight; their points go
   // with them. Active products' histories are never touched, so lowest-ever

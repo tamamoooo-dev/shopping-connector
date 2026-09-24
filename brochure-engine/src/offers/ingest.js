@@ -8,7 +8,13 @@
 // POSTs), so brochures (≤ ~43 subrequests) + offers (≤ ~4) fit one child's
 // Free-plan 50-subrequest budget.
 
-import { buildOffer, offerToRow } from './contract.js';
+import {
+  buildFlyerItem,
+  buildOffer,
+  flyerItemToRow,
+  isUnpriced,
+  offerToRow,
+} from './contract.js';
 import { deriveIdentity, recordOfferHistory } from '../priceHistory.js';
 import { detectBrand } from '../browse/brands.js';
 import {
@@ -127,6 +133,7 @@ export async function ingestOffersForTarget(ctx, provider, region) {
     fetched: 0,
     stored: 0,
     dropped: 0,
+    unpriced: 0,
     linked: 0,
     unbacked: 0,
     mappingAnomalies: 0,
@@ -151,15 +158,22 @@ export async function ingestOffersForTarget(ctx, provider, region) {
 
     const detectedAt = new Date().toISOString();
     const offers = [];
+    const flyerItemRows = [];
     for (const raw of raws) {
-      const offer = buildOffer(raw, {
+      const built = {
         store: provider.id,
         region,
         source: ctx.offersSource.name,
         detectedAt,
-      });
+      };
+      const offer = buildOffer(raw, built);
       if (!offer) {
-        line.dropped += 1; // failed the sanity gates (no usable price/id)
+        // A record the source published WITHOUT a price (D4D since 2026-09-22)
+        // is not an offer, but it is still a product on a flyer page: keep it
+        // as a flyer item so the viewer can tap it (contract.js buildFlyerItem).
+        const item = isUnpriced(raw) ? buildFlyerItem(raw, built) : null;
+        if (item) flyerItemRows.push(flyerItemToRow(item));
+        else line.dropped += 1; // failed the sanity gates (no usable id)
         continue;
       }
       // Stamp the derived cross-week identity (the SAME derivation the price
@@ -233,6 +247,19 @@ export async function ingestOffersForTarget(ctx, provider, region) {
     if (rows.length) await ctx.offerStore.upsertMany(rows);
     line.stored = rows.length;
 
+    // Unpriced flyer items. Deliberately NOT a line error: the brochure
+    // publisher treats any offers-ingest error as fatal, and this side table
+    // (viewer tap targets only) must never block publication — e.g. before
+    // migrate-2026-09-24-flyer-items.sql is applied.
+    line.unpriced = flyerItemRows.length;
+    if (flyerItemRows.length && typeof ctx.offerStore.upsertFlyerItems === 'function') {
+      try {
+        await ctx.offerStore.upsertFlyerItems(flyerItemRows);
+      } catch (err) {
+        line.unpricedError = err.message;
+      }
+    }
+
     // Relink every still-current stored row for each completed flyer, not only
     // rows returned by this particular D4D response. D4D's current response can
     // omit offers that remain valid and indexed; those rows must recover their
@@ -291,6 +318,7 @@ export async function ingestOffers(ctx, { store } = {}) {
       fetched: t.fetched + l.fetched,
       stored: t.stored + l.stored,
       dropped: t.dropped + l.dropped,
+      unpriced: t.unpriced + (l.unpriced || 0),
       linked: t.linked + l.linked,
       restored: t.restored + (l.restored || 0),
       unbacked: t.unbacked + l.unbacked,
@@ -301,6 +329,7 @@ export async function ingestOffers(ctx, { store } = {}) {
       fetched: 0,
       stored: 0,
       dropped: 0,
+      unpriced: 0,
       linked: 0,
       restored: 0,
       unbacked: 0,
