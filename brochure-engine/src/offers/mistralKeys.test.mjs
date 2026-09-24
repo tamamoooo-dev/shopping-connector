@@ -362,7 +362,8 @@ console.log('model pools:');
     keysOf(pools.ocr) === 'o1,s1,s2,s3,m1,m2,m3' &&
     keysOf(pools.ministral14) === 's1,s2,s3,m1,m2,m3,o1');
   check('a borrowed key serves the borrowing pool\'s model, keeping its own slot id',
-    pools.small.every((x) => x.model === 'mistral-small-2603') &&
+    pools.ocr.every((x) => x.model === 'mistral-ocr-latest') &&
+    pools.small.every((x) => x.model === 'ministral-14b-2512') &&
     pools.medium.find((x) => x.key === 's1')?.id === 'small-1');
   check('small pool fails over across every configured key',
     createKeyChain(pools.small.map((x) => x.key), { log: noLog }).size === 7);

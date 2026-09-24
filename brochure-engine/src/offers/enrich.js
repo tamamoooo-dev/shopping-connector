@@ -27,8 +27,9 @@
 //     (a paced post-ingest step) decides when and how fast. Pure fetch-based,
 //     Workers- and Node-compatible.
 //
-// Model: Mistral `mistral-medium-latest` — the FROZEN production extraction
-// baseline adopted 2026-07-25 (see PRODUCTION_EXTRACTION_BASELINE below).
+// Model: `ministral-14b-2512`, the one model since 2026-09-24 (every older
+// Mistral model is retired). The FROZEN extraction prompt adopted 2026-07-25 is
+// unchanged (see PRODUCTION_EXTRACTION_BASELINE below).
 // Configurable — swapping models or providers is a constructor argument, not a
 // code change downstream.
 
@@ -306,7 +307,10 @@ export function needsEnrichment(offer) {
 
 export const MISTRAL_URL = 'https://api.mistral.ai/v1/chat/completions';
 const MISTRAL_OCR_URL = 'https://api.mistral.ai/v1/ocr';
-export const DEFAULT_MODEL = 'mistral-medium-latest';
+// ONE MODEL since 2026-09-24 (user directive: every older Mistral model is
+// retired). The prompt is still the frozen 2026-07-25 baseline; only the model
+// moved, and buildVisionRequest omits reasoning_effort, which Ministral rejects.
+export const DEFAULT_MODEL = 'ministral-14b-2512';
 export const DEFAULT_OCR_MODEL = 'mistral-ocr-latest';
 
 // --- the FROZEN production extraction baseline (2026-07-25) --------------------

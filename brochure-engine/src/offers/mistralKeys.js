@@ -352,9 +352,11 @@ export function createKeyChain(
 }
 
 export const MISTRAL_POOL_DEFINITIONS = Object.freeze({
+  // 2026-09-24: one model (Ministral 14B); the medium/small pool NAMES stay as
+  // secret-binding groups, but both now run ministral-14b-2512.
   medium: {
-    label: 'Medium 3.5',
-    model: 'mistral-medium-latest',
+    label: 'Medium keys (Ministral 14B)',
+    model: 'ministral-14b-2512',
     slots: [
       ['medium-1', 'Medium key 1'],
       ['medium-2', 'Medium key 2'],
@@ -362,8 +364,8 @@ export const MISTRAL_POOL_DEFINITIONS = Object.freeze({
     ],
   },
   small: {
-    label: 'Small 2603',
-    model: 'mistral-small-2603',
+    label: 'Small keys (Ministral 14B)',
+    model: 'ministral-14b-2512',
     slots: [
       ['small-1', 'Small key'],
       ['small-2', 'Small key backup'],

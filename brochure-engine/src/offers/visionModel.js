@@ -40,12 +40,11 @@ export const VISION_MODEL_TIERS = {
     tier: 'medium',
     label: 'Medium 3.5',
     note: 'Recommended',
-    // The ALIAS, not the pinned id: `mistral-medium-latest` is the exact string
-    // the frozen 50-crop production validation sent, and enrich.test.mjs
-    // asserts production still sends it byte for byte. `mistral-medium-3.5` is
-    // what that alias resolves to — recorded here, never sent.
-    model: 'mistral-medium-latest',
-    version: 'mistral-medium-3.5',
+    // RETIRED 2026-09-24 (user directive: one model, Ministral 14B). The tier
+    // key stays so stored selections and the console keep resolving, but it
+    // can no longer put a retired model on the wire.
+    model: 'ministral-14b-2512',
+    version: 'ministral-14b-2512',
     budget: false,
     warning: null,
     description: 'Production baseline. Highest extraction quality.',

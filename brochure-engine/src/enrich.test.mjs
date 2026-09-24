@@ -80,7 +80,8 @@ console.log('crop-only request:');
   check('one user message, one image', req.messages.length === 1 && req.messages[0].content.filter((x) => x.type === 'image_url').length === 1);
   check('complete observer prompt is present', req.messages[0].content[0].text === VISION_PROMPT && /only source of truth/.test(VISION_PROMPT));
   check('request has no metadata-bearing fields',
-    Object.keys(req).sort().join(',') === 'messages,model,reasoning_effort,response_format,temperature,top_p' &&
+    // Ministral 14B (the one model since 2026-09-24) rejects reasoning_effort.
+    Object.keys(req).sort().join(',') === 'messages,model,response_format,temperature,top_p' &&
     Object.keys(req.messages[0]).sort().join(',') === 'content,role');
   check('crop rides as a bare data-URL string, exactly as validated',
     req.messages[0].content[1].image_url === 'data:image/jpeg;base64,AQID');
@@ -97,15 +98,17 @@ console.log('frozen baseline:');
     new URL('../benchmarks/mistral-medium-production-validation-50-2026-07-25/production-prompt.txt', import.meta.url),
     'utf8',
   );
-  check('production model is mistral-medium-latest', DEFAULT_MODEL === 'mistral-medium-latest');
+  // 2026-09-24: one model, Ministral 14B; every older model is retired. The
+  // prompt below stays byte-frozen — only the model moved.
+  check('production model is ministral-14b-2512 (the one model)', DEFAULT_MODEL === 'ministral-14b-2512');
   check('prompt is byte-identical to the frozen record', VISION_PROMPT === frozen);
   check('prompt sha256 matches the frozen decision',
     createHash('sha256').update(VISION_PROMPT).digest('hex') === VISION_PROMPT_SHA256 &&
     VISION_PROMPT_SHA256 === 'e643b2a1b833d12256e0e3806b04c28bc5fd042bf3a86b647b989df9be7c3557');
   const req = buildVisionRequest({ contentType: 'image/jpeg', base64: 'AQID' });
   check('validated settings are what production sends',
-    req.model === 'mistral-medium-latest' && req.temperature === 0 && req.top_p === 1 &&
-    req.reasoning_effort === 'none' && req.response_format.type === 'json_object');
+    req.model === 'ministral-14b-2512' && req.temperature === 0 && req.top_p === 1 &&
+    !('reasoning_effort' in req) && req.response_format.type === 'json_object');
   check('the baseline record matches the code it describes',
     PRODUCTION_EXTRACTION_BASELINE.model === DEFAULT_MODEL &&
     PRODUCTION_EXTRACTION_BASELINE.promptSha256 === VISION_PROMPT_SHA256 &&
@@ -608,7 +611,7 @@ console.log('S4 acceptance in the drain:');
     report.providerError?.responseBody ===
       '{"object":"error","message":"Rate limit exceeded","type":"rate_limited","param":null,"code":"1300","raw_status_code":429}' &&
     report.providerError?.error?.code === '1300' &&
-    report.providerError?.model === 'mistral-medium-latest' &&
+    report.providerError?.model === 'ministral-14b-2512' &&
     report.providerError?.headers?.requestId === 'test-request-id' &&
     report.providerError?.attempts?.[0]?.keyId === 'key-1');
 }

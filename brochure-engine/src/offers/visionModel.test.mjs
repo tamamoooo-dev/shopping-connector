@@ -50,11 +50,11 @@ check('default tier is medium', DEFAULT_VISION_TIER === 'medium');
 // differ; the engine simply does not override while inert (see the ARMED block
 // below). Once the baseline lands they converge on their own.
 check(
-  'medium puts the FROZEN baseline model string on the wire',
-  VISION_MODEL_TIERS.medium.model === 'mistral-medium-latest',
+  'the retired medium tier can no longer put a retired model on the wire (one model, 2026-09-24)',
+  VISION_MODEL_TIERS.medium.model === 'ministral-14b-2512',
 );
-check('medium records the resolved version without sending it',
-  VISION_MODEL_TIERS.medium.version === 'mistral-medium-3.5');
+check('the retired medium tier records Ministral 14B as its version',
+  VISION_MODEL_TIERS.medium.version === 'ministral-14b-2512');
 check('medium is not a budget tier and carries no warning',
   VISION_MODEL_TIERS.medium.budget === false && VISION_MODEL_TIERS.medium.warning === null);
 check(
@@ -80,7 +80,8 @@ check('visionModelFor(garbage) yields the medium record', visionModelFor('nope')
 console.log('\n--- reading the setting ---');
 {
   const none = await readVisionModelSetting(null);
-  check('no object store bound -> medium', none.tier === 'medium' && none.model === 'mistral-medium-latest');
+  check('no object store bound -> the default tier, which sends Ministral 14B',
+    none.tier === 'medium' && none.model === 'ministral-14b-2512');
   check('no object store bound -> source "default"', none.source === 'default');
 
   const store = memoryObjectStore();
@@ -124,7 +125,7 @@ console.log('\n--- writing the setting ---');
   check('switching back restores the production baseline',
     restored.tier === 'medium' && restored.budget === false && restored.warning === null);
   check('restored selection round-trips',
-    (await readVisionModelSetting(store)).model === 'mistral-medium-latest');
+    (await readVisionModelSetting(store)).model === 'ministral-14b-2512');
 
   let threw = false;
   try { await writeVisionModelSetting(null, 'small'); } catch { threw = true; }
@@ -182,8 +183,8 @@ const effectiveModel = ({ model = DEFAULT_MODEL } = {}) => model;
   await writeVisionModelSetting(armedStore, 'medium', { by: 'ops' });
   const armedMedium = await readVisionModelSetting(armedStore);
   check('explicitly choosing Medium stays ARMED', armedMedium.armed === true);
-  check('ARMED Medium pins the frozen baseline model',
-    drainOptionsFor(armedMedium).model === 'mistral-medium-latest');
+  check('ARMED (retired) Medium tier still sends only Ministral 14B',
+    drainOptionsFor(armedMedium).model === 'ministral-14b-2512');
 }
 
 console.log('\n--- the selection reaches the wire ---');
@@ -197,7 +198,7 @@ console.log('\n--- the selection reaches the wire ---');
   await writeVisionModelSetting(store, 'medium');
   const back = await readVisionModelSetting(store);
   const req2 = buildVisionRequest({ model: back.model, base64: 'AAAA' });
-  check('production sends the frozen mistral-medium-latest', req2.model === 'mistral-medium-latest');
+  check('every tier sends ministral-14b-2512', req2.model === 'ministral-14b-2512');
   check('the tier switch changes ONLY the model, not the frozen request settings',
     req.temperature === req2.temperature && req.top_p === req2.top_p &&
       JSON.stringify(req.response_format) === JSON.stringify(req2.response_format));
