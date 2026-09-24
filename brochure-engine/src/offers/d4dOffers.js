@@ -91,7 +91,10 @@ export function createD4dOffersSource({ fetchImpl = fetch } = {}) {
     // listOffers(companyId, { city, storePageSlug, maxOffers }) -> raw records[].
     // `storePageSlug` (e.g. "lulu-hypermarket-63") names the page used to mint
     // the CSRF token; any store page works, so the store's own is the polite one.
-    async listOffers(companyId, { city = DEFAULT_CITY, storePageSlug, maxOffers = 1500 } = {}) {
+    // maxOffers: 3000 since 2026-09-24 — Nesto lists ~2,560 products across its
+    // current flyers, and 1500 left 3 of its flyers with no tappable product.
+    // A short page still ends the loop early, so smaller stores are unaffected.
+    async listOffers(companyId, { city = DEFAULT_CITY, storePageSlug, maxOffers = 3000 } = {}) {
       if (!companyId) throw new Error('d4dOffers: companyId is required');
       const pageUrl = `${HOST}/en/saudi-arabia/${city}/offers/${storePageSlug || ''}`.replace(/\/$/, '');
 
