@@ -391,6 +391,16 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
       return (results || []).map((r) => String(r.offer_id));
     },
 
+    // Is anything left to drain? One indexed probe (ix_price_pending_queue), so
+    // an idle minute tick starts no lanes.
+    async hasPricePending({ currentOn } = {}) {
+      const row = await db
+        .prepare(`SELECT 1 AS x FROM price_pending WHERE status = 'pending' AND valid_to >= ? LIMIT 1`)
+        .bind(currentOn)
+        .first();
+      return !!row;
+    },
+
     // The drain's queue: undecided, still valid, soonest-expiring first, and
     // never a record D4D has since priced (its offer row wins; see drain).
     async listPricePending({ currentOn, limit = 10, shard = 0, shards = 1 } = {}) {

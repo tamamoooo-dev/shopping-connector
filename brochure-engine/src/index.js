@@ -33,6 +33,8 @@ import {
   createResolutionDispatcher,
   createOcrEnrichDispatcher,
   createPriceFallbackDispatcher,
+  priceFallbackLanes,
+  PRICE_FALLBACK_LANE_DEADLINE_MS,
 } from './scheduler.js';
 import { createD1MetadataStore } from './storage/metadataStore.js';
 import {
@@ -150,7 +152,9 @@ async function runDetachedResolution(env, { tag = '' } = {}) {
 
 // PRICE_FALLBACK_MODEL (default: the ministral14 pool's pinned model),
 // PRICE_FALLBACK_MAX_READINGS (2..10), PRICE_FALLBACK_TEMPERATURE (0..1],
-// PRICE_FALLBACK_BATCHES (children per cron fire, 0 disables, max 6).
+// PRICE_FALLBACK_LANES (parallel children per minute tick, 0 disables, max 8),
+// PRICE_FALLBACK_RESERVE (requests per key per minute the drain leaves to
+// Stage-1 Vision and verification, 0..29).
 function priceFallbackConfig(env) {
   const num = (v, lo, hi, dflt) => {
     const n = Number(v);
@@ -160,7 +164,8 @@ function priceFallbackConfig(env) {
     model: String(env.PRICE_FALLBACK_MODEL || MISTRAL_POOL_DEFINITIONS.ministral14.model).trim(),
     maxReadings: Math.floor(num(env.PRICE_FALLBACK_MAX_READINGS, 2, 10, PRICE_FALLBACK_DEFAULTS.maxReadings)),
     temperature: num(env.PRICE_FALLBACK_TEMPERATURE, 0.01, 1, PRICE_FALLBACK_DEFAULTS.temperature),
-    batches: Math.floor(num(env.PRICE_FALLBACK_BATCHES, 0, 6, 3)),
+    lanes: Math.floor(num(env.PRICE_FALLBACK_LANES, 0, 8, 3)),
+    reserve: Math.floor(num(env.PRICE_FALLBACK_RESERVE, 0, 29, 6)),
   };
 }
 
@@ -366,6 +371,7 @@ const worker = {
     //   • "10,30,50 * * * *" — the steady-state vision-enrichment drain (below).
     //   • "* * * * *" — durable Price Monitoring rounds at 07:00/19:00
     //     Riyadh, with a failed lookup retried on subsequent minute ticks.
+    //   • "* * * * *" — the vision price fallback's parallel lanes.
     //   • "45 5 * * *" — Monday registry maintenance.
     //   • "0 6 * * 2,3,5" — the WEEKLY brochure/offers pipeline (fan-out ->
     //     price capture -> retention), unchanged below.
@@ -413,6 +419,38 @@ const worker = {
           }));
         })().catch((err) => {
           console.error('brochure-engine watch round dispatch', err?.message || String(err));
+        }),
+      );
+      // Vision price fallback: `lanes` parallel SELF children per minute, on
+      // disjoint shards, matching Mistral's fixed one-minute request window.
+      // Each child leaves PRICE_FALLBACK_RESERVE requests per key per minute
+      // for Stage-1 Vision and verification (shared keys) and ends early when
+      // its keys have spent their window. Its own waitUntil task, so it can
+      // never delay the background tick below.
+      if (!event.backgroundStage) ctx.waitUntil(
+        (async () => {
+          const context = buildContext(env);
+          const cfg = context.priceFallback;
+          if (!cfg.lanes || !context.mistralPools.ministral14.some((slot) => slot.key)) return;
+          const today = new Date().toISOString().slice(0, 10);
+          if (!(await context.offerStore.hasPricePending({ currentOn: today }))) return;
+          const dispatch = createPriceFallbackDispatcher({ self: env.SELF, ingestSecret: env.INGEST_SECRET });
+          const minute = new Date(event.scheduledTime || Date.now()).getUTCMinutes();
+          const lines = await Promise.all(priceFallbackLanes(cfg.lanes, minute).map(({ shard, shards }) =>
+            dispatch(25, { shard, shards, deadlineMs: PRICE_FALLBACK_LANE_DEADLINE_MS })
+              .then((r) => ({
+                shard,
+                scanned: r.scanned,
+                accepted: r.accepted,
+                rejected: r.rejected,
+                readings: r.readings,
+                yielded: r.yielded || null,
+                stopped: r.stopped || null,
+              }))
+              .catch((err) => ({ shard, error: err?.message || String(err) }))));
+          console.log('brochure-engine price fallback lanes', JSON.stringify({ lines }));
+        })().catch((err) => {
+          console.error('brochure-engine price fallback unavailable', err?.message || String(err));
         }),
       );
       ctx.waitUntil(
@@ -703,27 +741,8 @@ const worker = {
           console.error('brochure-engine Arabic Builder shadow backfill unavailable', err?.message || String(err));
         }),
       );
-      // Vision price fallback: its own waitUntil task and its own key pool, so
-      // a Ministral outage can never delay the Vision drain or OCR below.
-      // Sequential SELF children (each its own subrequest budget); a child that
-      // finds nothing to do, is skipped, or stops ends the fire early.
-      ctx.waitUntil(
-        (async () => {
-          const context = buildContext(env);
-          const cfg = context.priceFallback;
-          if (!cfg.batches || !context.mistralPools.ministral14.some((slot) => slot.key)) return;
-          const dispatch = createPriceFallbackDispatcher({ self: env.SELF, ingestSecret: env.INGEST_SECRET });
-          const lines = [];
-          for (let i = 0; i < cfg.batches; i += 1) {
-            const r = await dispatch(10);
-            lines.push({ scanned: r.scanned, accepted: r.accepted, rejected: r.rejected, stopped: r.stopped || null });
-            if (r.skipped || r.stopped || !r.scanned) break;
-          }
-          console.log('brochure-engine price fallback drain', JSON.stringify({ batches: lines.length, lines }));
-        })().catch((err) => {
-          console.error('brochure-engine price fallback unavailable', err?.message || String(err));
-        }),
-      );
+      // (The vision price fallback drains on the one-minute tick, not here:
+      // Mistral's allowance is a per-minute window.)
       // OCR escalation is a separate waitUntil task. Its provider, quota, or
       // authentication failure cannot reject or delay the Vision drain below.
       ctx.waitUntil(

@@ -26,6 +26,10 @@
 //   • An accepted price becomes a NORMAL offer with price_source='vision'.
 //   • Every item is decided once. Transient failures retry a bounded number of
 //     drain attempts, then the item is rejected; nothing loops forever.
+//   • A provider RATE LIMIT is never the item's failure: it costs no attempt
+//     and ends the run (`yielded`); the item waits for the next run. Before
+//     2026-09-24 a 429 counted as an attempt, so a saturated key permanently
+//     rejected items that had never been read.
 
 import { buildOffer, offerToRow } from './contract.js';
 import { buildVisionRequest, MISTRAL_URL, postMistral, toBase64, visionObservationFromReply } from './enrich.js';
@@ -193,11 +197,19 @@ export async function drainPriceFallback(
     temperature = PRICE_FALLBACK_DEFAULTS.temperature,
     maxDrainAttempts = PRICE_FALLBACK_DEFAULTS.maxDrainAttempts,
     subrequestBudget = PRICE_FALLBACK_DEFAULTS.subrequestBudget,
+    // Wall-clock ms after which no NEW item is started (null = no limit). The
+    // minute-tick lanes set it so a run ends before the next tick's lanes on
+    // the same shards begin.
+    deadlineMs = null,
     fetchImpl = fetch,
     now = () => new Date().toISOString(),
-    failover = {},
+    clock = () => Date.now(),
+    // One wait for the next minute window mid-item (its readings are already
+    // spent); a key still throttled after that ends the run.
+    failover = { maxRateRetries: 1 },
   } = {},
 ) {
+  const startedMs = clock();
   const report = {
     startedAt: now(),
     model,
@@ -226,6 +238,16 @@ export async function drainPriceFallback(
   for (const row of rows) {
     // Never start an item the invocation cannot finish (crop + max readings).
     if (report.subrequests + 1 + maxReadings > subrequestBudget) break;
+    if (deadlineMs != null && clock() - startedMs >= deadlineMs) {
+      report.yielded = 'deadline';
+      break;
+    }
+    // Every usable key has spent (or reached its reserve of) this minute's
+    // window: do not start an item that would only wait; the next run resumes.
+    if (keyChain?.current && keyChain.current() == null && keyChain.nextResumeAt?.() != null) {
+      report.yielded = 'rate_window';
+      break;
+    }
     const raw = JSON.parse(row.raw_json);
     const readings = [];
     const replies = [];
@@ -250,9 +272,16 @@ export async function drainPriceFallback(
       // A crop the CDN no longer has is permanent; a bad model name or dead
       // keys stop the whole drain (nothing to gain by burning the queue);
       // anything else is transient and retried on a later drain, boundedly.
+      const kind = err?.stage === 'crop' ? 'other' : classifyMistralError(err);
       if (err?.stage === 'crop' && (err.status === 404 || err.status === 410)) {
         decision = { status: 'rejected', reason: 'crop_missing' };
-      } else if (err?.status === 400 || err?.status === 404 || classifyMistralError(err) === 'auth') {
+      } else if (kind === 'rate') {
+        // Throttled after waiting for the next window: the provider is
+        // saturated. The item is untouched (no attempt) and stays first in line.
+        report.deferred += 1;
+        report.yielded = 'rate_limited';
+        break;
+      } else if (err?.status === 400 || err?.status === 404 || kind === 'auth' || kind === 'restriction') {
         report.errors.push(err?.message || String(err));
         report.stopped = 'model_or_keys_unavailable';
         break;

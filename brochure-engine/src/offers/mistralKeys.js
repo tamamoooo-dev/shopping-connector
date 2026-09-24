@@ -42,6 +42,28 @@ function finiteNumber(value) {
 // while healthy keys continue serving between probes.
 const EXHAUSTED_KEY_RECHECK_MS = 6 * 60 * 60 * 1000;
 
+// Mistral's per-minute allowance is a FIXED window that resets on the
+// wall-clock minute (measured 2026-09-24: remaining-req-minute counts 30 -> 0,
+// every request in between is 429, and it returns to 29 at hh:mm:00; no
+// Retry-After is sent). A key that has spent its window cannot serve until the
+// next minute, so it is parked to that boundary instead of a short backoff
+// that only re-knocks on a closed window.
+const MINUTE_MS = 60 * 1000;
+const WINDOW_MARGIN_MS = 250;
+
+export function nextMinuteWindow(t) {
+  return (Math.floor(t / MINUTE_MS) + 1) * MINUTE_MS + WINDOW_MARGIN_MS;
+}
+
+// True when the headers show this minute's request or token allowance is spent.
+export function minuteWindowSpent(rateLimit) {
+  if (!rateLimit) return false;
+  const spent = (remaining, limit) =>
+    finiteNumber(limit) > 0 && finiteNumber(remaining) === 0;
+  return spent(rateLimit.remainingRequestsMinute, rateLimit.limitRequestsMinute) ||
+    spent(rateLimit.remainingTokensMinute, rateLimit.limitTokensMinute);
+}
+
 export function remainingPercentage(rateLimit) {
   if (!rateLimit) return null;
   // Mistral uses an explicit 0/0 request allowance when a Workspace has no
@@ -158,6 +180,11 @@ export function createKeyChain(
     now = () => Date.now(),
     balance = false,
     usage = {},
+    // Requests per key per minute this caller leaves for everyone else. A key
+    // whose reply shows `remaining <= reserve` is parked until the next minute
+    // window. Background drains set it so they cannot starve Stage-1 Vision on
+    // a shared key; 0 (the default) still parks a key its reply shows spent.
+    reserve = 0,
   } = {},
 ) {
   const seen = new Set();
@@ -176,14 +203,19 @@ export function createKeyChain(
       finiteNumber(storedRateLimit.remainingRequestsMinute) === 0;
     const storedRestrictionCategory = storedPrior.restrictionCategory ||
       storedRateLimit.category || (requestAllowanceZero ? 'request_allowance_zero' : null);
-    const restrictionRecheckDue = isTerminalMistralLimit(storedRestrictionCategory) &&
-      (!Number.isFinite(observedMs) || now() - observedMs >= EXHAUSTED_KEY_RECHECK_MS);
-    const exhaustedRecheckDue = storedPct != null && storedPct <= 0 &&
-      (!Number.isFinite(observedMs) || now() - observedMs >= EXHAUSTED_KEY_RECHECK_MS);
-    const prior = exhaustedRecheckDue || restrictionRecheckDue ? {} : storedPrior;
+    const recheckDue = !Number.isFinite(observedMs) || now() - observedMs >= EXHAUSTED_KEY_RECHECK_MS;
+    const restrictionRecheckDue = isTerminalMistralLimit(storedRestrictionCategory) && recheckDue;
+    const exhaustedRecheckDue = storedPct != null && storedPct <= 0 && recheckDue;
+    // A key last seen answering 401/402/403 (no subscription, budget exhausted,
+    // revoked) stays retired across invocations until the same recheck window:
+    // otherwise every Worker invocation spends a call per dead key before
+    // reaching a live one (three dead keys lead the shared Small pool).
+    const storedInvalid = storedPrior.status === 'invalid';
+    const invalidRecheckDue = storedInvalid && recheckDue;
+    const prior = exhaustedRecheckDue || restrictionRecheckDue || invalidRecheckDue ? {} : storedPrior;
     slots.push({
       ...entry,
-      dead: false,
+      dead: storedInvalid && !invalidRecheckDue,
       restricted: isTerminalMistralLimit(storedRestrictionCategory) && !restrictionRecheckDue,
       restrictionCategory: isTerminalMistralLimit(storedRestrictionCategory) && !restrictionRecheckDue
         ? storedRestrictionCategory
@@ -272,6 +304,12 @@ export function createKeyChain(
       if (!slot) return;
       slot.calls += 1;
       recordRateLimit(index, rateLimit);
+      // At or below the reserve for this minute: leave the rest of the window
+      // to other callers (the next call would 429 anyway when it is 0).
+      const remaining = finiteNumber(rateLimit?.remainingRequestsMinute);
+      if (finiteNumber(rateLimit?.limitRequestsMinute) > 0 && remaining != null && remaining <= reserve) {
+        slot.until = Math.max(slot.until, nextMinuteWindow(now()));
+      }
     },
     // Auth failure: this key is unusable for the rest of the run.
     markDead(index, reason, rateLimit = null) {
@@ -594,12 +632,15 @@ export async function withFailover(keyChain, doCall, {
           continue; // try the next usable key immediately
         }
         if (kind === 'rate') {
-          // Park this key until the provider's own Retry-After window (or a
-          // growing backoff when none was sent), then loop — pick() hands us the
-          // next usable key at once, so the backup is tried BEFORE any wait.
+          // Park this key until the provider's own Retry-After window, else the
+          // next minute window when the headers show it spent (Mistral sends no
+          // Retry-After), else a growing backoff; then loop — pick() hands us
+          // the next usable key at once, so the backup is tried BEFORE any wait.
           const untilMs = err.retryAfterMs != null
             ? now() + err.retryAfterMs
-            : now() + backoffMs * (waitCycles + 1);
+            : minuteWindowSpent(err.rateLimit)
+              ? nextMinuteWindow(now())
+              : now() + backoffMs * (waitCycles + 1);
           keyChain.markRateLimited(slot.index, untilMs, 'rate limited', err?.rateLimit || null);
           continue;
         }

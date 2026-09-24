@@ -14,6 +14,7 @@ import { ingestOffers } from './ingest.js';
 import { isUnpriced, pricePendingRow, rowToOffer } from './contract.js';
 import { buildMistralPools, createKeyChain } from './mistralKeys.js';
 import { MISTRAL_URL } from './enrich.js';
+import { createPriceFallbackDispatcher, priceFallbackLanes } from '../scheduler.js';
 import { createMemoryMetadataStore, createMemoryOfferStore } from '../storage/local.js';
 import { createD1OfferStore } from '../storage/offerStore.js';
 import { createSqliteD1 } from '../storage/testSqliteD1.mjs';
@@ -310,6 +311,70 @@ assert.equal(isUnpriced({ price: 9.95 }), false);
   legacy.close();
 }
 
+// --- rate limits are the provider's, never the item's (2026-09-24) ---------------
+{
+  // Before: every drain that hit 429 counted an attempt, and the third one
+  // rejected an item that was never read. Now: no attempt, pending, run ends.
+  const store = await queued('RL', 'x 9.95');
+  for (let i = 0; i < 4; i += 1) {
+    const { report } = await drainOne(store, Array.from({ length: 10 }, () => ({ status: 429, body: '{"message":"Rate limit exceeded","type":"rate_limited","code":"1300"}' })));
+    assert.equal(report.yielded, 'rate_limited');
+    assert.equal(report.deferred, 1);
+    assert.equal(report.rejected, 0);
+    assert.equal(report.stopped, undefined, 'a throttled provider is not a broken one');
+  }
+  const [p] = await store.pricePendingByIds(['shop:central:d4d:RL']);
+  assert.equal(p.status, 'pending');
+  assert.equal(p.attempts, 0, 'no attempt was spent on the throttle');
+}
+{
+  // Every key has spent this minute's window: the drain starts nothing.
+  const store = await queued('RW', 'x 9.95');
+  const { calls, fetchImpl } = harness([P(9.95), P(9.95)]);
+  const keyChain = createKeyChain(['k1', 'k2'], { log: () => {} });
+  keyChain.markRateLimited(0, Date.now() + 30_000);
+  keyChain.markRateLimited(1, Date.now() + 30_000);
+  const report = await drainPriceFallback({ offerStore: store, keyChain }, {
+    model: 'ministral-14b-2512', currentOn: today, limit: 5, fetchImpl,
+  });
+  assert.equal(report.yielded, 'rate_window');
+  assert.equal(calls.length, 0);
+  assert.equal(report.subrequests, 0, 'not even the crop is fetched');
+}
+{
+  // A lane past its deadline starts no new item; the item waits, untouched.
+  const store = await queued('DL', 'x 9.95');
+  const { report } = await drainOne(store, [P(9.95), P(9.95)], { opts: { deadlineMs: 0 } });
+  assert.equal(report.yielded, 'deadline');
+  assert.equal(report.readings, 0);
+  assert.equal((await store.pricePendingByIds(['shop:central:d4d:DL']))[0].status, 'pending');
+}
+{
+  // Minute-tick lanes: disjoint shards, alternating halves on even/odd minutes,
+  // so a lane that overruns its minute never shares items with the next tick.
+  assert.deepEqual(priceFallbackLanes(3, 10), [{ shard: 0, shards: 6 }, { shard: 1, shards: 6 }, { shard: 2, shards: 6 }]);
+  assert.deepEqual(priceFallbackLanes(3, 11), [{ shard: 3, shards: 6 }, { shard: 4, shards: 6 }, { shard: 5, shards: 6 }]);
+  const urls = [];
+  const dispatch = createPriceFallbackDispatcher({
+    self: { fetch: async (url) => { urls.push(url); return new Response('{"scanned":0}'); } },
+    ingestSecret: 's',
+  });
+  await dispatch(25, { shard: 4, shards: 6, deadlineMs: 35000 });
+  await dispatch(10);
+  assert.match(urls[0], /\/price-fallback\?limit=25&shard=4&shards=6&deadlineMs=35000$/);
+  assert.match(urls[1], /\/price-fallback\?limit=10$/);
+}
+{
+  // hasPricePending: the idle-tick probe, memory and D1 agree.
+  const { db, close } = createSqliteD1(['schema.sql']);
+  for (const store of [createMemoryOfferStore(), createD1OfferStore(db)]) {
+    assert.equal(await store.hasPricePending({ currentOn: today }), false);
+    await store.upsertPricePending([pricePendingRow(rawFor('HP', 'x 1.00'), { store: 'shop', region: 'central', source: 'd4d', detectedAt: 'now' })]);
+    assert.equal(await store.hasPricePending({ currentOn: today }), true);
+    assert.equal(await store.hasPricePending({ currentOn: '2999-01-01' }), false, 'expired items do not count');
+  }
+  close();
+}
 // --- parallel drains (2026-09-24): shards partition the queue, rules untouched ----
 {
   const later = new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10);

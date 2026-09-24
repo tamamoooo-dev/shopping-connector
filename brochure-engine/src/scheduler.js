@@ -467,13 +467,32 @@ export function createOcrEnrichDispatcher({ self, ingestSecret, origin = 'https:
   };
 }
 
+// A minute-tick price lane starts no new item after this long, so it ends
+// before the next tick that drains the same shards (see priceFallbackLanes).
+export const PRICE_FALLBACK_LANE_DEADLINE_MS = 35 * 1000;
+
+// The shards one minute tick drains: `lanes` disjoint shards of 2 x lanes,
+// alternating halves on even and odd minutes. A lane that runs past its minute
+// (one mid-item wait for the next Mistral window) never shares items with the
+// next tick's lanes; the same shards come back two ticks later.
+export function priceFallbackLanes(lanes, minute) {
+  const base = (minute % 2) * lanes;
+  return Array.from({ length: lanes }, (_, i) => ({ shard: base + i, shards: lanes * 2 }));
+}
+
 // Vision price fallback child (engine.js POST /price-fallback).
 export function createPriceFallbackDispatcher({ self, ingestSecret, origin = 'https://brochure-engine.internal' } = {}) {
   if (!self || typeof self.fetch !== 'function') {
     throw new Error('scheduler: a SELF service binding (env.SELF) is required for the price fallback dispatcher');
   }
-  return async function dispatchBatch(limit) {
-    const res = await self.fetch(`${origin}/price-fallback?limit=${encodeURIComponent(limit)}`, {
+  return async function dispatchBatch(limit, { shard = null, shards = null, deadlineMs = null } = {}) {
+    const params = new URLSearchParams({ limit: String(limit) });
+    if (shards > 1) {
+      params.set('shard', String(shard));
+      params.set('shards', String(shards));
+    }
+    if (deadlineMs) params.set('deadlineMs', String(deadlineMs));
+    const res = await self.fetch(`${origin}/price-fallback?${params}`, {
       method: 'POST',
       headers: { 'X-Ingest-Secret': ingestSecret || '' },
     });

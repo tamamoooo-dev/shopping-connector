@@ -95,11 +95,12 @@ function mistralPool(ctx, pool) {
   return [ctx.mistralKey, ctx.mistralKeyBackup];
 }
 
-function createPoolChain(ctx, pool, usage = {}) {
+function createPoolChain(ctx, pool, usage = {}, { reserve = 0 } = {}) {
   return createKeyChain(mistralPool(ctx, pool), {
     label: `mistral-${pool}`,
     balance: pool === 'medium',
     usage,
+    reserve,
   });
 }
 
@@ -1352,14 +1353,19 @@ export async function handleRequest(request, ctx) {
   // records that arrived without a usable price, reading each crop with
   // Ministral 3 14B from its OWN key pool until two consecutive readings agree,
   // then checking the candidate against D4D's description. Cron-driven (index.js
-  // 10,30,50), one SELF child per batch; inert until a model and a key exist.
+  // one-minute tick, parallel lanes on disjoint shards); inert until a model
+  // and a key exist.
   if (path === '/price-fallback' && request.method === 'POST') {
     if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
       return json({ error: 'Forbidden' }, 403);
     }
     if (!ctx.offerStore?.listPricePending) return json({ error: 'Offer store unavailable.' }, 503);
     const cfg = ctx.priceFallback || {};
-    const keyChain = createPoolChain(ctx, 'ministral14', await mistralUsageSnapshot(ctx));
+    // The drain leaves `reserve` requests per key per minute to Stage-1 Vision
+    // and verification, which share these keys (one shared pool).
+    const keyChain = createPoolChain(ctx, 'ministral14', await mistralUsageSnapshot(ctx), {
+      reserve: cfg.reserve || 0,
+    });
     if (!cfg.model || !keyChain.hasKeys()) {
       return json({ skipped: true, reason: !cfg.model ? 'no_model' : 'no_ministral14_key' });
     }
@@ -1368,6 +1374,8 @@ export async function handleRequest(request, ctx) {
     // take disjoint items. Omitted = the whole queue, as before.
     const shards = Math.max(1, Math.min(Math.floor(Number(url.searchParams.get('shards'))) || 1, 16));
     const shard = Math.max(0, Math.min(Math.floor(Number(url.searchParams.get('shard'))) || 0, shards - 1));
+    // Optional ?deadlineMs=: start no new item after this long (minute-tick lanes).
+    const deadlineMs = Math.max(0, Math.min(Math.floor(Number(url.searchParams.get('deadlineMs'))) || 0, 600000)) || null;
     const report = await drainPriceFallback(
       { offerStore: ctx.offerStore, keyChain },
       {
@@ -1378,6 +1386,7 @@ export async function handleRequest(request, ctx) {
         shards,
         maxReadings: cfg.maxReadings,
         temperature: cfg.temperature,
+        deadlineMs,
       },
     );
     // Every reading yields everything it can (user directive 2026-09-24): the
@@ -1435,6 +1444,7 @@ export async function handleRequest(request, ctx) {
           readings: report.readings,
           reasons: report.reasons,
           stopped: report.stopped || null,
+          yielded: report.yielded || null,
           keyUsage: report.keyUsage,
         },
       }).catch(() => {});

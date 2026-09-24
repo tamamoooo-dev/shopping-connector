@@ -516,6 +516,9 @@ export function createMemoryOfferStore({
         .slice(0, 2000)
         .map((p) => String(p.offer_id));
     },
+    async hasPricePending({ currentOn } = {}) {
+      return [...pending.values()].some((p) => p.status === 'pending' && p.valid_to >= currentOn);
+    },
     async listPricePending({ currentOn, limit = 10, shard = 0, shards = 1 } = {}) {
       const n = Math.max(1, Math.min(Math.floor(Number(shards)) || 1, 16));
       const k = Math.max(0, Math.min(Math.floor(Number(shard)) || 0, n - 1));

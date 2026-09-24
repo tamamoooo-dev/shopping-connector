@@ -16,7 +16,7 @@
 
 import {
   createKeyChain, classifyMistral429, classifyMistralError, withFailover, remainingPercentage,
-  buildMistralPools, latestMistralUsage, mistralPoolInventory,
+  buildMistralPools, latestMistralUsage, mistralPoolInventory, minuteWindowSpent, nextMinuteWindow,
 } from './mistralKeys.js';
 import { enrichWithFailover, drainEnrichment } from './enrich.js';
 
@@ -121,6 +121,83 @@ console.log('createKeyChain:');
     }) === 99.8);
   check('explicit 0/0 request allowance is zero usable capacity',
     remainingPercentage({ limitRequestsMinute: '0', remainingRequestsMinute: '0' }) === 0);
+}
+
+// --- Mistral's fixed one-minute window (measured 2026-09-24) -------------------------
+// remaining-req-minute counts 30 -> 0 and resets at hh:mm:00, with no Retry-After.
+console.log('minute window + reserve:');
+{
+  check('next window = the next wall-clock minute (+ margin)',
+    nextMinuteWindow(61_000) === 120_250 && nextMinuteWindow(120_000) === 180_250);
+  check('spent when the request allowance hits 0',
+    minuteWindowSpent({ limitRequestsMinute: '30', remainingRequestsMinute: '0' }));
+  check('spent when the token allowance hits 0',
+    minuteWindowSpent({ limitTokensMinute: 937500, remainingTokensMinute: 0 }));
+  check('not spent with requests left or without headers',
+    !minuteWindowSpent({ limitRequestsMinute: '30', remainingRequestsMinute: '3' }) && !minuteWindowSpent(null) &&
+    !minuteWindowSpent({ limitRequestsMinute: '0', remainingRequestsMinute: '0' }));
+
+  // A 429 with spent headers parks the key to the next minute, not 1.5 s.
+  let t = 10_000;
+  const slept = [];
+  const chain = createKeyChain(['only'], { log: noLog, now: () => t });
+  let n = 0;
+  const result = await withFailover(chain, async () => {
+    n += 1;
+    if (n === 1) {
+      throw Object.assign(mistralErr(429), {
+        rateLimit: { limitRequestsMinute: '30', remainingRequestsMinute: '0' },
+      });
+    }
+    return { ok: true };
+  }, { now: () => t, sleepImpl: async (ms) => { slept.push(ms); t += ms; } });
+  check('a spent-window 429 waits for the next minute, then serves',
+    result.ok && n === 2 && slept.length === 1 && slept[0] === 60_250 - 10_000);
+
+  // Without window headers the old short backoff still applies.
+  t = 10_000;
+  slept.length = 0;
+  n = 0;
+  const chain2 = createKeyChain(['only'], { log: noLog, now: () => t });
+  await withFailover(chain2, async () => {
+    n += 1;
+    if (n === 1) throw mistralErr(429);
+    return { ok: true };
+  }, { now: () => t, backoffMs: 1500, sleepImpl: async (ms) => { slept.push(ms); t += ms; } });
+  check('a 429 without window headers keeps the short backoff', slept[0] === 1500);
+
+  // Reserve: a background caller leaves the last `reserve` requests of the window.
+  const c = createKeyChain(['a', 'b'], { log: noLog, now: () => 10_000, reserve: 6 });
+  c.markSuccess(0, { limitRequestsMinute: '30', remainingRequestsMinute: '7' });
+  check('above the reserve the key keeps serving', c.pick(10_000).key === 'a');
+  c.markSuccess(0, { limitRequestsMinute: '30', remainingRequestsMinute: '6' });
+  check('at the reserve the key is parked; the other key serves', c.pick(10_000).key === 'b');
+  c.markSuccess(1, { limitRequestsMinute: '30', remainingRequestsMinute: '2' });
+  check('both at the reserve -> nothing usable until the next minute',
+    c.pick(10_000) === null && c.nextResumeAt(10_000) === 60_250 && c.pick(60_250).key === 'a');
+
+  const d = createKeyChain(['a'], { log: noLog, now: () => 10_000 });
+  d.markSuccess(0, { limitRequestsMinute: '30', remainingRequestsMinute: '1' });
+  check('default reserve 0: one request left still serves', d.pick(10_000).key === 'a');
+  d.markSuccess(0, { limitRequestsMinute: '30', remainingRequestsMinute: '0' });
+  check('default reserve 0: a spent window parks the key (no knock on a closed window)', d.pick(10_000) === null);
+}
+
+// --- a key seen 401/402/403 stays retired across invocations -------------------------
+console.log('stored invalid keys:');
+{
+  const t = Date.parse('2026-09-24T20:00:00Z');
+  const hoursAgo = (h) => new Date(t - h * 3600_000).toISOString();
+  const usage = { 'key-1': { id: 'key-1', status: 'invalid', observedAt: hoursAgo(1), rateLimit: { status: 402 } } };
+  const c = createKeyChain(['dead', 'live'], { log: noLog, now: () => t, usage });
+  check('a key seen 402 an hour ago is skipped (no wasted call)', c.pick(t).key === 'live');
+  const snap = c.snapshot()[0];
+  check('it stays reported invalid with its original observation time',
+    snap.status === 'invalid' && snap.observedAt === hoursAgo(1));
+  const later = createKeyChain(['dead', 'live'], {
+    log: noLog, now: () => t, usage: { 'key-1': { ...usage['key-1'], observedAt: hoursAgo(7) } },
+  });
+  check('after the 6-hour recheck window it is tried again (a topped-up key rejoins)', later.pick(t).key === 'dead');
 }
 
 // --- withFailover ----------------------------------------------------------------
