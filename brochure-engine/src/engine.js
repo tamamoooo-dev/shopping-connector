@@ -1380,6 +1380,41 @@ export async function handleRequest(request, ctx) {
         temperature: cfg.temperature,
       },
     );
+    // Every reading yields everything it can (user directive 2026-09-24): the
+    // agreeing reading behind each accepted price is a full extraction (same
+    // prompt and model as Stage 1), so it is committed through the normal
+    // Stage-1 path — validation, one-reading publish, Stage-2 re-check queue —
+    // with NO second Vision call. Best-effort: prices never depend on it.
+    const observations = report.observations || {};
+    const acceptedIds = Object.keys(observations);
+    if (acceptedIds.length && ctx.enrichStore?.saveVisionOutcome) {
+      try {
+        const enrichment = await drainEnrichment(
+          {
+            enrichStore: ctx.enrichStore,
+            verificationHistoryStore: ctx.visionVerificationHistoryStore,
+            keyChain,
+          },
+          {
+            limit: acceptedIds.length,
+            currentOn: todayISO(),
+            queueOfferIds: acceptedIds,
+            observations,
+            strategy: ctx.extractionStrategy,
+            identityNormalizationMode: ctx.identityNormalizationMode,
+            model: cfg.model,
+          },
+        );
+        report.enrichment = {
+          scanned: enrichment.scanned,
+          enriched: enrichment.enriched,
+          stored: enrichment.stored,
+          failed: enrichment.failed,
+        };
+      } catch (err) {
+        report.enrichment = { error: String(err?.message || err).slice(0, 160) };
+      }
+    }
     if (report.accepted) await purgeBrowseCache(url); // new offers reshape the market floor
     if (ctx.opsStore) {
       await ctx.opsStore.record({

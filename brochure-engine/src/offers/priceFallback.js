@@ -28,7 +28,7 @@
 //     drain attempts, then the item is rejected; nothing loops forever.
 
 import { buildOffer, offerToRow } from './contract.js';
-import { buildVisionRequest, MISTRAL_URL, postMistral, toBase64 } from './enrich.js';
+import { buildVisionRequest, MISTRAL_URL, postMistral, toBase64, visionObservationFromReply } from './enrich.js';
 import { withFailover, classifyMistralError } from './mistralKeys.js';
 import { deriveIdentity } from '../priceHistory.js';
 import { detectBrand } from '../browse/brands.js';
@@ -161,7 +161,9 @@ async function readOnce(crop, { apiKey, model, temperature, fetchImpl }) {
   } catch {
     parsed = null; // an unparsable reply is an invalid reading, not an error
   }
-  return { reading: priceReading(parsed), rateLimit: response.rateLimit };
+  // The reply is kept: it is the full extraction (same prompt as Stage 1), so an
+  // accepted price's agreeing reading also yields the name, brand and size.
+  return { reading: priceReading(parsed), raw, rateLimit: response.rateLimit };
 }
 
 // The accepted price -> a normal offer, stamped exactly as the ingest stamps one.
@@ -209,6 +211,9 @@ export async function drainPriceFallback(
     reasons: {},
     errors: [],
   };
+  // Accepted items' agreeing replies, as Vision observations the caller feeds
+  // to the normal Stage-1 commit (engine.js). Not enumerable: never serialized.
+  Object.defineProperty(report, 'observations', { value: {}, enumerable: false, writable: true });
   const bump = (reason) => { report.reasons[reason] = (report.reasons[reason] || 0) + 1; };
   if (!model) {
     report.skipped = 'no_model';
@@ -223,18 +228,20 @@ export async function drainPriceFallback(
     if (report.subrequests + 1 + maxReadings > subrequestBudget) break;
     const raw = JSON.parse(row.raw_json);
     const readings = [];
+    const replies = [];
     let decision = null;
     try {
       report.subrequests += 1;
       const crop = await fetchCrop(row.image_url, fetchImpl);
       while (readings.length < maxReadings) {
         report.subrequests += 1;
-        const { reading } = await withFailover(
+        const { reading, raw: reply } = await withFailover(
           keyChain,
           (apiKey) => readOnce(crop, { apiKey, model, temperature, fetchImpl }),
           failover,
         );
         readings.push(reading);
+        replies.push(reply);
         report.readings += 1;
         if (consecutiveAgreement(readings)) break;
       }
@@ -297,6 +304,10 @@ export async function drainPriceFallback(
         at: now(),
       });
       report.accepted += 1;
+      // The reading that completed the agreement IS a full extraction: keep it.
+      const agreed = consecutiveAgreement(readings);
+      const reply = replies[(agreed?.at || replies.length) - 1];
+      if (reply != null) report.observations[row.id] = visionObservationFromReply(reply, { model });
     } else {
       await offerStore.resolvePricePending(row.id, { status: 'rejected', reason: decision.reason, audit, at: now() });
       report.rejected += 1;

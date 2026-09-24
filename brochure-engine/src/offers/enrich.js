@@ -642,8 +642,15 @@ async function observeVisionBytes(crop, { apiKey, model = DEFAULT_MODEL, fetchIm
     buildVisionRequest({ model, contentType: crop.contentType, base64: crop.base64 }),
     { apiKey, fetchImpl, stage: 'mistral' },
   );
-  const body = response.body;
-  const rawReply = body?.choices?.[0]?.message?.content ?? null;
+  const rawReply = response.body?.choices?.[0]?.message?.content ?? null;
+  return visionObservationFromReply(rawReply, { model, cropUrl: crop.cropUrl, rateLimit: response.rateLimit });
+}
+
+// A model reply -> the Vision observation runSmartExtraction consumes. Split out
+// of observeVisionBytes so a reply ALREADY paid for (the price fallback's
+// agreeing reading, same prompt and model) feeds the normal Stage-1 path with
+// no second call — every reading yields everything it can (2026-09-24).
+export function visionObservationFromReply(rawReply, { model = DEFAULT_MODEL, cropUrl = null, rateLimit = null, observedAt = null } = {}) {
   let parsedObject = null;
   try {
     const match = /\{[\s\S]*\}/.exec(String(rawReply || ''));
@@ -657,9 +664,9 @@ async function observeVisionBytes(crop, { apiKey, model = DEFAULT_MODEL, fetchIm
     parsedObject,
     parsed: parseEnrichReply(rawReply),
     model,
-    cropUrl: crop.cropUrl,
-    observedAt: new Date().toISOString(),
-    rateLimit: response.rateLimit,
+    cropUrl,
+    observedAt: observedAt || new Date().toISOString(),
+    rateLimit,
   };
 }
 
@@ -981,6 +988,9 @@ export async function extractWithFailover(
     strategy = DEFAULT_EXTRACTION_STRATEGY,
     fetchImpl = fetch,
     onCrop = null,
+    // A reply already obtained for this crop (visionObservationFromReply): used
+    // instead of a new Vision call, through the identical validation path.
+    observation = null,
     ...failover
   } = {},
 ) {
@@ -988,11 +998,13 @@ export async function extractWithFailover(
   if (!crop) return null;
   const result = await runSmartExtraction({
     strategy,
-    runVision: () => withFailover(
-      keyChain,
-      (apiKey) => observeVisionBytes(crop, { apiKey, model, fetchImpl }),
-      failover,
-    ),
+    runVision: observation
+      ? async () => ({ ...observation, cropUrl: crop.cropUrl })
+      : () => withFailover(
+        keyChain,
+        (apiKey) => observeVisionBytes(crop, { apiKey, model, fetchImpl }),
+        failover,
+      ),
     runOcr: () => withFailover(
       keyChain,
       (apiKey) => observeOcrBytes(crop, { apiKey, model: ocrModel, fetchImpl }),
@@ -1044,6 +1056,9 @@ export async function drainEnrichment(
     maxRateRetries = 3,
     offerIds = null,
     queueOfferIds = null,
+    // { [offerId]: observation } — replies already paid for (the price
+    // fallback's agreeing reading); those offers make no new Vision call.
+    observations = null,
   } = {},
 ) {
   const selectedStrategy = normalizeExtractionStrategy(strategy);
@@ -1151,6 +1166,7 @@ export async function drainEnrichment(
             strategy: EXTRACTION_STRATEGIES.VISION_ONLY,
             fetchImpl,
             maxRateRetries,
+            observation: observations?.[d.id] || null,
           },
         );
         if (!observed) throw new Error('Offer crop was unavailable');
