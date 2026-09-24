@@ -353,11 +353,22 @@ console.log('model pools:');
     MISTRAL_SMALL_API_KEY_BACKUP_2: 's3',
     MISTRAL_OCR_API_KEY: 'o1',
   });
-  check('model keys are attached only to their intended pool',
-    pools.medium.map((x) => x.key).join(',') === 'm1,m2,m3' &&
-    pools.small.map((x) => x.key).join(',') === 's1,s2,s3' && pools.ocr[0].key === 'o1');
-  check('small pool fails over across all three keys like medium does',
-    createKeyChain(pools.small.map((x) => x.key), { log: noLog }).size === 3);
+  // ONE SHARED POOL (user directive 2026-09-24): own named keys first, then
+  // every other configured key; a borrowed slot runs the BORROWING pool's model.
+  const keysOf = (pool) => pool.filter((x) => x.key).map((x) => x.key).join(',');
+  check('each pool tries its own keys first, then every other configured key',
+    keysOf(pools.medium) === 'm1,m2,m3,s1,s2,s3,o1' &&
+    keysOf(pools.small) === 's1,s2,s3,m1,m2,m3,o1' &&
+    keysOf(pools.ocr) === 'o1,s1,s2,s3,m1,m2,m3' &&
+    keysOf(pools.ministral14) === 's1,s2,s3,m1,m2,m3,o1');
+  check('a borrowed key serves the borrowing pool\'s model, keeping its own slot id',
+    pools.small.every((x) => x.model === 'mistral-small-2603') &&
+    pools.medium.find((x) => x.key === 's1')?.id === 'small-1');
+  check('small pool fails over across every configured key',
+    createKeyChain(pools.small.map((x) => x.key), { log: noLog }).size === 7);
+  const lone = buildMistralPools({ MINISTRAL_14B_API_KEY_1: 'only-live-key' });
+  check('one live key keeps every model working',
+    ['medium', 'small', 'ocr', 'ministral14'].every((p) => keysOf(lone[p]) === 'only-live-key'));
   const usage = latestMistralUsage([
     { detail: JSON.stringify({ keyUsage: [
       { id: 'medium-1', status: 'ready', remainingPct: 88, observedAt: '2026-07-30T00:00:00.000Z' },

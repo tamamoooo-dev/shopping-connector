@@ -65,11 +65,14 @@ assert.equal(stableSwap.reason, 'lower_price_in_description');
 assert.deepEqual(decidePrice([r(30, 44.99), r(30, 44.99)], diapersDesc), { status: 'accepted', price: 30, oldPrice: 44.99 });
 assert.equal(decidePrice([r(30), r(31), r(30), r(31)], diapersDesc).reason, 'no_agreement');
 
-// --- the key pool: dedicated, never borrowed -------------------------------------
+// --- the key pool: its own keys first, then the shared pool (2026-09-24) -----------
 {
   const pools = buildMistralPools({ MISTRAL_API_KEY: 'legacy', MISTRAL_OCR_API_KEY: 'ocr', MISTRAL_SMALL_API_KEY: 'small' });
-  assert.ok(pools.ministral14.every((s) => !s.key), 'no other pool\'s secret fills the Ministral pool');
-  assert.ok(pools.ministral14.every((s) => s.model === 'ministral-14b-2512'));
+  assert.deepEqual(pools.ministral14.filter((s) => s.key).map((s) => s.key), ['small', 'legacy', 'ocr'],
+    'with no Ministral secret set, every other configured key serves it (one shared pool)');
+  assert.ok(pools.ministral14.every((s) => s.model === 'ministral-14b-2512'), 'the model is always Ministral 14B');
+  const mine = buildMistralPools({ MINISTRAL_14B_API_KEY_1: 'mine', MISTRAL_SMALL_API_KEY: 'small' });
+  assert.deepEqual(mine.ministral14.filter((s) => s.key).map((s) => s.key), ['mine', 'small'], 'its own key is tried first');
   const three = buildMistralPools({ MINISTRAL_14B_API_KEY_1: 'a', MINISTRAL_14B_API_KEY_2: 'b', MINISTRAL_14B_API_KEY_3: 'c' });
   assert.deepEqual(three.ministral14.map((s) => s.key), ['a', 'b', 'c']);
 }

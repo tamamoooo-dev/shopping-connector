@@ -405,7 +405,35 @@ function poolEntry(pool, slot, key) {
 
 // Dedicated bindings win. The old two-key names remain compatibility fallbacks
 // so deploying the code before rotating secrets cannot interrupt production.
+//
+// ONE SHARED KEY POOL (user directive 2026-09-24): a Mistral key belongs to an
+// account, not to a model, so every configured secret serves every pool. A pool
+// tries its own named secrets first, then every other configured key, so one
+// live key keeps Medium, Small, OCR and Ministral 14B all working. The MODEL is
+// still the caller's (pick() hands out only the key). A borrowed slot keeps its
+// id, so the key's rate-limit/restriction memory (usage, keyed by slot id)
+// follows it into every pool; createKeyChain drops duplicate key values.
+const SHARED_ORDER = ['ministral14', 'small', 'medium', 'ocr'];
+
 export function buildMistralPools(env = {}) {
+  const own = buildOwnMistralPools(env);
+  const configured = SHARED_ORDER.flatMap((pool) => own[pool]).filter((slot) => slot.key);
+  const shared = (pool) => [
+    ...own[pool],
+    ...configured
+      .filter((slot) => slot.pool !== pool)
+      .map((slot) => ({ ...slot, pool, model: MISTRAL_POOL_DEFINITIONS[pool].model })),
+  ];
+  return {
+    medium: shared('medium'),
+    small: shared('small'),
+    ocr: shared('ocr'),
+    ministral14: shared('ministral14'),
+  };
+}
+
+// Each pool's own named secrets, before sharing.
+function buildOwnMistralPools(env = {}) {
   const medium = MISTRAL_POOL_DEFINITIONS.medium.slots.map((slot, index) =>
     poolEntry(
       'medium',
@@ -436,8 +464,8 @@ export function buildMistralPools(env = {}) {
           || env.MISTRAL_API_KEY || env.MISTRAL_API_KEY_BACKUP,
       ),
     ],
-    // Dedicated secrets only (MINISTRAL_14B_API_KEY_1..3): an unset slot stays
-    // empty rather than borrowing another pool's key.
+    // Its own secrets (MINISTRAL_14B_API_KEY_1..3) come first; buildMistralPools
+    // then adds every other configured key (shared pool).
     ministral14: MISTRAL_POOL_DEFINITIONS.ministral14.slots.map((slot, index) =>
       poolEntry('ministral14', slot, env[`MINISTRAL_14B_API_KEY_${index + 1}`])),
   };
