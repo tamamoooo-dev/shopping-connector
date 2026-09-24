@@ -18,6 +18,7 @@ import { getQueryPricesDoc, getLowestDoc, recordOfferHistory, deriveIdentity } f
 import { ingestOffers } from './offers/ingest.js';
 import { rowToOffer, offerRelevance, queryTokens, relevanceScore } from './offers/contract.js';
 import { drainEnrichment, drainOcrEnrichment, applyEnrichment, DEFAULT_MODEL } from './offers/enrich.js';
+import { drainVisionVerification } from './offers/visionVerification.js';
 import { rebuildRow, summarize } from './offers/rebuild.js';
 import { readVisionModelSetting } from './offers/visionModel.js';
 import { createKeyChain, latestMistralUsage } from './offers/mistralKeys.js';
@@ -51,10 +52,12 @@ import { getHotspotsDoc } from './hotspots.js';
 import { getBrowseSummaryDoc, getBrowseOffersDoc } from './browse/api.js';
 import { detectBrand } from './browse/brands.js';
 import { watchesWithSearchIdentity } from './watchSearchIdentity.js';
+import { processWatchRuns } from './watchSchedule.js';
 import {
   collectD4dBatch,
   isD4dRegion,
   publishD4dCollection,
+  summarizeD4dResult,
 } from './collectors/d4dResumable.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
@@ -270,17 +273,11 @@ async function ingestD4dResumable(ctx, provider, region, mode) {
     } else if (result.storeComplete) {
       throw new Error('Exact offer linkage refresh is unavailable');
     }
-    const status = result.complete
-      ? result.status === 'deduped'
-        ? 'deduped'
-        : 'new'
-      : null;
+    const counts = summarizeD4dResult(result);
     const target = {
       store: provider.id,
       region,
-      detected: result.complete ? 1 : 0,
-      new: status === 'new' ? 1 : 0,
-      deduped: status === 'deduped' ? 1 : 0,
+      ...counts,
       failed: 0,
       errors: [],
     };
@@ -765,7 +762,14 @@ export async function handleRequest(request, ctx) {
     // first profile to list watches claims them. Idempotent no-op after.
     await ctx.watchStore.adoptOrphans(profileParam);
     const storedWatches = await ctx.watchStore.list({ profileId: profileParam });
-    const watches = await watchesWithSearchIdentity(ctx.registryStore, storedWatches);
+    const enrichedWatches = await watchesWithSearchIdentity(ctx.registryStore, storedWatches);
+    const latestRuns = ctx.watchRunStore
+      ? await ctx.watchRunStore.latestForWatchIds(enrichedWatches.map((watch) => watch.id))
+      : new Map();
+    const watches = enrichedWatches.map((watch) => ({
+      ...watch,
+      run: latestRuns.get(watch.id) || null,
+    }));
     return json({
       count: watches.length,
       max: MAX_WATCHES,
@@ -908,6 +912,9 @@ export async function handleRequest(request, ctx) {
     const id = (url.searchParams.get('id') || '').trim();
     const watch = id ? await ctx.watchStore.get(id) : null;
     if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
+    if (watch.watchTrack === 'amazon_exact' || watch.watchTrack === 'market_general') {
+      return json({ error: 'This scheduled watch has a fixed identity.' }, 409);
+    }
     const result = await repairWatch(ctx, watch);
     return json({ ...result, watch: await ctx.watchStore.get(id) });
   }
@@ -922,6 +929,9 @@ export async function handleRequest(request, ctx) {
     if (!id) return json({ error: "Missing required parameter 'id'." }, 400);
     const watch = await ctx.watchStore.get(id);
     if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
+    if (watch.watchTrack === 'amazon_exact' || watch.watchTrack === 'market_general') {
+      return json({ error: 'Scheduled watch results stay fixed until the next 07:00/19:00 round.' }, 409);
+    }
     const reason = manualRefreshReason(watch);
     if (!reason) return json({ error: 'This watch does not need a manual refresh.' }, 409);
     const result = await checkWatch(ctx, watch, { allowIdentityRebind: false });
@@ -988,6 +998,21 @@ export async function handleRequest(request, ctx) {
     const idsParam = (url.searchParams.get('ids') || '').trim();
     const ids = idsParam ? idsParam.split(',').map((s) => s.trim()).filter(Boolean) : null;
     return json(await checkWatches(ctx, { ids }));
+  }
+
+  // Guarded durable-round child. The minute coordinator claims D1 leases and
+  // passes run ids here; failed retrieval is scheduled for +60 seconds.
+  if (path === '/watches/run' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.watchStore || !ctx.watchRunStore) {
+      return json({ error: 'Watch scheduling unavailable.' }, 503);
+    }
+    const idsParam = (url.searchParams.get('ids') || '').trim();
+    const ids = idsParam ? idsParam.split(',').map((s) => s.trim()).filter(Boolean) : [];
+    if (!ids.length) return json({ error: "Missing required parameter 'ids'." }, 400);
+    return json(await processWatchRuns(ctx, { ids }));
   }
 
   // Guarded manual ingest (§8) — for testing/backfill without the cron. Shared
@@ -1084,6 +1109,9 @@ export async function handleRequest(request, ctx) {
     // One crop fetch + Vision + possible OCR = at most three subrequests per
     // offer. Cap at 16 so fallback-heavy Vision First stays within the Worker budget.
     const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 15, 16));
+    const queueOfferIds = url.searchParams.has('ids')
+      ? [...new Set(url.searchParams.get('ids').split(',').map((id) => id.trim()).filter(Boolean))].slice(0, 16)
+      : null;
     // Scope (pipeline milestone): 'all' = every current offer with a crop
     // (full-catalog vision coverage, the default per the evaluation plan);
     // 'debris' = the original deriveNames-defeated subset only.
@@ -1113,11 +1141,16 @@ export async function handleRequest(request, ctx) {
     }
     const t0 = Date.now();
     const report = await drainEnrichment(
-      { enrichStore: ctx.enrichStore, keyChain },
+      {
+        enrichStore: ctx.enrichStore,
+        verificationHistoryStore: ctx.visionVerificationHistoryStore,
+        keyChain,
+      },
       {
         limit,
         currentOn: todayISO(),
         scope,
+        queueOfferIds,
         strategy,
         identityNormalizationMode,
         ...(visionModel.armed ? { model: visionModel.model } : {}),
@@ -1139,7 +1172,10 @@ export async function handleRequest(request, ctx) {
     // invocation limit under load). Each cron coordinator (index.js) now runs one
     // drainResolution pass after its enrich children finish; standalone /resolve
     // covers the backlog. Same drainResolution code, just a different caller.
-    if (ctx.opsStore) {
+    // The fan-out coordinator writes the aggregate success row. Persisting one
+    // more success per child made ops_runs grow once per offer; child failures
+    // remain valuable and are the only child events retained here.
+    if (ctx.opsStore && report.failed > 0) {
       await ctx.opsStore
         .record({
           ts: report.startedAt,
@@ -1159,6 +1195,8 @@ export async function handleRequest(request, ctx) {
             model: activeVisionModel,
             budgetMode: visionModel.armed && visionModel.budget,
             keyUsage: report.keyUsage,
+            providerLimit: report.providerLimit,
+            providerError: report.providerError,
             resolved: report.resolution
               ? {
                   scanned: report.resolution.scanned,
@@ -1186,6 +1224,68 @@ export async function handleRequest(request, ctx) {
   // subrequest budget has been exhausted before (drainResolution, 2026-07-20) —
   // adding a paid drain to that child is how you rediscover that limit. Manual
   // dispatch and "Run Auto now" in the Operations Center both work without it.
+  if (path === '/vision-verification' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.visionVerificationStore || !ctx.enrichStore) {
+      return json({ error: 'Vision verification unavailable (no store).' }, 503);
+    }
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 15, 16));
+    const offerIds = url.searchParams.has('ids')
+      ? [...new Set(url.searchParams.get('ids').split(',').map((id) => id.trim()).filter(Boolean))].slice(0, 16)
+      : null;
+    const visionModel = await readVisionModelSetting(ctx.objectStore);
+    const activePool = visionModel.armed && visionModel.tier === 'small' ? 'small' : 'medium';
+    const keyChain = createPoolChain(ctx, activePool, await mistralUsageSnapshot(ctx));
+    if (!keyChain.hasKeys()) {
+      return json({ error: `Vision verification unavailable (no ${activePool} model key).` }, 503);
+    }
+    const t0 = Date.now();
+    const report = await drainVisionVerification(
+      {
+        verificationStore: ctx.visionVerificationStore,
+        verificationHistoryStore: ctx.visionVerificationHistoryStore,
+        enrichStore: ctx.enrichStore,
+        keyChain,
+      },
+      {
+        limit,
+        offerIds,
+        currentOn: todayISO(),
+        identityNormalizationMode: ctx.identityNormalizationMode,
+        ...(visionModel.armed ? { model: visionModel.model } : {}),
+      },
+    );
+    report.visionModel = {
+      tier: visionModel.armed ? visionModel.tier : null,
+      model: visionModel.armed ? visionModel.model : DEFAULT_MODEL,
+      budget: visionModel.armed ? visionModel.budget : false,
+      armed: visionModel.armed,
+    };
+    if (ctx.opsStore && report.failed > 0) {
+      await ctx.opsStore.record({
+        ts: report.startedAt,
+        action: 'vision-verification',
+        origin: request.headers.get('X-Ops-Origin') === 'ops' ? 'ops' : 'cron',
+        ok: report.failed === 0,
+        failed: report.failed,
+        elapsed_ms: Date.now() - t0,
+        error: report.errors?.[0] || null,
+        detail: {
+          scanned: report.scanned,
+          attempted: report.attempted,
+          verified: report.verified,
+          unmatched: report.unmatched,
+          keyUsage: report.keyUsage,
+          providerLimit: report.providerLimit,
+          providerError: report.providerError,
+        },
+      }).catch(() => {});
+    }
+    return json(report);
+  }
+
   if (path === '/recovery-drain' && request.method === 'POST') {
     if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
       return json({ error: 'Forbidden' }, 403);
@@ -1212,6 +1312,7 @@ export async function handleRequest(request, ctx) {
     const usage = await mistralUsageSnapshot(ctx);
     const chains = {
       ocr: () => createPoolChain(ctx, 'ocr', usage),
+      'vision-small': () => createPoolChain(ctx, 'small', usage),
       vision: () => createPoolChain(ctx, 'medium', usage),
     };
     const report = await drainRecovery(
@@ -1271,7 +1372,7 @@ export async function handleRequest(request, ctx) {
       },
       { limit, currentOn: todayISO(), identityNormalizationMode },
     );
-    if (ctx.opsStore) {
+    if (ctx.opsStore && report.failed > 0) {
       await ctx.opsStore.record({
         ts: report.startedAt,
         action: 'ocr-enrich',
@@ -1286,6 +1387,8 @@ export async function handleRequest(request, ctx) {
           remaining: report.remaining ?? report.pending,
           unavailable: report.unavailable || false,
           keyUsage: report.keyUsage,
+          providerLimit: report.providerLimit,
+          providerError: report.providerError,
         },
       }).catch(() => {});
     }
@@ -1309,7 +1412,7 @@ export async function handleRequest(request, ctx) {
       { enrichStore: ctx.enrichStore, registryStore: ctx.registryStore },
       { limit, currentOn: todayISO() },
     );
-    if (ctx.opsStore) {
+    if (ctx.opsStore && report.errors.length > 0) {
       await ctx.opsStore
         .record({
           ts: report.startedAt,

@@ -15,7 +15,7 @@
 //  • drainEnrichment surfaces failedOver and keeps draining across a failover.
 
 import {
-  createKeyChain, classifyMistralError, withFailover, remainingPercentage,
+  createKeyChain, classifyMistral429, classifyMistralError, withFailover, remainingPercentage,
   buildMistralPools, latestMistralUsage, mistralPoolInventory,
 } from './mistralKeys.js';
 import { enrichWithFailover, drainEnrichment } from './enrich.js';
@@ -37,14 +37,46 @@ const noLog = () => {};
 console.log('classifyMistralError:');
 {
   check('401 -> auth', classifyMistralError(mistralErr(401)) === 'auth');
+  check('402 -> auth (out of credits, fail over like a bad key)', classifyMistralError(mistralErr(402)) === 'auth');
   check('403 -> auth', classifyMistralError(mistralErr(403)) === 'auth');
   check('429 -> rate', classifyMistralError(mistralErr(429)) === 'rate');
+  const zeroAllowance = Object.assign(mistralErr(429), {
+    rateLimit: { limitRequestsMinute: '0', remainingRequestsMinute: '0' },
+    providerError: { message: 'Rate limit exceeded', type: 'rate_limited', code: '1300' },
+  });
+  check('429 with request allowance 0 -> terminal restriction',
+    classifyMistral429(zeroAllowance) === 'request_allowance_zero' &&
+    classifyMistralError(zeroAllowance) === 'restriction');
+  check('429 reason taxonomy separates quota, traffic, billing, capacity, and unknown',
+    classifyMistral429(Object.assign(mistralErr(429), {
+      rateLimit: { limitTokensMonth: '1000', remainingTokensMonth: '0' },
+    })) === 'monthly_account_quota' &&
+    classifyMistral429(Object.assign(mistralErr(429), {
+      rateLimit: { limitTokensMinute: '1000', remainingTokensMinute: '0' },
+    })) === 'token_rate_limit' &&
+    classifyMistral429(Object.assign(mistralErr(429), {
+      providerError: { message: 'Concurrent request limit exceeded' },
+    })) === 'concurrency_limit' &&
+    classifyMistral429(Object.assign(mistralErr(429), {
+      providerError: { message: 'Billing subscription inactive' },
+    })) === 'billing_restriction' &&
+    classifyMistral429(Object.assign(mistralErr(429), {
+      rateLimit: { limitRequestsMinute: '60', remainingRequestsMinute: '0' },
+    })) === 'request_rate_limit' &&
+    classifyMistral429(Object.assign(mistralErr(429), {
+      providerError: { message: 'Temporary capacity throttling' },
+    })) === 'capacity_throttling' &&
+    classifyMistral429(mistralErr(429)) === 'unknown_429');
   check('500 -> transient', classifyMistralError(mistralErr(500)) === 'transient');
   check('crop fetch 404 -> other (never a key problem)', classifyMistralError(cropErr(404)) === 'other');
   check('message fallback: "invalid api key" -> auth',
     classifyMistralError(new Error('Mistral: invalid api key')) === 'auth');
   check('message fallback: "rate limit exceeded" -> rate',
     classifyMistralError(new Error('rate limit exceeded')) === 'rate');
+  check('message fallback: "payment required" -> auth',
+    classifyMistralError(new Error('402 Payment Required')) === 'auth');
+  check('message fallback: "insufficient credits" -> auth',
+    classifyMistralError(new Error('Insufficient credits on this workspace')) === 'auth');
 }
 
 // --- key chain -------------------------------------------------------------------
@@ -87,6 +119,8 @@ console.log('createKeyChain:');
       limitOcrPagesMinute: 625,
       remainingOcrPagesMinute: 624,
     }) === 99.8);
+  check('explicit 0/0 request allowance is zero usable capacity',
+    remainingPercentage({ limitRequestsMinute: '0', remainingRequestsMinute: '0' }) === 0);
 }
 
 // --- withFailover ----------------------------------------------------------------
@@ -103,6 +137,32 @@ console.log('withFailover:');
     }, { sleepImpl: async () => {} });
     check('auth failure fails over immediately to the standby',
       out === 'ok' && seen.join(',') === 'bad,good' && chain.failedOver());
+  }
+
+  // 402 (out of credits) on the primary -> immediate failover, same as auth.
+  {
+    const chain = createKeyChain(['broke', 'funded'], { log: noLog });
+    const seen = [];
+    const out = await withFailover(chain, async (k) => {
+      seen.push(k);
+      if (k === 'broke') throw mistralErr(402);
+      return 'ok';
+    }, { sleepImpl: async () => {} });
+    check('402 (out of credits) fails over immediately to the funded key',
+      out === 'ok' && seen.join(',') === 'broke,funded' && chain.failedOver());
+  }
+
+  // both primary AND first backup out of credits -> falls through to a third key.
+  {
+    const chain = createKeyChain(['broke1', 'broke2', 'funded'], { log: noLog });
+    const seen = [];
+    const out = await withFailover(chain, async (k) => {
+      seen.push(k);
+      if (k === 'broke1' || k === 'broke2') throw mistralErr(402);
+      return 'ok';
+    }, { sleepImpl: async () => {} });
+    check('two exhausted keys in a row still fail over to a third',
+      out === 'ok' && seen.join(',') === 'broke1,broke2,funded');
   }
 
   // 429 on the primary -> the backup is tried IMMEDIATELY, before any wait.
@@ -137,6 +197,39 @@ console.log('withFailover:');
     }, { now: clock, sleepImpl: async (ms) => { slept.push(ms); t += ms; }, maxRateRetries: 3 });
     check('all keys rate-limited -> waits the soonest window, then resumes',
       out === 'ok:p' && seen.join(',') === 'p,b,p' && slept.length === 1 && slept[0] === 10);
+  }
+
+  // A zero request allowance is not a short window. Each distinct account is
+  // checked once, there is no sleep/retry cycle, and the full masked evidence
+  // remains attached to the final error.
+  {
+    const chain = createKeyChain([
+      { id: 'account-1', key: 'a' },
+      { id: 'account-2', key: 'b' },
+      { id: 'account-3', key: 'c' },
+    ], { log: noLog });
+    const seen = [];
+    let sleeps = 0;
+    let threw = null;
+    try {
+      await withFailover(chain, async (key) => {
+        seen.push(key);
+        throw Object.assign(mistralErr(429), {
+          model: 'mistral-small-2603',
+          responseBody: '{"object":"error","code":"1300"}',
+          providerError: { object: 'error', code: '1300', type: 'rate_limited' },
+          rateLimit: { status: 429, limitRequestsMinute: '0', remainingRequestsMinute: '0' },
+        });
+      }, { sleepImpl: async () => { sleeps += 1; } });
+    } catch (err) { threw = err; }
+    check('zero allowance checks each distinct key once and never sleeps/retries',
+      seen.join(',') === 'a,b,c' && sleeps === 0);
+    check('zero allowance preserves all attempted key ids and full provider body',
+      threw?.mistralAttempts?.map((attempt) => attempt.keyId).join(',') ===
+        'account-1,account-2,account-3' &&
+      threw?.mistralAttempts?.every((attempt) => attempt.responseBody === '{"object":"error","code":"1300"}'));
+    check('zero allowance marks every key restricted, not temporarily limited',
+      chain.snapshot().every((slot) => slot.status === 'restricted'));
   }
 
   // 5xx never parks/retires a key; with a single key it just propagates.
@@ -221,6 +314,30 @@ console.log('withFailover:');
     });
     check('stale exhausted observation is re-probed so resets are discovered',
       staleZero.pick().key === 'b' && staleZero.snapshot()[1].remainingPct == null);
+
+    const persistedZeroAllowance = createKeyChain([{ id: 'small-1', key: 's' }], {
+      log: noLog,
+      now: () => nowMs,
+      usage: {
+        'small-1': {
+          status: 'restricted',
+          observedAt: '2026-07-30T11:00:00.000Z',
+          rateLimit: {
+            status: 429,
+            limitRequestsMinute: '0',
+            remainingRequestsMinute: '0',
+            observedAt: '2026-07-30T11:00:00.000Z',
+          },
+        },
+      },
+    });
+    let calls = 0;
+    let persistedError = null;
+    try {
+      await withFailover(persistedZeroAllowance, async () => { calls += 1; });
+    } catch (err) { persistedError = err; }
+    check('fresh persisted zero allowance suppresses cross-invocation retry traffic',
+      calls === 0 && persistedError?.mistralCategory === 'request_allowance_zero');
   }
 }
 
@@ -232,11 +349,15 @@ console.log('model pools:');
     MISTRAL_MEDIUM_API_KEY_2: 'm2',
     MISTRAL_MEDIUM_API_KEY_3: 'm3',
     MISTRAL_SMALL_API_KEY: 's1',
+    MISTRAL_SMALL_API_KEY_BACKUP: 's2',
+    MISTRAL_SMALL_API_KEY_BACKUP_2: 's3',
     MISTRAL_OCR_API_KEY: 'o1',
   });
   check('model keys are attached only to their intended pool',
     pools.medium.map((x) => x.key).join(',') === 'm1,m2,m3' &&
-    pools.small[0].key === 's1' && pools.ocr[0].key === 'o1');
+    pools.small.map((x) => x.key).join(',') === 's1,s2,s3' && pools.ocr[0].key === 'o1');
+  check('small pool fails over across all three keys like medium does',
+    createKeyChain(pools.small.map((x) => x.key), { log: noLog }).size === 3);
   const usage = latestMistralUsage([
     { detail: JSON.stringify({ keyUsage: [
       { id: 'medium-1', status: 'ready', remainingPct: 88, observedAt: '2026-07-30T00:00:00.000Z' },

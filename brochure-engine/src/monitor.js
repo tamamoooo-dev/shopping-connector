@@ -88,6 +88,14 @@ import {
   sourceSnapshot,
   verifySourceListing,
 } from './watchIdentity.js';
+import {
+  WATCH_TRACK,
+  customSearchQuery,
+  effectiveSearchQuery,
+  generalSystemQuery,
+  generalWatchSpec,
+  watchTrack,
+} from './watchPlan.js';
 
 // The live search providers a grocery watch sweeps (search-connector ids),
 // most reliable first. Best-effort stores (amazon, noon) are included — a
@@ -235,7 +243,29 @@ export function buildWatch(body) {
   // arrive either way: as a pack price plus a readable size (the product-card
   // flow, converted here), or as a unit price the user typed directly ("any
   // chicken breast under 30 SAR/kg"), which needs no reference pack at all.
-  const specText = specFromBody(b);
+  const listing = b.listing || {
+    id: productId,
+    provider,
+    name: label || query,
+    brand: b.brand || null,
+    size: b.sizeText || null,
+    image: url(b.image),
+    link: url(b.link),
+  };
+  const track = watchTrack({ kind, provider, productId }) || WATCH_TRACK.MARKET_GENERAL;
+  let specText = specFromBody(b);
+  if (track === WATCH_TRACK.MARKET_GENERAL) {
+    if (!specText) {
+      const generalSpec = generalWatchSpec(listing);
+      if (!generalSpec) {
+        return { error: 'This product does not contain enough brand/product evidence for a general all-store watch.' };
+      }
+      specText = JSON.stringify(generalSpec);
+    }
+  } else {
+    // An Amazon-linked watch is the selected ASIN, never a product class.
+    specText = null;
+  }
   const relaxedRequested =
     b.matchBrand === false || b.matchSize === false || b.matchVariant === false;
   if (relaxedRequested && !specText) {
@@ -250,28 +280,21 @@ export function buildWatch(body) {
     ? { value: statedUnitPrice, label: statedUnitLabel }
     : null;
   const unitTarget = statedUnit || targetUnit;
-  if (spec && comparesByUnitPrice(spec) && !unitTarget) {
+  if (spec && comparesByUnitPrice(spec) && !unitTarget && track !== WATCH_TRACK.MARKET_GENERAL) {
     return {
       error: 'A per-unit target needs either a readable package size or an explicit unit price',
     };
   }
 
-  const listing = b.listing || {
-    id: productId,
-    provider,
-    name: label || query,
-    brand: b.brand || null,
-    size: b.sizeText || null,
-    image: url(b.image),
-    link: url(b.link),
-  };
   const snapshot = sourceSnapshot(listing, {
     id: productId, provider, label, query, brand: b.brand, sizeText: b.sizeText,
     image: url(b.image), link: url(b.link),
   });
-  const registryProductId = suppliedRegistryProductId || (kind === 'registry' ? productId : null);
-  const trustedSource = !registryProductId && !spec &&
-    kind === 'product' && isTrustedSourceIdentity(provider, productId);
+  const registryProductId = track === WATCH_TRACK.MARKET_GENERAL
+    ? null
+    : suppliedRegistryProductId || (kind === 'registry' ? productId : null);
+  const trustedSource = track === WATCH_TRACK.AMAZON_EXACT &&
+    isTrustedSourceIdentity(provider, productId);
   const anchorState = registryProductId
     ? WATCH_IDENTITY_STATE.ANCHORED_REGISTRY
     : spec
@@ -294,6 +317,13 @@ export function buildWatch(body) {
       kind,
       label,
       query,
+      watchTrack: track,
+      systemSearchQuery: track === WATCH_TRACK.AMAZON_EXACT
+        ? productId
+        : generalSystemQuery(listing, query),
+      customSearchQuery: track === WATCH_TRACK.MARKET_GENERAL
+        ? customSearchQuery(b.customSearchQuery ?? b.searchQuery)
+        : null,
       provider,
       // kind 'product': a CACHE of where this identity currently sits in the
       // store's catalog (refreshed automatically when the retailer moves it).
@@ -302,7 +332,7 @@ export function buildWatch(body) {
       // `kind` is retained (it is NOT NULL, and the previous deployment keys off
       // it) but `scope` is the behavioural switch now: kind used to select a
       // whole resolution STRATEGY, and there is only one of those left.
-      scope: kind === 'product' ? 'store' : 'market',
+      scope: track === WATCH_TRACK.AMAZON_EXACT ? 'store' : 'market',
       // THE ANCHOR. A registry watch already carries one. Every other watch is
       // anchored by `anchorWatch` below, in the foreground, with the user
       // present — never inferred later by an unattended check.
@@ -907,7 +937,7 @@ export async function diagnoseWatch(ctx, watch) {
 
   for (const entry of entries) {
     const candidate = listingIdentityCandidate(entry.listing);
-    const decision = anchor.kind === 'product'
+    const identityDecision = anchor.kind === 'product'
       ? verifyListing(entry.listing, product)
       : anchor.kind === 'source'
         ? verifySourceListing(anchor.snapshot, { ...entry.listing, provider: entry.store }, {
@@ -915,6 +945,9 @@ export async function diagnoseWatch(ctx, watch) {
             productId: anchor.productId,
           })
         : matchesSpec(candidate, anchor.spec);
+    const decision = identityDecision.matched
+      ? customSearchDecision(watch, entry.listing, entry.source)
+      : identityDecision;
     out.candidates.push({
       store: entry.store,
       source: entry.source,
@@ -1159,6 +1192,12 @@ export function buildWatchSettingsUpdate(body, watch) {
       fields.closeThreshold = Math.round(value * 100) / 100;
     }
   }
+  if ('customSearchQuery' in b || 'searchQuery' in b) {
+    if (watchTrack(watch) === WATCH_TRACK.AMAZON_EXACT) {
+      return { error: 'An exact Amazon watch always looks up its ASIN; its search key cannot be changed.' };
+    }
+    fields.customSearchQuery = customSearchQuery(b.customSearchQuery ?? b.searchQuery) || null;
+  }
   if (!Object.keys(fields).length) return { error: 'No watch settings supplied.' };
   return { fields };
 }
@@ -1208,6 +1247,16 @@ export function parseSpec(value) {
 // The anchor a watch carries, or null. The single place that decides whether a
 // watch is monitorable — the cron, the caps and the UI all read this answer.
 export function watchAnchor(watch = {}) {
+  if (watchTrack(watch) === WATCH_TRACK.MARKET_GENERAL) {
+    const stored = parseWatchJson(watch.sourceSnapshot) || {
+      name: watch.label || watch.query,
+      brand: watch.brandId || null,
+    };
+    // Re-derive first so migrated v2 rows lose old size/count/variety pins and
+    // adopt the v3 product + brand contract too.
+    const general = generalWatchSpec(stored) || parseSpec(watch.spec);
+    if (general && validateSpec(general).valid) return { kind: 'spec', spec: general };
+  }
   const identityState = inferIdentityState(watch);
   if (identityState === WATCH_IDENTITY_STATE.ANCHORED_SOURCE && watch.provider && watch.productId) {
     return {
@@ -1250,6 +1299,9 @@ export function manualRefreshReason(watch, now = Date.now()) {
 // The providers this watch sweeps. 'store' is one retailer, 'market' is all of
 // them. Legacy rows without `scope` fall back to what their old kind meant.
 export function watchProviders(watch = {}) {
+  const track = watchTrack(watch);
+  if (track === WATCH_TRACK.AMAZON_EXACT) return ['amazon'];
+  if (track === WATCH_TRACK.MARKET_GENERAL) return MONITOR_PROVIDERS;
   const anchor = watchAnchor(watch);
   if (anchor?.kind === 'source') {
     return MONITOR_PROVIDERS.includes(anchor.provider) ? [anchor.provider] : [];
@@ -1274,7 +1326,15 @@ export function watchTarget(watch, anchor) {
     ? { unit: watch.sizeUnit, total: watch.sizeTotal, src: watch.sizeSource || 'measure' }
     : null;
   const normalized = unitPriceFor(watch.targetPrice, ref);
-  return normalized ? { value: normalized.value, unitLabel: normalized.label } : null;
+  if (normalized) return { value: normalized.value, unitLabel: normalized.label };
+  // Migrated/general products may have no measurable pack at all (for example
+  // a pre-v3 generic milk watch). They must still monitor honestly: compare
+  // the listed purchase price to the user's original target rather than become
+  // silently unresolvable. New sized watches continue to use unit pricing.
+  if (watchTrack(watch) === WATCH_TRACK.MARKET_GENERAL) {
+    return { value: Number(watch.targetPrice), unitLabel: null };
+  }
+  return null;
 }
 
 // A listing-shaped view of a flyer offer row, so ONE extractor serves both
@@ -1307,6 +1367,22 @@ async function sweepProviders(ctx, watch, query, notes) {
   }
   const candidates = [];
   let failed = 0;
+  if (watchTrack(watch) === WATCH_TRACK.AMAZON_EXACT) {
+    try {
+      const exact = ctx.searchClient.lookupExact
+        ? await ctx.searchClient.lookupExact('amazon', watch.productId)
+        : (await ctx.searchClient.search('amazon', watch.productId, CANDIDATE_SEARCH_LIMIT))
+            .find((row) => String(row.id) === String(watch.productId));
+      if (!exact || String(exact.id) !== String(watch.productId)) {
+        throw new Error(`exact ASIN ${watch.productId} was not returned`);
+      }
+      candidates.push({ listing: exact, store: 'amazon', source: 'online' });
+    } catch (err) {
+      failed = 1;
+      notes.push(`amazon exact ${watch.productId}: ${err.message}`);
+    }
+    return { candidates, failed, attempted: 1 };
+  }
   await Promise.all(providers.map(async (provider) => {
     try {
       const results = await ctx.searchClient.search(provider, query, CANDIDATE_SEARCH_LIMIT);
@@ -1374,6 +1450,8 @@ function pricedObservation(entry, unitLabel) {
 // The retrieval query. Lexical by necessity and by design — it only has to
 // surface candidates; identity decides which of them count.
 export function retrievalQuery(watch, anchor, product) {
+  const planned = watchTrack(watch) ? effectiveSearchQuery(watch, anchor, product) : '';
+  if (planned) return planned.slice(0, 120);
   const fromSpec = anchor?.kind === 'spec'
     ? [anchor.spec.brand, anchor.spec.family, anchor.spec.cut]
         .flatMap((v) => (Array.isArray(v) ? v.slice(0, 1) : [v]))
@@ -1392,6 +1470,43 @@ export function retrievalQuery(watch, anchor, product) {
     if (text.length >= 2) return text.slice(0, 80);
   }
   return null;
+}
+
+function customSearchSurface(listing = {}, source = 'online') {
+  const size = typeof listing.size === 'string'
+    ? listing.size
+    : listing.size?.value && listing.size?.unit
+      ? `${listing.count && listing.count > 1 ? `${listing.count} x ` : ''}`
+        + `${listing.size.value} ${listing.size.unit}`
+      : '';
+  let productPath = '';
+  if (source === 'online' && listing.link) {
+    try {
+      productPath = decodeURIComponent(new URL(listing.link).pathname)
+        .replace(/[-_/]+/g, ' ')
+        .replace(/(\d)(\p{L})/gu, '$1 $2')
+        .replace(/(\p{L})(\d)/gu, '$1 $2');
+    } catch {
+      // A malformed product link contributes no evidence. The visible title
+      // and structured size remain the authoritative matching surface.
+    }
+  }
+  return {
+    name: [listing.name, listing.nameAr, size, productPath].filter(Boolean).join(' '),
+    brand: listing.brand || '',
+  };
+}
+
+// The advanced phrase is a user-authored constraint, not merely a hint to the
+// retailer search box. Stage 1 means one requested term is missing or a stated
+// package size contradicts the candidate; either case must fail closed.
+export function customSearchDecision(watch, listing, source = 'online') {
+  const query = customSearchQuery(watch?.customSearchQuery);
+  if (!query) return { matched: true, failed: null, stage: null };
+  const stage = matchStage(customSearchSurface(listing, source), query);
+  return stage >= 2
+    ? { matched: true, failed: null, stage }
+    : { matched: false, failed: 'advanced-query', stage };
 }
 
 // Evaluate one watch. Always returns { resolution, reason, ... }.
@@ -1457,6 +1572,16 @@ export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false 
   const entries = [...sweep.candidates];
   const exclusions = emptyExclusions();
   const observations = [];
+
+  // A general-market round represents ALL sources. A partial sweep is not
+  // frozen as the round's answer: the minute scheduler retries until every
+  // configured source has answered, including Amazon.
+  if (!flyerOnly && watchTrack(watch) === WATCH_TRACK.MARKET_GENERAL && sweep.failed > 0) {
+    return {
+      price: null, resolution: RESOLUTION.PROVIDER_ERROR,
+      reason: `${sweep.failed}/${sweep.attempted} source(s) did not answer.`,
+    };
+  }
 
   // A PRODUCT watch takes its flyer price straight from the registry: the
   // sighting was already assigned to this product, so there is nothing to
@@ -1532,6 +1657,9 @@ export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false 
         : { matched: false, reason: 'not-selected-source-identity' };
     } else {
       decision = matchesSpec(listingIdentityCandidate(entry.listing), anchor.spec);
+    }
+    if (decision.matched) {
+      decision = customSearchDecision(watch, entry.listing, entry.source);
     }
     if (!(decision.matched)) {
       countExclusion(exclusions, decision.failed || decision.reason);
@@ -1627,7 +1755,7 @@ export function validateNotificationObservation(watch, observation) {
   // there is no listing text to re-read, and re-classifying it would be
   // inventing a second opinion the registry did not ask for.
   if (!observation.identityVerified) {
-    const decision = anchor.kind === 'product'
+    let decision = anchor.kind === 'product'
       ? verifyListing(observation.offer, observation.product || null)
       : anchor.kind === 'source'
         ? verifySourceListing(
@@ -1640,6 +1768,9 @@ export function validateNotificationObservation(watch, observation) {
             },
           )
         : matchesSpec(listingIdentityCandidate(observation.offer), anchor.spec);
+    if (decision.matched) {
+      decision = customSearchDecision(watch, observation.offer, observation.source);
+    }
     if (!decision.matched) {
       return {
         valid: false,

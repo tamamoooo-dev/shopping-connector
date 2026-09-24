@@ -35,7 +35,10 @@ import {
 } from '../storage/recoveryQueue.js';
 import { RECOVERY_KIND } from './registry.js';
 import { servable, recoveryAdmission } from '../offers/enrich.js';
-import { evaluateBusinessAcceptance } from '../offers/businessAcceptance.js';
+import {
+  evaluateBusinessAcceptance,
+  evaluateLegacyBusinessAcceptance,
+} from '../offers/businessAcceptance.js';
 
 // S3 validation field -> canonical enrichment column. Extraction vocabulary,
 // not processor vocabulary, so it belongs at the boundary. `pack_count` has no
@@ -261,9 +264,13 @@ export async function runRecovery(
 
     // ---- S4 RE-JUDGEMENT — the ONLY thing that closes an item ---------------
     // Re-run the gate on what the processor produced, exactly as the pipeline
-    // ran it at S4. Same function, same three conditions: a recovered offer
+    // ran it at S4. Pre-v4 queue rows retain their historical three-condition
+    // evaluator; new v4 rows use the current price + English-name contract.
     // must clear the same bar as one that never needed recovery.
-    const acceptance = evaluateBusinessAcceptance({
+    const evaluateAcceptance = /^business-acceptance-v[123]$/.test(item.verdict?.version || '')
+      ? evaluateLegacyBusinessAcceptance
+      : evaluateBusinessAcceptance;
+    const acceptance = evaluateAcceptance({
       offer: item.offer,
       acceptedFields: result?.attempt?.validation?.acceptedFields || [],
       structured: canonicalRow?.structured_product ?? null,
@@ -370,6 +377,15 @@ export async function drainRecovery(
     report.finishedAt = new Date().toISOString();
     return report;
   }
+  // `maxItemsPerRun` is a budget for the whole child invocation, not for every
+  // processor independently. Without sharing it, a three-rung policy at 15
+  // could make 45 model calls (plus 45 crop fetches) in one Worker and exceed
+  // the external-subrequest limit. Split the budget deterministically across
+  // the configured rungs; unsupported rows consume no provider call.
+  const perProcessorLimit = Math.max(
+    1,
+    Math.floor(policy.maxItemsPerRun / Math.max(1, policy.processors.length)),
+  );
   for (const id of policy.processors) {
     const processor = registry.get(id);
     if (!processor) continue;
@@ -385,7 +401,7 @@ export async function drainRecovery(
       { queue, processor, enrichStore, ctx: processorCtx },
       {
         currentOn,
-        limit: policy.maxItemsPerRun,
+        limit: perProcessorLimit,
         maxAttemptsPerItem: policy.maxAttemptsPerItem,
         // Automatic spend is grocery-only. Uncategorized remains visible in
         // its own triage scope and can be dispatched deliberately; it can no

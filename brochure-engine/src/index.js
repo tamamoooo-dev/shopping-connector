@@ -15,6 +15,7 @@
 // is invisible to everything above it.
 
 import { handleRequest } from './engine.js';
+import { enqueueBackground, consumeBackground } from './backgroundContinuation.js';
 import { handleOps } from './ops/console.js';
 import { handleIdentityBuilderDebug } from './offers/identityDebug.js';
 import { handleArabicBuilderDebug } from './offers/arabicBuilderDebug.js';
@@ -22,13 +23,15 @@ import { handleRegistryCandidateDebug } from './registry/debug.js';
 import {
   runFanOut,
   createServiceBindingDispatcher,
-  runWatchFanOut,
-  createWatchCheckDispatcher,
+  createWatchRunDispatcher,
   runEnrichDrain,
   createEnrichDispatcher,
+  CPU_SAFE_BACKGROUND_DRAIN,
+  isDailyEmptyResolutionTick,
+  runVisionVerificationDrain,
+  createVisionVerificationDispatcher,
+  createResolutionDispatcher,
   createOcrEnrichDispatcher,
-  runRecoveryDrainFanOut,
-  createRecoveryDrainDispatcher,
 } from './scheduler.js';
 import { createD1MetadataStore } from './storage/metadataStore.js';
 import {
@@ -41,21 +44,23 @@ import { createD1HistoryStore } from './storage/historyStore.js';
 import { createD1OfferStore } from './storage/offerStore.js';
 import { createD1BrowseStore } from './storage/browseStore.js';
 import { createD1WatchStore } from './storage/watchStore.js';
+import { createD1WatchRunStore } from './storage/watchRunStore.js';
 import { createD1OpsStore } from './storage/opsStore.js';
 import { createD1EnrichStore } from './storage/enrichStore.js';
+import { createD1VisionVerificationStore } from './storage/visionVerificationStore.js';
+import { createR2VisionVerificationHistoryStore } from './storage/visionVerificationHistoryStore.js';
 import { createRecoveryQueue } from './storage/recoveryQueue.js';
 import { recoveryRegistry } from './recovery/processors/index.js';
-import { readRecoveryPolicy } from './recovery/policy.js';
 import { createD1VisionJobStore } from './storage/visionJobStore.js';
 import { createD1RegistryStore } from './storage/registryStore.js';
 import { builtArabicNamesEnabled } from './lexicon/arabicRollout.js';
-import { createNtfyNotifier, CHECK_BATCH, checkWatch } from './monitor.js';
+import { createNtfyNotifier } from './monitor.js';
+import { claimScheduledWatchRuns } from './watchSchedule.js';
 import { runMaintenance } from './registry/lifecycle.js';
-import { drainResolution } from './registry/drain.js';
 import { createPipeline } from './pipeline.js';
 import { createServiceBindingSearchClient } from './searchClient.js';
 import { createD4dOffersSource } from './offers/d4dOffers.js';
-import { pruneStoredBytes } from './retention.js';
+import { isD1RetentionTick, pruneStoredBytes } from './retention.js';
 import { othaimProvider } from './providers/othaim.js';
 import { hyperpandaProvider } from './providers/hyperpanda.js';
 import { carrefourProvider } from './providers/carrefour.js';
@@ -64,7 +69,7 @@ import { danubeProvider } from './providers/danube.js';
 import { tamimiProvider } from './providers/tamimi.js';
 import { nestoProvider } from './providers/nesto.js';
 import { d4dStoreProviders } from './providers/d4dStores.js';
-import { buildMistralPools } from './offers/mistralKeys.js';
+import { buildMistralPools, isTerminalMistralLimit } from './offers/mistralKeys.js';
 
 // M1: Othaim via the official PdfIndexCollector. The other stores via the
 // reusable AggregatorCollector (D4D adapter) with an official-offers-page
@@ -89,38 +94,57 @@ const registry = Object.fromEntries(
 // computed from these).
 const CRONS = {
   pipeline: '0 6 * * 2,3,5', // weekly brochure/offers fan-out
-  watches: '45 5 * * *', // daily Price Monitoring check (+ Monday registry maintenance)
+  watches: '* * * * *', // durable 07:00/19:00 Riyadh rounds + minute retries
+  maintenance: '45 5 * * *', // Monday registry maintenance
   enrich: '10,30,50 * * * *', // steady-state vision drain (yields to a background job)
+  // Logical schedule serviced by the shared one-minute trigger below.
+  verification: '5,25,45 * * * *', // stage-two repeated Vision verification
   visionDrain: '* * * * *', // Background Manual Vision: near-continuous drain while a job runs
-  recovery: '* * * * *', // armed Recovery: grocery-first SELF fan-out on the same idle tick
   brochureResume: '*/2 * * * *', // one safe page batch per pending D4D store
 };
 
 // --- Background Manual Vision (continuous cron-driven drain) --------------------
-// The 1-minute `visionDrain` cron drains an operator-started job to empty, paced
-// only by Mistral. THROUGHPUT KNOB: children dispatched per fire (each is one
-// /enrich?limit=15 ⇒ 15 offers). Production demonstrated ~67 offers/min
-// sustained (~8k in 2h), so 4×15 = 60/fire targets that; the children self-throttle
-// on Mistral 429s (offers/mistralKeys.js), so this is a ceiling, not a floor.
-// Tune this single number if production measurement suggests a better value.
-const VISION_DRAIN_BATCHES = 4;
-// Same throughput shape as Background Vision: four fresh Worker invocations
-// per minute, each capped by recovery policy at 15 items by default.
-const RECOVERY_DRAIN_BATCHES = 4;
+// The one-minute tick drains an operator-started job to empty. Every SELF child
+// handles one crop/model/commit unit (CPU_SAFE_BACKGROUND_DRAIN), preventing
+// fifteen CPU-heavy base64/normalization operations from sharing one limit.
 // Single-writer lease held while a fire is draining. It MUST exceed a fire's
 // worst-case wall time, else it expires mid-drain and a second fire could write
-// concurrently. A K=4 fire is 4 × /enrich?limit=15 (measured ~30–75s each with
-// resolution + failover) ⇒ up to ~300s; the active 2-key failover keeps a lone
-// 429 from stalling on Retry-After. Keep this comfortably above
-// VISION_DRAIN_BATCHES × ~75s if K is raised. A normal fire RELEASES the lease
+// concurrently. Keep it comfortably above the configured child ceiling and
+// provider retry window. A normal fire RELEASES the lease
 // on completion (the next tick continues at once); the lease only bounds a
-// crashed/stalled fire (≤5-min recovery). Tune alongside VISION_DRAIN_BATCHES.
-const VISION_LEASE_MS = 300000;
-// Resolution is DECOUPLED from the /enrich children (2026-07-20): each cron
-// coordinator runs ONE drainResolution pass after its enrich children finish,
-// so the CPU-heavy registry scoring never competes with enrichment in the same
-// invocation. 100 is the measured per-invocation ceiling headroom (HISTORY §40).
-const RESOLVE_LIMIT = 100;
+// crashed/stalled fire (≤5-min recovery).
+const VISION_LEASE_MS = 900000;
+// Resolution has its own SELF invocation and a deliberately small unit of work.
+const RESOLVE_LIMIT = 25;
+
+function terminalProviderFailure(drain) {
+  const category = drain?.providerLimit?.category || drain?.providerError?.category || null;
+  return isTerminalMistralLimit(category);
+}
+
+// Keep the CPU-heavy Registry scorer outside the cron coordinator. This is a
+// sibling SELF invocation, not post-processing inside the Vision invocation.
+async function runDetachedResolution(env, { tag = '' } = {}) {
+  // Vision and Verification may now run concurrently; Registry remains a
+  // single writer across both coordinators.
+  const lease = createD1VisionJobStore(env.DB, { id: 'background-resolution' });
+  await lease.ensureRunning({ scope: 'all', total: 0, origin: 'ops' });
+  if (!(await lease.tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS }))) {
+    return { ok: true, skipped: 'resolution-already-running' };
+  }
+  try {
+    const result = await createResolutionDispatcher({
+      self: env.SELF,
+      ingestSecret: env.INGEST_SECRET,
+      tag,
+    })(RESOLVE_LIMIT);
+    return { ok: true, result };
+  } catch (err) {
+    return { ok: false, error: err?.message || String(err) };
+  } finally {
+    await lease.update({ lease_until: null });
+  }
+}
 
 function buildContext(env) {
   const useBuiltArabicNames = builtArabicNamesEnabled(env.BUILT_ARABIC_NAMES_ENABLED);
@@ -156,6 +180,7 @@ function buildContext(env) {
   // is optional: set the NTFY_TOPIC secret to a private ntfy.sh topic and the
   // monitor pushes each alert to the user's phone; absent, alerts are in-app.
   const watchStore = createD1WatchStore(env.DB);
+  const watchRunStore = createD1WatchRunStore(env.DB);
   const notifier = env.NTFY_TOPIC
     ? createNtfyNotifier({ topic: env.NTFY_TOPIC, server: env.NTFY_SERVER || 'https://ntfy.sh' })
     : null;
@@ -169,21 +194,21 @@ function buildContext(env) {
   // absent, the whole feature is inert (route 503s, cron skips, reads overlay
   // nothing) with zero behavior change elsewhere.
   const enrichStore = createD1EnrichStore(env.DB);
-  // S5 Recovery Queue (VISION-PIPELINE.md C-8, C-9). Shares D1. Inert twice
-  // over: the store reports not-ready until the migrations are applied, and the
-  // execution policy defaults to Manual/disarmed so no PAID processor drains
-  // without an operator. Free as-is non-grocery reconciliation still runs.
-  // The registry is the authority on which processors exist.
+  const visionVerificationStore = createD1VisionVerificationStore(env.DB);
+  const visionVerificationHistoryStore = createR2VisionVerificationHistoryStore(env.BROCHURES);
+  // Legacy Recovery storage remains bound for rollback/audit compatibility,
+  // but no cron or visible Operations path drains it. Stage 2 below is the
+  // active replacement.
   const recoveryQueue = createRecoveryQueue(env.DB);
   // Background Manual Vision job (Vision Milestone 2 §2): one durable 'active'
   // row the 1-minute `visionDrain` cron updates each fire, so a manual drain
   // runs to empty server-side and its progress survives the browser closing.
   // Shares D1; inert until an operator starts a job.
   const visionJobStore = createD1VisionJobStore(env.DB);
-  // A second row in the same generic job table is Recovery's coordinator
-  // lease. It prevents overlapping one-minute cron fires from multiplying the
-  // intended four-child Medium request rate.
+  // The retired Recovery coordinator row is retained for backward-compatible
+  // operator API reads. Stage 2 owns the active verification row.
   const recoveryJobStore = createD1VisionJobStore(env.DB, { id: 'recovery' });
+  const visionVerificationJobStore = createD1VisionJobStore(env.DB, { id: 'verification' });
   // Product Registry (REGISTRY-DESIGN.md): products + sightings, shared D1.
   const registryStore = createD1RegistryStore(env.DB);
   // Model-scoped Mistral credentials. Dedicated bindings isolate Small, OCR,
@@ -204,16 +229,21 @@ function buildContext(env) {
     offersSource,
     browseStore,
     watchStore,
+    watchRunStore,
     notifier,
     searchClient,
     ingestSecret: env.INGEST_SECRET,
     opsStore,
     opsToken: env.OPS_TOKEN,
     enrichStore,
+    visionVerificationStore,
+    visionVerificationHistoryStore,
     recoveryQueue,
     recoveryRegistry,
     visionJobStore,
+    backgroundDrainQueue: env.BACKGROUND_DRAINS,
     recoveryJobStore,
+    visionVerificationJobStore,
     mistralPools,
     // Compatibility fields for older local/tests/callers. Production routing
     // consumes mistralPools directly and can therefore use all three Medium
@@ -246,7 +276,10 @@ function buildContext(env) {
   };
 }
 
-export default {
+const worker = {
+  async queue(batch, env) {
+    await consumeBackground(batch, env, worker.scheduled);
+  },
   async fetch(request, env) {
     const ctx = buildContext(env);
     // The Operations Console — a hidden, OPS_TOKEN-guarded admin subsystem
@@ -310,80 +343,235 @@ export default {
     //   • "* * * * *"    — shared background tick: Manual Vision when its job
     //     is running; otherwise armed Recovery, plus free non-grocery cleanup.
     //   • "10,30,50 * * * *" — the steady-state vision-enrichment drain (below).
-    //   • "45 5 * * *"  — DAILY Price Monitoring: check every active watch.
-    //     Fanned out in batches via SELF (each batch gets its own subrequest
-    //     budget); kept OUT of the weekly fire so the two never compound
-    //     against the per-event invocation caps. Mondays it also runs
-    //     registry maintenance.
+    //   • "* * * * *" — durable Price Monitoring rounds at 07:00/19:00
+    //     Riyadh, with a failed lookup retried on subsequent minute ticks.
+    //   • "45 5 * * *" — Monday registry maintenance.
     //   • "0 6 * * 2,3,5" — the WEEKLY brochure/offers pipeline (fan-out ->
     //     price capture -> retention), unchanged below.
     // Shared one-minute background tick. Manual Vision has first priority while
     // its job runs. Otherwise armed Recovery drains through fresh SELF children.
     // Both paths hold their own D1 lease so cron fires cannot overlap.
     if (event.cron === '* * * * *') {
+      // Price monitoring shares this minute trigger but has an independent
+      // durable D1 queue. At 07:00/19:00 Riyadh a round is created once; failed
+      // retrievals become due again one minute later, while completed results
+      // stay frozen until the following slot.
+      if (!event.backgroundStage) ctx.waitUntil(
+        (async () => {
+          const context = buildContext(env);
+          const claimed = await claimScheduledWatchRuns(context, {
+            nowMs: event.scheduledTime || Date.now(),
+          });
+          if (!claimed.runs.length) return;
+          const dispatch = createWatchRunDispatcher({
+            self: env.SELF,
+            ingestSecret: env.INGEST_SECRET,
+          });
+          let result;
+          try {
+            result = await dispatch(claimed.runs.map((run) => run.id));
+          } catch (err) {
+            // If the SELF child itself was unreachable, release the durable
+            // claims onto the same +60-second retry cadence. CAS lease tokens
+            // make this harmless if the child actually completed first.
+            await Promise.all(claimed.runs.map((run) => context.watchRunStore.finish(
+              run.id,
+              run.leaseToken,
+              { resolution: 'provider-error', notes: [`dispatch: ${err?.message || String(err)}`] },
+              { retryable: true, nowMs: event.scheduledTime || Date.now() },
+            )));
+            throw err;
+          }
+          console.log('brochure-engine scheduled watch round', JSON.stringify({
+            slot: claimed.slot.key,
+            created: claimed.created,
+            claimed: claimed.runs.length,
+            completed: result.completed,
+            retrying: result.retrying,
+            alerted: result.alerted,
+          }));
+        })().catch((err) => {
+          console.error('brochure-engine watch round dispatch', err?.message || String(err));
+        }),
+      );
       ctx.waitUntil(
         (async () => {
           const context = buildContext(env);
+          // Capacity safety outranks background model work for one minute per
+          // day. A long-running/stuck manual job must never be able to starve
+          // retention indefinitely; it resumes on the next minute tick.
+          const scheduledAt = event.scheduledTime || Date.now();
+          if (!event.backgroundStage && isD1RetentionTick(scheduledAt)) {
+            const pruneReport = await pruneStoredBytes(context);
+            console.log('brochure-engine daily D1 retention', JSON.stringify({
+              ops: pruneReport.ops?.deleted || 0,
+              offers: pruneReport.offersPruned || 0,
+              sidecars: pruneReport.offerSidecarsPruned || 0,
+              evidence: pruneReport.evidenceCompacted || 0,
+              errors: pruneReport.errors,
+            }));
+            return;
+          }
           const today = new Date().toISOString().slice(0, 10);
-          // Zero-model cleanup runs whether Auto is armed or not. It retires
-          // named/priced TVs, bags, shoes, etc. under the user's as-is rule.
-          const reconciledAsIs = await context.enrichStore
-            .reconcileNonGroceryAcceptance({ currentOn: today, limit: 500 })
-            .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
-          // Same zero-model cleanup for basis-priced stock: fresh produce,
-          // butchery, fish and deli priced "PER KG" (gate v3).
-          const reconciledBasis = await context.enrichStore
-            .reconcilePriceBasisAcceptance({ currentOn: today, limit: 500 })
-            .catch(() => ({ available: false, scanned: 0, resolved: 0 }));
-          const job = await context.visionJobStore.get().catch(() => null);
-          if (!job || job.status !== 'running') {
-            // Recovery Auto is a durable background drain, not a one-button
-            // burst. SELF children mirror Background Vision: each receives a
-            // fresh external-subrequest budget and the next minute resumes.
-            const policy = await readRecoveryPolicy(
-              context.objectStore,
-              { registry: context.recoveryRegistry },
-            ).catch(() => null);
-            if (!policy?.armed) {
-              await context.recoveryJobStore.stop().catch(() => {});
-              return;
+          // Cron is a recovery watchdog; queue messages drive normal progress.
+          if (!event.backgroundStage && env.BACKGROUND_DRAINS) {
+            let running = false;
+            for (const [stage, store] of [
+              ['vision', context.visionJobStore],
+              ['verification', context.visionVerificationJobStore],
+            ]) {
+              const active = await store.get();
+              if (active?.status !== 'running') continue;
+              running = true;
+              if (!active.lease_until || Date.parse(active.lease_until) <= Date.now()) {
+                await enqueueBackground(env.BACKGROUND_DRAINS, store, stage);
+              }
             }
-            await context.recoveryJobStore
-              .ensureRunning({ scope: 'recovery', origin: 'cron' })
-              .catch(() => null);
-            if (!(await context.recoveryJobStore
-              .tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS })
-              .catch(() => false))) return;
-            const tr = Date.now();
-            try {
-              const drain = await runRecoveryDrainFanOut(
-                createRecoveryDrainDispatcher({
+            if (running) return;
+          }
+          const job = event.backgroundStage === 'verification'
+            ? null : await context.visionJobStore.get();
+          if (event.backgroundStage === 'vision' && job?.status !== 'running') return;
+          if (!job || job.status !== 'running') {
+            const verificationJob = await context.visionVerificationJobStore.get().catch(() => null);
+            if (event.backgroundStage && verificationJob?.status !== 'running') return;
+            if (!verificationJob || verificationJob.status !== 'running') {
+              // The Free plan permits five account cron triggers. The shared
+              // one-minute tick services the logical 5/25/45 Stage 2 schedule
+              // while preserving Stage 1's independent 10/30/50 trigger.
+              const minute = new Date(scheduledAt).getUTCMinutes();
+              if (![5, 25, 45].includes(minute)) return;
+              if (!context.mistralPools.medium.some((slot) => slot.key)) return;
+              const candidates = await context.visionVerificationStore.listPending({
+                currentOn: today,
+                limit: CPU_SAFE_BACKGROUND_DRAIN.batchSize * CPU_SAFE_BACKGROUND_DRAIN.maxBatches,
+              }).catch(() => []);
+              if (!candidates.length) return;
+              const pending = candidates.length;
+              const t0 = Date.now();
+              const drain = await runVisionVerificationDrain(
+                createVisionVerificationDispatcher({
                   self: env.SELF,
                   ingestSecret: env.INGEST_SECRET,
                 }),
-                { maxBatches: RECOVERY_DRAIN_BATCHES },
+                {
+                  pending,
+                  candidateIds: candidates.map((item) => item.offerId),
+                  ...CPU_SAFE_BACKGROUND_DRAIN,
+                },
               );
+              const resolution = await runDetachedResolution(env);
+              console.log('brochure-engine vision verification drain', JSON.stringify({
+                pending: drain.pending,
+                batches: drain.batches,
+                ok: drain.ok,
+                failed: drain.failed,
+                verified: drain.verified,
+                unmatched: drain.unmatched,
+              }));
+              await context.opsStore.record({
+                ts: drain.startedAt,
+                action: 'cron:vision-verification',
+                origin: 'cron',
+                ok: drain.failed === 0 && resolution.ok,
+                failed: drain.failed + (resolution.ok ? 0 : 1),
+                elapsed_ms: Date.now() - t0,
+                error: drain.lines?.find((line) => !line.ok)?.error || resolution.error || null,
+                detail: {
+                  pending: drain.pending,
+                  batches: drain.batches,
+                  verified: drain.verified,
+                  unmatched: drain.unmatched,
+                  providerLimit: drain.providerLimit,
+                  providerError: drain.providerError,
+                  resolution,
+                },
+              }).catch(() => {});
+              return;
+            }
+            if (!(await context.visionVerificationJobStore
+              .tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS })
+              .catch(() => false))) return;
+            const tr = Date.now();
+            let verificationCompleted = false;
+            try {
+              const candidates = await context.visionVerificationStore.listPending({
+                currentOn: today,
+                limit: CPU_SAFE_BACKGROUND_DRAIN.batchSize * CPU_SAFE_BACKGROUND_DRAIN.maxBatches,
+              }).catch(() => []);
+              if (!candidates.length) {
+                await context.visionVerificationJobStore.update({
+                  status: 'done', remaining: 0,
+                  finished_at: new Date().toISOString(), lease_until: null,
+                }).catch(() => {});
+                return;
+              }
+              const pending = candidates.length;
+              const drain = await runVisionVerificationDrain(
+                createVisionVerificationDispatcher({
+                  self: env.SELF,
+                  ingestSecret: env.INGEST_SECRET,
+                  tag: 'ops',
+                }),
+                {
+                  pending,
+                  candidateIds: candidates.map((item) => item.offerId),
+                  ...CPU_SAFE_BACKGROUND_DRAIN,
+                  shouldContinue: async () => (await context.visionVerificationJobStore.get())?.status === 'running',
+                },
+              );
+              const resolution = await runDetachedResolution(env, { tag: 'ops' });
+              const remaining = await context.visionVerificationStore.countPending(today).catch(() => null);
+              const done = remaining != null && remaining <= 0;
+              const terminal = terminalProviderFailure(drain);
+              // Re-read after the drain: an operator may have stopped the job
+              // while this fire was in flight. Never overwrite that stop with
+              // the stale `verificationJob` snapshot captured above.
+              const currentJob = await context.visionVerificationJobStore.get().catch(() => null);
+              if (currentJob?.status === 'running') {
+                await context.visionVerificationJobStore.update({
+                  status: done ? 'done' : terminal ? 'error' : 'running',
+                  processed: remaining == null
+                    ? currentJob.processed
+                    : Math.max(0, (currentJob.total || 0) - remaining),
+                  // Physical column names come from the generic legacy job
+                  // schema. The Verification API maps these to `verified` and
+                  // `continuingAttempts`; unmatched attempts are never declines.
+                  enriched: (currentJob.enriched || 0) + drain.verified,
+                  declined: (currentJob.declined || 0) + drain.unmatched,
+                  failed: (currentJob.failed || 0) + drain.failed,
+                  remaining: remaining == null ? currentJob.remaining : remaining,
+                  hops: (currentJob.hops || 0) + drain.batches,
+                  last_error: drain.lines?.find((line) => !line.ok)?.error || resolution.error || null,
+                  provider_limit: drain.providerLimit || currentJob.provider_limit || null,
+                  finished_at: done || terminal ? new Date().toISOString() : null,
+                  lease_until: null,
+                }).catch(() => {});
+              }
               await context.opsStore
                 .record({
                   ts: drain.startedAt,
-                  action: 'cron:recovery',
-                  origin: 'cron',
-                  ok: drain.failed === 0,
-                  failed: drain.failed,
+                  action: 'vision-verification',
+                  origin: 'ops',
+                  ok: drain.failed === 0 && resolution.ok,
+                  failed: drain.failed + (resolution.ok ? 0 : 1),
                   elapsed_ms: Date.now() - tr,
-                  error: drain.lines?.find((line) => !line.ok)?.error || null,
+                  error: drain.lines?.find((line) => !line.ok)?.error || resolution.error || null,
                   detail: {
                     batches: drain.batches,
-                    scanned: drain.scanned,
-                    attempted: drain.attempted,
-                    recovered: drain.recovered,
-                    reconciledAsIs: reconciledAsIs.resolved,
-                    reconciledPriceBasis: reconciledBasis.resolved,
+                    verified: drain.verified,
+                    unmatched: drain.unmatched,
+                    remaining,
+                    providerLimit: drain.providerLimit,
+                    providerError: drain.providerError,
+                    resolution,
                   },
                 })
                 .catch(() => {});
+              verificationCompleted = true;
             } finally {
-              await context.recoveryJobStore.update({ lease_until: null }).catch(() => {});
+              await context.visionVerificationJobStore.update({ lease_until: null });
+              if (verificationCompleted) await enqueueBackground(env.BACKGROUND_DRAINS, context.visionVerificationJobStore, 'verification');
             }
             return;
           }
@@ -391,52 +579,78 @@ export default {
           // Single-writer: only one fire drains at a time (atomic CAS lease).
           if (!(await context.visionJobStore.tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS }).catch(() => false))) return;
           const te = Date.now();
-          const pending = await context.enrichStore.countDebris(today).catch(() => 0);
-          if (pending <= 0) {
-            await context.visionJobStore
-              .update({ status: 'done', remaining: 0, finished_at: new Date().toISOString(), lease_until: null })
+          let visionCompleted = false;
+          try {
+            const candidates = await context.enrichStore.listDebris({
+              currentOn: today,
+              limit: CPU_SAFE_BACKGROUND_DRAIN.batchSize * CPU_SAFE_BACKGROUND_DRAIN.maxBatches,
+            }).catch(() => []);
+            if (!candidates.length) {
+              await context.visionJobStore
+                .update({ status: 'done', remaining: 0, finished_at: new Date().toISOString(), lease_until: null })
+                .catch(() => {});
+              return;
+            }
+            const pending = candidates.length;
+            const drain = await runEnrichDrain(
+              createEnrichDispatcher({ self: env.SELF, ingestSecret: env.INGEST_SECRET, tag: 'ops' }),
+              {
+                pending,
+                candidateIds: candidates.map((offer) => offer.id),
+                ...CPU_SAFE_BACKGROUND_DRAIN,
+                shouldContinue: async () => (await context.visionJobStore.get())?.status === 'running',
+              },
+            );
+            // Resolution runs in its own SELF child so its CPU is isolated too.
+            const resolution = await runDetachedResolution(env, { tag: 'ops' });
+            const remaining = await context.enrichStore.countDebris(today).catch(() => null);
+            const done = remaining != null && remaining <= 0;
+            const terminal = terminalProviderFailure(drain);
+            const currentJob = await context.visionJobStore.get().catch(() => null);
+            if (currentJob?.status === 'running') {
+              await context.visionJobStore
+                .update({
+                  status: done ? 'done' : terminal ? 'error' : 'running',
+                  // total was the queue depth at start; cleared = total − remaining.
+                  processed: remaining == null
+                    ? currentJob.processed
+                    : Math.max(0, (currentJob.total || 0) - remaining),
+                  enriched: (currentJob.enriched || 0) + drain.enriched,
+                  failed: (currentJob.failed || 0) + drain.failed,
+                  remaining: remaining == null ? currentJob.remaining : remaining,
+                  hops: (currentJob.hops || 0) + drain.batches,
+                  last_error: drain.lines?.find((l) => !l.ok)?.error || resolution.error || null,
+                  provider_limit: drain.providerLimit || currentJob.provider_limit || null,
+                  finished_at: done || terminal ? new Date().toISOString() : null,
+                  lease_until: null,
+                })
+                .catch(() => {});
+            }
+            await context.opsStore
+              .record({
+                ts: drain.startedAt,
+                action: 'enrich',
+                origin: 'ops',
+                ok: drain.failed === 0 && resolution.ok,
+                failed: drain.failed + (resolution.ok ? 0 : 1),
+                elapsed_ms: Date.now() - te,
+                error: drain.lines?.find((l) => !l.ok)?.error || resolution.error || null,
+                detail: {
+                  job: 'vision',
+                  batches: drain.batches,
+                  enriched: drain.enriched,
+                  remaining,
+                  providerLimit: drain.providerLimit,
+                  providerError: drain.providerError,
+                  resolution,
+                },
+              })
               .catch(() => {});
-            return;
+            visionCompleted = true;
+          } finally {
+            await context.visionJobStore.update({ lease_until: null });
+            if (visionCompleted) await enqueueBackground(env.BACKGROUND_DRAINS, context.visionJobStore, 'vision');
           }
-          const drain = await runEnrichDrain(
-            createEnrichDispatcher({ self: env.SELF, ingestSecret: env.INGEST_SECRET, tag: 'ops' }),
-            { pending, batchSize: 15, maxBatches: VISION_DRAIN_BATCHES },
-          );
-          // Decoupled resolution: one D1-only pass in THIS coordinator after the
-          // enrichment children (single-writer via the lease we already hold).
-          if (context.registryStore) {
-            await drainResolution(
-              { enrichStore: context.enrichStore, registryStore: context.registryStore },
-              { limit: RESOLVE_LIMIT, currentOn: today },
-            ).catch(() => {});
-          }
-          const remaining = await context.enrichStore.countDebris(today).catch(() => null);
-          const done = remaining != null && remaining <= 0;
-          await context.visionJobStore
-            .update({
-              status: done ? 'done' : 'running',
-              // total was the queue depth at start; cleared = total − remaining.
-              processed: remaining == null ? job.processed : Math.max(0, (job.total || 0) - remaining),
-              enriched: (job.enriched || 0) + drain.enriched,
-              remaining: remaining == null ? job.remaining : remaining,
-              hops: (job.hops || 0) + drain.batches,
-              last_error: drain.lines?.find((l) => !l.ok)?.error || null,
-              finished_at: done ? new Date().toISOString() : null,
-              lease_until: null, // release so the next 1-min tick continues at once
-            })
-            .catch(() => {});
-          await context.opsStore
-            .record({
-              ts: drain.startedAt,
-              action: 'enrich',
-              origin: 'ops',
-              ok: drain.failed === 0,
-              failed: drain.failed,
-              elapsed_ms: Date.now() - te,
-              error: drain.lines?.find((l) => !l.ok)?.error || null,
-              detail: { job: 'vision', batches: drain.batches, enriched: drain.enriched, remaining },
-            })
-            .catch(() => {});
         })(),
       );
       return;
@@ -501,40 +715,36 @@ export default {
           if (bgJob && bgJob.status === 'running') return;
           const te = Date.now();
           const today = new Date().toISOString().slice(0, 10);
-          const pending = await context.enrichStore.countDebris(today).catch(() => 0);
-          if (pending <= 0) {
+          const candidates = await context.enrichStore.listDebris({
+            currentOn: today,
+            limit: CPU_SAFE_BACKGROUND_DRAIN.batchSize * CPU_SAFE_BACKGROUND_DRAIN.maxBatches,
+          }).catch(() => []);
+          if (!candidates.length) {
             // Empty vision queue does NOT mean an empty RESOLUTION queue: a
             // data repair / re-opened verdicts can leave unresolved
             // enrichments with nothing left to enrich (2026-07-21 — the
-            // brand-veto repair sat undrained because this fire returned
-            // here). One D1-only resolution pass, then out.
-            if (context.registryStore) {
-              await drainResolution(
-                { enrichStore: context.enrichStore, registryStore: context.registryStore },
-                { limit: RESOLVE_LIMIT, currentOn: today },
-              ).catch(() => {});
+            // brand-veto repair sat undrained because this fire returned here).
+            // One daily D1-only safety pass preserves that repair path without
+            // paying the current-offer join on all 72 empty Stage 1 fires.
+            if (isDailyEmptyResolutionTick(event.scheduledTime || Date.now())) {
+              await runDetachedResolution(env);
             }
             return;
           }
+          const pending = candidates.length;
           const drain = await runEnrichDrain(
             createEnrichDispatcher({ self: env.SELF, ingestSecret: env.INGEST_SECRET }),
-            // Vision Milestone 2 §3 — modest steady-state throughput bump (4→6
-            // sequential children ≈ 90 offers/fire, ×3 fires/hour ⇒ ~6.5k/day
-            // ceiling). Each child is still its own fresh 50-subrequest budget
-            // (batchSize 15 = ~30 subrequests), so this stays inside the Free
-            // plan; large backlogs use the Background Manual Vision job instead.
-            { pending, batchSize: 15, maxBatches: 6 },
+            // The unattended path uses one offer per child. The client-driven
+            // live drain remains batch-sized because every click is a separate
+            // top-level request and can be stopped by the operator.
+            {
+              pending,
+              candidateIds: candidates.map((offer) => offer.id),
+              ...CPU_SAFE_BACKGROUND_DRAIN,
+            },
           );
-          // Decoupled resolution: one D1-only pass here after the enrichment
-          // children (children are now enrichment-only). Steady-state stays a
-          // single resolution writer — this fire only runs when no Background
-          // Vision job is active (yield above).
-          if (context.registryStore) {
-            await drainResolution(
-              { enrichStore: context.enrichStore, registryStore: context.registryStore },
-              { limit: RESOLVE_LIMIT, currentOn: today },
-            ).catch(() => {});
-          }
+          // This fire only runs when no Background Vision job is active.
+          const resolution = await runDetachedResolution(env);
           console.log(
             'brochure-engine enrich drain',
             JSON.stringify({
@@ -550,11 +760,18 @@ export default {
               ts: drain.startedAt,
               action: 'cron:enrich',
               origin: 'cron',
-              ok: drain.failed === 0,
-              failed: drain.failed,
+              ok: drain.failed === 0 && resolution.ok,
+              failed: drain.failed + (resolution.ok ? 0 : 1),
               elapsed_ms: Date.now() - te,
-              error: drain.lines?.find((l) => !l.ok)?.error || null,
-              detail: { pending: drain.pending, batches: drain.batches, enriched: drain.enriched },
+              error: drain.lines?.find((l) => !l.ok)?.error || resolution.error || null,
+              detail: {
+                pending: drain.pending,
+                batches: drain.batches,
+                enriched: drain.enriched,
+                providerLimit: drain.providerLimit,
+                providerError: drain.providerError,
+                resolution,
+              },
             })
             .catch(() => {});
         })(),
@@ -566,46 +783,10 @@ export default {
       ctx.waitUntil(
         (async () => {
           const context = buildContext(env);
-          const t0 = Date.now();
-          const watches = await context.watchStore.list({ activeOnly: true });
-          if (watches.length) {
-            const dispatchBatch = createWatchCheckDispatcher({
-              self: env.SELF,
-              ingestSecret: env.INGEST_SECRET,
-            });
-            const report = await runWatchFanOut(
-              watches.map((w) => w.id),
-              dispatchBatch,
-              { batchSize: CHECK_BATCH },
-            );
-            console.log(
-              'brochure-engine watch check',
-              JSON.stringify({
-                watches: report.watches,
-                batches: report.batches,
-                ok: report.ok,
-                failed: report.failed,
-                alerted: report.alerted,
-              }),
-            );
-            // Ops Console audit + scheduler heartbeat (best-effort).
-            await context.opsStore
-              .record({
-                ts: report.startedAt,
-                action: 'cron:watches',
-                origin: 'cron',
-                ok: report.failed === 0,
-                elapsed_ms: Date.now() - t0,
-                error: report.lines?.find((l) => !l.ok)?.error || null,
-                detail: { watches: report.watches, batches: report.batches, alerted: report.alerted },
-              })
-              .catch(() => {});
-          }
-
           // Registry maintenance (registry/lifecycle.js): §5.1 dormancy sweep,
           // §5.4 conservative consolidation, dangling-sighting healing. WEEKLY
           // (Mondays — the quiet day between the Tue/Wed/Fri pipeline fires),
-          // riding the daily fire's tail: pure D1 work, zero subrequests, no
+          // riding this existing fire: pure D1 work, zero subrequests, no
           // new schedule. runMaintenance writes its own ops audit row.
           // Yield to an active Background Vision job (single-writer): a running
           // drain is writing the registry; defer this week's maintenance rather
@@ -644,43 +825,12 @@ export default {
         // is a price observation, so no separate capture step runs here.
         const ctx = buildContext(env);
 
-        // FLYER-SIDE WATCH RE-EVALUATION. Ingest is the ONLY moment flyer
-        // prices change, so this is where a flyer deal becomes knowable —
-        // polling for it on the daily cron would find the same rows 23 times
-        // out of 24. Restricted to watches whose flyer half is free to read:
-        // a product-anchored watch reads bestCurrentForProduct (pure D1, zero
-        // subrequests). Spec-anchored and store-scoped watches need the online
-        // sweep to be meaningful, so they wait for the daily fire and this step
-        // stays genuinely free.
-        const flyerWatches = (await ctx.watchStore.list({ activeOnly: true }))
-          .filter((w) => w.registryProductId && (w.scope || 'market') === 'market');
-        if (flyerWatches.length) {
-          const flyerCtx = ctx;
-          let alerted = 0;
-          for (const w of flyerWatches) {
-            const line = await checkWatch(flyerCtx, w, { flyerOnly: true }).catch(() => null);
-            if (line?.alerted) alerted += 1;
-          }
-          console.log(
-            'brochure-engine flyer watch re-eval',
-            JSON.stringify({ watches: flyerWatches.length, alerted }),
-          );
-        }
+        // Watch results are intentionally not re-evaluated during ingest. A
+        // completed 07:00/19:00 round is immutable until the next slot.
 
-        // Retention (see retention.js): metadata is forever, BYTES are a
-        // rolling window. Runs in the coordinator (KV/D1 ops don't consume the
-        // fetch-subrequest budget); capped per run so the KV daily delete
-        // budget is never at risk and a backlog drains across fires.
-        const pruneReport = await pruneStoredBytes(ctx);
-        console.log(
-          'brochure-engine retention',
-          JSON.stringify({
-            pruned: pruneReport.pruned,
-            deletes: pruneReport.deletes,
-            offersPruned: pruneReport.offersPruned,
-            errors: pruneReport.errors.length,
-          }),
-        );
+        // Retention has one permanent owner: the shared 03:00 UTC tick above.
+        // Pipeline fan-out used to run the same D1/KV sweep again, making
+        // cleanup frequency depend on ingest days and duplicating row reads.
 
         // Ops Console audit + scheduler heartbeat: the coordinator's summary
         // row (each store's child wrote its own row via /ingest). Best-effort.
@@ -694,10 +844,11 @@ export default {
             failed: report.failed,
             elapsed_ms: Date.now() - t0,
             error: report.stores?.find((s) => !s.ok)?.error || null,
-            detail: { pruned: pruneReport.pruned, offersPruned: pruneReport.offersPruned },
+            detail: { retention: 'daily-03:00-utc' },
           })
           .catch(() => {});
       })(),
     );
   },
 };
+export default worker;

@@ -108,6 +108,10 @@ const SYNONYMS = [
   ['cola', 'كولا'],
   ['tide', 'تايد'],
   ['nutella', 'نوتيلا'],
+  // Product-line transliteration used by Goody tuna. Advanced watch phrases
+  // must survive Arabic/English catalogue differences without relaxing the
+  // requested name or package size.
+  ['tenderina', 'tendreena', 'تندرينا'],
   // water brands shoppers search in either script (found via "Arwa Water
   // 1.5L" — the Arabic flyer names could never match the Latin brand token)
   ['arwa', 'اروي', 'اروا'],

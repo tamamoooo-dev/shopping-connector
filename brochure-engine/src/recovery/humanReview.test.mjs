@@ -20,7 +20,7 @@ import { createD1EnrichStore } from '../storage/enrichStore.js';
 import { createRecoveryQueue, RECOVERY_STATUS } from '../storage/recoveryQueue.js';
 import { createSqliteD1, insertOffers } from '../storage/testSqliteD1.mjs';
 import { buildStructuredProduct } from '../lexicon/structuredProduct.js';
-import { evaluateBusinessAcceptance } from '../offers/businessAcceptance.js';
+import { evaluateLegacyBusinessAcceptance as evaluateBusinessAcceptance } from '../offers/businessAcceptance.js';
 import { recoveryAdmission, servable } from '../offers/enrich.js';
 import { EXTRACTION_PROVENANCE } from '../offers/smartExtraction.js';
 import { REVIEW_DECISION } from './registry.js';

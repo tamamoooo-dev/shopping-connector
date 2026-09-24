@@ -23,7 +23,7 @@ const complete = buildStructuredProduct({
   name_en: 'Arwa Bottled Water 330 ml', name_ar: 'مياه أروى', brand: 'Arwa', size: '330 ml',
 });
 
-test('all three conditions present accepts, with an empty missing list', () => {
+test('the two admission conditions accept with an empty missing list', () => {
   const verdict = evaluateBusinessAcceptance({
     offer, acceptedFields: accepted, structured: complete,
   });
@@ -32,16 +32,11 @@ test('all three conditions present accepts, with an empty missing list', () => {
   assert.equal(verdict.version, BUSINESS_ACCEPTANCE_VERSION);
 });
 
-test('each condition can reject ALONE, and names itself', () => {
+test('each admission condition can reject alone, and names itself', () => {
   const noPrice = evaluateBusinessAcceptance({
     offer: { price: null, currency: 'SAR' }, acceptedFields: accepted, structured: complete,
   });
   assert.deepEqual([...noPrice.missing], ['price']);
-
-  const noQuantity = evaluateBusinessAcceptance({
-    offer, acceptedFields: accepted, structured: buildStructuredProduct({ name_en: 'Fresh Tomato' }),
-  });
-  assert.deepEqual([...noQuantity.missing], ['comparable_quantity']);
 
   const noName = evaluateBusinessAcceptance({
     offer, acceptedFields: ['brand'], structured: complete,
@@ -61,7 +56,8 @@ test('it is a CONJUNCTION — two strong conditions never carry a missing third'
   const verdict = evaluateBusinessAcceptance({
     offer, acceptedFields: accepted, structured: buildStructuredProduct({ name_en: 'Fresh Tomato' }),
   });
-  assert.equal(verdict.accepted, false, 'price + name must not compensate for quantity');
+  assert.equal(verdict.accepted, true, 'comparable quantity is diagnostic, not an admission condition');
+  assert.equal(verdict.comparableQuantity.status, 'ABSENT');
 });
 
 test('a container-basis product PASSES the gate and scores 0 on package_size (R8)', () => {

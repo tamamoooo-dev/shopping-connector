@@ -90,6 +90,100 @@ CREATE TABLE IF NOT EXISTS price_identities (
 CREATE INDEX IF NOT EXISTS ix_pi_store ON price_identities(store, region);
 CREATE INDEX IF NOT EXISTS ix_pi_last_seen ON price_identities(last_seen);
 
+-- Substring candidate index for the legacy Price History fallback. FTS5's
+-- trigram tokenizer preserves broad bilingual reach without a corpus scan.
+-- Canonical one/two-character words (for example Arabic `رز`) are encoded as
+-- synthetic `qx<term>xq` trigrams in the same contentless document. Original
+-- LIKE predicates and JS relevance remain the match authority afterwards.
+CREATE VIRTUAL TABLE IF NOT EXISTS price_identities_fts USING fts5(
+  match_text,
+  content='',
+  tokenize='trigram',
+  detail=none,
+  columnsize=0
+);
+
+CREATE TRIGGER IF NOT EXISTS price_identities_fts_ai
+AFTER INSERT ON price_identities BEGIN
+  INSERT INTO price_identities_fts(rowid, match_text)
+  WITH RECURSIVE split(rest, word) AS (
+    SELECT trim(new.match_text) || ' ', ''
+    UNION ALL
+    SELECT substr(rest, instr(rest, ' ') + 1),
+           substr(rest, 1, instr(rest, ' ') - 1)
+    FROM split WHERE rest <> ''
+  ), canon(term) AS (
+    SELECT DISTINCT CASE
+      WHEN word LIKE 'وال%' AND length(substr(word, 4)) >= 2 THEN substr(word, 4)
+      WHEN word LIKE 'ال%' AND length(substr(word, 3)) >= 2 THEN substr(word, 3)
+      ELSE word
+    END FROM split WHERE word <> ''
+  )
+  SELECT new.rowid,
+         new.match_text || COALESCE(' ' || group_concat('qx' || term || 'xq', ' '), '')
+  FROM canon WHERE length(term) < 3;
+END;
+
+CREATE TRIGGER IF NOT EXISTS price_identities_fts_ad
+AFTER DELETE ON price_identities BEGIN
+  INSERT INTO price_identities_fts(price_identities_fts, rowid, match_text)
+  WITH RECURSIVE split(rest, word) AS (
+    SELECT trim(old.match_text) || ' ', ''
+    UNION ALL
+    SELECT substr(rest, instr(rest, ' ') + 1),
+           substr(rest, 1, instr(rest, ' ') - 1)
+    FROM split WHERE rest <> ''
+  ), canon(term) AS (
+    SELECT DISTINCT CASE
+      WHEN word LIKE 'وال%' AND length(substr(word, 4)) >= 2 THEN substr(word, 4)
+      WHEN word LIKE 'ال%' AND length(substr(word, 3)) >= 2 THEN substr(word, 3)
+      ELSE word
+    END FROM split WHERE word <> ''
+  )
+  SELECT 'delete', old.rowid,
+         old.match_text || COALESCE(' ' || group_concat('qx' || term || 'xq', ' '), '')
+  FROM canon WHERE length(term) < 3;
+END;
+
+CREATE TRIGGER IF NOT EXISTS price_identities_fts_au
+AFTER UPDATE OF match_text ON price_identities
+WHEN old.match_text IS NOT new.match_text BEGIN
+  INSERT INTO price_identities_fts(price_identities_fts, rowid, match_text)
+  WITH RECURSIVE split(rest, word) AS (
+    SELECT trim(old.match_text) || ' ', ''
+    UNION ALL
+    SELECT substr(rest, instr(rest, ' ') + 1),
+           substr(rest, 1, instr(rest, ' ') - 1)
+    FROM split WHERE rest <> ''
+  ), canon(term) AS (
+    SELECT DISTINCT CASE
+      WHEN word LIKE 'وال%' AND length(substr(word, 4)) >= 2 THEN substr(word, 4)
+      WHEN word LIKE 'ال%' AND length(substr(word, 3)) >= 2 THEN substr(word, 3)
+      ELSE word
+    END FROM split WHERE word <> ''
+  )
+  SELECT 'delete', old.rowid,
+         old.match_text || COALESCE(' ' || group_concat('qx' || term || 'xq', ' '), '')
+  FROM canon WHERE length(term) < 3;
+  INSERT INTO price_identities_fts(rowid, match_text)
+  WITH RECURSIVE split(rest, word) AS (
+    SELECT trim(new.match_text) || ' ', ''
+    UNION ALL
+    SELECT substr(rest, instr(rest, ' ') + 1),
+           substr(rest, 1, instr(rest, ' ') - 1)
+    FROM split WHERE rest <> ''
+  ), canon(term) AS (
+    SELECT DISTINCT CASE
+      WHEN word LIKE 'وال%' AND length(substr(word, 4)) >= 2 THEN substr(word, 4)
+      WHEN word LIKE 'ال%' AND length(substr(word, 3)) >= 2 THEN substr(word, 3)
+      ELSE word
+    END FROM split WHERE word <> ''
+  )
+  SELECT new.rowid,
+         new.match_text || COALESCE(' ' || group_concat('qx' || term || 'xq', ' '), '')
+  FROM canon WHERE length(term) < 3;
+END;
+
 -- The append-only price series: first sighting + every price CHANGE, keyed by
 -- the offer's validity week so idempotent re-ingests never duplicate a point
 -- (a corrected extraction in the same window replaces its point in place).
@@ -282,6 +376,40 @@ CREATE INDEX IF NOT EXISTS ix_watches_profile ON watches(profile_id, active);
 CREATE INDEX IF NOT EXISTS ix_watches_registry_product ON watches(registry_product_id);
 CREATE INDEX IF NOT EXISTS ix_watches_anchor_state ON watches(anchor_state, active);
 
+-- Price Monitoring v3: Amazon-linked ASINs are exact/Amazon-only; every other
+-- watch is a generalized all-source search. The latest run is joined at read
+-- time so a frozen slot result and its retry state are both visible.
+ALTER TABLE watches ADD COLUMN watch_track TEXT;
+ALTER TABLE watches ADD COLUMN system_search_query TEXT;
+ALTER TABLE watches ADD COLUMN custom_search_query TEXT;
+
+CREATE TABLE IF NOT EXISTS watch_runs (
+  id                  TEXT PRIMARY KEY,
+  watch_id            TEXT NOT NULL,
+  slot_key            TEXT NOT NULL,
+  slot_period         TEXT NOT NULL CHECK (slot_period IN ('AM', 'PM')),
+  scheduled_at        TEXT NOT NULL,
+  status              TEXT NOT NULL DEFAULT 'pending'
+                      CHECK (status IN ('pending', 'running', 'retrying', 'completed', 'incomplete')),
+  attempts            INTEGER NOT NULL DEFAULT 0,
+  next_attempt_at     TEXT NOT NULL,
+  last_attempt_at     TEXT,
+  completed_at        TEXT,
+  lease_token         TEXT,
+  lease_until         TEXT,
+  last_resolution     TEXT,
+  last_error          TEXT,
+  result_json         TEXT,
+  created_at          TEXT NOT NULL,
+  updated_at          TEXT NOT NULL,
+  UNIQUE (watch_id, slot_key)
+);
+
+CREATE INDEX IF NOT EXISTS ix_watch_runs_due
+  ON watch_runs(status, next_attempt_at, lease_until);
+CREATE INDEX IF NOT EXISTS ix_watch_runs_watch
+  ON watch_runs(watch_id, scheduled_at DESC);
+
 -- ---------------------------------------------------------------------------
 -- Operations Console (ops/ subsystem) — the audit timeline. One row per
 -- operation run: every cron fan-out child, every cron coordinator summary and
@@ -344,6 +472,25 @@ CREATE TABLE IF NOT EXISTS offer_enrichments (
                                     -- | too_few_tokens). NULL = not yet resolved;
                                     -- the resolution drain processes NULLs once.
 );
+
+-- Steady-state resolution heals only legacy rows missing this derived field.
+-- A partial index stays empty for normal writes and turns the recurring
+-- "anything to heal?" probe from a full enrichment scan into an empty lookup.
+CREATE INDEX IF NOT EXISTS ix_offer_enrichments_match_text_missing
+  ON offer_enrichments(id)
+  WHERE match_text IS NULL AND (name IS NOT NULL OR name_ar IS NOT NULL);
+
+-- The Arabic Builder shadow writer already stores both current versions on
+-- normal writes. Keep its 72/day repair probe on the exceptional rows only.
+CREATE INDEX IF NOT EXISTS ix_offer_enrichments_arabic_shadow_missing
+  ON offer_enrichments(enriched_at DESC, id)
+  WHERE CASE WHEN extraction_json IS NULL THEN 1
+    WHEN json_valid(extraction_json) THEN (
+      COALESCE(json_extract(extraction_json, '$._arabic_builder.builder_score_version'), '')
+        != 'builder-score-v1' OR
+      COALESCE(json_extract(extraction_json, '$._arabic_builder.commerce_score_version'), '')
+        != 'commerce-score-v1')
+    ELSE 0 END;
 
 -- Source attempts are retained independently from the canonical enrichment.
 -- A rejected Vision attempt is a completed critical-path operation even when
@@ -420,6 +567,30 @@ CREATE INDEX IF NOT EXISTS ix_offer_acceptance_version
 --
 -- Processor-agnostic by construction: no CHECK enumerates a processor, no column
 -- names one. Read C-9 before adding anything to either table.
+-- Stage 2: repeated Vision verification. Every stage-one result enters this
+-- queue. There is no exhausted state: mismatches keep cycling until two
+-- normalized product identities agree.
+CREATE TABLE IF NOT EXISTS offer_vision_verification_queue (
+  offer_id            TEXT PRIMARY KEY,
+  status              TEXT NOT NULL DEFAULT 'queued'
+                      CHECK (status IN ('queued', 'claimed', 'verified')),
+  attempts            INTEGER NOT NULL DEFAULT 1,
+  claimed_by          TEXT,
+  claim_until         TEXT,
+  claim_token         TEXT,
+  last_error          TEXT,
+  initial_outcome     TEXT NOT NULL
+                      CHECK (initial_outcome IN ('accepted', 'rejected')),
+  matched_fingerprint TEXT,
+  match_count         INTEGER NOT NULL DEFAULT 0,
+  created_at          TEXT NOT NULL,
+  updated_at          TEXT NOT NULL,
+  verified_at         TEXT
+);
+
+CREATE INDEX IF NOT EXISTS ix_vision_verification_ready
+  ON offer_vision_verification_queue(status, claim_until, updated_at);
+
 CREATE TABLE IF NOT EXISTS offer_recovery_queue (
   offer_id     TEXT PRIMARY KEY,
   status       TEXT NOT NULL DEFAULT 'queued'
@@ -469,10 +640,9 @@ CREATE INDEX IF NOT EXISTS ix_recovery_attempts_processor
 CREATE INDEX IF NOT EXISTS ix_recovery_attempts_selection
   ON offer_recovery_attempts(offer_id, processor, outcome, started_at);
 
--- Background Manual Vision jobs (Vision Milestone 2 §2). One durable row per
--- operator-launched "Run Vision" job (id 'active' = the single live job); the
--- self-continuing /enrich/step chain updates it after every batch so the
--- Operations Center shows live progress even after the browser closes.
+-- Background job state. `active` is Stage 1 and `verification` is Stage 2.
+-- The same narrow store gives both copied background drains independent
+-- progress and single-writer leases without another table.
 CREATE TABLE IF NOT EXISTS vision_jobs (
   id             TEXT PRIMARY KEY,   -- 'active' (single live job)
   status         TEXT NOT NULL,      -- running | done | stopped | error

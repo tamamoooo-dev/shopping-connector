@@ -4,7 +4,7 @@
 // sitting from your machine instead of waiting ~a week.
 //
 // Run from brochure-engine/ (needs wrangler auth + a Mistral key file):
-//   put the key in brochure-engine/.mistral.key   (backup: .mistral.key.backup)
+//   put Medium keys in .mistral medium.key, .backup, and .backup2.txt
 //   node backfill-enrich.mjs
 // (a MISTRAL_API_KEY env var still overrides the file if you prefer.)
 //
@@ -29,13 +29,13 @@ import { loadMistralKeys } from './local-secrets.mjs';
 // primitive (offers/mistralKeys.js) — this long backfill benefits automatically.
 const KEYS = loadMistralKeys();
 if (!KEYS.length) {
-  console.error('No Mistral key: create .mistral.key (and optionally .mistral.key.backup) or set MISTRAL_API_KEY.');
+  console.error('No Medium key: create .mistral medium.key or set MISTRAL_MEDIUM_API_KEY_1.');
   process.exit(1);
 }
 // A long run is exactly where waiting out a transient 429 is right, so it is
 // patient on a blip and only promotes the standby on a PERSISTENT wall.
-const keyChain = createKeyChain(KEYS);
-console.log(`Mistral keys loaded: ${keyChain.size} (${keyChain.size > 1 ? 'primary + cold standby' : 'primary only'}).`);
+const keyChain = createKeyChain(KEYS, { balance: true, label: 'mistral-medium' });
+console.log(`Medium keys loaded: ${keyChain.size} (${keyChain.size > 1 ? 'balanced pool' : 'single key'}).`);
 
 const today = new Date().toISOString().slice(0, 10);
 const sq = (v) => (v == null ? 'NULL' : `'${String(v).replace(/'/g, "''")}'`);

@@ -46,7 +46,19 @@ const patch = (ctx, path, body) =>
     ctx,
   );
 const del = (ctx, path) => handleRequest(new Request(`${BASE}${path}`, { method: 'DELETE' }), ctx);
-const watchBody = (profileId, query, targetPrice = 10) => ({ kind: 'grocery', query, targetPrice, profileId });
+const watchBody = (profileId, query, targetPrice = 10) => ({
+  kind: 'grocery', query, targetPrice, profileId,
+  // These isolation fixtures intentionally omit a real product pack. Supply a
+  // unit target so v3 can still create its size-free general watch.
+  targetUnitPrice: targetPrice,
+  unitLabel: 'SAR/each',
+});
+const monitoredBody = (profileId, query) => ({
+  ...watchBody(profileId, query),
+  targetUnitPrice: 10,
+  unitLabel: 'SAR/kg',
+  spec: { family: 'chicken', cut: 'breast' },
+});
 
 // --- buildWatch validation ---
 ok('buildWatch rejects a missing profileId', !!buildWatch({ kind: 'grocery', query: 'milk', targetPrice: 5 }).error);
@@ -157,20 +169,13 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
 {
   const ctx = { watchStore: createMemoryWatchStore() };
   // A spec makes a watch monitorable immediately, with no registry needed.
-  const monitored = (profileId, query) => ({
-    ...watchBody(profileId, query),
-    targetUnitPrice: 10,
-    unitLabel: 'SAR/kg',
-    spec: { family: 'chicken', cut: 'breast' },
-  });
-
   for (let i = 0; i < MAX_WATCHES; i++) {
-    await post(ctx, '/watches', monitored(A, `item ${i}`));
+    await post(ctx, '/watches', monitoredBody(A, `item ${i}`));
   }
   ok(`A is capped at MAX_WATCHES (${MAX_WATCHES}) monitored watches`,
-    (await post(ctx, '/watches', monitored(A, 'one too many'))).status === 409);
+    (await post(ctx, '/watches', monitoredBody(A, 'one too many'))).status === 409);
   ok('B still creates freely under its own cap',
-    (await post(ctx, '/watches', monitored(B, 'water'))).status === 201);
+    (await post(ctx, '/watches', monitoredBody(B, 'water'))).status === 201);
 
   // Fill to the global backstop with more profiles, then verify capacity 409.
   let created = MAX_WATCHES + 1;
@@ -178,12 +183,12 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
   while (created < MAX_WATCHES_TOTAL) {
     const pid = `filler-profile-${String(p).padStart(4, '0')}`;
     for (let i = 0; i < MAX_WATCHES && created < MAX_WATCHES_TOTAL; i++, created++) {
-      await post(ctx, '/watches', monitored(pid, `bulk ${created}`));
+      await post(ctx, '/watches', monitoredBody(pid, `bulk ${created}`));
     }
     p += 1;
   }
   ok('store sits at the global backstop', (await ctx.watchStore.countActiveTotal()) === MAX_WATCHES_TOTAL);
-  const overflow = await post(ctx, '/watches', monitored('fresh-profile-zzzz', 'anything'));
+  const overflow = await post(ctx, '/watches', monitoredBody('fresh-profile-zzzz', 'anything'));
   ok('global backstop refuses with 409 capacity', overflow.status === 409);
 }
 
@@ -192,7 +197,12 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
 {
   const ctx = { watchStore: createMemoryWatchStore() };
   for (let i = 0; i < MAX_WATCHES + 5; i++) {
-    await post(ctx, '/watches', watchBody(A, `unanchored ${i}`));
+    await ctx.watchStore.create({
+      id: `w_unanchored_${i}`, profileId: A, kind: 'grocery', query: `unanchored ${i}`,
+      label: `unanchored ${i}`, targetPrice: 10, currency: 'SAR', active: true,
+      anchorState: 'resolving', spec: null, registryProductId: null,
+      createdAt: new Date().toISOString(),
+    });
   }
   ok('unanchored watches never occupy a monitoring slot',
     (await ctx.watchStore.count(A)) === 0);
@@ -201,12 +211,18 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
   ok('and reported as awaiting an anchor',
     (await ctx.watchStore.countUnanchored(A)) === MAX_WATCHES + 5);
   ok('so the compute cap does not fire on them',
-    (await post(ctx, '/watches', watchBody(A, 'still fine'))).status === 201);
+    (await post(ctx, '/watches', monitoredBody(A, 'still fine'))).status === 201);
 
   while ((await ctx.watchStore.countRows(A)) < MAX_WATCH_ROWS) {
-    await post(ctx, '/watches', watchBody(A, `fill ${await ctx.watchStore.countRows(A)}`));
+    const n = await ctx.watchStore.countRows(A);
+    await ctx.watchStore.create({
+      id: `w_fill_${n}`, profileId: A, kind: 'grocery', query: `fill ${n}`,
+      label: `fill ${n}`, targetPrice: 10, currency: 'SAR', active: true,
+      anchorState: 'resolving', spec: null, registryProductId: null,
+      createdAt: new Date().toISOString(),
+    });
   }
-  const capped = await post(ctx, '/watches', watchBody(A, 'over the row bound'));
+  const capped = await post(ctx, '/watches', monitoredBody(A, 'over the row bound'));
   const body = await capped.json();
   ok('the STORAGE bound refuses at MAX_WATCH_ROWS', capped.status === 409);
   ok('and the error names why the rows are there',
@@ -238,11 +254,26 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
     !!buildWatch({ kind: 'registry', query: 'halah oil', targetPrice: 20, profileId: A }).error &&
     !!buildWatch({ kind: 'registry', query: 'halah oil', targetPrice: 20, profileId: A, productId: 'asin123' }).error);
   const { watch, error } = buildWatch({
-    kind: 'registry', query: 'halah oil', label: 'Halah Sunflower Oil', targetPrice: 20,
-    profileId: A, productId: 'pr_abc123',
+    kind: 'registry', query: 'halah oil', label: 'Halah Sunflower Oil 1.5 L', targetPrice: 20,
+    sizeText: '1.5 L', profileId: A, productId: 'pr_abc123',
+    listing: { id: 'pr_abc123', name: 'Halah Sunflower Oil 1.5 L', size: '1.5 L' },
   });
-  ok('buildWatch accepts a registry watch (no provider needed)',
-    !error && watch.kind === 'registry' && watch.productId === 'pr_abc123' && watch.provider === null);
+  ok('buildWatch accepts a registry selection as a general all-source watch',
+    !error && watch.kind === 'registry' && watch.watchTrack === 'market_general' && watch.provider === null);
+
+  // The assertions below retain coverage for historical Registry-anchored rows
+  // that can still exist during rollout/rollback.
+  const registryWatch = {
+    ...watch,
+    watchTrack: null,
+    label: 'Halah Sunflower Oil',
+    spec: null,
+    productId: 'pr_abc123',
+    registryProductId: 'pr_abc123',
+    anchorState: 'anchored_registry',
+    targetUnitPrice: null,
+    unitLabel: null,
+  };
 
   // Evaluation: sighting precision over CURRENT offers, tombstones followed.
   const registryStore = createMemRegistryStore({
@@ -263,8 +294,8 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
   await registryStore.insertSighting({ offer_id: 'o:old', product_id: 'pr_live', match_band: 'auto', store: 'othaim', region: 'riyadh', week: '2026-06-01', price: 15.0 });
 
   const ctx = { watchStore: createMemoryWatchStore(), registryStore };
-  await ctx.watchStore.create(watch);
-  const line = await checkWatch(ctx, watch);
+  await ctx.watchStore.create(registryWatch);
+  const line = await checkWatch(ctx, registryWatch);
   ok('registry watch: expired offers never count; cheapest CURRENT sighting wins',
     line.price === 18.5 && line.status === 'below-target');
   ok('registry watch: tombstone followed, alert carries the display name + flyer source',
@@ -274,9 +305,11 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
     ));
 
   // No current sighting -> silence (no-data), never a stale alert.
-  const { watch: ghost } = buildWatch({
-    kind: 'registry', query: 'gone thing', targetPrice: 99, profileId: A, productId: 'pr_ghost',
-  });
+  const ghost = {
+    ...registryWatch,
+    id: 'w_registry_ghost', productId: 'pr_ghost', registryProductId: 'pr_ghost',
+    query: 'gone thing', label: 'gone thing', targetPrice: 99,
+  };
   await ctx.watchStore.create(ghost);
   const gLine = await checkWatch(ctx, ghost);
   ok('registry watch on an unknown product stays silent', gLine.status === 'no-data' && !gLine.alerted);
@@ -312,8 +345,9 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
     targetUnitPrice: 10, unitLabel: 'SAR/kg',
     spec: { family: 'meat' },
   });
-  await ctx.watchStore.create(watch);
-  const line = await checkWatch(ctx, watch);
+  const legacyFlyerWatch = { ...watch, watchTrack: null };
+  await ctx.watchStore.create(legacyFlyerWatch);
+  const line = await checkWatch(ctx, legacyFlyerWatch);
   ok('grocery watch matches via the vision read and alerts', line.alerted === true && line.price === 8.5);
   ok('alert carries the VISION name',
     (await ctx.watchStore.listAlerts({ limit: 5 })).some((a) => a.name === 'Tanzanian Mutton'));

@@ -174,6 +174,12 @@ const post = (ctx, path, body, headers = {}) =>
   let r = await req(ctx, '');
   const html = await r.text();
   check('UI served with strict CSP', r.status === 200 && html.includes('System Confidence') && (r.headers.get('Content-Security-Policy') || '').includes("default-src 'none'"));
+  check('UI explains a source with no current brochure', html.includes('No current brochure advertised by the source'));
+  check('UI distinguishes zero request allowance from monthly quota and transient limits',
+    html.includes('Workspace/model request allowance is zero') &&
+    html.includes('Monthly/account quota exhausted') &&
+    html.includes('Short-term request rate limit') &&
+    html.includes('This is not monthly usage exhaustion'));
   check('UI never cached or indexed', r.headers.get('Cache-Control') === 'no-store' && (r.headers.get('X-Robots-Tag') || '').includes('noindex'));
   check('no CORS on ops responses', !r.headers.get('Access-Control-Allow-Origin'));
 
@@ -185,7 +191,7 @@ const post = (ctx, path, body, headers = {}) =>
 
   r = await post(ctx, '/api/login', { token: 'test-ops-token' });
   const cookie = (r.headers.get('Set-Cookie') || '').split(';')[0];
-  check('good login sets HttpOnly Strict cookie', r.status === 200 && cookie.startsWith('ops_session=') && /HttpOnly/.test(r.headers.get('Set-Cookie')) && /SameSite=Strict/.test(r.headers.get('Set-Cookie')));
+  check('good login sets persistent HttpOnly Strict cookie', r.status === 200 && cookie.startsWith('ops_session=') && /HttpOnly/.test(r.headers.get('Set-Cookie')) && /SameSite=Strict/.test(r.headers.get('Set-Cookie')) && /Max-Age=315360000(?:;|$)/.test(r.headers.get('Set-Cookie')));
 
   r = await req(ctx, '/api/overview', { headers: { Cookie: cookie } });
   check('cookie auth works', r.status === 200);
@@ -317,6 +323,42 @@ const post = (ctx, path, body, headers = {}) =>
       completed.fanout[0].result.publication.complete === true &&
       completed.fanout[0].result.publication.invocations === 3,
     JSON.stringify(completed.fanout),
+  );
+
+  // A successful D4D source check can legitimately find no active flyer. It
+  // must carry that state explicitly instead of claiming new=1 and then
+  // looking like a contradictory dispatch failure when verification is STALE.
+  const noCurrent = await buildCtx();
+  noCurrent.selfCalls.length = 0;
+  noCurrent.self.fetch = async (url) => {
+    noCurrent.selfCalls.push(String(url));
+    return new Response(JSON.stringify({
+      totals: { detected: 0, new: 0, deduped: 0, failed: 0 },
+      resumable: {
+        complete: false,
+        storeComplete: true,
+        status: 'no-current-source',
+        advertisedBrochures: 0,
+        pagesCollected: 0,
+      },
+    }), { headers: { 'content-type': 'application/json' } });
+  };
+  r = await post(noCurrent, '/api/run', {
+    op: 'store', stores: ['beta'], confirm: true,
+  }, auth);
+  const noCurrentReport = await r.json();
+  const noCurrentAudit = (await noCurrent.opsStore.list({ limit: 20 }))
+    .find((row) => row.action === 'ops:store');
+  check(
+    'no-current-source is explicit and the stale verification remains authoritative',
+    r.status === 200 &&
+      noCurrentReport.ok === false &&
+      noCurrentReport.fanout[0].ok === true &&
+      noCurrentReport.fanout[0].result.totals.new === 0 &&
+      noCurrentReport.source.noCurrentBrochure.join(',') === 'beta' &&
+      noCurrentReport.verification.lines[0].status === 'STALE' &&
+      noCurrentAudit?.error === 'no current brochure at source: beta',
+    JSON.stringify(noCurrentReport),
   );
 
   // Regression: Repair Unhealthy Stores commonly targets more than one store.
@@ -487,15 +529,18 @@ const post = (ctx, path, body, headers = {}) =>
     idle.nothingToDo === true && (await ctx.opsStore.list({ limit: 50 })).some((r) => r.action === 'ops:enrich'));
 
   // A pending queue dispatches /enrich children through SELF — the exact cron
-  // path — with the ops origin tag; the summary row lands in the audit.
+  // path — with the ops origin tag. Only the summary lands in the audit;
+  // successful child rows are intentionally suppressed to keep D1 bounded.
   ctx.enrichStore.countDebris = async () => 17; // ceil(17/15) = 2 children
   ctx.selfCalls.length = 0;
   const run = await (await post(ctx, '/api/enrich', { confirm: true }, auth)).json();
   check('pending queue -> SELF /enrich children (cron-identical path)',
     run.ok === true && run.batches === 2 && ctx.selfCalls.length === 2 &&
     ctx.selfCalls.every((u) => u.includes('/enrich?limit=15')));
-  check('drain children audit as ops origin',
-    (await ctx.opsStore.list({ limit: 50 })).some((r) => r.action === 'enrich' && r.origin === 'ops'));
+  const auditRows = await ctx.opsStore.list({ limit: 50 });
+  check('drain writes one ops summary and no successful child rows',
+    auditRows.some((r) => r.action === 'ops:enrich' && r.origin === 'ops') &&
+    !auditRows.some((r) => r.action === 'enrich' && r.origin === 'ops'));
   check('report carries queue depth + remaining', run.pending === 17 && 'remaining' in run);
   console.log('manual vision drain ✅');
 }
@@ -604,6 +649,10 @@ const post = (ctx, path, body, headers = {}) =>
   check('inspector feed returns items + enrichment model + echoes filter', ins.filter === 'all' && ins.items.length === 1 && ins.items[0].e_model === 'mistral-medium-latest');
   check('admin inspector owns the enrichment color legend',
     CONSOLE_HTML.includes('enrichDot missing') && CONSOLE_HTML.includes('enrichDot enriched') && CONSOLE_HTML.includes('enrichDot medium'));
+  check('5-second Vision polling is limited to tiny job rows',
+    /function \(\) \{ loadVisionJob\(\); loadVerificationJob\(\); \},\s*5000/.test(CONSOLE_HTML));
+  check('corpus-wide Vision metrics are rate-limited to six hours',
+    /function \(\) \{ loadProgress\(\); loadVerification\(\); \},\s*21600000/.test(CONSOLE_HTML));
 
   const one = await (await req(ctx, '/api/inspect?id=alpha:central:d4d:A', { headers: auth })).json();
   check('inspect composes offer + ocr + vision(none) + registry', one.offer.id === 'alpha:central:d4d:A' && one.ocr.name === 'A' && one.vision === null && one.product === null);

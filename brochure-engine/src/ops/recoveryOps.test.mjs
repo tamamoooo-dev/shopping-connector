@@ -23,7 +23,7 @@ import { createRecoveryQueue, RECOVERY_STATUS } from '../storage/recoveryQueue.j
 import { createSqliteD1, insertOffers } from '../storage/testSqliteD1.mjs';
 import { createMemoryOpsStore } from '../storage/local.js';
 import { buildStructuredProduct } from '../lexicon/structuredProduct.js';
-import { evaluateBusinessAcceptance } from '../offers/businessAcceptance.js';
+import { evaluateLegacyBusinessAcceptance as evaluateBusinessAcceptance } from '../offers/businessAcceptance.js';
 import { recoveryAdmission } from '../offers/enrich.js';
 import { createRecoveryRegistry, defineProcessor } from '../recovery/registry.js';
 // The REAL human processor: these tests are about the routes that drive it, so

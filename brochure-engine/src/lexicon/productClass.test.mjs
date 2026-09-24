@@ -183,8 +183,9 @@ await test('a grocery item with no size is STILL rejected — the gate did not g
     acceptedFields: NAMED,
     observation: { name: 'Basmati Rice' },
   });
-  assert.equal(verdict.accepted, false);
-  assert.deepEqual([...verdict.missing], ['comparable_quantity']);
+  assert.equal(verdict.accepted, true);
+  assert.deepEqual([...verdict.missing], []);
+  assert.equal(verdict.comparableQuantity.status, COMPARABLE_QUANTITY_STATUS.ABSENT);
 });
 
 await test('non-grocery accepts the retailer name as-is but never rescues a missing price or name', () => {

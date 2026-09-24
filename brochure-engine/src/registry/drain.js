@@ -42,6 +42,10 @@ export async function drainResolution(
 
   const rows = await enrichStore.listUnresolved({ currentOn, limit });
   report.scanned = rows.length;
+  if (!rows.length) {
+    report.finishedAt = new Date().toISOString();
+    return report;
+  }
   // Snapshot the batch-invariant product count ONCE (it feeds only the resolver's
   // approximate distinctness ceiling; a ≤batch-size drift over the run is
   // negligible) instead of re-running SELECT COUNT(*) inside resolveRead for

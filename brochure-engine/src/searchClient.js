@@ -19,6 +19,14 @@ export function createServiceBindingSearchClient({
       const body = await res.json().catch(() => ({}));
       return body.results || [];
     },
+    async lookupExact(provider, productId) {
+      const res = await connector.fetch(
+        `${origin}/product?provider=${encodeURIComponent(provider)}&id=${encodeURIComponent(productId)}`,
+      );
+      if (!res.ok) throw new Error(`exact product ${provider}:${productId} -> HTTP ${res.status}`);
+      const body = await res.json().catch(() => ({}));
+      return body.product || null;
+    },
   };
 }
 
@@ -34,6 +42,14 @@ export function createHttpSearchClient(base) {
       if (!res.ok) throw new Error(`search ${provider} -> HTTP ${res.status}`);
       const body = await res.json().catch(() => ({}));
       return body.results || [];
+    },
+    async lookupExact(provider, productId) {
+      const res = await fetch(
+        `${root}/product?provider=${encodeURIComponent(provider)}&id=${encodeURIComponent(productId)}`,
+      );
+      if (!res.ok) throw new Error(`exact product ${provider}:${productId} -> HTTP ${res.status}`);
+      const body = await res.json().catch(() => ({}));
+      return body.product || null;
     },
   };
 }

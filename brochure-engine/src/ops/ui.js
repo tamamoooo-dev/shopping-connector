@@ -223,7 +223,7 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
       <div id="vmWarn" class="warnBox" style="display:none"></div>
       <div class="seg" id="vmSeg">
         <button data-tier="medium">Medium 3.5<br><span class="segSub">Recommended</span></button>
-        <button data-tier="small">Small 2603<br><span class="segSub">Budget</span></button>
+        <button data-tier="small">Ministral 14B<br><span class="segSub">Budget</span></button>
       </div>
       <div id="vmPanel"><span class="spin"></span></div>
     </div>
@@ -271,7 +271,29 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
     </div>
 
     <div class="card">
-      <h2>Recovery Queue <span id="rqTag" class="tag">…</span></h2>
+      <h2>Vision Verification <span id="vvTag" class="tag">idle</span></h2>
+      <div class="mut" style="margin-bottom:10px">Stage 2 re-reads every accepted and rejected Stage 1 result. A product enters or remains in Enrichment only after two normalized readings match; mismatches keep cycling without an attempt limit.</div>
+      <div id="vvStatus"><span class="spin"></span></div>
+      <div id="vvLive" style="display:none;margin-top:8px">
+        <div class="bar"><i id="vvLiveBar" style="width:0;background:var(--acc)"></i></div>
+        <div class="mut" id="vvLiveStat" style="margin-top:4px"></div>
+      </div>
+      <div class="btnGrid" style="margin-top:10px">
+        <button class="primary" id="vvLiveBtn">▶ Run Verification (live)</button>
+        <button class="ghost" id="vvLiveStopBtn" disabled>Stop</button>
+      </div>
+      <div style="height:14px"></div>
+      <h3 style="margin:0 0 6px">Background Verification <span id="vvJobTag" class="tag">idle</span></h3>
+      <div class="mut" style="margin-bottom:8px">The same drain runs to empty on the server. You can close this page and it keeps going.</div>
+      <div id="vvJobPanel"><span class="mut">No job yet.</span></div>
+      <div class="btnGrid" style="margin-top:10px">
+        <button class="primary" id="vvStartBtn">▶ Run Verification (background)</button>
+        <button class="ghost" id="vvStopBtn" disabled>Stop</button>
+      </div>
+    </div>
+
+    <div class="card" style="display:none">
+      <h2>Retired Recovery Queue <span id="rqTag" class="tag">retired</span></h2>
       <div class="mut" style="margin-bottom:10px">Grocery recovery is prioritized. Named/priced non-grocery is accepted as supplied and never sent to a paid model.</div>
       <div id="rqDepth"><span class="spin"></span></div>
       <div class="seg" id="rqScopeSeg" style="margin-top:10px">
@@ -405,15 +427,24 @@ $("#logoutBtn").onclick = function () { api("logout", { body: {} }).finally(show
 
 /* ---------- tabs + live poller ---------- */
 var POLL = null;
-function stopPoll() { if (POLL) { clearInterval(POLL); POLL = null; } }
-function startPoll(fn, ms) {
+var METRIC_POLL = null;
+function stopPoll() {
+  if (POLL) { clearInterval(POLL); POLL = null; }
+  if (METRIC_POLL) { clearInterval(METRIC_POLL); METRIC_POLL = null; }
+}
+function startPoll(fn, ms, metricFn, metricMs) {
   stopPoll();
   fn();
   POLL = setInterval(function () { if (!document.hidden) fn(); }, ms);
+  if (metricFn) {
+    METRIC_POLL = setInterval(function () { if (!document.hidden) metricFn(); }, metricMs);
+  }
 }
 document.addEventListener("visibilitychange", function () {
   // Refresh immediately on return so a backgrounded tab isn't left stale.
-  if (!document.hidden && POLL && $("#v-vision").classList.contains("active")) loadProgress();
+  if (!document.hidden && POLL && $("#v-vision").classList.contains("active")) {
+    loadProgress(); loadVerification(); loadVisionJob(); loadVerificationJob();
+  }
 });
 
 document.querySelectorAll("nav button").forEach(function (b) {
@@ -425,8 +456,17 @@ document.querySelectorAll("nav button").forEach(function (b) {
     stopPoll();
     if (b.dataset.v === "home" || b.dataset.v === "stores") loadOverview();
     if (b.dataset.v === "vision") {
-      loadQueue(); loadRecovery(); loadVisionJob(); loadVisionModel();
-      startPoll(function () { loadProgress(); loadVisionJob(); loadRecovery(); }, 5000);
+      loadQueue(); loadProgress(); loadVerification(); loadVisionModel();
+      // Job rows are tiny and remain live. Coverage/verification aggregate
+      // endpoints scan the working corpus, so refresh those on entry/return,
+      // after explicit actions/job completion, and every six hours—not every
+      // five seconds. Returning to the tab also refreshes them immediately.
+      startPoll(
+        function () { loadVisionJob(); loadVerificationJob(); },
+        5000,
+        function () { loadProgress(); loadVerification(); },
+        21600000
+      );
     }
     if (b.dataset.v === "more") { loadMore(); loadMoreOps(); }
   };
@@ -617,6 +657,11 @@ function renderReport(r) {
       }).join("");
     }
   }
+  var noCurrent = r.source && r.source.noCurrentBrochure;
+  if (noCurrent && noCurrent.length) {
+    html += '<div class="warnBox" style="margin-top:8px">No current brochure advertised by the source: ' +
+      esc(noCurrent.join(", ")) + ". The previous flyer remains visible as STALE until a new one is published.</div>";
+  }
   var v = r.verification;
   if (v && v.lines && v.lines.length) {
     html += '<h4 class="sec">Verification</h4>' + v.lines.map(function (x) {
@@ -763,7 +808,7 @@ function renderProgress(p) {
   $("#visionProg").innerHTML =
     '<div class="progGrid">' +
       kpiBox(p.offers.current, "current offers") +
-      kpiBox(p.enriched, "enriched") +
+      kpiBox(p.enriched, "enriched · name + price") +
       kpiBox(p.remaining, "remaining") +
       kpiBox(p.coverage == null ? "n/a" : p.coverage + "%", "coverage") +
       kpiBox(p.registryProducts, "registry products") +
@@ -771,7 +816,9 @@ function renderProgress(p) {
     "</div>" +
     '<div class="bar"><i style="width:' + (p.coverage || 0) + "%;background:" + scoreColor(p.coverage) + '"></i></div>' +
     '<div style="height:8px"></div>' +
-    kvl("Servable / declined", p.servable + " / " + p.declined) +
+    kvl("Enrichment declined (missing basics)", p.declined) +
+    kvl("Verification accepted (2 matches)", p.verified || 0) +
+    kvl("Servable", p.servable) +
     kvl("Enrichment rate", p.rate == null ? "—" : p.rate + " offers/hr") +
     kvl("Est. time remaining", fmtDur(p.etaHours)) +
     kvl("Queue depth", p.queueDepth) +
@@ -806,6 +853,13 @@ function runLiveDrain() {
     api("enrich", { body: { batches: 1, confirm: true } }).then(function (r) {
       batch += 1;
       if (r.nothingToDo) { finish("queue empty"); return; }
+      if (r.failed) {
+        if (r.providerLimit) $("#drainStat").innerHTML += providerLimitHtml(r.providerLimit);
+        finish(r.providerLimit && r.providerLimit.category === "request_allowance_zero"
+          ? "stopped: Mistral request allowance is zero"
+          : "stopped on Mistral error");
+        return;
+      }
       if (total == null) total = r.pending || 0;
       var rem = r.remaining == null ? total : r.remaining;
       processed = Math.max(processed, total - rem);
@@ -837,7 +891,8 @@ function keyPoolsHtml(pools) {
       var keys = (pool.keys || []).map(function (key) {
         var pct = key.remainingPct == null ? "—" : Math.round(key.remainingPct * 10) / 10 + "%";
         var state = !key.configured ? "missing" : key.status === "invalid" ? "invalid" :
-          key.status === "limited" ? "limited" : key.status === "unobserved" ? "not observed yet" : "ready";
+          key.status === "restricted" ? "restricted" : key.status === "limited" ? "limited" :
+          key.status === "unobserved" ? "not observed yet" : "ready";
         return '<div class="kv"><span>' + esc(pct + " · " + key.label) + '</span><b>' +
           esc(state + (key.observedAt ? " · " + ago(key.observedAt) : "")) + '</b></div>';
       }).join("");
@@ -924,24 +979,62 @@ $("#vmSeg").querySelectorAll("button").forEach(function (b) {
 /* ---------- Vision tab: Background Manual Vision job (§2) ---------- */
 function providerLimitHtml(pl) {
   if (!pl) return "";
+  var category = pl.category;
+  if (!category && Number(pl.limitRequestsMinute) === 0) category = "request_allowance_zero";
+  var labels = {
+    monthly_account_quota: "Monthly/account quota exhausted",
+    request_rate_limit: "Short-term request rate limit",
+    token_rate_limit: "Token-per-minute rate limit",
+    concurrency_limit: "Concurrent request limit",
+    billing_restriction: "Account/billing restriction",
+    capacity_throttling: "Temporary Mistral capacity throttling",
+    request_allowance_zero: "Workspace/model request allowance is zero",
+    unknown_429: "Unknown Mistral HTTP 429"
+  };
+  var transientLimit = category === "request_rate_limit" || category === "token_rate_limit" ||
+    category === "concurrency_limit" || category === "capacity_throttling" || category === "unknown_429";
   var bits = [];
   if (pl.status != null) bits.push("HTTP " + pl.status);
-  if (pl.remaining != null) bits.push("remaining " + pl.remaining);
-  if (pl.limit != null) bits.push("limit " + pl.limit);
+  if (pl.limitRequestsMinute != null) {
+    bits.push("requests/min " + pl.remainingRequestsMinute + "/" + pl.limitRequestsMinute);
+  }
+  if (pl.limitTokensMinute != null) {
+    bits.push("tokens/min " + pl.remainingTokensMinute + "/" + pl.limitTokensMinute);
+  }
+  if (pl.limitTokensMonth != null) {
+    bits.push("tokens/month " + pl.remainingTokensMonth + "/" + pl.limitTokensMonth);
+  }
   if (pl.retryAfter != null) bits.push("retry-after " + pl.retryAfter + "s");
+  if (pl.providerCode) bits.push("code " + pl.providerCode);
   var resume = "";
-  if (pl.retryAfter != null && pl.observedAt) {
+  if (transientLimit && pl.retryAfter != null && pl.observedAt) {
     resume = kvl("Auto-resume ~", tsShort(new Date(Date.parse(pl.observedAt) + pl.retryAfter * 1000).toISOString()));
   }
+  var explanation = category === "request_allowance_zero"
+    ? "This is not monthly usage exhaustion. Automatic retries are stopped; check the Workspace API rate limit or plan state in Mistral Admin."
+    : category === "monthly_account_quota"
+      ? "The monthly completion allowance is exhausted."
+      : transientLimit
+        ? "This is a short-lived traffic/throttling signal; only provider-directed backoff is used."
+        : "Mistral rejected API access for this account; check billing and Workspace status.";
   return '<div style="height:8px"></div>' +
-    '<div class="mut" style="margin-bottom:4px">⏳ Provider rate limit (Mistral free tier) — waiting, then resuming automatically.</div>' +
+    '<div class="mut" style="margin-bottom:4px">' + esc(labels[category] || labels.unknown_429) + '</div>' +
     kvl("Signal", bits.join(" · ") || "seen") + resume +
-    '<div class="mut" style="margin-top:4px">Exact account quota lives in Mistral Admin Console → Limits.</div>';
+    (pl.model ? kvl("Request model", pl.model) : "") +
+    (pl.requestId ? kvl("Mistral request ID", pl.requestId) : "") +
+    (pl.providerMessage ? kvl("Mistral reason", pl.providerMessage) : "") +
+    '<div class="mut" style="margin-top:4px">' + esc(explanation) +
+    ' Exact configured limits live in Mistral Admin Console → API → Limits.</div>';
 }
+var lastVisionJobStatus = null;
 function loadVisionJob() { return api("vision/job").then(renderVisionJob).catch(function () {}); }
 function renderVisionJob(r) {
   var j = r && r.job;
   var st = j ? j.status : "idle";
+  if (lastVisionJobStatus === "running" && st !== "running") {
+    loadProgress(); loadQueue();
+  }
+  lastVisionJobStatus = st;
   var tag = $("#vjTag");
   tag.textContent = st;
   tag.className = "tag" + (st === "running" ? " run" : "");
@@ -1137,6 +1230,125 @@ function renderProduct(d) {
    cost line and its effectiveness row are rendered FROM the registry payload,
    so a processor added tomorrow appears here with no change to this file. There
    is no hard-coded processor name below, and there must never be one. */
+function loadVerification() {
+  return api("verification").then(function (v) {
+    var tag = $("#vvTag");
+    if (!v.available) {
+      tag.textContent = "migration owed";
+      tag.className = "tag warnTag";
+      $("#vvStatus").innerHTML = '<div class="mut">Vision Verification is unavailable until its migration is applied.</div>';
+      return;
+    }
+    tag.textContent = v.pending ? "verifying" : "idle";
+    tag.className = "tag" + (v.pending ? " run" : "");
+    $("#vvStatus").innerHTML =
+      '<div class="qgrid">' +
+        kpiBox(v.pending || 0, "awaiting verification") +
+        kpiBox(v.verified || 0, "verified · 2 matches") +
+        kpiBox(v.maxAttempts || 0, "highest attempts") +
+      "</div><div style='height:8px'></div>" +
+      kvl("Average attempts (active)", v.averageAttempts || 0) +
+      kvl("Rule", "two identical normalized identities; no exhaustion");
+  }).catch(function () {});
+}
+
+var vvLiveStop = false, vvLiveBusy = false;
+$("#vvLiveBtn").onclick = function () {
+  confirmSheet(
+    "Run Vision Verification (live)",
+    "Runs Stage 2 one batch at a time with live progress. It is the same paced drain shape as Stage 1 and is safe to stop anytime.",
+    false
+  ).then(function (ok) { if (ok) runVerificationLive(); });
+};
+$("#vvLiveStopBtn").onclick = function () { vvLiveStop = true; };
+function runVerificationLive() {
+  if (vvLiveBusy) return;
+  vvLiveBusy = true; vvLiveStop = false;
+  $("#vvLive").style.display = "block";
+  $("#vvLiveBtn").disabled = true; $("#vvLiveStopBtn").disabled = false;
+  var t0 = Date.now(), total = null, processed = 0, batch = 0;
+  function finish(msg) {
+    vvLiveBusy = false;
+    $("#vvLiveBtn").disabled = false; $("#vvLiveStopBtn").disabled = true;
+    $("#vvLiveStat").innerHTML += " — " + esc(msg);
+    toast("Verification " + msg);
+    loadVerification(); loadProgress();
+  }
+  function step() {
+    if (vvLiveStop) { finish("stopped"); return; }
+    api("verification", { body: { batches: 1, confirm: true } }).then(function (r) {
+      batch += 1;
+      if (r.nothingToDo) { finish("queue empty"); return; }
+      if (r.failed) {
+        if (r.providerLimit) $("#vvLiveStat").innerHTML += providerLimitHtml(r.providerLimit);
+        finish(r.providerLimit && r.providerLimit.category === "request_allowance_zero"
+          ? "stopped: Mistral request allowance is zero"
+          : "stopped on Mistral error");
+        return;
+      }
+      if (total == null) total = r.pending || 0;
+      var rem = r.remaining == null ? total : r.remaining;
+      processed = Math.max(processed, total - rem);
+      var pct = total ? Math.min(100, Math.round((processed / total) * 100)) : 100;
+      var el = (Date.now() - t0) / 1000;
+      var rate = processed > 0 ? processed / (el / 3600) : 0;
+      var etaH = rate > 0 && rem > 0 ? rem / rate : 0;
+      $("#vvLiveBar").style.width = pct + "%";
+      $("#vvLiveStat").innerHTML = "batch " + batch + " · " + processed + "/" + total +
+        " (" + pct + "%) · verified " + (r.verified || 0) + " · unmatched " +
+        (r.unmatched || 0) + " · ETA " + (etaH ? fmtDur(etaH) : "~");
+      loadVerification();
+      if (rem > 0 && batch < 40) step(); else finish("done");
+    }).catch(function (e) { finish(e.message || "error"); });
+  }
+  step();
+}
+
+var lastVerificationJobStatus = null;
+function loadVerificationJob() {
+  return api("verification/job").then(function (r) {
+    var j = r.job, st = j ? j.status : "idle";
+    if (lastVerificationJobStatus === "running" && st !== "running") {
+      loadVerification(); loadProgress();
+    }
+    lastVerificationJobStatus = st;
+    var tag = $("#vvJobTag");
+    tag.textContent = st;
+    tag.className = "tag" + (st === "running" ? " run" : "");
+    $("#vvStartBtn").disabled = st === "running";
+    $("#vvStopBtn").disabled = st !== "running";
+    if (!j) { $("#vvJobPanel").innerHTML = '<span class="mut">No job yet.</span>'; return; }
+    var total = j.total || 0, processed = j.processed || 0;
+    var pct = total ? Math.min(100, Math.round((processed / total) * 100)) : (st === "done" ? 100 : 0);
+    $("#vvJobPanel").innerHTML =
+      '<div class="bar"><i style="width:' + pct + '%;background:var(--acc)"></i></div>' +
+      '<div style="height:8px"></div>' +
+      kvl("Status", st) + kvl("Processed", processed + " / " + total + " (" + pct + "%)") +
+      kvl("Verified", j.verified || 0) +
+      kvl("Non-matching attempts (will retry)", j.continuingAttempts || 0) +
+      kvl("Remaining", j.remaining == null ? "—" : j.remaining) +
+      kvl("Batches (hops)", j.hops || 0) +
+      (j.last_error ? kvl("Last error", j.last_error) : "");
+  }).catch(function () {});
+}
+$("#vvStartBtn").onclick = function () {
+  confirmSheet(
+    "Run Vision Verification (background)",
+    "Drains Stage 2 to empty on the server. You can close this page and it keeps running.",
+    false
+  ).then(function (ok) {
+    if (!ok) return;
+    api("verification/start", { body: { confirm: true } }).then(function (r) {
+      toast(r.nothingToDo ? "Verification queue empty" : r.alreadyRunning ? "Already running" : "Verification started");
+      loadVerificationJob();
+    }).catch(function (e) { toast(e.message || "error", true); });
+  });
+};
+$("#vvStopBtn").onclick = function () {
+  api("verification/stop", { body: {} }).then(function () { toast("Stopping…"); loadVerificationJob(); })
+    .catch(function (e) { toast(e.message || "error", true); });
+};
+
 var rqState = null;
 var rqProc = null;
 var rqScope = "grocery";

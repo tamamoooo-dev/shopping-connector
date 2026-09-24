@@ -47,10 +47,15 @@ export function notificationDestination(watch = {}, observation = {}) {
 
   const productId = anchorProductId(watch);
   const registry = /^pr_[a-z0-9]+$/i.test(productId);
+  // Keep notification clicks aligned with the retrieval plan. The advanced
+  // phrase is a user instruction; falling back to an inferred structured
+  // identity here can replace "تندرينا 185" with "Fish Goody" even though the
+  // monitor itself searched for the requested phrase.
+  const effectiveQuery = clean(watch.customSearchQuery || watch.systemSearchQuery);
   const identityQuery = structuredSearchQuery(watch, observation);
   const candidates = registry
-    ? [identityQuery, watch.label, observation.name, watch.query]
-    : [identityQuery, watch.query, watch.label, observation.name];
+    ? [effectiveQuery, identityQuery, watch.label, observation.name, watch.query]
+    : [effectiveQuery, identityQuery, watch.query, watch.label, observation.name];
   const query = clean(candidates.find((value) => clean(value)));
   const params = new URLSearchParams();
   if (query) params.set('q', query);

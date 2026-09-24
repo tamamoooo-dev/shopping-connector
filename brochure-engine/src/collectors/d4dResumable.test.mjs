@@ -5,6 +5,7 @@ import {
   collectD4dBatch,
   D4D_BATCH_PAGES,
   publishD4dCollection,
+  summarizeD4dResult,
 } from './d4dResumable.js';
 import { d4dAdapter } from './adapters/d4d.js';
 
@@ -113,6 +114,23 @@ const ctx = {
 const adapter = createAdapter(45);
 const fetcher = createFetch();
 
+// A clean source read with no current flyers is a real source state, not a
+// newly detected brochure. This is the exact Makkah Hypermarket gap between
+// an expired flyer and the next publication.
+{
+  const empty = await collectD4dBatch(ctx, {
+    store: 'shop',
+    adapter: { async listBrochureRefs() { return []; } },
+    fetchImpl: fetcher.fetchImpl,
+  });
+  assert.equal(empty.storeComplete, true);
+  assert.equal(empty.complete, false);
+  assert.equal(empty.status, 'no-current-source');
+  assert.equal(empty.advertisedBrochures, 0);
+  assert.deepEqual(summarizeD4dResult(empty), { detected: 0, new: 0, deduped: 0 });
+  await publishD4dCollection(ctx, empty);
+}
+
 const first = await collectD4dBatch(ctx, {
   store: 'shop',
   adapter,
@@ -179,6 +197,77 @@ assert.equal(collectionEvents.at(-1).collectedPages, 45);
 await publishD4dCollection(ctx, third);
 assert.equal(await objectStore.get(manifestKey), null, 'publication removes the progress manifest');
 assert.equal(collectionEvents.at(-1).status, 'complete');
+
+// A manifest must track the live current-flyer set between invocations. This
+// reproduces City Flower's stale July manifest: one old flyer completed, the
+// next disappeared from D4D, and newer flyers were otherwise never discovered.
+{
+  const churnObjects = createMemoryObjectStore();
+  const churnMetadata = createMemoryMetadataStore();
+  const churnPipeline = createPipeline({
+    objectStore: churnObjects,
+    metadataStore: churnMetadata,
+  });
+  let advertised = [
+    { id: 200, slug: 'old-a', url: 'https://d4donline.test/offers/shop-1/200/old-a' },
+    { id: 100, slug: 'old-b', url: 'https://d4donline.test/offers/shop-1/100/old-b' },
+  ];
+  const churnAdapter = {
+    async listBrochureRefs() {
+      return advertised.map((ref) => ({ ...ref }));
+    },
+    async loadBrochure(ref) {
+      return {
+        ...ref,
+        title: ref.slug,
+        validFrom: '2026-08-01',
+        validTo: '2099-08-31',
+        sourceUrl: ref.url,
+        pages: [`https://cdn.test/${ref.id}/page-0.webp`],
+        pageIds: [`page-${ref.id}`],
+        hotspots: [],
+      };
+    },
+  };
+  const churnCtx = {
+    objectStore: churnObjects,
+    metadataStore: churnMetadata,
+    pipeline: churnPipeline,
+    collectionStore,
+    offerStore,
+    registry,
+  };
+  const churnFetch = createFetch();
+
+  const oldBatch = await collectD4dBatch(churnCtx, {
+    store: 'shop',
+    adapter: churnAdapter,
+    fetchImpl: churnFetch.fetchImpl,
+    batchPages: 1,
+  });
+  assert.equal(oldBatch.flyerRef, '200');
+  assert.equal(oldBatch.storeComplete, false);
+
+  advertised = [
+    { id: 300, slug: 'new', url: 'https://d4donline.test/offers/shop-1/300/new' },
+  ];
+  const newBatch = await collectD4dBatch(churnCtx, {
+    store: 'shop',
+    adapter: churnAdapter,
+    fetchImpl: churnFetch.fetchImpl,
+    batchPages: 1,
+  });
+  assert.equal(newBatch.flyerRef, '300');
+  assert.equal(newBatch.storeComplete, true);
+
+  const reconciled = JSON.parse(
+    new TextDecoder().decode((await churnObjects.get(manifestKey)).bytes),
+  );
+  assert.deepEqual(reconciled.flyers.map((flyer) => flyer.id), ['300']);
+  const churnCurrent = await churnMetadata.getCurrent('shop', 'central');
+  assert.equal(churnCurrent.length, 1);
+  assert.match(churnCurrent[0].source_url, /\/300\/new$/);
+}
 
 // A legacy retained prefix is promoted in bounded, separately checkpointed
 // batches instead of being rescanned from page 1 in one invocation.

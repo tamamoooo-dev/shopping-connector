@@ -38,6 +38,8 @@ assert.equal(watch.anchorState, 'anchored_source', 'trusted Amazon identity star
 const store = createMemoryWatchStore();
 await store.create({
   ...watch,
+  // Preserve coverage of the retired manual-refresh route for rollback rows.
+  watchTrack: null,
   monitoringHealth: 'provider_error',
   monitoringHealthReason: 'amazon: HTTP 502',
   checkedAt: '2026-07-30T00:00:00.000Z',
@@ -119,4 +121,12 @@ assert.equal(
 const staleNow = Date.parse(recoveredBody.watch.checkedAt) + MANUAL_REFRESH_STALE_MS;
 assert.equal(manualRefreshReason(recoveredBody.watch, staleNow), 'stale');
 
-console.log('manualRefresh.test: 22 passed, 0 failed');
+// v3 scheduled rows cannot break the "freeze until next slot" contract.
+const scheduled = { ...await store.get(watch.id), id: 'w_scheduled_v3', watchTrack: 'amazon_exact' };
+await store.create(scheduled);
+assert.equal(
+  (await post(ctx, `/watches/refresh?id=${scheduled.id}&profile=${PROFILE}`)).status,
+  409,
+);
+
+console.log('manualRefresh.test: 23 passed, 0 failed');

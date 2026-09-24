@@ -33,7 +33,8 @@ const listing = (over = {}) => ({
   ...over,
 });
 
-const watchFrom = (over = {}) => buildWatch({
+const watchFrom = (over = {}) => {
+  const watch = buildWatch({
   profileId: PROFILE,
   kind: 'grocery',
   provider: 'panda',
@@ -44,8 +45,19 @@ const watchFrom = (over = {}) => buildWatch({
   targetPrice: 20,
   image: 'https://catalog.test/snickers.jpg',
   listing: listing({ id: 'old-catalog-id' }),
-  ...over,
-}).watch;
+    ...over,
+  }).watch;
+  // Fixtures below guard the legacy identity resolver itself. v3 general
+  // watches no longer enter this path; their contract has its own tests.
+  return {
+    ...watch,
+    watchTrack: null,
+    spec: null,
+    registryProductId: null,
+    anchorState: 'resolving',
+    scope: 'market',
+  };
+};
 
 function searchClient(results = {}, failures = new Set()) {
   return {

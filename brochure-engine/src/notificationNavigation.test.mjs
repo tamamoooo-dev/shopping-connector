@@ -38,6 +38,19 @@ check(
 );
 
 check(
+  'an advanced phrase overrides an inferred identity in the destination',
+  notificationDestination(
+    {
+      query: 'تونة تندرينا ناعمة',
+      systemSearchQuery: 'Fish Goody',
+      customSearchQuery: 'تندرينا 185',
+      spec: { family: 'fish', brand: 'goody' },
+    },
+    { store: 'panda' },
+  ) === `${SUPER_SEARCH_URL}#/search?q=%D8%AA%D9%86%D8%AF%D8%B1%D9%8A%D9%86%D8%A7+185`,
+);
+
+check(
   'registry identity is retained with a canonical query fallback',
   notificationDestination(
     { kind: 'registry', productId: 'pr_twix1', label: 'Twix Chocolate 50g', query: 'chocolate' },

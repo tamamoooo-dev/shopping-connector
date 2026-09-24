@@ -19,7 +19,7 @@ import { createD1EnrichStore } from '../storage/enrichStore.js';
 import { createRecoveryQueue, RECOVERY_STATUS } from '../storage/recoveryQueue.js';
 import { createSqliteD1, insertOffers } from '../storage/testSqliteD1.mjs';
 import { buildStructuredProduct } from '../lexicon/structuredProduct.js';
-import { evaluateBusinessAcceptance } from '../offers/businessAcceptance.js';
+import { evaluateLegacyBusinessAcceptance as evaluateBusinessAcceptance } from '../offers/businessAcceptance.js';
 import { recoveryAdmission } from '../offers/enrich.js';
 import { createRecoveryRegistry, defineProcessor, RECOVERY_KIND } from './registry.js';
 import { acceptedFieldViolations, drainRecovery, runRecovery } from './runner.js';
@@ -488,6 +488,34 @@ await test('multi-processor Auto builds the credential context PER PROCESSOR', a
     { id: 'first-processor', key: 'key:ocr' },
     { id: 'second-processor', key: 'key:vision' },
   ]);
+  close();
+});
+
+await test('multi-rung Auto shares one item budget across processors', async () => {
+  const { store, queue, close } = await seedQueued();
+  const seenLimits = [];
+  const originalList = queue.list.bind(queue);
+  queue.list = async (opts) => {
+    seenLimits.push(opts.limit);
+    return originalList(opts);
+  };
+  const noop = (id) => defineProcessor({ id, run: async () => ({}) });
+  const ladder = createRecoveryRegistry([noop('small-retry'), noop('medium'), noop('ocr')]);
+  const policy = await writeRecoveryPolicy(
+    memoryStore(),
+    {
+      mode: RECOVERY_MODES.AUTO,
+      processors: ['small-retry', 'medium', 'ocr'],
+      maxItemsPerRun: 15,
+      maxAttemptsPerItem: 3,
+    },
+    { registry: ladder, by: 'majed' },
+  );
+  await drainRecovery(
+    { queue, registry: ladder, enrichStore: store, policy },
+    { currentOn: TODAY },
+  );
+  assert.deepEqual(seenLimits, [5, 5, 5], '15 is shared across three rungs, not multiplied to 45');
   close();
 });
 

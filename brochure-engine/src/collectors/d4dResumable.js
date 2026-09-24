@@ -74,6 +74,62 @@ function collectionTotals(manifest) {
   };
 }
 
+// Convert a collector result into the public ingest counters. `complete`
+// describes collection progress, not discovery by itself: an empty current
+// listing is a completed source check but must never masquerade as a newly
+// published brochure.
+export function summarizeD4dResult(result) {
+  const status = result?.complete === true &&
+    (result.status === 'new' || result.status === 'deduped')
+    ? result.status
+    : null;
+  return {
+    detected: status ? 1 : 0,
+    new: status === 'new' ? 1 : 0,
+    deduped: status === 'deduped' ? 1 : 0,
+  };
+}
+
+function pendingFlyer(ref, requiredRefs) {
+  return {
+    id: String(ref.id),
+    ref,
+    requiredByOffers: requiredRefs.has(String(ref.id)),
+    source: null,
+    doc: null,
+    pages: [],
+    batches: [],
+    complete: false,
+  };
+}
+
+function sortRefs(refs, requiredRefs) {
+  return refs.sort((a, b) => {
+    const requiredDelta =
+      Number(requiredRefs.has(String(b.id))) - Number(requiredRefs.has(String(a.id)));
+    return requiredDelta || b.id - a.id;
+  });
+}
+
+// A collection can span several invocations while D4D's current-flyer list
+// changes underneath it. Reconcile at every hop so an expired/deleted leaflet
+// cannot remain at the head of the manifest forever and so newly advertised
+// leaflets join the same atomic publication. Existing current entries retain
+// their verified progress. A suspicious empty listing is ignored for an
+// existing manifest: a transient markup/source failure must not discard it.
+function reconcileFlyers(manifest, refs, requiredRefs) {
+  if (!refs.length && manifest.flyers.length) return;
+  const existing = new Map(manifest.flyers.map((flyer) => [String(flyer.id), flyer]));
+  manifest.flyers = refs.map((ref) => {
+    const id = String(ref.id);
+    const flyer = existing.get(id);
+    if (!flyer) return pendingFlyer(ref, requiredRefs);
+    flyer.ref = ref;
+    flyer.requiredByOffers = requiredRefs.has(id);
+    return flyer;
+  });
+}
+
 async function firstMissingPage(objectStore, flyer) {
   const pages = Array.isArray(flyer.pages) ? flyer.pages : [];
   const total = flyer.source.pages.length;
@@ -202,22 +258,19 @@ export async function collectD4dBatch(
   const fetchText = async (url) =>
     (await fetchWithRetry(fetchImpl, requests, url, 'd4d source')).text();
   let manifest = decodeJson(await ctx.objectStore.get(key));
+  const refs = await adapter.listBrochureRefs(regionConfig.store, {
+    region,
+    regionConfig,
+    fetchText,
+  });
+  const requiredRefs = new Set(
+    ctx.offerStore?.requiredFlyerRefs
+      ? await ctx.offerStore.requiredFlyerRefs(store, region, new Date().toISOString().slice(0, 10))
+      : [],
+  );
+  sortRefs(refs, requiredRefs);
 
   if (!manifest || manifest.version !== 1 || manifest.store !== store || manifest.region !== region) {
-    const refs = await adapter.listBrochureRefs(regionConfig.store, {
-      region,
-      regionConfig,
-      fetchText,
-    });
-    const requiredRefs = new Set(
-      ctx.offerStore?.requiredFlyerRefs
-        ? await ctx.offerStore.requiredFlyerRefs(store, region, new Date().toISOString().slice(0, 10))
-        : [],
-    );
-    refs.sort((a, b) => {
-      const requiredDelta = Number(requiredRefs.has(String(b.id))) - Number(requiredRefs.has(String(a.id)));
-      return requiredDelta || b.id - a.id;
-    });
     manifest = {
       version: 1,
       store,
@@ -225,23 +278,17 @@ export async function collectD4dBatch(
       sourceStore: regionConfig.store,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
-      flyers: refs.map((ref) => ({
-        id: String(ref.id),
-        ref,
-        requiredByOffers: requiredRefs.has(String(ref.id)),
-        source: null,
-        doc: null,
-        pages: [],
-        batches: [],
-        complete: false,
-      })),
+      flyers: refs.map((ref) => pendingFlyer(ref, requiredRefs)),
     };
+  } else {
+    reconcileFlyers(manifest, refs, requiredRefs);
   }
 
   const flyer = manifest.flyers.find((item) => !item.complete);
   if (!flyer) {
     const totals = collectionTotals(manifest);
     const checksums = manifest.flyers.map((item) => item.checksum).filter(Boolean);
+    const noCurrentSource = manifest.flyers.length === 0;
     if (checksums.length && ctx.metadataStore.setCurrent) {
       await ctx.metadataStore.setCurrent(store, region, checksums, { supersedeOthers: true });
     }
@@ -249,13 +296,15 @@ export async function collectD4dBatch(
     return {
       store,
       region,
-      complete: true,
+      complete: !noCurrentSource,
       storeComplete: true,
+      status: noCurrentSource ? 'no-current-source' : 'deduped',
       totalPages: totals.advertisedPages,
       pagesCollected: 0,
       externalRequests: requests.value,
       batches: manifest.flyers.flatMap((item) => item.batches || []),
       brochuresCompleted: manifest.flyers.length,
+      advertisedBrochures: manifest.flyers.length,
       collectionTotals: totals,
       manifestKey: key,
     };

@@ -37,6 +37,8 @@ import {
   createKeyChain,
   withFailover,
   classifyMistralError,
+  classifyMistral429,
+  mistralErrorDetails,
   remainingPercentage,
 } from './mistralKeys.js';
 import {
@@ -72,6 +74,10 @@ import {
   withArabicBuilderShadow,
 } from '../lexicon/arabicRollout.js';
 import { correctArabicProductName } from '../lexicon/arabicTypoCorrection.js';
+import {
+  visionVerificationFingerprint,
+  visionVerificationFingerprintHash,
+} from '../storage/visionVerificationStore.js';
 
 // --- the enrichment record -----------------------------------------------------
 // Enrichment:
@@ -386,10 +392,14 @@ export const PRODUCTION_EXTRACTION_BASELINE = Object.freeze({
   record: 'benchmarks/mistral-medium-production-validation-50-2026-07-25/PRODUCTION-PROMPT.md',
 });
 
-// bytes -> base64 without Buffer (Workers-safe; chunked to dodge arg limits).
-function toBase64(bytes) {
-  let bin = '';
+// bytes -> base64 without Buffer. Current Workers provide the native
+// Uint8Array encoder, which avoids spending the Free plan's tiny CPU allowance
+// building a binary string in JavaScript for every crop. Keep the chunked
+// fallback for Node-based tests and older runtimes.
+export function toBase64(bytes) {
   const arr = new Uint8Array(bytes);
+  if (typeof arr.toBase64 === 'function') return arr.toBase64();
+  let bin = '';
   for (let i = 0; i < arr.length; i += 0x8000) {
     bin += String.fromCharCode(...arr.subarray(i, i + 0x8000));
   }
@@ -420,14 +430,22 @@ function literalConfidence(value) {
 // surface it verbatim so the Operations Center can show the real limit, usage,
 // and reset time (Vision Milestone 2 §3). Returns null when a response carries
 // no rate-limit signal at all (the common ok-response case).
-export function readRateLimit(res) {
+function retryAfterSeconds(raw) {
+  if (raw == null || raw === '') return null;
+  const seconds = Number(raw);
+  if (Number.isFinite(seconds)) return Math.max(0, seconds);
+  const at = Date.parse(String(raw));
+  return Number.isFinite(at) ? Math.max(0, Math.ceil((at - Date.now()) / 1000)) : null;
+}
+
+export function readRateLimit(res, { providerError = null, model = null } = {}) {
   const h = res && res.headers;
   const get = (k) => (h && typeof h.get === 'function' ? h.get(k) : null);
   const retryAfterRaw = get('retry-after');
-  const retryAfter = retryAfterRaw != null && retryAfterRaw !== '' ? Number(retryAfterRaw) : null;
+  const retryAfter = retryAfterSeconds(retryAfterRaw);
   const out = {
     status: res?.status ?? null,
-    retryAfter: Number.isFinite(retryAfter) ? retryAfter : null,
+    retryAfter,
     // Mistral has used both x-ratelimit-* and ratelimitbysize-* over time; read
     // either so the panel keeps working across provider header renames.
     limit: get('x-ratelimit-limit') || get('ratelimitbysize-limit') || null,
@@ -446,8 +464,15 @@ export function readRateLimit(res) {
     remainingOcrPagesMinute: get('x-ratelimit-remaining-ocr-pages-minute') || null,
     queryTokens: get('x-ratelimit-tokens-query-cost') || null,
     queryOcrPages: get('x-ratelimit-ocr-pages-query-cost') || null,
+    requestId: get('x-kong-request-id') || get('x-request-id') || get('request-id') || null,
+    cfRay: get('cf-ray') || null,
+    model,
+    providerCode: providerError?.code == null ? null : String(providerError.code),
+    providerType: providerError?.type || null,
+    providerMessage: providerError?.message || providerError?.detail || null,
     observedAt: new Date().toISOString(),
   };
+  out.category = classifyMistral429({ status: out.status, rateLimit: out, providerError });
   out.remainingPct = remainingPercentage(out);
   const empty =
     out.retryAfter == null &&
@@ -534,11 +559,10 @@ export function preservedObservation(output) {
 // OpenAI-compatible `{ url }` object is equivalent for Mistral, but only the
 // string form is measured, so that is what production sends.
 export function buildVisionRequest({ model = DEFAULT_MODEL, contentType = 'image/jpeg', base64 }) {
-  return {
+  const request = {
     model,
     temperature: 0,
     top_p: 1,
-    reasoning_effort: 'none',
     response_format: { type: 'json_object' },
     messages: [
       {
@@ -550,6 +574,10 @@ export function buildVisionRequest({ model = DEFAULT_MODEL, contentType = 'image
       },
     ],
   };
+  // Ministral rejects reasoning_effort even though larger Mistral models
+  // accept it. Omitting it is required for the pinned 14B model.
+  if (!/^ministral-/u.test(model)) request.reasoning_effort = 'none';
+  return request;
 }
 
 export function buildOcrRequest({ model = DEFAULT_OCR_MODEL, contentType = 'image/jpeg', base64 }) {
@@ -581,16 +609,26 @@ async function postMistral(url, body, { apiKey, fetchImpl, stage }) {
     body: JSON.stringify(body),
   });
   if (!res.ok) {
-    const err = new Error(`mistral ${res.status}: ${(await res.text()).slice(0, 200)}`);
+    const responseBody = await res.text();
+    let providerError = null;
+    try { providerError = JSON.parse(responseBody); } catch { providerError = null; }
+    const rateLimit = readRateLimit(res, { providerError, model: body?.model || null });
+    const err = new Error(`mistral ${res.status}: ${responseBody}`);
     err.stage = stage;
     err.status = res.status;
-    err.rateLimit = readRateLimit(res);
+    err.model = body?.model || null;
+    err.endpoint = url;
+    err.responseBody = responseBody;
+    err.providerError = providerError;
+    err.rateLimit = rateLimit;
+    err.mistralCategory = rateLimit?.category || null;
     if (err.rateLimit?.retryAfter != null) err.retryAfterMs = err.rateLimit.retryAfter * 1000;
     throw err;
   }
+  const responseBody = await res.json();
   return {
-    body: await res.json(),
-    rateLimit: readRateLimit(res),
+    body: responseBody,
+    rateLimit: readRateLimit(res, { model: responseBody?.model || body?.model || null }),
   };
 }
 
@@ -756,16 +794,16 @@ export function validatedExtractionCorroboration(result) {
   const extraction = result?.extraction || {};
   const provenance = result?.provenance || {};
   const diagnostics = result?.diagnostics || {};
-  if (!extraction.productName && !extraction.arabicName) return null;
+  // English is the extracted admission field. Arabic is still preserved for
+  // display, but a missing/rejected/different Arabic observation cannot make an
+  // otherwise valid English product non-servable.
+  if (!extraction.productName) return null;
   if (diagnostics.visionRequests > 0 && diagnostics.acceptedVisionFieldsOverwritten !== 0) return null;
   const accepted = {
     [EXTRACTION_PROVENANCE.VISION]: new Set(diagnostics.validationResult?.acceptedFields || []),
     [EXTRACTION_PROVENANCE.OCR]: new Set(diagnostics.ocrValidationResult?.acceptedFields || []),
   };
-  const fields = [
-    ['productName', 'name_en'],
-    ['arabicName', 'name_ar'],
-  ];
+  const fields = [['productName', 'name_en']];
   for (const [outputField, validationField] of fields) {
     if (!extraction[outputField]) continue;
     const source = provenance[outputField];
@@ -963,7 +1001,8 @@ export async function extractWithFailover(
 function finishDrainReport(report, chain) {
   report.failedOver = chain?.failedOver?.() || false;
   report.keyUsage = chain?.snapshot?.() || [];
-  const completedExtractions = report.enriched + report.declined + (report.ocrPending || 0);
+  const completedExtractions = report.enriched + report.declined
+    + (report.ocrPending || 0) + (report.verificationPending || 0);
   report.extraction.averageProcessingTimeMs = completedExtractions
     ? Math.round((report.extraction.processingTimeMs / completedExtractions) * 100) / 100
     : 0;
@@ -988,7 +1027,7 @@ function finishDrainReport(report, chain) {
 // verdict IS stored (as a NULL-names row) so a hopeless crop is never paid
 // for twice.
 export async function drainEnrichment(
-  { enrichStore, mistralKey, mistralKeyBackup, keyChain },
+  { enrichStore, verificationHistoryStore, mistralKey, mistralKeyBackup, keyChain },
   {
     limit = 15,
     currentOn,
@@ -1000,18 +1039,19 @@ export async function drainEnrichment(
     scope = 'all',
     maxRateRetries = 3,
     offerIds = null,
+    queueOfferIds = null,
   } = {},
 ) {
   const selectedStrategy = normalizeExtractionStrategy(strategy);
   const selectedIdentityMode = normalizeIdentityMode(identityNormalizationMode);
   const report = {
     startedAt: new Date().toISOString(),
-    scanned: 0, enriched: 0, declined: 0, ocrPending: 0,
+    scanned: 0, enriched: 0, declined: 0, ocrPending: 0, verificationPending: 0,
     failed: 0, pruned: 0, stored: 0, failedOver: false,
     // The provider rate-limit signal observed this batch (429 headers), or null.
     // Surfaced so the Operations Center shows the real limit/usage/reset instead
     // of a silent stall (Vision Milestone 2 §3).
-    providerLimit: null, errors: [],
+    providerLimit: null, providerError: null, errors: [],
     extraction: {
       strategy: selectedStrategy,
       visionRequests: 0,
@@ -1043,20 +1083,21 @@ export async function drainEnrichment(
     // S5 Recovery Queue admission (C-9). `admitted` is the pipeline's verdict,
     // `queued` is what was durably written; they diverge only when the
     // migration is missing, which is the intended signal.
-    recovery: { admitted: 0, queued: 0 },
+    verification: { admitted: 0, queued: 0 },
   };
   // Cold-standby key chain: primary then optional backup (MISTRAL_API_KEY /
   // MISTRAL_API_KEY_BACKUP in the Worker). A single-key chain = today's exact
   // behavior. maxRateRetries kept low in the Worker: a persistent 429 with no
   // standby simply stops the batch and retries next fire, as before.
   const chain = keyChain || createKeyChain([mistralKey, mistralKeyBackup]);
-  // Follow the offers table first: expired/re-extracted offers take their
-  // enrichments with them (D1-only, costs no subrequest budget).
-  report.pruned = await enrichStore.pruneOrphans();
-
-  const debris = Array.isArray(offerIds) && offerIds.length
-    ? await enrichStore.listSelected({ ids: offerIds, currentOn })
-    : await enrichStore.listDebris({ currentOn, limit, scope });
+  // Orphan cleanup belongs to the single daily retention owner. Running seven
+  // full anti-joins here once per CPU-isolated child amplified a tiny queue
+  // into tens of millions of D1 rows read without finding anything to delete.
+  const debris = Array.isArray(queueOfferIds)
+    ? await enrichStore.listDebrisByIds({ ids: queueOfferIds, currentOn, scope })
+    : Array.isArray(offerIds) && offerIds.length
+      ? await enrichStore.listSelected({ ids: offerIds, currentOn })
+      : await enrichStore.listDebris({ currentOn, limit, scope });
   report.scanned = debris.length;
   const rows = [];
   const recordDiagnostics = (diag, { recordReasons = true } = {}) => {
@@ -1112,18 +1153,16 @@ export async function drainEnrichment(
         const { crop, result } = observed;
         recordDiagnostics(result.diagnostics, { recordReasons: false });
         const validation = result.diagnostics.validationResult;
-        const passed = !validation.ocrRequired;
+        let passed = !validation.ocrRequired;
         const attemptedAt = new Date().toISOString();
-        const canonicalRow = passed
-          ? canonicalRowFromResult(d.id, crop, result, {
-              model,
-              ocrModel,
-              identityNormalizationMode: selectedIdentityMode,
-              enrichedAt: attemptedAt,
-              commerceContext: d,
-            })
-          : null;
-        if (canonicalRow?.identityDiagnostics) recordIdentityDiagnostics(canonicalRow.identityDiagnostics);
+        const verificationCandidate = canonicalRowFromResult(d.id, crop, result, {
+          model,
+          ocrModel,
+          identityNormalizationMode: selectedIdentityMode,
+          enrichedAt: attemptedAt,
+          commerceContext: d,
+        });
+        let canonicalRow = passed ? verificationCandidate : null;
         // S4 runs on EVERY extraction, not only the ones that cleared the
         // Quality Gate (R5). The two branches differ only in where Comparable
         // Quantity comes from: a passed row already has a Structured Product,
@@ -1134,37 +1173,66 @@ export async function drainEnrichment(
         const acceptance = evaluateBusinessAcceptance({
           offer: d,
           acceptedFields: validation.acceptedFields || [],
-          structured: canonicalRow?.structured_product ?? null,
-          observation: canonicalRow
+          structured: verificationCandidate?.structured_product ?? null,
+          observation: verificationCandidate
             ? null
             : preservedObservation(result.diagnostics.visionOutput),
         });
+        // Optional Arabic, brand and size diagnostics may still request OCR,
+        // but they cannot reject a priced product with an accepted English
+        // name. Nothing becomes servable until Stage 2 matches twice.
+        // S1 already admits only offers with a usable commerce price. Its local
+        // extraction label therefore needs only the accepted English read;
+        // Stage 2 still enforces the full business verdict before verification.
+        passed = acceptance.mandatory.english_name && !!verificationCandidate?.corroboration;
+        canonicalRow = passed ? verificationCandidate : null;
+        if (canonicalRow?.identityDiagnostics) recordIdentityDiagnostics(canonicalRow.identityDiagnostics);
         recordAcceptance(acceptance);
+        const attempt = {
+          offerId: d.id,
+          source: 'vision',
+          output: result.diagnostics.visionOutput,
+          validation,
+          confidence: result.confidence,
+          model,
+          cropUrl: crop.cropUrl,
+          accepted: passed,
+          attemptedAt,
+        };
+        const verificationFingerprint = visionVerificationFingerprint(verificationCandidate);
+        const verificationHash = await visionVerificationFingerprintHash(
+          verificationFingerprint,
+        );
+        // R2 is the durable evidence journal. It is written before the compact
+        // D1 state so a successful queue transition can never point at absent
+        // evidence. Tests and legacy callers may omit the optional store.
+        let verificationEvidenceStored = false;
+        if (verificationHistoryStore) {
+          if (!verificationHistoryStore.available) {
+            throw new Error('Vision Verification R2 history is unavailable');
+          }
+          await verificationHistoryStore.recordAttempt({
+            offerId: d.id,
+            initialOutcome: passed ? 'accepted' : 'rejected',
+            attemptNo: 1,
+            fingerprint: verificationFingerprint,
+            fingerprintHash: verificationHash,
+            candidateRow: verificationCandidate,
+            attempt,
+          });
+          verificationEvidenceStored = true;
+        }
         // S5 admission (C-9), decided HERE because the rule needs both
         // conjuncts — `servable()` and the S4 verdict — and must have exactly
         // one definition. The store commits the decision; it never re-derives it.
-        const recovery = recoveryAdmission({
-          canonicalRow,
-          acceptance,
-          triggerReasons: validation.triggerReasons || [],
-          offer: d,
-        });
         const outcome = await enrichStore.saveVisionOutcome({
-          attempt: {
-            offerId: d.id,
-            source: 'vision',
-            output: result.diagnostics.visionOutput,
-            validation,
-            confidence: result.confidence,
-            model,
-            cropUrl: crop.cropUrl,
-            accepted: passed,
-            attemptedAt,
-          },
+          attempt,
           canonicalRow,
+          verificationCandidate,
+          verificationFingerprintHash: verificationHash,
+          verificationEvidenceStored,
           triggerReasons: validation.triggerReasons || [],
           acceptance,
-          recovery,
         });
         // Distinguishes "the gate judged it" from "the judgement was stored".
         // Before the migration is applied the two diverge, and an operator
@@ -1175,23 +1243,31 @@ export async function drainEnrichment(
         // written", exactly as `judged` vs `persisted` does for the verdict.
         // Before the migration the two diverge, and an operator reading a zero
         // should see a missing table rather than a queue that stopped filling.
-        if (!recovery.complete) report.recovery.admitted += 1;
-        if (outcome?.recoveryQueued) report.recovery.queued += 1;
+        report.verification.admitted += 1;
+        if (outcome?.verificationQueued) report.verification.queued += 1;
         report.stored += 1;
         if (passed) report.enriched += 1;
         else {
-          report.ocrPending += 1;
-          report.extraction.ocrTriggered += 1;
-          for (const reason of validation.triggerReasons || []) {
-            report.extraction.triggerReasons[reason] = (report.extraction.triggerReasons[reason] || 0) + 1;
+          if (outcome?.verificationQueued) {
+            report.verificationPending += 1;
+          } else {
+            report.ocrPending += 1;
+            report.extraction.ocrTriggered += 1;
+            for (const reason of validation.triggerReasons || []) {
+              report.extraction.triggerReasons[reason] = (report.extraction.triggerReasons[reason] || 0) + 1;
+            }
           }
         }
       } catch (err) {
         report.failed += 1;
         report.errors.push(String(err.message).slice(0, 200));
-        if (err.rateLimit) report.providerLimit = err.rateLimit;
+        if (err.rateLimit) report.providerLimit = {
+          ...err.rateLimit,
+          category: err.mistralCategory || err.rateLimit.category || classifyMistral429(err),
+        };
+        report.providerError = mistralErrorDetails(err);
         const kind = classifyMistralError(err);
-        if (kind === 'auth' || kind === 'rate' || kind === 'transient') break;
+        if (kind === 'auth' || kind === 'rate' || kind === 'restriction' || kind === 'transient') break;
       }
     }
     return finishDrainReport(report, chain);
@@ -1274,9 +1350,13 @@ export async function drainEnrichment(
       // resumes cleanly on the next drain/hop.
       report.failed += 1;
       report.errors.push(String(err.message).slice(0, 200));
-      if (err.rateLimit) report.providerLimit = err.rateLimit;
+      if (err.rateLimit) report.providerLimit = {
+        ...err.rateLimit,
+        category: err.mistralCategory || err.rateLimit.category || classifyMistral429(err),
+      };
+      report.providerError = mistralErrorDetails(err);
       const kind = classifyMistralError(err);
-      if (kind === 'auth' || kind === 'rate' || kind === 'transient') break;
+      if (kind === 'auth' || kind === 'rate' || kind === 'restriction' || kind === 'transient') break;
       // 'other' (crop fetch / parse): isolated to this offer — skip it and go on.
     }
   }
@@ -1311,6 +1391,7 @@ export async function drainOcrEnrichment(
     ocrRequests: 0,
     failedOver: false,
     providerLimit: null,
+    providerError: null,
     errors: [],
   };
   const chain = keyChain || createKeyChain([mistralOcrKey, mistralOcrKeyBackup]);
@@ -1376,13 +1457,17 @@ export async function drainOcrEnrichment(
     } catch (err) {
       report.failed += 1;
       report.errors.push(String(err.message).slice(0, 200));
-      if (err.rateLimit) report.providerLimit = err.rateLimit;
+      if (err.rateLimit) report.providerLimit = {
+        ...err.rateLimit,
+        category: err.mistralCategory || err.rateLimit.category || classifyMistral429(err),
+      };
+      report.providerError = mistralErrorDetails(err);
       const attempts = Number(d.attempts) || 0;
       const retryMinutes = Math.min(360, 2 ** Math.min(attempts, 8));
       const retryAt = new Date(Date.now() + retryMinutes * 60_000).toISOString();
       await enrichStore.markOcrPending(d.id, err.message, { retryAt });
       const kind = classifyMistralError(err);
-      if (kind === 'auth' || kind === 'rate' || kind === 'transient') break;
+      if (kind === 'auth' || kind === 'rate' || kind === 'restriction' || kind === 'transient') break;
     }
   }
   report.failedOver = chain.failedOver();

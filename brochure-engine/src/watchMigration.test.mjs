@@ -26,6 +26,7 @@ const PRE = [
 const MIGRATIONS = [
   'migrate-2026-07-29-watch-product-anchor.sql',
   'migrate-2026-07-30-watch-identity-state.sql',
+  'migrate-2026-08-25-watch-schedule-v3.sql',
 ];
 
 const fixture = createSqliteD1(PRE);
@@ -67,7 +68,8 @@ try {
   for (const c of ['registry_product_id', 'spec', 'scope',
     'last_resolution', 'last_resolution_reason', 'resolved_at', 'anchor_state',
     'source_snapshot', 'anchor_provenance', 'candidate_snapshot',
-    'monitoring_health', 'monitoring_health_reason']) {
+    'monitoring_health', 'monitoring_health_reason', 'watch_track',
+    'system_search_query', 'custom_search_query']) {
     ok(cols.includes(c), `added column ${c}`);
   }
   // Additive: nothing the previous deployment wrote was removed.

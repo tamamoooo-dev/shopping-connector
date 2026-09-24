@@ -56,7 +56,16 @@ const baseWatch = (over = {}) => {
     ...over,
   });
   assert.equal(error, undefined, error);
-  return watch;
+  // This suite exercises the pre-v3 Registry/source resolver. The new v3
+  // all-source contract is covered independently by watchTracks.test.mjs.
+  return {
+    ...watch,
+    watchTrack: null,
+    scope: 'store',
+    spec: null,
+    registryProductId: null,
+    anchorState: 'resolving',
+  };
 };
 
 // --- 1. a resolved watch reads a price through the resolver -------------------

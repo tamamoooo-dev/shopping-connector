@@ -29,6 +29,7 @@ import { ingestOffers } from '../offers/ingest.js';
 import {
   runFanOut, runStoreToPublication, createServiceBindingDispatcher,
   runEnrichDrain, createEnrichDispatcher,
+  runVisionVerificationDrain, createVisionVerificationDispatcher,
 } from '../scheduler.js';
 import {
   computeStoreRows,
@@ -77,12 +78,15 @@ import {
   VISION_MODEL_TIERS,
 } from '../offers/visionModel.js';
 import { CONSOLE_HTML } from './ui.js';
+import { enqueueBackground } from '../backgroundContinuation.js';
 
 const todayISO = () => new Date().toISOString().slice(0, 10);
 
 export const OPS_PATH = '/__ops';
 
-const SESSION_HOURS = 12;
+// Remember a successful login without storing OPS_TOKEN in browser storage.
+// Rotating OPS_TOKEN invalidates every signed session immediately.
+const SESSION_DAYS = 3650;
 const LOGIN_MAX_FAILS = 5;
 const LOGIN_WINDOW_MS = 10 * 60 * 1000;
 const RATE_KEY = (ip) => `ops/ratelimit/${ip}`;
@@ -134,9 +138,10 @@ async function signExpiry(ctx, exp) {
 }
 
 async function makeSessionCookie(ctx) {
-  const exp = Date.now() + SESSION_HOURS * 3600 * 1000;
+  const maxAge = SESSION_DAYS * 24 * 3600;
+  const exp = Date.now() + maxAge * 1000;
   const value = `${exp}.${await signExpiry(ctx, exp)}`;
-  return `ops_session=${value}; Path=${OPS_PATH}; HttpOnly; Secure; SameSite=Strict; Max-Age=${SESSION_HOURS * 3600}`;
+  return `ops_session=${value}; Path=${OPS_PATH}; HttpOnly; Secure; SameSite=Strict; Max-Age=${maxAge}`;
 }
 
 const clearSessionCookie = () =>
@@ -392,6 +397,11 @@ async function runOperation(ctx, body) {
     },
   );
   const verification = await verifyTargets(ctx, targets);
+  const noCurrentBrochure = fanout.stores
+    .filter((line) => line.ok && line.result?.resumable?.status === 'no-current-source')
+    .map((line) => line.store);
+  const noCurrentFailures = noCurrentBrochure.filter((store) =>
+    verification.failures.includes(store));
   const ok = fanout.failed === 0 && verification.pass;
   const report = {
     action: `ops:${op}`,
@@ -399,6 +409,7 @@ async function runOperation(ctx, body) {
     dispatched: fanout.dispatched,
     fanout: fanout.stores,
     verification,
+    source: { noCurrentBrochure },
     ok,
     elapsedMs: Date.now() - t0,
   };
@@ -410,8 +421,14 @@ async function runOperation(ctx, body) {
     failed: fanout.failed + verification.failures.length,
     coverage: verification.coverage,
     elapsed_ms: report.elapsedMs,
-    error: fanout.stores.find((s) => !s.ok)?.error || (verification.failures.length ? `unhealthy after run: ${verification.failures.join(', ')}` : null),
-    detail: { targets, failures: verification.failures },
+    error:
+      fanout.stores.find((s) => !s.ok)?.error ||
+      (noCurrentFailures.length
+        ? `no current brochure at source: ${noCurrentFailures.join(', ')}`
+        : verification.failures.length
+          ? `unhealthy after run: ${verification.failures.join(', ')}`
+          : null),
+    detail: { targets, failures: verification.failures, noCurrentBrochure },
   });
   if (body.notify) {
     report.notified = await notifyReport(ctx, `Ops ${op}: ${ok ? 'OK' : 'FAILED'}`, [
@@ -472,6 +489,8 @@ async function runEnrichOperation(ctx, body) {
     ok: drain.failed === 0,
     failed: drain.failed,
     enriched: drain.enriched,
+    providerLimit: drain.providerLimit,
+    providerError: drain.providerError,
     remaining: await ctx.enrichStore.countDebris(today).catch(() => null),
     elapsedMs: Date.now() - t0,
   };
@@ -482,7 +501,14 @@ async function runEnrichOperation(ctx, body) {
     failed: drain.failed,
     elapsed_ms: report.elapsedMs,
     error: drain.lines?.find((l) => !l.ok)?.error || null,
-    detail: { pending: drain.pending, batches: drain.batches, enriched: drain.enriched, remaining: report.remaining },
+    detail: {
+      pending: drain.pending,
+      batches: drain.batches,
+      enriched: drain.enriched,
+      remaining: report.remaining,
+      providerLimit: drain.providerLimit,
+      providerError: drain.providerError,
+    },
   });
   return report;
 }
@@ -511,6 +537,7 @@ async function runVisionStart(ctx, body) {
     return { action: 'ops:vision-start', alreadyRunning: true, message: 'A Vision job is already running.', job: existing };
   }
   const job = await ctx.visionJobStore.start({ scope, total, origin: 'ops' });
+  await enqueueBackground(ctx.backgroundDrainQueue, ctx.visionJobStore, 'vision');
   await auditOp(ctx, {
     action: 'ops:vision-start', ok: true, elapsed_ms: 0,
     detail: { scope, total },
@@ -560,6 +587,100 @@ async function runVisionStop(ctx) {
 // the same constraint that caps /enrich at 16. An operator wanting more presses
 // the button again; a cap that silently truncates is safer than an invocation
 // that dies halfway through a paid batch.
+async function runVisionVerificationOperation(ctx, body) {
+  if (!ctx.visionVerificationStore || !ctx.enrichStore || !ctx.mistralKey) {
+    throw new OpsError('Vision verification unavailable.', 503);
+  }
+  const t0 = Date.now();
+  const today = todayISO();
+  const pending = await ctx.visionVerificationStore.countPending(today).catch(() => 0);
+  if (pending <= 0) {
+    return {
+      action: 'ops:vision-verification', pending: 0, ok: true,
+      nothingToDo: true, message: 'Vision verification queue is empty.',
+      elapsedMs: Date.now() - t0,
+    };
+  }
+  const batches = Math.max(1, Math.min(Number(body.batches) || 4, 8));
+  const dispatchBatch = ctx.self
+    ? createVisionVerificationDispatcher({ self: ctx.self, ingestSecret: ctx.ingestSecret, tag: 'ops' })
+    : async (limit) => {
+        const res = await handleRequest(
+          new Request(`https://brochure-engine.internal/vision-verification?limit=${limit}`, {
+            method: 'POST',
+            headers: {
+              'X-Ingest-Secret': ctx.ingestSecret || '',
+              'X-Ops-Origin': 'ops',
+            },
+          }),
+          ctx,
+        );
+        const out = await res.json().catch(() => ({}));
+        if (!res.ok) throw new Error(`vision verification drain -> HTTP ${res.status}`);
+        return out;
+      };
+  const drain = await runVisionVerificationDrain(dispatchBatch, {
+    pending, batchSize: 15, maxBatches: batches,
+  });
+  const report = {
+    action: 'ops:vision-verification', pending: drain.pending,
+    batches: drain.batches, ok: drain.failed === 0, failed: drain.failed,
+    verified: drain.verified, unmatched: drain.unmatched,
+    providerLimit: drain.providerLimit,
+    providerError: drain.providerError,
+    remaining: await ctx.visionVerificationStore.countPending(today).catch(() => null),
+    elapsedMs: Date.now() - t0,
+  };
+  await auditOp(ctx, {
+    ts: new Date(t0).toISOString(), action: 'ops:vision-verification',
+    ok: report.ok, failed: report.failed, elapsed_ms: report.elapsedMs,
+    error: drain.lines?.find((line) => !line.ok)?.error || null,
+    detail: {
+      pending: report.pending, batches: report.batches,
+      verified: report.verified, unmatched: report.unmatched,
+      remaining: report.remaining,
+      providerLimit: drain.providerLimit,
+      providerError: drain.providerError,
+    },
+  });
+  return report;
+}
+
+async function runVisionVerificationStart(ctx) {
+  if (!ctx.visionVerificationStore || !ctx.visionVerificationJobStore || !ctx.mistralKey) {
+    throw new OpsError('Vision verification unavailable.', 503);
+  }
+  const total = await ctx.visionVerificationStore.countPending(todayISO()).catch(() => 0);
+  if (total <= 0) {
+    return {
+      action: 'ops:vision-verification-start', nothingToDo: true,
+      message: 'Vision verification queue is empty.',
+      job: await ctx.visionVerificationJobStore.get().catch(() => null),
+    };
+  }
+  const existing = await ctx.visionVerificationJobStore.get().catch(() => null);
+  if (existing?.status === 'running') {
+    return {
+      action: 'ops:vision-verification-start', alreadyRunning: true,
+      message: 'A Vision verification job is already running.', job: existing,
+    };
+  }
+  const job = await ctx.visionVerificationJobStore.start({ scope: 'all', total, origin: 'ops' });
+  await enqueueBackground(ctx.backgroundDrainQueue, ctx.visionVerificationJobStore, 'verification');
+  await auditOp(ctx, {
+    action: 'ops:vision-verification-start', ok: true, elapsed_ms: 0,
+    detail: { total },
+  });
+  return { action: 'ops:vision-verification-start', ok: true, job };
+}
+
+async function runVisionVerificationStop(ctx) {
+  if (!ctx.visionVerificationJobStore) throw new OpsError('Vision verification unavailable.', 503);
+  const job = await ctx.visionVerificationJobStore.stop();
+  await auditOp(ctx, { action: 'ops:vision-verification-stop', ok: true, elapsed_ms: 0 });
+  return { action: 'ops:vision-verification-stop', ok: true, job };
+}
+
 const MAX_RECOVERY_DISPATCH = 10;
 
 // Processors declare WHICH credential they need (`credential` on the
@@ -570,9 +691,11 @@ const MAX_RECOVERY_DISPATCH = 10;
 // credential selection inside processors where it cannot be audited.
 function credentialChains(ctx) {
   const medium = ctx.mistralPools?.medium || [ctx.mistralKey, ctx.mistralKeyBackup];
+  const small = ctx.mistralPools?.small || [ctx.mistralSmallKey || ctx.mistralKey];
   const ocr = ctx.mistralPools?.ocr || [ctx.mistralOcrKey, ctx.mistralOcrKeyBackup];
   return {
     ocr: createKeyChain(ocr, { label: 'mistral-ocr' }),
+    'vision-small': createKeyChain(small, { label: 'mistral-small' }),
     vision: createKeyChain(medium, { label: 'mistral-medium', balance: true }),
   };
 }
@@ -1261,6 +1384,27 @@ async function apiRoute(request, ctx, url, sub) {
         return opsJson(await visionProgress(ctx));
       case 'vision/job': // Background Manual Vision job snapshot (polled)
         return opsJson({ job: ctx.visionJobStore ? await ctx.visionJobStore.get() : null });
+      case 'verification':
+        return opsJson(ctx.visionVerificationStore
+          ? await ctx.visionVerificationStore.snapshot({ currentOn: todayISO() })
+          : { available: false, reason: 'store_missing' });
+      case 'verification/job': {
+        const rawJob = ctx.visionVerificationJobStore
+          ? await ctx.visionVerificationJobStore.get()
+          : null;
+        if (!rawJob) return opsJson({ job: null });
+        // vision_jobs is a legacy generic schema whose physical columns are
+        // named enriched/declined. Do not leak those Stage-1 names through the
+        // Verification API: an unmatched attempt is queued again, not declined.
+        const { enriched, declined, ...job } = rawJob;
+        return opsJson({
+          job: {
+            ...job,
+            verified: Number(enriched || 0),
+            continuingAttempts: Number(declined || 0),
+          },
+        });
+      }
       case 'vision/model': { // Developer Tool — active model + the tiers on offer
         // `defaultModel` is what extraction runs on while the selector is INERT
         // (no operator selection stored). The console must show the model that
@@ -1441,6 +1585,17 @@ async function apiRoute(request, ctx, url, sub) {
       case 'vision/stop': {
         // Halt the running Vision job (D1-only, no vision calls).
         return opsJson(await runVisionStop(ctx));
+      }
+      case 'verification': {
+        requireConfirm(body, true);
+        return opsJson(await runVisionVerificationOperation(ctx, body));
+      }
+      case 'verification/start': {
+        requireConfirm(body, true);
+        return opsJson(await runVisionVerificationStart(ctx));
+      }
+      case 'verification/stop': {
+        return opsJson(await runVisionVerificationStop(ctx));
       }
       case 'vision/model': {
         // Developer Tool: switch the extraction model. Confirm-gated like every

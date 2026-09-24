@@ -8,6 +8,18 @@ name = "brochure-engine"
 main = "src/index.js"
 compatibility_date = "2025-06-01"
 
+[[queues.producers]]
+binding = "BACKGROUND_DRAINS"
+queue = "brochure-background-drains"
+
+[[queues.consumers]]
+queue = "brochure-background-drains"
+max_batch_size = 1
+max_batch_timeout = 0
+max_concurrency = 2
+max_retries = 5
+retry_delay = 60
+
 [vars]
 EXTRACTION_STRATEGY = "vision-first"
 IDENTITY_NORMALIZATION_MODE = "strict"
@@ -57,26 +69,23 @@ crons = [
   # so without a Friday fire the marketplace thins out exactly when the user
   # shops. Same per-fire budget as Tue/Wed (§19.C); unchanged flyers dedupe
   # to zero KV writes, offers upsert is D1-only.
-  "0 6 * * 2,3,5", # brochure/offers pipeline (fan-out -> prices -> prune)
-  "45 5 * * *",    # daily Price Monitoring: check every active watch (08:45 AST)
+  "0 6 * * 2,3,5", # brochure/offers pipeline (fan-out -> prices); retention is daily below
+  "45 5 * * *",    # Monday registry maintenance (the daily fires are inert otherwise)
   # Vision enrichment drain (steady-state autonomy, 2026-07-19): Vision is an
   # INGESTION step — every new offer goes through it exactly once (user
   # directive: no reuse gates in front of Vision) — so throughput must absorb
   # the Tuesday-night burst without manual backfills. Each fire is its own
-  # budget (6 sequential children × 15 offers ≈ 90; §40 bump from 4), 3 fires/hour
-  # ⇒ up to ~6.5k offers/day; an empty queue costs one D1 count. Minutes 10/30/50
-  # keep clear of the 05:45 watch fire and the 06:00 ingest fan-out.
+  # budget (28 sequential CPU-isolated children × 1 offer), 3 fires/hour
+  # ⇒ up to ~2k offers/day; an empty queue costs one D1 count. Minutes 10/30/50
+  # keep clear of the 05:45 maintenance fire and the 06:00 ingest fan-out.
   # Inert without the MISTRAL_API_KEY secret, exactly like the drain itself.
   "10,30,50 * * * *", # steady-state vision drain (yields to a background job)
-  # Background Manual Vision — near-continuous drain (Vision Milestone 2 §2, cron
-  # redesign 2026-07-20). Fires EVERY MINUTE but is a single cheap D1 read unless
-  # an operator has a job running; then it drains a bounded chunk (VISION_DRAIN_BATCHES
-  # children/fire, paced by Mistral) as the SOLE resolution writer — a D1 lease
-  # prevents overlapping fires, and the 10/30/50 drain + Monday maintenance yield
-  # to a running job. Replaces the fragile self-continuing /enrich/step chain
-  # (a fetch-invocation waitUntil can't keep a 30s hop alive). Inert (one D1 read)
-  # without a running job or without MISTRAL_API_KEY.
-  "* * * * *", # Background Manual Vision continuous drain (no-op when idle)
+  # Shared one-minute background tick. It services Price Monitoring's durable
+  # 07:00/19:00 Riyadh rounds and one-minute retries, plus logical Stage 2
+  # steady schedule at minutes 5/25/45, keeping this Free-plan account within
+  # its five-trigger limit. A running Stage 1 background job has first priority;
+  # otherwise Stage 2 uses the same sequential SELF-child drain.
+  "* * * * *", # Watch rounds/retries + background drains + D1 retention
   "*/2 * * * *", # resumable D4D brochure collection (pending stores only)
 ]
 
@@ -124,11 +133,17 @@ id = "38b0639256a34d1ebd7d96dcb55d0a9b"
 # INGEST_SECRET (guards POST /ingest) is a secret, not committed:
 #   npx wrangler secret put INGEST_SECRET
 
-# Optional dedicated asynchronous OCR credentials. When absent, the existing
-# Mistral key chain remains a backward-compatible fallback. OCR failures never
-# block Vision ingestion; rejected offers remain in offer_ocr_queue.
+# Model-scoped Mistral credentials. Medium uses three balanced slots; Small has
+# a primary + up to two backups (failover, not balanced, primary-preferred);
+# OCR has its own quota. Values are Worker secrets, never vars/config. Legacy
+# MISTRAL_API_KEY[_BACKUP] remain code-level fallbacks during rotation.
+#   npx wrangler secret put MISTRAL_MEDIUM_API_KEY_1
+#   npx wrangler secret put MISTRAL_MEDIUM_API_KEY_2
+#   npx wrangler secret put MISTRAL_MEDIUM_API_KEY_3
+#   npx wrangler secret put MISTRAL_SMALL_API_KEY
+#   npx wrangler secret put MISTRAL_SMALL_API_KEY_BACKUP
+#   npx wrangler secret put MISTRAL_SMALL_API_KEY_BACKUP_2
 #   npx wrangler secret put MISTRAL_OCR_API_KEY
-#   npx wrangler secret put MISTRAL_OCR_API_KEY_BACKUP
 
 # OPS_TOKEN (guards the /__ops Operations Console — src/ops/) is a SEPARATE
 # secret for HUMAN operators; INGEST_SECRET stays machine-only. Make it long
@@ -148,6 +163,8 @@ id = "38b0639256a34d1ebd7d96dcb55d0a9b"
 #   npx wrangler d1 execute brochure-engine --remote --file=./migrate-2026-07-27-extraction-source-open.sql
 #   npx wrangler d1 execute brochure-engine --remote --file=./migrate-2026-07-27-recovery-queue.sql
 #   npx wrangler d1 execute brochure-engine --remote --file=./migrate-2026-07-29-navigation-provenance.sql
+#   npx wrangler d1 execute brochure-engine --remote --file=./migrate-2026-08-11-vision-verification.sql
+#   npx wrangler d1 execute brochure-engine --remote --file=./migrate-2026-08-25-d1-row-reads.sql
 #
 # On a NEW database (including staging), apply schema.sql instead — it already
 # contains every table above:

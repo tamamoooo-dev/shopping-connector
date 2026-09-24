@@ -10,22 +10,20 @@
 // anything. S4 is the first stage allowed to have an opinion about the product
 // as a whole, and it is the ONLY one.
 //
-// A CONJUNCTION, NEVER A SCORE. Three independent presence facts, all of which
+// A CONJUNCTION, NEVER A SCORE. Two independent presence facts, both of which
 // must hold. Deliberately not a weighted score, because a score is compensatory:
 // `commerce_score >= X` would let brand's 20 points stand in for package size's
 // 25, and a product would enter commerce because it was well-branded rather than
 // because it was comparable. It would also be circular — Commerce Score reads
 // price and size, the same two facts this gate tests (QUALITY-SCORES.md §5).
 //
-// WHY EXACTLY THESE THREE (C-5). Each earns its place by a different argument,
+// WHY EXACTLY THESE TWO (C-5). Each earns its place by a different argument,
 // which is the test for whether the set is right:
 //
 //   M1 price               — the fact the whole product exists to compare, and
 //                            free: we already own it (C-2), measured usable on
 //                            1000/1000 production rows
-//   M2 comparable quantity — what makes two prices comparable at all; without
-//                            it a price is a number with no denominator
-//   M3 english name        — the identity anchor, reusing S3's own verdict
+//   M2 english name        — the identity anchor, reusing S3's own verdict
 //                            rather than inventing a second bar (99% available)
 //
 // A fourth condition is `business-acceptance-v2`, never an edit of v1 (R3).
@@ -100,14 +98,17 @@ import {
 // REVERTING is one edit and no migration: restore the version string and stop
 // threading `unit`/`text` at the call sites. Stored v1/v2 verdicts are
 // untouched either way.
-export const BUSINESS_ACCEPTANCE_VERSION = 'business-acceptance-v3';
+// v4 restores the user-owned admission contract: a usable commerce price plus
+// an accepted English product name. Comparable quantity remains available in
+// the returned diagnostics, but no longer blocks admission. Arabic remains an
+// extracted display field and never participates in this gate.
+export const BUSINESS_ACCEPTANCE_VERSION = 'business-acceptance-v4';
 
 // The mandatory set, ordered. This array IS the contract: adding to it is a new
 // version, and the per-condition `missing` list is derived from it so the two
 // can never disagree.
 export const MANDATORY_CONDITIONS = Object.freeze([
   'price',
-  'comparable_quantity',
   'english_name',
 ]);
 
@@ -129,7 +130,7 @@ function englishNameAdmitted(acceptedFields, offer, nonGrocery) {
 
 /**
  * The gate. Pure, total, deterministic — it never throws and depends on exactly
- * three facts.
+ * two facts.
  *
  * @param {object}   input
  * @param {object}   input.offer            `{ price, currency }` from the OFFER ROW. Never Vision (C-2).
@@ -175,7 +176,6 @@ export function evaluateBusinessAcceptance({
 
   const mandatory = Object.freeze({
     price: hasUsableCommercePrice(offer || {}),
-    comparable_quantity: quantity.status === COMPARABLE_QUANTITY_STATUS.RESOLVED,
     english_name: englishNameAdmitted(acceptedFields, offer, nonGrocery),
   });
 
@@ -190,6 +190,30 @@ export function evaluateBusinessAcceptance({
     mandatory,
     missing: Object.freeze(missing),
     comparableQuantity: quantity,
+  });
+}
+
+// Read-only compatibility for recovery items already queued under v1-v3.
+// New extraction and verification code must use evaluateBusinessAcceptance().
+// Keeping the old evaluator explicit prevents a historical queue from silently
+// changing meaning while ensuring comparable quantity can never re-enter the
+// live v4 admission contract.
+export function evaluateLegacyBusinessAcceptance(input = {}) {
+  const current = evaluateBusinessAcceptance(input);
+  const mandatory = Object.freeze({
+    price: current.mandatory.price,
+    comparable_quantity:
+      current.comparableQuantity.status === COMPARABLE_QUANTITY_STATUS.RESOLVED,
+    english_name: current.mandatory.english_name,
+  });
+  const legacyConditions = ['price', 'comparable_quantity', 'english_name'];
+  const missing = Object.freeze(legacyConditions.filter((condition) => !mandatory[condition]));
+  return Object.freeze({
+    ...current,
+    accepted: missing.length === 0,
+    version: 'business-acceptance-v3',
+    mandatory,
+    missing,
   });
 }
 

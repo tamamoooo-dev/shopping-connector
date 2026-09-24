@@ -255,7 +255,20 @@ function fakeFetch(replies) {
     if (String(url).startsWith('https://api.mistral.ai/')) {
       calls.api += 1;
       const r = replies[lastImg];
-      if (r === 'TRANSPORT') return { ok: false, status: 429, text: async () => 'rate limited' };
+      if (r === 'TRANSPORT') {
+        const headers = {
+          'x-ratelimit-limit-req-minute': '0',
+          'x-ratelimit-remaining-req-minute': '0',
+          'x-kong-request-id': 'test-request-id',
+        };
+        return {
+          ok: false,
+          status: 429,
+          headers: { get: (name) => headers[String(name).toLowerCase()] || null },
+          text: async () =>
+            '{"object":"error","message":"Rate limit exceeded","type":"rate_limited","param":null,"code":"1300","raw_status_code":429}',
+        };
+      }
       if (String(url).endsWith('/ocr')) {
         const markdown = r && typeof r === 'object' ? r.ocr || '' : '';
         return { ok: true, json: async () => ({ pages: markdown ? [{ markdown }] : [] }) };
@@ -366,8 +379,7 @@ console.log('S4 acceptance in the drain:');
   // offers — which a single "rejected: 2" could never have told an operator.
   check('per-condition tallies are reported, never a bare reject count (R6)',
     report.acceptance.missing.price === 1 &&
-    report.acceptance.missing.english_name === 1 &&
-    report.acceptance.missing.comparable_quantity === 1);
+    report.acceptance.missing.english_name === 1);
   // R3: a verdict must be attributable to the rule that produced it. Asserted
   // against the EXPORTED constant rather than a literal — pinning the literal
   // makes every legitimate version bump look like a regression, while the
@@ -445,8 +457,8 @@ console.log('S4 acceptance in the drain:');
     { enrichStore: store, mistralKey: 'vision-key' },
     { currentOn: '2026-07-18', maxRateRetries: 0 },
   );
-  check('Quality Gate reject completes Vision ingestion as ocr_pending',
-    vision.failed === 0 && vision.ocrPending === 1 && store.queue.get('async:reject')?.status === 'ocr_pending');
+  check('missing optional Arabic and brand do not block Vision ingestion',
+    vision.failed === 0 && vision.enriched === 1 && vision.ocrPending === 0 && store.rows.has('async:reject'));
 
   globalThis.fetch = async (url) => {
     if (String(url).endsWith('/ocr')) {
@@ -462,8 +474,8 @@ console.log('S4 acceptance in the drain:');
     { enrichStore: store, mistralOcrKey: 'ocr-key' },
     { currentOn: '2026-07-18', maxRateRetries: 0 },
   );
-  check('OCR 429 leaves the offer pending without a canonical overwrite',
-    ocr.failed === 1 && !store.rows.has('async:reject') && store.queue.get('async:reject')?.status === 'ocr_pending');
+  check('no OCR escalation is created for optional Arabic or brand',
+    ocr.failed === 0 && store.rows.has('async:reject') && !store.queue.has('async:reject'));
 
   store.setDebris([
     { id: 'async:reject', image_url: 'http://cdn/reject.jpg' },
@@ -476,8 +488,8 @@ console.log('S4 acceptance in the drain:');
     { enrichStore: store, mistralKey: 'vision-key' },
     { currentOn: '2026-07-18' },
   );
-  check('new Vision PASS continues while an older OCR escalation is rate-limited',
-    continued.enriched === 1 && store.rows.has('async:pass') && store.queue.get('async:reject')?.status === 'ocr_pending');
+  check('new Vision PASS continues beside the accepted English-only result',
+    continued.enriched === 1 && store.rows.has('async:pass') && store.rows.has('async:reject'));
 }
 
 // Runtime strategy integration: the guarded production route can override the
@@ -589,6 +601,16 @@ console.log('S4 acceptance in the drain:');
   check('persistent 429 stops the batch', report.failed === 1 && report.scanned === 2);
   check('failed offer NOT stored (retries later)', store.rows.size === 0);
   check('provider rate-limit signal captured', report.providerLimit && report.providerLimit.status === 429);
+  check('zero request allowance is distinguished from monthly usage exhaustion',
+    report.providerLimit?.category === 'request_allowance_zero' &&
+    report.providerLimit?.limitRequestsMinute === '0');
+  check('complete Mistral body, code, model, request id, and attempted key are retained',
+    report.providerError?.responseBody ===
+      '{"object":"error","message":"Rate limit exceeded","type":"rate_limited","param":null,"code":"1300","raw_status_code":429}' &&
+    report.providerError?.error?.code === '1300' &&
+    report.providerError?.model === 'mistral-medium-latest' &&
+    report.providerError?.headers?.requestId === 'test-request-id' &&
+    report.providerError?.attempts?.[0]?.keyId === 'key-1');
 }
 // Resilient drain (Vision M2 §3): an ISOLATED per-offer error (bad crop) is
 // skipped and the batch CONTINUES — one bad tile never strands the rest.

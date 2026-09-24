@@ -637,6 +637,18 @@ export async function visionProgress(ctx, { now = new Date() } = {}) {
     for (const r of recentRows) {
       const d = parseDetail(r);
       if (d && d.providerLimit) { providerLimit = d.providerLimit; break; }
+      const limitedKey = d?.keyUsage?.find((key) =>
+        key?.rateLimit && (key.status === 'limited' || key.status === 'restricted'));
+      if (limitedKey) {
+        providerLimit = {
+          ...limitedKey.rateLimit,
+          category: limitedKey.restrictionCategory ||
+            (Number(limitedKey.rateLimit.limitRequestsMinute) === 0
+              ? 'request_allowance_zero'
+              : limitedKey.rateLimit.category || 'unknown_429'),
+        };
+        break;
+      }
     }
   }
   let resumeAt = null;
@@ -649,7 +661,12 @@ export async function visionProgress(ctx, { now = new Date() } = {}) {
     offers: { current: offers.current, total: offers.total, stores: offers.stores },
     withCrop: cov ? cov.withCrop : 0,
     attempted: cov ? cov.attempted : 0,
+    // Enrichment and Verification are independent stages. Enriched means the
+    // basic name+price contract passed (including a later Stage-2 rescue), while
+    // verified means two normalized observations matched.
     enriched: cov ? cov.enriched : 0,
+    stageOneEnriched: cov ? cov.enriched : 0,
+    verified: cov ? (cov.verified || 0) : 0,
     servable: cov ? cov.servable : 0,
     declined: cov ? cov.declined : 0,
     remaining,

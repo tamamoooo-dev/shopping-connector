@@ -29,7 +29,7 @@ import {
 } from './recoveryQueue.js';
 import { createSqliteD1, insertOffers } from './testSqliteD1.mjs';
 import { buildStructuredProduct } from '../lexicon/structuredProduct.js';
-import { evaluateBusinessAcceptance } from '../offers/businessAcceptance.js';
+import { evaluateLegacyBusinessAcceptance as evaluateBusinessAcceptance } from '../offers/businessAcceptance.js';
 import { recoveryAdmission } from '../offers/enrich.js';
 
 let tests = 0;

@@ -40,7 +40,7 @@ if (SAMPLES.length !== 10 || new Set(SAMPLES.map((s) => s.id)).size !== 10) {
 
 const keys = loadMistralKeys();
 if (!keys.length) throw new Error('No local Mistral key found.');
-const keyChain = createKeyChain(keys);
+const keyChain = createKeyChain(keys, { balance: true, label: 'mistral-medium' });
 mkdirSync(ASSET_DIR, { recursive: true });
 
 function extension(contentType, url) {

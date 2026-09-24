@@ -39,7 +39,9 @@ export const RECOVERY_MODES = Object.freeze({ MANUAL: 'manual', AUTO: 'auto' });
 // the hard ceiling reflects the measured point above which recovery children
 // failed with "Too many subrequests".
 export const DEFAULT_MAX_ITEMS_PER_RUN = 15;
-export const DEFAULT_MAX_ATTEMPTS_PER_ITEM = 2;
+// Small retry -> Medium -> OCR is a three-rung machine ladder. The budget is
+// global per item, so the default must allow each rung one conclusive attempt.
+export const DEFAULT_MAX_ATTEMPTS_PER_ITEM = 3;
 const MAX_ITEMS_CEILING = 20;
 
 function clamp(value, fallback, ceiling) {

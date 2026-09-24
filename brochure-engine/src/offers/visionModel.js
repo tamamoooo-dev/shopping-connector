@@ -52,15 +52,15 @@ export const VISION_MODEL_TIERS = {
   },
   small: {
     tier: 'small',
-    label: 'Small 2603',
+    label: 'Ministral 14B',
     note: 'Budget',
     // PINNED, unlike medium: the budget measurement was run against 2603
     // specifically (benchmarks/small-first-routing-30-2026-07-25), so budget
     // mode sends the version whose defect rate we actually know rather than
     // letting `-latest` drift to an unmeasured build.
-    model: 'mistral-small-2603',
-    version: 'mistral-small-2603',
-    alias: 'mistral-small-latest',
+    model: 'ministral-14b-2512',
+    version: 'ministral-14b-2512',
+    alias: 'ministral-14b-2512',
     budget: true,
     warning:
       'Budget Mode enabled. Extraction quality may decrease, especially for package size and brand recognition.',

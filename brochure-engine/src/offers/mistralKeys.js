@@ -44,6 +44,14 @@ const EXHAUSTED_KEY_RECHECK_MS = 6 * 60 * 60 * 1000;
 
 export function remainingPercentage(rateLimit) {
   if (!rateLimit) return null;
+  // Mistral uses an explicit 0/0 request allowance when a Workspace has no
+  // completion traffic allocated. That is not an "unknown percentage": it is
+  // zero usable capacity, and treating it as unknown caused the drain to keep
+  // probing the same non-retryable wall.
+  if (
+    finiteNumber(rateLimit.limitRequestsMinute) === 0 &&
+    finiteNumber(rateLimit.remainingRequestsMinute) === 0
+  ) return 0;
   const pairs = [
     [rateLimit.remainingRequestsMinute, rateLimit.limitRequestsMinute],
     [rateLimit.remainingTokensMinute, rateLimit.limitTokensMinute],
@@ -59,6 +67,67 @@ export function remainingPercentage(rateLimit) {
     .filter((value) => value != null);
   if (!percentages.length) return finiteNumber(rateLimit.remainingPct);
   return Math.round(Math.max(0, Math.min(100, Math.min(...percentages))) * 10) / 10;
+}
+
+// Provider-facing reason taxonomy for HTTP 429. Keep this separate from the
+// runner's broad auth/rate/transient classes: the Operations Center needs to
+// distinguish a monthly quota from a short window and, critically, from a
+// Workspace whose configured request allowance is literally zero.
+export function classifyMistral429(err) {
+  const status = Number(err?.status ?? err?.rateLimit?.status) || 0;
+  if (status !== 429) return null;
+  const limit = err?.rateLimit || {};
+  const body = err?.providerError || {};
+  const text = [
+    body?.message,
+    body?.type,
+    body?.code,
+    err?.responseBody,
+    err?.message,
+  ].filter(Boolean).join(' ').toLowerCase();
+
+  if (/billing|payment|credit|balance|subscription|spend.?limit/.test(text)) {
+    return 'billing_restriction';
+  }
+  if (
+    (finiteNumber(limit.limitTokensMonth) > 0 && finiteNumber(limit.remainingTokensMonth) === 0) ||
+    /monthly.{0,30}(limit|quota)|(?:limit|quota).{0,30}monthly|quota exhausted/.test(text)
+  ) return 'monthly_account_quota';
+  if (finiteNumber(limit.limitRequestsMinute) === 0) return 'request_allowance_zero';
+  if (/concurr|simultaneous|in.?flight/.test(text)) return 'concurrency_limit';
+  if (/capacity|overload|temporar(?:y|ily).{0,20}(thrott|unavailable)/.test(text)) {
+    return 'capacity_throttling';
+  }
+  if (
+    (finiteNumber(limit.limitTokensMinute) > 0 && finiteNumber(limit.remainingTokensMinute) === 0) ||
+    /tokens?.{0,20}(minute|rate)|tpm/.test(text)
+  ) return 'token_rate_limit';
+  if (
+    (finiteNumber(limit.limitRequestsMinute) > 0 && finiteNumber(limit.remainingRequestsMinute) === 0) ||
+    /requests?.{0,20}(second|minute|rate)|\brps\b|\brpm\b|too many requests/.test(text)
+  ) return 'request_rate_limit';
+  return 'unknown_429';
+}
+
+export function isTerminalMistralLimit(category) {
+  return category === 'request_allowance_zero' ||
+    category === 'monthly_account_quota' ||
+    category === 'billing_restriction';
+}
+
+export function mistralErrorDetails(err) {
+  if (!err) return null;
+  return {
+    status: Number(err.status) || null,
+    category: err.mistralCategory || classifyMistral429(err),
+    keyId: err.keyId || null,
+    model: err.model || null,
+    endpoint: err.endpoint || null,
+    responseBody: err.responseBody == null ? null : String(err.responseBody),
+    error: err.providerError || null,
+    headers: err.rateLimit || null,
+    attempts: Array.isArray(err.mistralAttempts) ? err.mistralAttempts : [],
+  };
 }
 
 function keyEntry(value, index) {
@@ -102,12 +171,24 @@ export function createKeyChain(
     const storedPct = remainingPercentage(storedRateLimit);
     const observedAt = storedPrior.observedAt || storedPrior.rateLimit?.observedAt || null;
     const observedMs = observedAt ? Date.parse(observedAt) : NaN;
+    const requestAllowanceZero =
+      finiteNumber(storedRateLimit.limitRequestsMinute) === 0 &&
+      finiteNumber(storedRateLimit.remainingRequestsMinute) === 0;
+    const storedRestrictionCategory = storedPrior.restrictionCategory ||
+      storedRateLimit.category || (requestAllowanceZero ? 'request_allowance_zero' : null);
+    const restrictionRecheckDue = isTerminalMistralLimit(storedRestrictionCategory) &&
+      (!Number.isFinite(observedMs) || now() - observedMs >= EXHAUSTED_KEY_RECHECK_MS);
     const exhaustedRecheckDue = storedPct != null && storedPct <= 0 &&
       (!Number.isFinite(observedMs) || now() - observedMs >= EXHAUSTED_KEY_RECHECK_MS);
-    const prior = exhaustedRecheckDue ? {} : storedPrior;
+    const prior = exhaustedRecheckDue || restrictionRecheckDue ? {} : storedPrior;
     slots.push({
       ...entry,
       dead: false,
+      restricted: isTerminalMistralLimit(storedRestrictionCategory) && !restrictionRecheckDue,
+      restrictionCategory: isTerminalMistralLimit(storedRestrictionCategory) && !restrictionRecheckDue
+        ? storedRestrictionCategory
+        : null,
+      providerError: prior.providerError || null,
       until: 0,
       calls: 0,
       rateLimit: prior.rateLimit || prior,
@@ -124,7 +205,7 @@ export function createKeyChain(
   const usableIndex = (t = now()) => {
     const candidates = slots
       .map((slot, index) => ({ slot, index }))
-      .filter(({ slot }) => !slot.dead && slot.until <= t);
+      .filter(({ slot }) => !slot.dead && !slot.restricted && slot.until <= t);
     if (!candidates.length) return -1;
     if (!balance) return candidates[0].index;
     candidates.sort((a, b) => {
@@ -153,7 +234,9 @@ export function createKeyChain(
     pool: slot.pool,
     model: slot.model,
     configured: true,
-    status: slot.dead ? 'invalid' : slot.until > now() ? 'limited' : 'ready',
+    status: slot.dead ? 'invalid' : slot.restricted ? 'restricted' : slot.until > now() ? 'limited' : 'ready',
+    restrictionCategory: slot.restrictionCategory || null,
+    providerError: slot.providerError || null,
     remainingPct: slot.remainingPct,
     observedAt: slot.observedAt,
     rateLimit: slot.rateLimit || null,
@@ -203,6 +286,23 @@ export function createKeyChain(
       log(`[${label}-failover] key #${index + 1} retired (${reason})` +
         (alt >= 0 ? `; using key #${alt + 1} of ${slots.length}` : '; NO usable key remains'));
     },
+    // A zero request allowance is not a short rate window. Retire that slot for
+    // this run and persist a masked restriction observation so later Worker
+    // invocations do not hammer it. It becomes probeable again after the same
+    // six-hour recheck window used for externally-reset account limits.
+    markRestricted(index, category, rateLimit = null, providerError = null) {
+      const s = slots[index];
+      if (!s || s.restricted) return;
+      s.restricted = true;
+      s.restrictionCategory = category || 'request_allowance_zero';
+      s.providerError = providerError || null;
+      s.calls += 1;
+      recordRateLimit(index, rateLimit);
+      if (s.remainingPct == null) s.remainingPct = 0;
+      const alt = usableIndex();
+      log(`[${label}-restriction] key #${index + 1} has ${s.restrictionCategory}` +
+        (alt >= 0 ? `; checking key #${alt + 1} of ${slots.length}` : '; NO usable key remains'));
+    },
     // Rate limit: park this key until `untilMs`. Logs the immediate switch when
     // another key can take over now (the active-failover behavior).
     markRateLimited(index, untilMs, reason = 'rate limited', rateLimit = null) {
@@ -228,6 +328,26 @@ export function createKeyChain(
       }
       return soonest === Infinity ? null : soonest;
     },
+    restrictionError() {
+      const blocked = slots.filter((slot) => slot.restricted);
+      if (!blocked.length) return null;
+      const newest = blocked[blocked.length - 1];
+      const err = new Error('Mistral request allowance is zero for every configured key');
+      err.stage = 'mistral';
+      err.status = 429;
+      err.mistralCategory = newest.restrictionCategory || 'request_allowance_zero';
+      err.rateLimit = newest.rateLimit || null;
+      err.providerError = newest.providerError || null;
+      err.mistralAttempts = blocked.map((slot) => ({
+        keyId: slot.id,
+        status: 429,
+        category: slot.restrictionCategory || 'request_allowance_zero',
+        model: slot.model || null,
+        headers: slot.rateLimit || null,
+        error: slot.providerError || null,
+      }));
+      return err;
+    },
   };
 }
 
@@ -244,7 +364,11 @@ export const MISTRAL_POOL_DEFINITIONS = Object.freeze({
   small: {
     label: 'Small 2603',
     model: 'mistral-small-2603',
-    slots: [['small-1', 'Small key']],
+    slots: [
+      ['small-1', 'Small key'],
+      ['small-2', 'Small key backup'],
+      ['small-3', 'Small key backup 2'],
+    ],
   },
   ocr: {
     label: 'OCR',
@@ -279,13 +403,16 @@ export function buildMistralPools(env = {}) {
     ));
   return {
     medium,
-    small: [
+    small: MISTRAL_POOL_DEFINITIONS.small.slots.map((slot, index) =>
       poolEntry(
         'small',
-        MISTRAL_POOL_DEFINITIONS.small.slots[0],
-        env.MISTRAL_SMALL_API_KEY || env.MISTRAL_API_KEY || env.MISTRAL_API_KEY_BACKUP,
-      ),
-    ],
+        slot,
+        index === 0
+          ? (env.MISTRAL_SMALL_API_KEY || env.MISTRAL_API_KEY || env.MISTRAL_API_KEY_BACKUP)
+          : index === 1
+            ? env.MISTRAL_SMALL_API_KEY_BACKUP
+            : env.MISTRAL_SMALL_API_KEY_BACKUP_2,
+      )),
     ocr: [
       poolEntry(
         'ocr',
@@ -340,7 +467,8 @@ export function mistralPoolInventory(pools, usage = {}) {
 
 // Classify an error thrown by a Mistral call (enrichOffer tags its errors with
 // `.stage` and `.status`; message-sniffing is the fallback for anything else).
-//   auth      — 401/403/invalid key: the key is unusable, fail over now.
+//   auth      — 401/402/403/invalid key: the key is unusable (bad credentials
+//               OR the workspace has no active plan/credits), fail over now.
 //   rate      — 429/quota: transient until it proves PERSISTENT.
 //   transient — 5xx/network: provider trouble, NOT a key problem.
 //   other     — crop fetch, parse, everything else: never a key problem.
@@ -350,10 +478,14 @@ export function classifyMistralError(err) {
   const msg = String(err?.message || '').toLowerCase();
   if (
     status === 401 ||
+    status === 402 ||
     status === 403 ||
-    /unauthor|invalid api key|invalid_api_key|authentication|forbidden/.test(msg)
+    /unauthor|invalid api key|invalid_api_key|authentication|forbidden|payment required|insufficient.{0,20}(credit|balance|fund)|no active subscription/.test(msg)
   ) {
     return 'auth';
+  }
+  if (status === 429 && isTerminalMistralLimit(classifyMistral429(err))) {
+    return 'restriction';
   }
   if (status === 429 || /rate.?limit|quota|too many requests|capacity exceeded/.test(msg)) {
     return 'rate';
@@ -383,6 +515,7 @@ export async function withFailover(keyChain, doCall, {
   if (!keyChain || !keyChain.hasKeys()) throw new Error('withFailover: no API key available');
   let waitCycles = 0;
   let lastErr = null;
+  const attempts = [];
   for (;;) {
     const slot = keyChain.pick(now());
     if (slot) {
@@ -392,6 +525,20 @@ export async function withFailover(keyChain, doCall, {
         return result;
       } catch (err) {
         lastErr = err;
+        err.keyId = slot.id;
+        const category = classifyMistral429(err);
+        if (category) err.mistralCategory = category;
+        attempts.push({
+          keyId: slot.id,
+          status: Number(err?.status) || null,
+          category,
+          model: err?.model || null,
+          endpoint: err?.endpoint || null,
+          responseBody: err?.responseBody == null ? null : String(err.responseBody),
+          error: err?.providerError || null,
+          headers: err?.rateLimit || null,
+        });
+        err.mistralAttempts = attempts.slice();
         const kind = classifyMistralError(err);
         if (kind === 'auth') {
           keyChain.markDead(slot.index, `auth (${err?.status || '?'})`, err?.rateLimit || null);
@@ -407,6 +554,15 @@ export async function withFailover(keyChain, doCall, {
           keyChain.markRateLimited(slot.index, untilMs, 'rate limited', err?.rateLimit || null);
           continue;
         }
+        if (kind === 'restriction') {
+          keyChain.markRestricted?.(
+            slot.index,
+            category,
+            err?.rateLimit || null,
+            err?.providerError || null,
+          );
+          continue;
+        }
         // transient (5xx / network) and other (crop fetch / parse) are not key
         // problems — the backup hits the same provider, so never fail over.
         throw err;
@@ -417,7 +573,12 @@ export async function withFailover(keyChain, doCall, {
     // there is nothing to wait for. Bounded so a permanently throttled account
     // eventually surfaces the 429 to the caller's own retry/reporting.
     const resumeAt = keyChain.nextResumeAt(now());
-    if (resumeAt == null) throw lastErr || new Error('withFailover: all API keys exhausted');
+    if (resumeAt == null) {
+      const restrictionErr = keyChain.restrictionError?.();
+      if (lastErr) throw lastErr;
+      if (restrictionErr) throw restrictionErr;
+      throw new Error('withFailover: all API keys exhausted');
+    }
     if (waitCycles >= maxRateRetries) throw lastErr || new Error('withFailover: all API keys rate limited');
     waitCycles += 1;
     await sleepImpl(Math.max(0, resumeAt - now()));

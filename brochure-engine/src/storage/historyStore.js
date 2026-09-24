@@ -21,6 +21,79 @@ import { expandToken } from '../matching.js';
 
 const CHUNK = 80; // stay under SQLite's bound-parameter ceiling
 
+const escapeLike = (value) => value.replace(/[%_\\]/g, (char) => `\\${char}`);
+const ftsPhrase = (value) => `"${value.replace(/"/g, '""')}"`;
+const unicodeLength = (value) => [...value].length;
+const shortSentinel = (value) => `qx${value}xq`;
+const ftsVariant = (value) => {
+  const chars = [...value];
+  const grams = [...new Set(
+    Array.from({ length: chars.length - 2 }, (_, index) => chars.slice(index, index + 3).join('')),
+  )];
+  return `(${grams.map(ftsPhrase).join(' AND ')})`;
+};
+
+// Build an indexed candidate set without changing the fallback's admission or
+// ranking contract. Trigram MATCH is a superset for every >=3-character
+// substring. Synthetic trigram sentinels cover shorter canonical words,
+// because the final offerRelevance gate admits short variants only as whole
+// words. The original LIKE predicates below still recheck every candidate
+// before its old boundary score and last_price ordering are applied.
+export function buildIdentitySearchQuery(q, limit = 250) {
+  const groups = queryTokens(q).map((token) => expandToken(token));
+  if (!groups.length) return null;
+
+  const ctes = [];
+  const candidateBinds = [];
+  const where = [];
+  const whereBinds = [];
+  const boundaryParts = [];
+  const boundaryBinds = [];
+
+  groups.forEach((variants, index) => {
+    ctes.push(
+      `g${index}(rowid) AS (
+        SELECT rowid FROM price_identities_fts WHERE price_identities_fts MATCH ?
+      )`,
+    );
+    // detail=none keeps FTS writes/storage small. Boolean AND over every
+    // trigram is still a no-false-negative candidate test; the exact LIKE
+    // below rejects grams that occurred out of order or in different words.
+    candidateBinds.push(variants
+      .map((variant) => ftsVariant(
+        unicodeLength(variant) >= 3 ? variant : shortSentinel(variant),
+      ))
+      .join(' OR '));
+
+    where.push(`(${variants.map(() => "p.match_text LIKE ? ESCAPE '\\'").join(' OR ')})`);
+    whereBinds.push(...variants.map((variant) => `%${escapeLike(variant)}%`));
+    boundaryParts.push(
+      `(CASE WHEN ${variants.map(() => "(' ' || p.match_text || ' ') LIKE ? ESCAPE '\\'").join(' OR ')} THEN 2 ` +
+        `WHEN ${variants.map(() => "(' ' || p.match_text) LIKE ? ESCAPE '\\'").join(' OR ')} THEN 1 ELSE 0 END)`,
+    );
+    boundaryBinds.push(...variants.map((variant) => `% ${escapeLike(variant)} %`));
+    boundaryBinds.push(...variants.map((variant) => `% ${escapeLike(variant)}%`));
+  });
+
+  ctes.push(
+    `candidates(rowid) AS (${groups
+      .map((_, index) => `SELECT rowid FROM g${index}`)
+      .join(' INTERSECT ')})`,
+  );
+  const sql = `WITH ${ctes.join(', ')}
+    SELECT p.*
+    FROM candidates c
+    CROSS JOIN price_identities p ON p.rowid = c.rowid
+    WHERE ${where.join(' AND ')}
+    ORDER BY (${boundaryParts.join(' + ')}) DESC, p.last_price ASC
+    LIMIT ?`;
+  const boundedLimit = Math.max(1, Math.min(Number(limit) || 250, 400));
+  return {
+    sql,
+    binds: [...candidateBinds, ...whereBinds, ...boundaryBinds, boundedLimit],
+  };
+}
+
 export function createD1HistoryStore(db) {
   const upsertStmt = `
     INSERT INTO price_identities
@@ -88,35 +161,13 @@ export function createD1HistoryStore(db) {
       return { stored: points.length };
     },
 
-    // Broad SQL prefilter over the normalized bilingual NAME — the same banded
-    // fill as offerStore.search (exact word > word-start > substring, bilingual
-    // synonym variants per token) so the fetch window is never starved by
-    // substring noise; final word-boundary relevance runs in JS (priceHistory).
+    // Indexed broad prefilter over the normalized bilingual name. Candidate
+    // retrieval uses FTS5 trigrams plus keyed short words; the legacy LIKE
+    // checks, boundary bands and price tiebreak remain exact rechecks.
     async searchIdentities({ q = '', limit = 250 } = {}) {
-      const tokens = queryTokens(q);
-      if (!tokens.length) return [];
-      const esc = (v) => v.replace(/[%_\\]/g, (c) => '\\' + c);
-      const where = [];
-      const binds = [];
-      const boundaryParts = [];
-      const boundaryBinds = [];
-      for (const tok of tokens) {
-        const variants = expandToken(tok);
-        where.push(`(${variants.map(() => "match_text LIKE ? ESCAPE '\\'").join(' OR ')})`);
-        for (const v of variants) binds.push(`%${esc(v)}%`);
-        boundaryParts.push(
-          `(CASE WHEN ${variants.map(() => "(' ' || match_text || ' ') LIKE ? ESCAPE '\\'").join(' OR ')} THEN 2 ` +
-            `WHEN ${variants.map(() => "(' ' || match_text) LIKE ? ESCAPE '\\'").join(' OR ')} THEN 1 ELSE 0 END)`,
-        );
-        for (const v of variants) boundaryBinds.push(`% ${esc(v)} %`);
-        for (const v of variants) boundaryBinds.push(`% ${esc(v)}%`);
-      }
-      const sql = `SELECT * FROM price_identities
-        WHERE ${where.join(' AND ')}
-        ORDER BY (${boundaryParts.join(' + ')}) DESC, last_price ASC LIMIT ?`;
-      binds.push(...boundaryBinds);
-      binds.push(Math.max(1, Math.min(Number(limit) || 250, 400)));
-      const { results } = await db.prepare(sql).bind(...binds).all();
+      const query = buildIdentitySearchQuery(q, limit);
+      if (!query) return [];
+      const { results } = await db.prepare(query.sql).bind(...query.binds).all();
       return results || [];
     },
 

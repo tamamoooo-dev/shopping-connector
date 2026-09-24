@@ -59,8 +59,8 @@ check('medium is not a budget tier and carries no warning',
   VISION_MODEL_TIERS.medium.budget === false && VISION_MODEL_TIERS.medium.warning === null);
 check(
   'small is PINNED to the measured version, not the drifting alias',
-  VISION_MODEL_TIERS.small.model === 'mistral-small-2603' &&
-    VISION_MODEL_TIERS.small.alias === 'mistral-small-latest',
+  VISION_MODEL_TIERS.small.model === 'ministral-14b-2512' &&
+    VISION_MODEL_TIERS.small.alias === 'ministral-14b-2512',
 );
 check('small is flagged budget and carries the quality warning',
   VISION_MODEL_TIERS.small.budget === true &&
@@ -70,7 +70,7 @@ check('exactly two tiers are offered', VISION_MODEL_OPTIONS.length === 2);
 console.log('\n--- normalization is fail-safe toward quality ---');
 // Nothing unrecognized may resolve to the budget tier — including the budget
 // model's own id, which is not a tier name.
-for (const bad of [undefined, null, '', '   ', 'tiny', 'mistral-small-2603', 'budget', 42, {}]) {
+for (const bad of [undefined, null, '', '   ', 'tiny', 'ministral-14b-2512', 'budget', 42, {}]) {
   check(`normalize(${JSON.stringify(bad)}) -> medium`, normalizeVisionTier(bad) === 'medium');
 }
 check('tier names are trimmed and case-folded', normalizeVisionTier(' MEDIUM ') === 'medium');
@@ -106,14 +106,14 @@ console.log('\n--- writing the setting ---');
 {
   const store = memoryObjectStore();
   const written = await writeVisionModelSetting(store, 'small', { by: 'ops', now: new Date('2026-07-25T10:00:00Z') });
-  check('write returns the budget tier', written.tier === 'small' && written.model === 'mistral-small-2603');
+  check('write returns the budget tier', written.tier === 'small' && written.model === 'ministral-14b-2512');
   check('write returns the warning to display', /Budget Mode enabled/.test(written.warning));
   check('write stamps who and when',
     written.selectedBy === 'ops' && written.selectedAt === '2026-07-25T10:00:00.000Z');
 
   const stored = decode(store.objects.get(VISION_MODEL_KEY));
   check('stored record is minimal (tier + model + provenance)',
-    stored.tier === 'small' && stored.model === 'mistral-small-2603' && stored.selectedBy === 'ops');
+    stored.tier === 'small' && stored.model === 'ministral-14b-2512' && stored.selectedBy === 'ops');
 
   const back = await readVisionModelSetting(store);
   check('selection round-trips', back.tier === 'small' && back.source === 'stored');
@@ -173,9 +173,9 @@ const effectiveModel = ({ model = DEFAULT_MODEL } = {}) => model;
   const armed = await readVisionModelSetting(armedStore);
   check('an explicit selection ARMS the override', armed.armed === true && armed.source === 'stored');
   check('ARMED passes the selected model to the drain',
-    drainOptionsFor(armed).model === 'mistral-small-2603');
+    drainOptionsFor(armed).model === 'ministral-14b-2512');
   check('ARMED overrides DEFAULT_MODEL',
-    effectiveModel(drainOptionsFor(armed)) === 'mistral-small-2603');
+    effectiveModel(drainOptionsFor(armed)) === 'ministral-14b-2512');
 
   // Explicitly choosing Medium is an ARMED state too, not a return to inert:
   // the operator's choice must survive a later change to the engine default.
@@ -192,7 +192,7 @@ console.log('\n--- the selection reaches the wire ---');
   await writeVisionModelSetting(store, 'small');
   const { model } = await readVisionModelSetting(store);
   const req = buildVisionRequest({ model, base64: 'AAAA' });
-  check('budget mode sends mistral-small-2603', req.model === 'mistral-small-2603');
+  check('budget mode sends ministral-14b-2512', req.model === 'ministral-14b-2512');
 
   await writeVisionModelSetting(store, 'medium');
   const back = await readVisionModelSetting(store);

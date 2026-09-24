@@ -38,6 +38,8 @@
 //   markAlertsSeen(profileId?)       -> number marked
 //   countUnseen(profileId?)          -> number
 
+import { watchTrack } from '../watchPlan.js';
+
 export function watchToRow(w) {
   return {
     id: w.id,
@@ -45,6 +47,9 @@ export function watchToRow(w) {
     kind: w.kind,
     label: w.label ?? null,
     query: w.query,
+    watch_track: w.watchTrack ?? watchTrack(w),
+    system_search_query: w.systemSearchQuery ?? null,
+    custom_search_query: w.customSearchQuery ?? null,
     provider: w.provider ?? null,
     product_id: w.productId ?? null,
     // THE ANCHOR: the registry product this watch is about. Resolved once, in
@@ -103,6 +108,11 @@ export function rowToWatch(r) {
     kind: r.kind,
     label: r.label,
     query: r.query,
+    watchTrack: r.watch_track ?? watchTrack({
+      kind: r.kind, provider: r.provider, productId: r.product_id,
+    }),
+    systemSearchQuery: r.system_search_query ?? null,
+    customSearchQuery: r.custom_search_query ?? null,
     provider: r.provider,
     productId: r.product_id,
     registryProductId: r.registry_product_id ?? null,
@@ -218,7 +228,8 @@ export function createD1WatchStore(db) {
           // on new rows: identity now lives in registry_product_id and the
           // resolver owns it. They are not dropped — additive and reversible.
           `INSERT INTO watches
-             (id, profile_id, kind, label, query, provider, product_id,
+             (id, profile_id, kind, label, query, watch_track, system_search_query,
+              custom_search_query, provider, product_id,
               registry_product_id, scope, spec, link, image,
               target_price, currency, size_unit, size_total, size_source,
               match_brand, match_size, match_variant, target_unit_price, unit_label,
@@ -229,10 +240,11 @@ export function createD1WatchStore(db) {
               resolution_attempts, last_resolution_attempt_at, identity_resolution_reason,
               monitoring_health, monitoring_health_reason, last_resolution,
               last_resolution_reason, resolved_at)
-           VALUES (${Array(50).fill('?').join(',')})`,
+           VALUES (${Array(53).fill('?').join(',')})`,
         )
         .bind(
-          r.id, r.profile_id, r.kind, r.label, r.query, r.provider, r.product_id,
+          r.id, r.profile_id, r.kind, r.label, r.query, r.watch_track,
+          r.system_search_query, r.custom_search_query, r.provider, r.product_id,
           r.registry_product_id, r.scope, r.spec, r.link,
           r.image, r.target_price, r.currency, r.size_unit, r.size_total,
           r.size_source, r.match_brand, r.match_size, r.match_variant,
@@ -274,6 +286,7 @@ export function createD1WatchStore(db) {
         : await db.prepare('DELETE FROM watches WHERE id = ?').bind(id).run();
       if ((res?.meta?.changes || 0) === 0) return false;
       await db.prepare('DELETE FROM alerts WHERE watch_id = ?').bind(id).run();
+      await db.prepare('DELETE FROM watch_runs WHERE watch_id = ?').bind(id).run();
       return true;
     },
 
@@ -396,6 +409,7 @@ export function createD1WatchStore(db) {
         closeThreshold: 'close_threshold',
         targetUnitPrice: 'target_unit_price',
         unitLabel: 'unit_label',
+        customSearchQuery: 'custom_search_query',
       };
       const sets = [];
       const binds = [];

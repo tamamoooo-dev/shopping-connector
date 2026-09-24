@@ -144,6 +144,80 @@ await test('the identity still holds once part of the queue is attempted', async
   close();
 });
 
+await test('an R2-backed Vision attempt keeps only a compact D1 receipt and leaves the queue', async () => {
+  const { store, raw, close } = freshStore(MIXED);
+  await store.saveVisionOutcome({
+    attempt: {
+      offerId: 'a:r:d4d:ok1',
+      source: 'vision',
+      output: { name_en: 'Arwa Water 330 ml', raw: 'large evidence belongs in R2' },
+      validation: { acceptedFields: ['name_en'] },
+      confidence: 0.98,
+      model: 'mistral-small-2603',
+      cropUrl: 'https://cdn.example/crop.jpg',
+      accepted: true,
+      attemptedAt: '2026-08-11T01:00:00.000Z',
+    },
+    canonicalRow: null,
+    verificationCandidate: {
+      name: 'Arwa Water 330 ml', name_ar: null, brand: 'Arwa', size: '330 ml',
+    },
+    verificationEvidenceStored: true,
+  });
+  const receipt = raw.prepare(
+    `SELECT output, validation, confidence, model, crop_url
+       FROM offer_extraction_attempts WHERE offer_id=? AND source='vision'`,
+  ).get('a:r:d4d:ok1');
+  assert.equal(receipt.output, null);
+  assert.equal(receipt.validation, '{}');
+  assert.equal(receipt.confidence, null);
+  assert.equal(receipt.model, null);
+  assert.equal(receipt.crop_url, null);
+  const acceptedCoverage = await store.coverage(CURRENT_ON);
+  assert.equal(acceptedCoverage.enriched, 1, 'Stage 1 basics increment Enriched before Verification');
+  assert.equal(acceptedCoverage.verified, 0, 'Stage 1 never increments Verification');
+  assert.equal(acceptedCoverage.servable, 0, 'the serving gate remains independent');
+  assert.equal(await store.countDebris(CURRENT_ON, 'all'), 2);
+  close();
+});
+
+await test('Verification can promote a Stage-1 decline into Enriched without retaining a decline', async () => {
+  const id = 'a:r:d4d:rescued';
+  const { store, raw, close } = freshStore([{ id, price: 5, currency: 'SAR' }]);
+  await store.saveVisionOutcome({
+    attempt: {
+      offerId: id,
+      source: 'vision',
+      output: null,
+      validation: { acceptedFields: [] },
+      confidence: null,
+      model: 'mistral-small-2603',
+      cropUrl: 'https://cdn.example/crop.jpg',
+      accepted: false,
+      attemptedAt: '2026-08-11T01:00:00.000Z',
+    },
+    canonicalRow: null,
+    verificationCandidate: { name: null, name_ar: 'اختبار' },
+    verificationEvidenceStored: true,
+  });
+  const before = await store.coverage(CURRENT_ON);
+  assert.equal(before.enriched, 0);
+  assert.equal(before.declined, 1);
+
+  // The real Stage-2 commit performs this transition atomically with the
+  // canonical write; this query test changes only the compact state it reads.
+  raw.prepare(
+    `UPDATE offer_vision_verification_queue
+        SET status='verified', verified_at='2026-08-11T02:00:00.000Z'
+      WHERE offer_id=?`,
+  ).run(id);
+  const after = await store.coverage(CURRENT_ON);
+  assert.equal(after.enriched, 1);
+  assert.equal(after.verified, 1);
+  assert.equal(after.declined, 0);
+  close();
+});
+
 await test('coverage can reach 100% — no priceless offer is stranded in it', async () => {
   // The regression R4 could have introduced: if the denominator kept priceless
   // offers, coverage would asymptote below 100 and the Ops number would lie.
@@ -194,6 +268,50 @@ await test('listDebris carries price and currency so S4 needs no second query', 
   assert.equal(row.price, 7.25);
   assert.equal(row.currency, 'SAR');
   assert.equal(row.image_url, 'https://cdn.example/crop.jpg');
+  close();
+});
+
+await test('expired evidence compacts to the serving projection and preserves live rows', async () => {
+  const expired = 'a:r:d4d:compact-expired';
+  const live = 'a:r:d4d:compact-live';
+  const { store, raw, close } = freshStore([
+    { id: expired, price: 5, currency: 'SAR', valid_to: '2026-07-01' },
+    { id: live, price: 6, currency: 'SAR', valid_to: '2026-08-01' },
+  ]);
+  const verbose = JSON.stringify({
+    name_en: 'Milk', unit: 'L', package_type: 'bottle', attributes: ['fresh'],
+    _arabic_builder: {
+      status: 'BUILT', built_arabic: 'حليب', display_arabic: 'حليب',
+      commerce_score_breakdown: { deliberately: 'large audit-only diagnostics' },
+    },
+  });
+  const insert = raw.prepare(
+    `INSERT INTO offer_enrichments
+       (id,name,enriched_at,extraction_json,identity_candidate)
+     VALUES (?,?,?,?,?)`,
+  );
+  insert.run(expired, 'Milk', '2026-07-01T00:00:00.000Z', verbose, '{"name":"Milk"}');
+  insert.run(live, 'Milk', '2026-07-01T00:00:00.000Z', verbose, '{"name":"Milk"}');
+  raw.prepare(
+    `INSERT INTO product_sightings
+       (offer_id,product_id,match_band,store,region,week,price,algo_version,resolved_at)
+     VALUES (?,?,?,?,?,?,?,?,?)`,
+  ).run(expired, 'pr_test', 'auto', 'a', 'r', '2026-07-01', 5, 1, '2026-07-01T00:00:00.000Z');
+
+  assert.equal(await store.compactExpiredEvidence('2026-07-20'), 1);
+  const compact = raw.prepare(
+    'SELECT extraction_json, identity_candidate FROM offer_enrichments WHERE id=?',
+  ).get(expired);
+  const doc = JSON.parse(compact.extraction_json);
+  assert.equal(doc._d1_compact_version, 1);
+  assert.equal(doc._r2_evidence, 'vision-verification/attempts');
+  assert.equal(doc.unit, 'L');
+  assert.equal(doc.package_type, 'bottle');
+  assert.equal(doc._arabic_builder.status, 'BUILT');
+  assert.equal(doc._arabic_builder.commerce_score_breakdown, undefined);
+  assert.equal(compact.identity_candidate, null);
+  assert.equal(raw.prepare('SELECT extraction_json FROM offer_enrichments WHERE id=?').get(live).extraction_json, verbose);
+  assert.equal(await store.compactExpiredEvidence('2026-07-20'), 0, 'compaction is idempotent');
   close();
 });
 

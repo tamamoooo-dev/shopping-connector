@@ -12,7 +12,8 @@
 //   saveOcrOutcome(...)              -> persist OCR + canonical + complete queue
 //   markOcrPending(...)              -> non-blocking retry state
 //   getForIds(ids)                   -> Promise<Map<id, row>>
-//   pruneOrphans()                   -> Promise<number>
+//   pruneOrphans()                   -> Promise<number> (manual legacy repair)
+//   pruneExpiredOffers(cutoff, opts) -> Promise<{offers, sidecars, byTable}>
 //   listUnresolved({ currentOn, limit }) -> Promise<candidate + context rows>
 //   setVerdicts(pairs)               -> Promise<void>  (mint_verdict stamps)
 //   resetVerdicts(ids)               -> Promise<void>  (re-enter the feed)
@@ -59,6 +60,15 @@ import {
   attemptStatements,
   claimFenceStatements,
 } from './recoveryQueue.js';
+import {
+  completeVisionVerificationStatement,
+  continueVisionVerificationStatement,
+  createD1VisionVerificationStore,
+  enqueueVisionVerificationStatements,
+  visionVerificationFingerprint,
+  visionVerificationFingerprintHash,
+  visionVerificationFenceStatements,
+} from './visionVerificationStore.js';
 
 export const IDENTITY_CANDIDATE_STORAGE_VERSION = 'identity-candidate-v1';
 
@@ -289,6 +299,7 @@ export function createD1EnrichStore(db) {
   // Owns only the readiness probe and the batch statements used below; the
   // full queue surface belongs to the recovery runner.
   const recoveryStore = createRecoveryQueue(db);
+  const visionVerificationStore = createD1VisionVerificationStore(db);
 
   let acceptanceReady = null;
   const acceptanceVerdictsReady = async () => {
@@ -317,6 +328,24 @@ export function createD1EnrichStore(db) {
       attempt.confidence ?? null,
       attempt.model ?? null,
       attempt.cropUrl ?? null,
+      attempt.accepted ? 1 : 0,
+      attempt.attemptedAt,
+    );
+
+  // The full primary Vision evidence is already durable in R2. D1 still needs
+  // one tiny operational receipt so listDebris/countDebris can exclude the
+  // offer on later drains. Keeping the existing primary key avoids a second
+  // marker table while dropping every large/audit-only field.
+  const attemptReceiptStatement = (attempt) => db
+    .prepare(attemptStmt)
+    .bind(
+      attempt.offerId,
+      attempt.source,
+      null,
+      '{}',
+      null,
+      null,
+      null,
       attempt.accepted ? 1 : 0,
       attempt.attemptedAt,
     );
@@ -353,6 +382,33 @@ export function createD1EnrichStore(db) {
             ORDER BY o.valid_to ASC, o.detected_at ASC LIMIT ?`,
         )
         .bind(currentOn, Math.max(1, Math.min(Number(limit) || 15, 50)))
+        .all();
+      return results || [];
+    },
+
+    // Coordinator-selected queue work. Unlike listSelected(), this preserves
+    // the normal drain guards: a targeted historical re-read may deliberately
+    // replace an existing enrichment, while scheduler candidates must not.
+    // The coordinator pays the ordered queue scan once; each CPU-isolated SELF
+    // child then does indexed point lookups for only its assigned ids.
+    async listDebrisByIds({ ids, currentOn, scope = 'all' } = {}) {
+      const selected = [...new Set((ids || []).map(String).filter(Boolean))].slice(0, 50);
+      if (!selected.length) return [];
+      const placeholders = selected.map(() => '?').join(',');
+      const { results } = await db
+        .prepare(
+          `SELECT o.id, o.image_url, o.name, o.name_ar, o.price, o.currency, o.category
+             FROM offers o
+             LEFT JOIN offer_enrichments e ON e.id = o.id
+             LEFT JOIN offer_extraction_attempts v
+               ON v.offer_id = o.id AND v.source = 'vision'
+            WHERE o.id IN (${placeholders})
+              AND e.id IS NULL AND v.offer_id IS NULL ${SCOPE_WHERE[scope] ?? SCOPE_WHERE.all}
+              AND o.image_url IS NOT NULL AND o.valid_to >= ?
+              AND ${USABLE_PRICE_SQL}
+            ORDER BY o.valid_to ASC, o.detected_at ASC`,
+        )
+        .bind(...selected, currentOn)
         .all();
       return results || [];
     },
@@ -432,8 +488,11 @@ export function createD1EnrichStore(db) {
     // measured against, so leaving priceless offers in it would strand them as
     // permanently-uncovered and cap coverage% below 100 forever. `attempted`
     // counts every offer vision has looked at (incl. declined, NULL-names
-    // rows); `enriched` those it read a name from; `servable` those clearing
-    // the corroboration floor. `remaining = withCrop - attempted` equals
+    // rows). `enriched` is the independent Stage-1 business result: a usable
+    // price (enforced by the denominator) plus an accepted English name. A row
+    // rejected by Stage 1 may join that count later when Stage 2 verifies it.
+    // `verified` is Stage 2 only; it must never replace or reduce `enriched`.
+    // `servable` counts rows clearing the serving gate. `remaining = withCrop - attempted` equals
     // countDebris('all'); coverage% is attempted/withCrop (how far vision has
     // reached), not enriched/withCrop (that would punish honest declines).
     async coverage(currentOn) {
@@ -441,13 +500,16 @@ export function createD1EnrichStore(db) {
         .prepare(
           `SELECT COUNT(*) AS with_crop,
                   SUM(CASE WHEN e.id IS NOT NULL OR v.offer_id IS NOT NULL THEN 1 ELSE 0 END) AS attempted,
-                  SUM(CASE WHEN e.name IS NOT NULL OR e.name_ar IS NOT NULL THEN 1 ELSE 0 END) AS enriched,
+                  SUM(CASE WHEN v.accepted = 1 OR q.status = 'verified'
+                                OR e.name IS NOT NULL THEN 1 ELSE 0 END) AS enriched,
+                  SUM(CASE WHEN q.status = 'verified' THEN 1 ELSE 0 END) AS verified,
                   SUM(CASE WHEN (e.name IS NOT NULL OR e.name_ar IS NOT NULL)
                             AND e.corroboration >= ${CORROBORATION_FLOOR} THEN 1 ELSE 0 END) AS servable
              FROM offers o
              LEFT JOIN offer_enrichments e ON e.id = o.id
              LEFT JOIN offer_extraction_attempts v
                ON v.offer_id = o.id AND v.source = 'vision'
+             LEFT JOIN offer_vision_verification_queue q ON q.offer_id = o.id
             WHERE o.image_url IS NOT NULL AND o.valid_to >= ?
               AND ${USABLE_PRICE_SQL}`,
         )
@@ -460,6 +522,7 @@ export function createD1EnrichStore(db) {
         withCrop,
         attempted,
         enriched,
+        verified: Number(row?.verified || 0),
         servable: row?.servable || 0,
         declined: attempted - enriched,
         remaining: withCrop - attempted,
@@ -847,13 +910,12 @@ export function createD1EnrichStore(db) {
       return { stored: rows.length };
     },
 
-    // Vision attempt + either canonical PASS or OCR queue REJECT are committed
-    // together. A Worker retry therefore cannot lose an escalation or strand a
-    // persisted attempt without a canonical result.
+    // Legacy Vision attempt + either canonical PASS or OCR queue REJECT are
+    // committed together. In the active Verification path the full attempt is
+    // already durable in R2, so D1 commits only compact queue/verdict state.
     //
-    // `acceptance` (R5) joins that same batch: the S4 verdict is committed with
-    // the attempt that produced it, so no offer can carry a verdict describing
-    // an extraction that was rolled back, nor an extraction with no verdict.
+    // `acceptance` (R5) joins that same D1 batch. R2 is written first, so a D1
+    // verdict can never describe evidence that was not persisted.
     //
     // `recovery` (S5.3, C-9) joins it for the same reason. It is the ALREADY
     // DECIDED admission — `{ complete, reasons }` from `recoveryAdmission()` in
@@ -863,8 +925,43 @@ export function createD1EnrichStore(db) {
     // that must have exactly one definition (C-9).
     async saveVisionOutcome({
       attempt, canonicalRow = null, triggerReasons = [], acceptance = null,
-      recovery = null,
+      recovery = null, verificationCandidate = canonicalRow,
+      verificationFingerprintHash = null,
+      verificationEvidenceStored = false,
     }) {
+      // Stage two replaces the production Recovery path. Every primary result,
+      // accepted or rejected, is committed as verification attempt 1. Nothing
+      // becomes servable here; the matching stage-two commit below is the only
+      // path that writes/restores a canonical enrichment. Passing `recovery`
+      // explicitly retains the legacy compatibility path for old migrations
+      // and rollback tooling, but the production drain no longer does so.
+      if (recovery == null && await visionVerificationStore.ready()) {
+        const fingerprintHash = verificationFingerprintHash
+          || await visionVerificationFingerprintHash(
+            visionVerificationFingerprint(verificationCandidate),
+          );
+        const statements = [
+          verificationEvidenceStored
+            ? attemptReceiptStatement(attempt)
+            : attemptStatement(attempt),
+          ...enqueueVisionVerificationStatements(db, {
+            attempt,
+            fingerprintHash,
+          }),
+        ];
+        const verdictStored = !!acceptance && await acceptanceVerdictsReady();
+        if (verdictStored) {
+          statements.push(acceptanceStatement(attempt.offerId, acceptance, attempt.attemptedAt));
+        }
+        await db.batch(statements);
+        return {
+          stored: 1,
+          queued: 1,
+          verdictStored,
+          recoveryQueued: false,
+          verificationQueued: true,
+        };
+      }
       const statements = [attemptStatement(attempt)];
       const acceptedAsIs = recovery?.complete === true
         && recovery?.reasons?.acceptedAsIs === true;
@@ -946,6 +1043,88 @@ export function createD1EnrichStore(db) {
         verdictStored,
         recoveryQueued,
       };
+    },
+
+    // Stage-two commit boundary. The claim fence, compact fingerprint history,
+    // acceptance diagnostic, canonical row, and queue transition are one D1
+    // transaction. The full Stage 1 extraction remains in the audit table;
+    // repeating those large outputs here would exceed the D1 Free storage cap.
+    // A normalized fingerprint needs only one prior occurrence; there is
+    // deliberately no exhaustion.
+    async saveVisionVerificationOutcome({
+      fence,
+      priorFingerprintHashes = [],
+      attempt,
+      candidateRow = null,
+      fingerprint = null,
+      fingerprintHash = null,
+      nextAttemptNo = null,
+      acceptance = null,
+    }) {
+      const currentHash = fingerprintHash
+        || await visionVerificationFingerprintHash(fingerprint);
+      const counts = new Map();
+      const fingerprintHashes = [];
+      for (const priorHash of priorFingerprintHashes || []) {
+        if (typeof priorHash !== 'string' || !priorHash) continue;
+        fingerprintHashes.push(priorHash);
+        counts.set(priorHash, (counts.get(priorHash) || 0) + 1);
+      }
+      const previousCount = currentHash ? (counts.get(currentHash) || 0) : 0;
+      if (currentHash) {
+        fingerprintHashes.push(currentHash);
+        counts.set(currentHash, previousCount + 1);
+      }
+      const verified = previousCount >= 1
+        && !!candidateRow
+        && candidateRow.name != null
+        && acceptance?.accepted !== false
+        && Number(candidateRow.corroboration) >= CORROBORATION_FLOOR;
+      let bestCount = 0;
+      for (const count of counts.values()) {
+        if (count > bestCount) {
+          bestCount = count;
+        }
+      }
+      const attemptNo = Math.max(1, Number(nextAttemptNo) || 1);
+      const statements = [
+        ...visionVerificationFenceStatements(db, fence),
+      ];
+      const verdictStored = !!acceptance && await acceptanceVerdictsReady();
+      if (verdictStored) {
+        statements.push(acceptanceStatement(attempt.offerId, acceptance, attempt.attemptedAt));
+      }
+      if (verified) {
+        statements.push(canonicalStatement({
+          ...candidateRow,
+          corroboration: Math.max(1, Number(candidateRow.corroboration) || 0),
+        }));
+        statements.push(completeVisionVerificationStatement(db, {
+          offerId: attempt.offerId,
+          attempts: attemptNo,
+          fingerprintHashes,
+          matchCount: Math.max(2, counts.get(currentHash) || 0),
+          at: attempt.attemptedAt,
+        }));
+      } else {
+        statements.push(continueVisionVerificationStatement(db, {
+          offerId: attempt.offerId,
+          attempts: attemptNo,
+          fingerprintHashes,
+          bestCount,
+          at: attempt.attemptedAt,
+        }));
+      }
+      try {
+        await db.batch(statements);
+      } catch (err) {
+        const row = await db.prepare(
+          'SELECT claim_token FROM offer_vision_verification_queue WHERE offer_id=?',
+        ).bind(attempt.offerId).first().catch(() => null);
+        if (!row || row.claim_token !== fence?.token) err.staleClaim = true;
+        throw err;
+      }
+      return { stored: 1, verdictStored, verified, attemptNo, bestCount };
     },
 
     // S5 · THE RECOVERY COMMIT BOUNDARY. Attempt journal + canonical row + the
@@ -1192,25 +1371,120 @@ export function createD1EnrichStore(db) {
     // aggregates over live history only, which is the honest scope for a
     // database whose offer ids are re-minted every week — an id that no longer
     // exists cannot be traced back to anything an operator can look at.
-    async pruneOrphans() {
-      const res = await db
-        .prepare(
-          'DELETE FROM offer_enrichments WHERE id NOT IN (SELECT id FROM offers)',
-        )
-        .run();
-      await db.batch([
-        db.prepare('DELETE FROM offer_extraction_attempts WHERE offer_id NOT IN (SELECT id FROM offers)'),
-        db.prepare('DELETE FROM offer_ocr_queue WHERE offer_id NOT IN (SELECT id FROM offers)'),
+    async pruneOrphans({ limit = 5000 } = {}) {
+      const bounded = Math.max(1, Math.min(Number(limit) || 5000, 10000));
+      const orphanDelete = (table, offerColumn) => db.prepare(
+        `DELETE FROM ${table} WHERE rowid IN (
+           SELECT x.rowid FROM ${table} x
+            WHERE NOT EXISTS (SELECT 1 FROM offers o WHERE o.id = x.${offerColumn})
+            LIMIT ?
+         )`,
+      ).bind(bounded);
+      const primary = await db.batch([
+        orphanDelete('offer_enrichments', 'id'),
+        orphanDelete('offer_extraction_attempts', 'offer_id'),
+        orphanDelete('offer_ocr_queue', 'offer_id'),
       ]);
+      let deleted = primary.reduce((sum, result) => sum + (result?.meta?.changes || 0), 0);
       // Separate batch, and tolerant: these tables may not exist yet on a
       // Worker running ahead of its migrations, and retention must not start
       // failing because of it.
-      await db.batch([
-        db.prepare('DELETE FROM offer_recovery_attempts WHERE offer_id NOT IN (SELECT id FROM offers)'),
-        db.prepare('DELETE FROM offer_recovery_queue WHERE offer_id NOT IN (SELECT id FROM offers)'),
-        db.prepare('DELETE FROM offer_acceptance_verdicts WHERE offer_id NOT IN (SELECT id FROM offers)'),
-      ]).catch(() => {});
-      return res?.meta?.changes || 0;
+      const optional = await db.batch([
+        orphanDelete('offer_recovery_attempts', 'offer_id'),
+        orphanDelete('offer_recovery_queue', 'offer_id'),
+        orphanDelete('offer_acceptance_verdicts', 'offer_id'),
+        orphanDelete('offer_vision_verification_queue', 'offer_id'),
+      ]).catch(() => []);
+      deleted += optional.reduce((sum, result) => sum + (result?.meta?.changes || 0), 0);
+      return deleted;
+    },
+
+    // Daily retention owns offer deletion and all offer-scoped sidecars in one
+    // transaction. Every DELETE starts from the small, expiry-indexed offer
+    // candidate set and probes a sidecar key; it never anti-joins an entire
+    // sidecar table merely to prove that the usual answer is "zero orphans".
+    // Keeping the final offers DELETE in the same D1 batch also preserves the
+    // old cleanup ordering without a window where sidecars can be stranded.
+    async pruneExpiredOffers(cutoffISO, { limit = 5000 } = {}) {
+      const bounded = Math.max(1, Math.min(Number(limit) || 5000, 10000));
+      const sidecars = [
+        ['offer_enrichments', 'id'],
+        ['offer_extraction_attempts', 'offer_id'],
+        ['offer_ocr_queue', 'offer_id'],
+        ['offer_recovery_attempts', 'offer_id'],
+        ['offer_recovery_queue', 'offer_id'],
+        ['offer_acceptance_verdicts', 'offer_id'],
+        ['offer_vision_verification_queue', 'offer_id'],
+      ];
+      const names = await db.prepare(
+        `SELECT name FROM sqlite_master
+          WHERE type='table' AND name IN (${sidecars.map(() => '?').join(',')})`,
+      ).bind(...sidecars.map(([table]) => table)).all();
+      const present = new Set((names.results || []).map((row) => row.name));
+      const candidates = `SELECT id FROM offers
+                            WHERE valid_to IS NOT NULL AND valid_to < ?
+                            ORDER BY valid_to, id LIMIT ?`;
+      const activeSidecars = sidecars.filter(([table]) => present.has(table));
+      const statements = activeSidecars.map(([table, offerColumn]) => db
+        .prepare(`DELETE FROM ${table} WHERE ${offerColumn} IN (${candidates})`)
+        .bind(cutoffISO, bounded));
+      statements.push(db
+        .prepare(`DELETE FROM offers WHERE id IN (${candidates})`)
+        .bind(cutoffISO, bounded));
+      const results = await db.batch(statements);
+      const byTable = Object.fromEntries(activeSidecars.map(([table], index) => [
+        table,
+        Number(results[index]?.meta?.changes || 0),
+      ]));
+      return {
+        offers: Number(results[results.length - 1]?.meta?.changes || 0),
+        sidecars: Object.values(byTable).reduce((sum, count) => sum + count, 0),
+        byTable,
+      };
+    },
+
+    // Full primary/verification evidence is durable in R2 before D1 is
+    // committed. Once an offer expires, D1 only needs the tiny projection used
+    // by historical rendering: price basis plus Arabic rollout selection. The
+    // verbose builder diagnostics remain recoverable from the R2 attempt.
+    async compactExpiredEvidence(cutoffISO, { limit = 5000 } = {}) {
+      const bounded = Math.max(1, Math.min(Number(limit) || 5000, 10000));
+      const valid = 'json_valid(offer_enrichments.extraction_json)';
+      const field = (path) => `CASE WHEN ${valid} THEN json_extract(offer_enrichments.extraction_json, '${path}') ELSE NULL END`;
+      const result = await db
+        .prepare(
+          `UPDATE offer_enrichments
+              SET extraction_json = json_object(
+                    '_d1_compact_version', 1,
+                    '_r2_evidence', 'vision-verification/attempts',
+                    'unit', ${field('$.unit')},
+                    'package_type', ${field('$.package_type')},
+                    '_arabic_builder', json_object(
+                      'status', ${field('$._arabic_builder.status')},
+                      'built_arabic', ${field('$._arabic_builder.built_arabic')},
+                      'display_arabic', ${field('$._arabic_builder.display_arabic')}
+                    )
+                  ),
+                  identity_candidate = CASE WHEN EXISTS (
+                    SELECT 1 FROM product_sightings s
+                     WHERE s.offer_id = offer_enrichments.id
+                  ) THEN NULL ELSE identity_candidate END
+            WHERE rowid IN (
+              SELECT e.rowid
+                FROM offer_enrichments e
+                JOIN offers o ON o.id = e.id
+               WHERE o.valid_to IS NOT NULL AND o.valid_to < ?
+                 AND e.extraction_json IS NOT NULL
+                 AND (NOT json_valid(e.extraction_json)
+                      OR COALESCE(json_extract(e.extraction_json,
+                           '$._d1_compact_version'), 0) < 1)
+               ORDER BY o.valid_to, e.id
+               LIMIT ?
+            )`,
+        )
+        .bind(cutoffISO, bounded)
+        .run();
+      return result?.meta?.changes || 0;
     },
 
     // Registry resolution feed (registry/drain.js): every UNPROCESSED

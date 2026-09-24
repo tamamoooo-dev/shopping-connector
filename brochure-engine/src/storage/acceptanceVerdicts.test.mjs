@@ -86,7 +86,7 @@ await test('an ACCEPTED verdict round-trips with its mandatory set intact', asyn
   assert.equal(stored.accepted, true);
   assert.equal(stored.version, BUSINESS_ACCEPTANCE_VERSION);
   assert.deepEqual(stored.missing, []);
-  assert.deepEqual(stored.mandatory, { price: true, comparable_quantity: true, english_name: true });
+  assert.deepEqual(stored.mandatory, { price: true, english_name: true });
   assert.equal(stored.decidedAt, AT);
   close();
 });
@@ -115,21 +115,20 @@ await test('a REJECTED verdict is persisted too — the point of R5', async () =
 
 await test('a single failed condition is recorded ALONE, not as a bare rejection', async () => {
   const { store, close } = freshStore([{ id: 'a:r:d4d:3' }]);
-  // Price and English name present; only the quantity is unresolved.
-  const noQuantity = evaluateBusinessAcceptance({
+  // Price is present; only the English name is unresolved.
+  const noEnglishName = evaluateBusinessAcceptance({
     offer: { price: 5.99, currency: 'SAR' },
-    acceptedFields: ['name_en'],
+    acceptedFields: [],
     structured: buildStructuredProduct({ name_en: 'Mystery Product', brand: 'Arwa' }),
   });
-  assert.deepEqual([...noQuantity.missing], ['comparable_quantity']);
+  assert.deepEqual([...noEnglishName.missing], ['english_name']);
   await store.saveVisionOutcome({
-    attempt: attempt('a:r:d4d:3', true), canonicalRow: null, acceptance: noQuantity,
+    attempt: attempt('a:r:d4d:3', true), canonicalRow: null, acceptance: noEnglishName,
   });
   const stored = await store.getAcceptanceVerdict('a:r:d4d:3');
-  assert.deepEqual(stored.missing, ['comparable_quantity']);
+  assert.deepEqual(stored.missing, ['english_name']);
   assert.equal(stored.mandatory.price, true);
-  assert.equal(stored.mandatory.english_name, true);
-  assert.equal(stored.mandatory.comparable_quantity, false);
+  assert.equal(stored.mandatory.english_name, false);
   close();
 });
 
@@ -205,11 +204,11 @@ await test('acceptanceSummary counts conditions separately, and they OVERLAP', a
   const save = (id, acceptance) => store.saveVisionOutcome({
     attempt: attempt(id), canonicalRow: null, acceptance,
   });
-  // s1 accepted; s2 missing quantity only; s3 missing english only;
-  // s4 missing quantity AND english.
+  // s1 accepted; s2 missing price only; s3 missing English only;
+  // s4 missing price AND English.
   await save('a:r:d4d:s1', acceptedVerdict);
   await save('a:r:d4d:s2', evaluateBusinessAcceptance({
-    offer: { price: 1, currency: 'SAR' },
+    offer: { price: 0, currency: 'SAR' },
     acceptedFields: ['name_en'],
     structured: buildStructuredProduct({ name_en: 'No Size Product' }),
   }));
@@ -217,7 +216,7 @@ await test('acceptanceSummary counts conditions separately, and they OVERLAP', a
     offer: { price: 1, currency: 'SAR' }, acceptedFields: [], structured: complete,
   }));
   await save('a:r:d4d:s4', evaluateBusinessAcceptance({
-    offer: { price: 1, currency: 'SAR' },
+    offer: { price: 0, currency: 'SAR' },
     acceptedFields: [],
     structured: buildStructuredProduct({ name_en: 'No Size Product' }),
   }));
@@ -229,13 +228,11 @@ await test('acceptanceSummary counts conditions separately, and they OVERLAP', a
   assert.equal(summary.acceptanceRate, 25);
   // Overlapping counts: s4 appears in BOTH buckets. Summing these would
   // exceed the reject count, which is exactly why they are not summed.
-  assert.equal(summary.missingByCondition.comparable_quantity, 2);
   assert.equal(summary.missingByCondition.english_name, 2);
-  assert.equal(summary.missingByCondition.price, 0);
+  assert.equal(summary.missingByCondition.price, 2);
   // The disjoint view: offers a SINGLE condition is keeping out.
-  assert.equal(summary.onlyCondition.comparable_quantity, 1);
   assert.equal(summary.onlyCondition.english_name, 1);
-  assert.equal(summary.onlyCondition.price, 0);
+  assert.equal(summary.onlyCondition.price, 1);
   close();
 });
 

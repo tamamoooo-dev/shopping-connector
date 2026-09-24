@@ -152,6 +152,11 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
           currency: o.currency,
         }));
     },
+    async listDebrisByIds({ ids, currentOn, scope = 'all' } = {}) {
+      const selected = new Set((ids || []).map(String));
+      return (await this.listDebris({ currentOn, limit: 50, scope }))
+        .filter((offer) => selected.has(offer.id));
+    },
     async countDebris(currentOn, scope = 'all') {
       return (await this.listDebris({ currentOn, limit: 50, scope })).length;
     },
@@ -162,7 +167,7 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
       const attempted = withCropRows.filter((o) => rows.has(o.id));
       const enriched = attempted.filter((o) => {
         const e = rows.get(o.id);
-        return e.name != null || e.name_ar != null;
+        return e.name != null;
       });
       const servableN = enriched.filter((o) => servable(rows.get(o.id))).length;
       const withCrop = withCropRows.length;
@@ -170,6 +175,7 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
         withCrop,
         attempted: attempted.length,
         enriched: enriched.length,
+        verified: servableN,
         servable: servableN,
         declined: attempted.length - enriched.length,
         remaining: withCrop - attempted.length,
@@ -711,7 +717,7 @@ export function createMemoryWatchStore() {
       if (!w || w.profileId !== profileId) return false;
       for (const key of [
         'matchBrand', 'matchSize', 'matchVariant', 'closeThreshold',
-        'targetUnitPrice', 'unitLabel',
+        'targetUnitPrice', 'unitLabel', 'customSearchQuery',
       ]) {
         if (key in fields) w[key] = fields[key] ?? null;
       }

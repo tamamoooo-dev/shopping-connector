@@ -74,6 +74,8 @@ import { danubeProvider } from './src/providers/danube.js';
 import { tamimiProvider } from './src/providers/tamimi.js';
 import { nestoProvider } from './src/providers/nesto.js';
 import { d4dStoreProviders } from './src/providers/d4dStores.js';
+import { buildMistralPools } from './src/offers/mistralKeys.js';
+import { loadMistralPools } from './local-secrets.mjs';
 
 const DATA_DIR = fileURLToPath(new URL('./.data', import.meta.url));
 
@@ -87,6 +89,18 @@ const PROVIDERS = [
   nestoProvider,
   ...d4dStoreProviders,
 ];
+
+const LOCAL_MISTRAL = loadMistralPools();
+const MISTRAL_POOLS = buildMistralPools({
+  ...process.env,
+  MISTRAL_MEDIUM_API_KEY_1: LOCAL_MISTRAL.medium[0],
+  MISTRAL_MEDIUM_API_KEY_2: LOCAL_MISTRAL.medium[1],
+  MISTRAL_MEDIUM_API_KEY_3: LOCAL_MISTRAL.medium[2],
+  MISTRAL_SMALL_API_KEY: LOCAL_MISTRAL.small[0],
+  MISTRAL_SMALL_API_KEY_BACKUP: LOCAL_MISTRAL.small[1],
+  MISTRAL_SMALL_API_KEY_BACKUP_2: LOCAL_MISTRAL.small[2],
+  MISTRAL_OCR_API_KEY: LOCAL_MISTRAL.ocr[0],
+});
 
 function buildContext() {
   const objectStore = createFsObjectStore(DATA_DIR);
@@ -130,8 +144,11 @@ function buildContext() {
     // the console's in-process dev fallback.
     opsStore: createMemoryOpsStore(),
     opsToken: process.env.OPS_TOKEN || 'dev-ops',
-    mistralKey: process.env.MISTRAL_API_KEY || null,
-    mistralKeyBackup: process.env.MISTRAL_API_KEY_BACKUP || null,
+    mistralPools: MISTRAL_POOLS,
+    mistralKey: MISTRAL_POOLS.medium.find((slot) => slot.key)?.key || null,
+    mistralKeyBackup: MISTRAL_POOLS.medium.filter((slot) => slot.key)[1]?.key || null,
+    mistralSmallKey: MISTRAL_POOLS.small.find((slot) => slot.key)?.key || null,
+    mistralOcrKey: MISTRAL_POOLS.ocr.find((slot) => slot.key)?.key || null,
     extractionStrategy: process.env.EXTRACTION_STRATEGY,
     identityNormalizationMode: process.env.IDENTITY_NORMALIZATION_MODE,
     isDevelopment: true,
@@ -779,6 +796,7 @@ async function selftestMatching() {
   if (matchStage({ name: 'حليب كامل الدسم 2 لتر', brand: 'المراعي' }, 'حليب المراعي') !== 4) fail('brand-completed coverage not stage 4');
   if (matchStage({ name: 'حليب نادك كامل الدسم 2 لتر' }, 'حليب المراعي') !== 1) fail('missing term did not relax to stage 1');
   if (matchStage({ name: 'عصير برتقال 1 لتر' }, 'حليب المراعي') !== 0) fail('unrelated product not stage 0');
+  if (matchStage({ name: 'Goody Tenderina Tuna 185 g' }, 'تندرينا 185') < 4) fail('Tenderina transliteration did not preserve name + size');
   if (queryTokenPresence('فراولة طازجة 250 جم', 'فراولة') !== 'primary') fail('standalone word not primary');
   if (queryTokenPresence('مصاصات بالفراولة', 'فراولة') !== 'secondary') fail('بال-attached not secondary');
   if (queryTokenPresence('حليب المراعي 2 لتر', 'فراولة') !== null) fail('absent token not null');

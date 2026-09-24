@@ -7,7 +7,7 @@
 //   updateNavigation(rows)            -> Promise<{ updated }>  (exact local relink)
 //   search({ q?, store?, region?, currentOn?, limit? }) -> Promise<row[]>
 //   counts(currentOn)                 -> Promise<{ total, current, stores }>
-//   pruneExpiredBefore(cutoffISO)     -> Promise<number>  (retention)
+//   pruneExpiredBefore(cutoffISO, { limit }) -> Promise<number>  (retention)
 //
 // Rows keep the offers HISTORY (a price-per-week substrate, like brochure
 // editions); "current" is derived from valid_to at read time, never stored.
@@ -405,10 +405,17 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
     // Retention: drop offer rows whose validity ended before the cutoff. The
     // useful history horizon is bounded (offers feed comparison + recent
     // history, not an archive); pruning keeps the D1 table lean.
-    async pruneExpiredBefore(cutoffISO) {
+    async pruneExpiredBefore(cutoffISO, { limit = 5000 } = {}) {
+      const bounded = Math.max(1, Math.min(Number(limit) || 5000, 10000));
       const res = await db
-        .prepare('DELETE FROM offers WHERE valid_to IS NOT NULL AND valid_to < ?')
-        .bind(cutoffISO)
+        .prepare(
+          `DELETE FROM offers WHERE rowid IN (
+             SELECT rowid FROM offers
+              WHERE valid_to IS NOT NULL AND valid_to < ?
+              ORDER BY valid_to, id LIMIT ?
+           )`,
+        )
+        .bind(cutoffISO, bounded)
         .run();
       return res?.meta?.changes || 0;
     },

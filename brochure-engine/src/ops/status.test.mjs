@@ -360,6 +360,17 @@ async function buildFixture() {
   check('visionProgress next enrich cron computed', prog.nextCron === '2026-07-10T12:10:00.000Z', prog.nextCron);
   check('visionProgress worker idle when last enrich is stale', prog.worker === 'idle', prog.worker);
 
+  const verifiedProgress = await visionProgress(stubCtx({
+    enrichStore: {
+      async coverage() {
+        return { withCrop: 50, attempted: 40, enriched: 35, verified: 12, servable: 12, declined: 5, remaining: 10, coverage: 80 };
+      },
+    },
+  }), { now: NOW });
+  check('visionProgress keeps Enrichment separate from two-match Verification',
+    verifiedProgress.enriched === 35 && verifiedProgress.verified === 12,
+    `${verifiedProgress.enriched}/${verifiedProgress.verified}`);
+
   const running = await visionProgress(
     stubCtx({
       opsStore: {

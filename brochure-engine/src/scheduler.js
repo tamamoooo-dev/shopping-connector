@@ -224,18 +224,64 @@ export function createWatchCheckDispatcher({ self, ingestSecret, origin = 'https
 // few days of quiet drains rather than one hot one. A failed child aborts the
 // rest — its cause (rate cap, key trouble) would fail them too, and the
 // backlog simply carries to the next fire.
-export async function runEnrichDrain(dispatchBatch, { pending = 0, batchSize = 15, maxBatches = 4 } = {}) {
+//
+// Unattended drains intentionally use ONE offer per SELF child. Crop base64,
+// extraction validation, identity building and the Stage-2 R2/D1 commit all
+// consume CPU; grouping 15 of them under one HTTP invocation intermittently
+// crosses the Workers Free CPU limit. Twenty-eight children leave headroom
+// below the service-binding limit of 32 invocations for the coordinator and a
+// detached resolution child, while retaining useful per-minute throughput.
+export const CPU_SAFE_BACKGROUND_DRAIN = Object.freeze({
+  batchSize: 1,
+  maxBatches: 28,
+});
+
+// A normal Stage 1 batch always runs Registry resolution immediately. When the
+// Vision queue is empty, resolution is only a repair safety net (for example a
+// manually reopened verdict), not new ingestion work. Keep that repair
+// behavior once/day instead of repeating its current-offer join 72 times/day.
+export function isDailyEmptyResolutionTick(scheduledTime) {
+  const at = new Date(scheduledTime);
+  return Number.isFinite(at.getTime()) && at.getUTCHours() === 0 && at.getUTCMinutes() === 10;
+}
+
+export async function runEnrichDrain(
+  dispatchBatch,
+  { pending = 0, batchSize = 15, maxBatches = 4, candidateIds = null, shouldContinue = null } = {},
+) {
   const startedAt = new Date().toISOString();
-  const target = Math.min(Number(maxBatches) || 0, Math.ceil((Number(pending) || 0) / batchSize));
+  const size = Math.max(1, Number(batchSize) || 15);
+  const cap = Math.max(0, Number(maxBatches) || 0);
+  const selected = Array.isArray(candidateIds)
+    ? [...new Set(candidateIds.map(String).filter(Boolean))].slice(0, size * cap)
+    : null;
+  const work = selected
+    ? Array.from({ length: Math.ceil(selected.length / size) }, (_, index) => selected.slice(index * size, (index + 1) * size))
+    : Array.from({ length: Math.min(cap, Math.ceil((Number(pending) || 0) / size)) }, () => size);
   const lines = [];
-  for (let i = 0; i < target; i++) {
+  for (const batch of work) {
+    if (shouldContinue && !(await shouldContinue())) break;
     try {
-      lines.push({ ok: true, result: await dispatchBatch(batchSize) });
+      const result = await dispatchBatch(batch);
+      if (Number(result?.failed) > 0) {
+        // /enrich returns a diagnostic report as HTTP 200 even when Mistral
+        // rejected the offer. Honor the scheduler's stop-on-failed-child
+        // contract instead of fanning that rejection through all 28 SELF
+        // children.
+        lines.push({
+          ok: false,
+          error: result?.errors?.[0] || 'Mistral enrichment failed',
+          result,
+        });
+        break;
+      }
+      lines.push({ ok: true, result });
     } catch (err) {
       lines.push({ ok: false, error: err?.message || String(err) });
       break;
     }
   }
+  const providerFailure = lines.find((line) => !line.ok && line.result?.providerLimit);
   return {
     startedAt,
     finishedAt: new Date().toISOString(),
@@ -244,6 +290,8 @@ export async function runEnrichDrain(dispatchBatch, { pending = 0, batchSize = 1
     ok: lines.filter((l) => l.ok).length,
     failed: lines.filter((l) => !l.ok).length,
     enriched: lines.reduce((n, l) => n + (l.ok && l.result ? l.result.enriched || 0 : 0), 0),
+    providerLimit: providerFailure?.result?.providerLimit || null,
+    providerError: providerFailure?.result?.providerError || null,
     lines,
   };
 }
@@ -252,8 +300,11 @@ export function createEnrichDispatcher({ self, ingestSecret, origin = 'https://b
   if (!self || typeof self.fetch !== 'function') {
     throw new Error('scheduler: a SELF service binding (env.SELF) is required for the enrich dispatcher');
   }
-  return async function dispatchBatch(limit) {
-    const res = await self.fetch(`${origin}/enrich?limit=${encodeURIComponent(limit)}`, {
+  return async function dispatchBatch(limitOrIds) {
+    const query = Array.isArray(limitOrIds)
+      ? `ids=${encodeURIComponent(limitOrIds.join(','))}`
+      : `limit=${encodeURIComponent(limitOrIds)}`;
+    const res = await self.fetch(`${origin}/enrich?${query}`, {
       method: 'POST',
       // `tag: 'ops'` marks operator-triggered children so their audit rows
       // say origin ops, not cron (engine.js /enrich reads X-Ops-Origin).
@@ -262,6 +313,134 @@ export function createEnrichDispatcher({ self, ingestSecret, origin = 'https://b
     const body = await res.json().catch(() => ({}));
     if (!res.ok) {
       const err = new Error(`enrich drain -> HTTP ${res.status}`);
+      err.body = body;
+      throw err;
+    }
+    return body;
+  };
+}
+
+// Durable round worker. Unlike the legacy ad-hoc check route, ids here are
+// watch_run ids carrying a lease token in D1; replaying the dispatch is safe.
+export function createWatchRunDispatcher({ self, ingestSecret, origin = 'https://brochure-engine.internal' }) {
+  if (!self || typeof self.fetch !== 'function') {
+    throw new Error('scheduler: a SELF service binding is required for the watch-run dispatcher');
+  }
+  return async function dispatchRuns(ids) {
+    const res = await self.fetch(`${origin}/watches/run?ids=${encodeURIComponent(ids.join(','))}`, {
+      method: 'POST',
+      headers: { 'X-Ingest-Secret': ingestSecret || '' },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(`watch runs ${ids.join(',')} -> HTTP ${res.status}`);
+      err.body = body;
+      throw err;
+    }
+    return body;
+  };
+}
+
+// Stage-two copies of the stage-one live/background drain. Keep the pacing,
+// batch sizing, sequential children, stop-on-failure behavior, and report
+// contract aligned with runEnrichDrain/createEnrichDispatcher.
+export async function runVisionVerificationDrain(
+  dispatchBatch,
+  { pending = 0, batchSize = 15, maxBatches = 4, candidateIds = null, shouldContinue = null } = {},
+) {
+  const startedAt = new Date().toISOString();
+  const size = Math.max(1, Number(batchSize) || 15);
+  const cap = Math.max(0, Number(maxBatches) || 0);
+  const selected = Array.isArray(candidateIds)
+    ? [...new Set(candidateIds.map(String).filter(Boolean))].slice(0, size * cap)
+    : null;
+  const work = selected
+    ? Array.from({ length: Math.ceil(selected.length / size) }, (_, index) => selected.slice(index * size, (index + 1) * size))
+    : Array.from({ length: Math.min(cap, Math.ceil((Number(pending) || 0) / size)) }, () => size);
+  const lines = [];
+  for (const batch of work) {
+    if (shouldContinue && !(await shouldContinue())) break;
+    try {
+      const result = await dispatchBatch(batch);
+      if (Number(result?.failed) > 0) {
+        lines.push({
+          ok: false,
+          error: result?.errors?.[0] || 'Mistral verification failed',
+          result,
+        });
+        break;
+      }
+      lines.push({ ok: true, result });
+    } catch (err) {
+      lines.push({ ok: false, error: err?.message || String(err) });
+      break;
+    }
+  }
+  const providerFailure = lines.find((line) => !line.ok && line.result?.providerLimit);
+  return {
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    pending,
+    batches: lines.length,
+    ok: lines.filter((l) => l.ok).length,
+    failed: lines.filter((l) => !l.ok).length,
+    enriched: lines.reduce((n, l) => n + (l.ok && l.result ? l.result.verified || 0 : 0), 0),
+    verified: lines.reduce((n, l) => n + (l.ok && l.result ? l.result.verified || 0 : 0), 0),
+    unmatched: lines.reduce((n, l) => n + (l.ok && l.result ? l.result.unmatched || 0 : 0), 0),
+    providerLimit: providerFailure?.result?.providerLimit || null,
+    providerError: providerFailure?.result?.providerError || null,
+    lines,
+  };
+}
+
+export function createVisionVerificationDispatcher({
+  self,
+  ingestSecret,
+  origin = 'https://brochure-engine.internal',
+  tag,
+} = {}) {
+  if (!self || typeof self.fetch !== 'function') {
+    throw new Error('scheduler: a SELF service binding is required for the vision verification dispatcher');
+  }
+  return async function dispatchBatch(limitOrIds) {
+    const query = Array.isArray(limitOrIds)
+      ? `ids=${encodeURIComponent(limitOrIds.join(','))}`
+      : `limit=${encodeURIComponent(limitOrIds)}`;
+    const res = await self.fetch(`${origin}/vision-verification?${query}`, {
+      method: 'POST',
+      headers: { 'X-Ingest-Secret': ingestSecret || '', ...(tag ? { 'X-Ops-Origin': tag } : {}) },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(`vision verification drain -> HTTP ${res.status}`);
+      err.body = body;
+      throw err;
+    }
+    return body;
+  };
+}
+
+// Registry resolution is deliberately dispatched as a sibling SELF child.
+// Running it directly in a drain coordinator makes its CPU part of the cron
+// invocation that already coordinated Vision children, recreating the original
+// enrichment+resolution resource-limit failure.
+export function createResolutionDispatcher({
+  self,
+  ingestSecret,
+  origin = 'https://brochure-engine.internal',
+  tag,
+} = {}) {
+  if (!self || typeof self.fetch !== 'function') {
+    throw new Error('scheduler: a SELF service binding is required for the resolution dispatcher');
+  }
+  return async function dispatchResolution(limit) {
+    const res = await self.fetch(`${origin}/resolve?limit=${encodeURIComponent(limit)}`, {
+      method: 'POST',
+      headers: { 'X-Ingest-Secret': ingestSecret || '', ...(tag ? { 'X-Ops-Origin': tag } : {}) },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(`resolution drain -> HTTP ${res.status}`);
       err.body = body;
       throw err;
     }

@@ -4,10 +4,12 @@
 // gets its secrets from env bindings, never from files.
 //
 // Files may live in brochure-engine/, the repo root, or the workspace root
-// above it (all gitignored): .mistral.key (primary), .mistral.key.backup
-// (cold standby), .ingest.secret. The loader walks UP from this file so the
-// exact placement doesn't matter. An env var of the same name overrides the
-// file, so a one-off `$env:MISTRAL_API_KEY=...` still wins.
+// above it (all gitignored). The current model-scoped names are:
+//   .mistral medium.key[.backup|.backup2.txt] — three balanced Medium slots
+//   .mistral small.key / .mistral small 2.key / .mistral small 3.key
+//                                            — three Small slots (failover)
+//   .mistral ocr.key                         — OCR only
+// Legacy .mistral.key[.backup] remains readable during rotation.
 
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -46,13 +48,27 @@ export function readSecret(envName, fileName) {
   return process.env[envName] || readFile(fileName);
 }
 
-// The ordered Mistral key list for createKeyChain: primary then cold standby.
-// Duplicates/blanks are dropped by the chain, so a missing backup is fine.
-export function loadMistralKeys() {
-  return [
-    readSecret('MISTRAL_API_KEY', '.mistral.key'),
-    readSecret('MISTRAL_API_KEY_BACKUP', '.mistral.key.backup'),
-  ].filter(Boolean);
+export function loadMistralPools() {
+  return {
+    medium: [
+      readSecret('MISTRAL_MEDIUM_API_KEY_1', '.mistral medium.key')
+        || readSecret('MISTRAL_API_KEY', '.mistral.key'),
+      readSecret('MISTRAL_MEDIUM_API_KEY_2', '.mistral medium.key.backup')
+        || readSecret('MISTRAL_API_KEY_BACKUP', '.mistral.key.backup'),
+      readSecret('MISTRAL_MEDIUM_API_KEY_3', '.mistral medium.key.backup2.txt'),
+    ].filter(Boolean),
+    small: [
+      readSecret('MISTRAL_SMALL_API_KEY', '.mistral small.key'),
+      readSecret('MISTRAL_SMALL_API_KEY_BACKUP', '.mistral small 2.key'),
+      readSecret('MISTRAL_SMALL_API_KEY_BACKUP_2', '.mistral small 3.key'),
+    ].filter(Boolean),
+    ocr: [readSecret('MISTRAL_OCR_API_KEY', '.mistral ocr.key')].filter(Boolean),
+  };
+}
+
+// Backward-compatible helper used by the Medium backfill/validation scripts.
+export function loadMistralKeys(pool = 'medium') {
+  return loadMistralPools()[pool] || [];
 }
 
 export function loadIngestSecret() {
