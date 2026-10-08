@@ -33,14 +33,12 @@ retry_delay = 60
 EXTRACTION_STRATEGY = "vision-first"
 IDENTITY_NORMALIZATION_MODE = "strict"
 OCR_FALLBACK_ENABLED = "false"
-# ARMED 2026-07-30 by explicit user decision, with the trade-off on the table.
-# The built Arabic name is generated from the English structure instead of the
-# model's Arabic. Adjudicated on 400 production rows first (HANDOFF §11 TODO -2b
-# step b): it is 0% Latin vs 7.8% observed and it removes the model's garbage
-# (جينة→جبن, جملة→جبن, شيبان dropped) — but 64% of built names are SHORTER than
-# observed because brand and variety are dropped whenever the Arabic brand
-# lexicon does not know the brand (~20% coverage). The user accepted that and
-# asked for it live while the builder is improved. Reverting is this one value.
+# ARMED 2026-07-30 by explicit user decision. Since commit 41f4387 (the same
+# day, user verdict after seeing the built names live) "true" serves the
+# model's OWN Arabic, cleaned subtractively with the brand appended
+# (lexicon/observedArabic.js, the shadow's display_arabic), falling back to raw
+# observed text when cleaning leaves nothing. The built name is still computed
+# and persisted for diagnostics, but nothing serves it. Reverting is this one value.
 BUILT_ARABIC_NAMES_ENABLED = "true"
 # Policy B brochure navigation circuit breakers (fractions, 0..1). Ambiguous
 # and disagreeing rows always fail individually; exceeding either target-level
@@ -66,17 +64,15 @@ PRICE_FALLBACK_RESERVE = "6"
 # `relaxed`. Configure IDENTITY_NORMALIZATION_MODE in the Worker environment.
 # The development-only debug panel additionally requires ENVIRONMENT=development.
 
-# Global Arabic-name rollout switch. false = observed Arabic (the historical
-# behavior); true = built Arabic only for rows whose shadow status is BUILT,
-# with automatic observed-Arabic fallback for every other status. Reverting
-# this one value rolls the display path back immediately.
+# Global Arabic-name switch (above): false = raw observed Arabic; true = the
+# cleaned display_arabic with raw fallback. Reverting rolls back immediately.
 
 # Ingest cron (§6.3) — Architecture C: Self Service-Binding Fan-out.
 # Fires on the Saudi publication days (Tue & Wed) at 06:00 UTC (= 09:00 AST).
 # Each fire refreshes ALL stores TOGETHER: scheduled() fans out to one child
 # Worker invocation per store via the SELF binding below, and each child carries
-# its own fresh 50-subrequest budget — so an all-stores refresh fits the Free
-# plan without staggering across days. Running both Tue AND Wed catches whichever
+# its own budget (Workers Paid since 2026-09: 10k subrequests, 5 min CPU), so an
+# all-stores refresh never staggers across days. Running both Tue AND Wed catches whichever
 # day the brochures actually drop; the checksum dedupe makes the second fire free
 # of extra writes. (This replaces M2's daily one-store-per-fire rotation, which
 # spread the refresh across ~8 days.) Day/time are easily tunable here.
@@ -92,17 +88,19 @@ crons = [
   # Vision enrichment drain (steady-state autonomy, 2026-07-19): Vision is an
   # INGESTION step — every new offer goes through it exactly once (user
   # directive: no reuse gates in front of Vision) — so throughput must absorb
-  # the Tuesday-night burst without manual backfills. Each fire is its own
-  # budget (28 sequential CPU-isolated children × 1 offer), 3 fires/hour
-  # ⇒ up to ~2k offers/day; an empty queue costs one D1 count. Minutes 10/30/50
-  # keep clear of the 05:45 maintenance fire and the 06:00 ingest fan-out.
-  # Inert without the MISTRAL_API_KEY secret, exactly like the drain itself.
+  # the Tuesday-night burst without manual backfills. Stage 1 (2026-10-08):
+  # up to 112 offers a fire, dealt into STAGE_ONE_LANES=3 parallel lanes of
+  # 15-offer SELF children, here AND on the minute tick at :00/:20/:40 — 6 fires
+  # an hour, ~670 offers/h ceiling; Mistral (2 keys × 30/min) is the real limit.
+  # Every fire takes the steady-vision D1 lease first: cron events arrive at
+  # least once. An empty queue runs the daily resolution pass instead.
   "10,30,50 * * * *", # steady-state vision drain (yields to a background job)
-  # Shared one-minute background tick. It services Price Monitoring's durable
-  # 07:00/19:00 Riyadh rounds and one-minute retries, plus logical Stage 2
-  # steady schedule at minutes 5/25/45, keeping this Free-plan account within
-  # its five-trigger limit. A running Stage 1 background job has first priority;
-  # otherwise Stage 2 uses the same sequential SELF-child drain.
+  # Shared one-minute background tick, multiplexed by clock (the design dates
+  # from the Free plan's five-trigger limit): Price Monitoring's 07:00/19:00
+  # Riyadh rounds + one-minute retries; Stage 1 at :00/:20/:40; Stage 2 at
+  # :05/:25/:45 (steady-verification lease, STAGE_TWO_LANES=2); a running
+  # Background Vision job first; price-fallback lanes; D1 retention 03:00 UTC;
+  # the health digest 05:00 UTC; the weekly D1 export from Sunday 02:00 UTC.
   "* * * * *", # Watch rounds/retries + background drains + price fallback lanes + D1 retention
   "*/2 * * * *", # resumable D4D brochure collection (pending stores only)
 ]
