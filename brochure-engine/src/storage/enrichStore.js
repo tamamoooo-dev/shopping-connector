@@ -382,7 +382,9 @@ export function createD1EnrichStore(db) {
               AND ${USABLE_PRICE_SQL}
             ORDER BY o.valid_to ASC, o.detected_at ASC LIMIT ?`,
         )
-        .bind(currentOn, Math.max(1, Math.min(Number(limit) || 15, 50)))
+        // 200, not 50: a cron fire asks for its full 4 x 28 = 112 child
+        // capacity. The old 50 silently held every fire to 50 reads.
+        .bind(currentOn, Math.max(1, Math.min(Number(limit) || 15, 200)))
         .all();
       return results || [];
     },

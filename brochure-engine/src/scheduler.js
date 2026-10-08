@@ -255,10 +255,10 @@ export function createWatchCheckDispatcher({ self, ingestSecret, origin = 'https
 // extraction validation, identity building and the Stage-2 R2/D1 commit
 // crossed the Workers FREE CPU limit (10 ms) when grouped. On Workers Paid
 // (2026-09-30: 30 s default, 5 min configured in wrangler.toml [limits]) a
-// child takes FOUR, so a fire covers 112 offers instead of 28 — Mistral's
-// per-minute window, not the Worker, now paces it (~9 min per fire at the
-// ~12 requests/min the price drain leaves, inside the 20-minute fire interval
-// and the 15-minute Vision lease). Twenty-eight children still leave headroom
+// child takes FOUR, so a fire covers 112 offers instead of 28. (Until
+// 2026-10-08 the candidate queries still clamped to 50, so a fire read 50;
+// the cron fires now also run their children in parallel lanes —
+// runDrainLanes below.) Twenty-eight children still leave headroom
 // below the service-binding limit of 32 invocations for the coordinator and a
 // detached resolution child.
 export const CPU_SAFE_BACKGROUND_DRAIN = Object.freeze({
@@ -420,6 +420,67 @@ export async function runVisionVerificationDrain(
     providerLimit: providerFailure?.result?.providerLimit || null,
     providerError: providerFailure?.result?.providerError || null,
     lines,
+  };
+}
+
+// Parallel lanes (2026-10-08). A fire's children ran strictly one after
+// another, so Vision throughput was bound by response time (~5-13 s a read),
+// not by Mistral's window: 50 reads per 20-minute fire used ~5% of the two
+// keys' 60 requests/minute while 5,919 current offers sat unread. Lanes split
+// ONE fire's candidates into concurrent sequential drains (`drain` is
+// runEnrichDrain or runVisionVerificationDrain). Batches are dealt
+// round-robin, so every lane starts with the soonest-expiring offers and the
+// expiry-first order survives. The child count is unchanged (still at most
+// maxBatches, under the 32-invocation service-binding limit); only the
+// concurrency is new. Each lane keeps the stop-on-failed-child contract: a
+// lane that meets a spent minute window stops, its offers stay unread for the
+// next fire, and the other lanes carry on. `deadlineMs` stops dispatching new
+// children so a fire ends before the next one is due.
+export async function runDrainLanes(drain, dispatchBatch, {
+  lanes = 1,
+  candidateIds = [],
+  batchSize = 15,
+  maxBatches = 4,
+  deadlineMs = null,
+  shouldContinue = null,
+  now = () => Date.now(),
+} = {}) {
+  const startedAt = new Date().toISOString();
+  const size = Math.max(1, Number(batchSize) || 15);
+  const cap = Math.max(0, Number(maxBatches) || 0);
+  const selected = [...new Set((candidateIds || []).map(String).filter(Boolean))].slice(0, size * cap);
+  const batches = Array.from(
+    { length: Math.ceil(selected.length / size) },
+    (_, index) => selected.slice(index * size, (index + 1) * size),
+  );
+  const count = Math.max(1, Math.min(Math.floor(Number(lanes)) || 1, batches.length || 1));
+  const shards = Array.from({ length: count }, () => []);
+  batches.forEach((batch, index) => shards[index % count].push(...batch));
+  const stopAt = deadlineMs == null ? null : now() + Number(deadlineMs);
+  const keepGoing = async () => (stopAt == null || now() < stopAt)
+    && (!shouldContinue || await shouldContinue());
+  const reports = await Promise.all(shards.map((ids) => drain(dispatchBatch, {
+    pending: ids.length,
+    candidateIds: ids,
+    batchSize: size,
+    maxBatches: Math.ceil(ids.length / size),
+    shouldContinue: keepGoing,
+  })));
+  const sum = (field) => reports.reduce((n, report) => n + (Number(report[field]) || 0), 0);
+  return {
+    startedAt,
+    finishedAt: new Date().toISOString(),
+    pending: selected.length,
+    lanes: count,
+    batches: sum('batches'),
+    ok: sum('ok'),
+    failed: sum('failed'),
+    enriched: sum('enriched'),
+    verified: sum('verified'),
+    unmatched: sum('unmatched'),
+    providerLimit: reports.find((report) => report.providerLimit)?.providerLimit || null,
+    providerError: reports.find((report) => report.providerError)?.providerError || null,
+    lines: reports.flatMap((report) => report.lines || []),
   };
 }
 

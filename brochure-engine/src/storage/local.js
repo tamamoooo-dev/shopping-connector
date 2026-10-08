@@ -130,7 +130,7 @@ export function createMemoryEnrichStore({ listOffers = async () => [] } = {}) {
         // Expiry-first, arrival-order tiebreak — the twin of the D1 ORDER BY.
         .sort((a, b) => String(a.valid_to).localeCompare(String(b.valid_to))
           || String(a.detected_at).localeCompare(String(b.detected_at)))
-        .slice(0, Math.max(1, Math.min(Number(limit) || 15, 50)))
+        .slice(0, Math.max(1, Math.min(Number(limit) || 15, 200)))
         .map((o) => ({
           id: o.id,
           image_url: o.image_url,

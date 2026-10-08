@@ -3,6 +3,7 @@ import {
   CPU_SAFE_BACKGROUND_DRAIN,
   createResolutionDispatcher,
   isDailyEmptyResolutionTick,
+  runDrainLanes,
   runEnrichDrain,
   runVisionVerificationDrain,
 } from './scheduler.js';
@@ -92,4 +93,83 @@ for (const [name, run] of [
   console.log('  ok  registry resolution runs in a detached SELF child');
 }
 
-console.log('\nCPU-safe background drains: 6 tests OK');
+{
+  // Lanes: one fire's 112 candidates run as concurrent sequential drains.
+  const ids = Array.from({ length: 112 }, (_, i) => `offer-${String(i).padStart(3, '0')}`);
+  const seen = [];
+  let inFlight = 0;
+  let peak = 0;
+  const report = await runDrainLanes(runEnrichDrain, async (batch) => {
+    inFlight += 1;
+    peak = Math.max(peak, inFlight);
+    seen.push(batch);
+    await new Promise((resolve) => setTimeout(resolve, 1));
+    inFlight -= 1;
+    return { enriched: batch.length };
+  }, { lanes: 3, candidateIds: ids, ...CPU_SAFE_BACKGROUND_DRAIN });
+  assert.equal(report.lanes, 3);
+  assert.equal(report.batches, 28, 'the child count is unchanged by lanes');
+  assert.equal(report.enriched, 112);
+  assert.equal(peak, 3, 'three children run at once, never more');
+  assert.deepEqual(seen.flat().sort(), ids, 'every candidate is dispatched exactly once');
+  // Expiry-first survives: the three lanes open with the three soonest batches.
+  assert.deepEqual(seen.slice(0, 3).map((batch) => batch[0]).sort(), ['offer-000', 'offer-004', 'offer-008']);
+  console.log('  ok  lanes run one fire in parallel, same 28 children, expiry order kept');
+}
+
+{
+  // A lane that meets a spent window stops alone; the others carry on.
+  const providerLimit = { status: 429, category: 'rate_limit' };
+  const report = await runDrainLanes(runEnrichDrain, async (batch) => (
+    batch.includes('offer-1')
+      ? { failed: 1, errors: ['mistral 429'], providerLimit }
+      : { enriched: batch.length }
+  ), {
+    lanes: 2,
+    candidateIds: ['offer-0', 'offer-1', 'offer-2', 'offer-3', 'offer-4', 'offer-5'],
+    batchSize: 1,
+    maxBatches: 28,
+  });
+  // Lane A: offer-0, offer-2, offer-4 (3 ok). Lane B: offer-1 fails, stops.
+  assert.equal(report.enriched, 3);
+  assert.equal(report.failed, 1);
+  assert.equal(report.batches, 4);
+  assert.equal(report.providerLimit.category, 'rate_limit');
+  console.log('  ok  a rate-limited lane stops alone and leaves its offers for the next fire');
+}
+
+{
+  // The dispatch window ends a fire before the next one is due.
+  let clock = 0;
+  let calls = 0;
+  const report = await runDrainLanes(runVisionVerificationDrain, async (batch) => {
+    calls += 1;
+    clock += 60_000;
+    return { verified: batch.length, unmatched: 0 };
+  }, {
+    lanes: 1,
+    candidateIds: Array.from({ length: 40 }, (_, i) => `o${i}`),
+    batchSize: 4,
+    maxBatches: 28,
+    deadlineMs: 180_000,
+    now: () => clock,
+  });
+  assert.equal(calls, 3, 'no child is dispatched once the window has passed');
+  assert.equal(report.verified, 12);
+  console.log('  ok  the dispatch window stops new children');
+}
+
+{
+  // Fewer batches than lanes: one lane per batch, no empty lanes.
+  const report = await runDrainLanes(runVisionVerificationDrain, async (batch) => (
+    { verified: 1, unmatched: batch.length - 1 }
+  ), { lanes: 3, candidateIds: ['a', 'b', 'c', 'd', 'e'], batchSize: 4, maxBatches: 28 });
+  assert.equal(report.lanes, 2);
+  assert.equal(report.verified, 2);
+  assert.equal(report.unmatched, 3);
+  const empty = await runDrainLanes(runEnrichDrain, async () => { throw new Error('never'); }, { lanes: 3, candidateIds: [] });
+  assert.equal(empty.batches, 0);
+  console.log('  ok  lanes never exceed the batches and an empty fire dispatches nothing');
+}
+
+console.log('\nCPU-safe background drains: 10 tests OK');

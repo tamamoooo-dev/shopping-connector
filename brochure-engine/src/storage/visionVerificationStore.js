@@ -265,7 +265,8 @@ export function createD1VisionVerificationStore(db) {
             AND o.valid_to>=? AND o.image_url IS NOT NULL
           ORDER BY q.updated_at, q.offer_id
           LIMIT ?`,
-      ).bind(now, currentOn, Math.max(1, Math.min(Number(limit) || 15, 50))).all();
+      // 200, not 50: a cron fire asks for its full 4 x 28 = 112 child capacity.
+      ).bind(now, currentOn, Math.max(1, Math.min(Number(limit) || 15, 200))).all();
       return (results || []).map(pendingItem);
     },
 
