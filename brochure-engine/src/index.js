@@ -118,8 +118,11 @@ const CRONS = {
 // on completion (the next tick continues at once); the lease only bounds a
 // crashed/stalled fire (≤5-min recovery).
 const VISION_LEASE_MS = 900000;
-// Resolution has its own SELF invocation and a deliberately small unit of work.
-const RESOLVE_LIMIT = 25;
+// Resolution has its own SELF invocation. It was 25 items under the Free
+// plan's CPU limit; measured on Workers Paid 2026-09-30, 25 items = 89 ms CPU
+// and 4.5 s wall, so 200 (~0.7 s CPU, ~1,300 of the 10,000 subrequests)
+// drains the Registry backlog 8x faster per fire.
+const RESOLVE_LIMIT = 200;
 
 function terminalProviderFailure(drain) {
   const category = drain?.providerLimit?.category || drain?.providerError?.category || null;
@@ -331,7 +334,8 @@ const worker = {
   // (e.g. for a Queue producer) without touching collectors, pipeline or storage.
   async scheduled(event, env, ctx) {
     // Resumable brochure recovery: D1 is the durable queue and each child
-    // advances one D4D store by one <=20-page batch. At most 20 SELF calls stay
+    // advances one D4D store for up to D4D_INVOCATION_BUDGET_MS of checkpointed
+    // hops (Workers Paid — usually the whole store). At most 20 SELF calls stay
     // below the scheduled-event invocation cap; each child has its own external
     // subrequest budget. Failed/interrupted jobs remain pending automatically.
     if (event.cron === '*/2 * * * *') {

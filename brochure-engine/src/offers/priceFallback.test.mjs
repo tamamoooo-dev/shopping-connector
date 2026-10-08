@@ -159,10 +159,18 @@ const P = (current_price, old_price = null) => ({ name_en: 'x', current_price, o
   assert.equal(report.reasons.current_not_in_description, 1);
 }
 {
-  // transient provider error: deferred, counted, and rejected after the bound
+  // a 500 on the first key is retried on the second at once (2026-09-30)
+  const store = await queued('E2', 'x 9.95');
+  const { report, calls } = await drainOne(store, [{ status: 500 }, P(9.95), P(9.95)]);
+  assert.equal(report.accepted, 1, 'the healthy key finishes the item');
+  assert.deepEqual(calls.map((c) => c.auth), ['Bearer k1', 'Bearer k2', 'Bearer k2'],
+    'the failing key rests, later readings go straight to the healthy key');
+}
+{
+  // transient provider error on EVERY key: deferred, counted, and rejected after the bound
   const store = await queued('E', 'x 9.95');
   for (let i = 1; i <= 3; i += 1) {
-    const { report } = await drainOne(store, [{ status: 500 }]);
+    const { report } = await drainOne(store, [{ status: 500 }, { status: 500 }]);
     const [p] = await store.pricePendingByIds(['shop:central:d4d:E']);
     assert.equal(p.attempts, i);
     if (i < 3) { assert.equal(report.deferred, 1); assert.equal(p.status, 'pending'); }
@@ -170,9 +178,10 @@ const P = (current_price, old_price = null) => ({ name_en: 'x', current_price, o
   }
 }
 {
-  // unknown model / bad request: the drain STOPS; the item stays pending untouched
+  // unknown model / bad request (every key rejects it): the drain STOPS; the
+  // item stays pending untouched
   const store = await queued('F', 'x 9.95');
-  const { report } = await drainOne(store, [{ status: 400, body: 'invalid model' }]);
+  const { report } = await drainOne(store, [{ status: 400, body: 'invalid model' }, { status: 400, body: 'invalid model' }]);
   assert.equal(report.stopped, 'model_or_keys_unavailable');
   const [p] = await store.pricePendingByIds(['shop:central:d4d:F']);
   assert.equal(p.status, 'pending');

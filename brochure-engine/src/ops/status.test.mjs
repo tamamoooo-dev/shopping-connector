@@ -214,6 +214,38 @@ async function buildFixture() {
   console.log('publication progress status passed');
 }
 
+// Regression 2026-09-30: store status read a newest-300 audit window, and the
+// price drain writes three store-less rows a minute — within ~2 hours every
+// store lost its last OK run and a failed store lost its FAIL (Retry Failed
+// found nothing). Per-store outcomes must survive any volume of other rows.
+{
+  const ctx = await buildFixture();
+  await ctx.opsStore.record({ ts: `${today}T04:00:00Z`, action: 'ingest', origin: 'cron', store: 'alpha', ok: false, error: 'old: HTTP 502' });
+  await ctx.opsStore.record({ ts: `${today}T05:30:00Z`, action: 'ingest', origin: 'cron', store: 'alpha', ok: true, elapsed_ms: 700 });
+  await ctx.opsStore.record({ ts: `${today}T06:00:00Z`, action: 'cron:fanout', origin: 'cron', ok: true, elapsed_ms: 50 });
+  for (let i = 0; i < 450; i += 1) {
+    await ctx.opsStore.record({ ts: `${today}T07:00:00Z`, action: 'price-fallback', origin: 'cron', ok: true });
+  }
+  const rows = await computeStoreRows(ctx, { now: NOW });
+  const by = Object.fromEntries(rows.map((r) => [r.store, r]));
+  check('a failed store stays FAIL behind 450 newer store-less rows',
+    by.delta.status === 'FAIL' && by.delta.lastError === 'd4d: HTTP 503' && by.delta.lastOkMs === 900,
+    `${by.delta.status}/${by.delta.lastError}/${by.delta.lastOkMs}`);
+  check('Retry Failed still targets it', failedStores(rows).includes('delta'), failedStores(rows).join(','));
+  check('a failure a later success superseded is history, not a current error',
+    by.alpha.status === 'OK' && by.alpha.lastError === null &&
+      by.alpha.lastFailAt === `${today}T04:00:00Z` && by.alpha.lastOkMs === 700,
+    JSON.stringify({ s: by.alpha.status, e: by.alpha.lastError, f: by.alpha.lastFailAt }));
+
+  const cm = await cronMonitor({ ...ctx, crons: { pipeline: '0 6 * * 2,3,5', verification: '5,25,45 * * * *' } }, { now: NOW });
+  const pipeline = cm.crons.find((c) => c.name === 'pipeline');
+  check('Cron Monitor still finds the weekly pipeline behind the price drain',
+    pipeline.last && pipeline.last.ts === `${today}T06:00:00Z`, JSON.stringify(pipeline.last));
+  check('verification is read from the action it actually writes',
+    cm.crons.find((c) => c.name === 'verification').action === 'cron:vision-verification');
+  console.log('audit flooding ✅');
+}
+
 // --- unpriced flyer products count as clickable (the viewer's rule) -------------
 // hotspots.js serves a spot when its product has an offers row OR a
 // price_pending row (price pending / unavailable), so ops must count the same

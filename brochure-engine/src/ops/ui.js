@@ -543,7 +543,7 @@ function renderStores(o) {
     var publication = r.publication;
     var publicationRow = publication && r.status === "PUBLISHING"
       ? '<div class="mut">publishing ' + publication.collectedPages + "/" + publication.advertisedPages + " pages" +
-        (publication.progress == null ? "" : " آ· " + publication.progress + "%") + "</div>"
+        (publication.progress == null ? "" : " · " + publication.progress + "%") + "</div>"
       : "";
     return '<div class="row" style="display:block;cursor:pointer" data-store="' + esc(r.store) + '">' +
       '<div style="display:flex;justify-content:space-between;align-items:center"><b>' + esc(r.label) + "</b>" + statusBadge(r.status) + "</div>" +
@@ -663,11 +663,18 @@ function renderReport(r) {
       esc(noCurrent.join(", ")) + ". The previous flyer remains visible as STALE until a new one is published.</div>";
   }
   var v = r.verification;
+  if (v && v.publishing && v.publishing.length) {
+    html += '<div class="warnBox" style="margin-top:8px">Still publishing in the background: ' + esc(v.publishing.join(", ")) +
+      ". The resume cron advances each store every 2 minutes and the current flyer stays live until the new set is complete — " +
+      "the Stores tab shows progress, and a store that stops moving turns FAIL.</div>";
+  }
   if (v && v.lines && v.lines.length) {
     html += '<h4 class="sec">Verification</h4>' + v.lines.map(function (x) {
-      return '<div class="row"><span class="dot ' + (x.pass ? "ok" : "bad") + '"></span><div><b>' + esc(x.label || x.store) + "</b>" +
+      var publishing = x.status === "PUBLISHING";
+      return '<div class="row"><span class="dot ' + (x.pass ? "ok" : publishing ? "warn" : "bad") + '"></span><div><b>' + esc(x.label || x.store) + "</b>" +
         '<div class="mut">hotspots ' + esc(x.hotspots) + " · clickable " + esc(x.clickable) + " · offers " + esc(x.offers) +
-        " · coverage " + (x.coverage == null ? "n/a" : x.coverage + "%") + "</div></div>" +
+        " · coverage " + (x.coverage == null ? "n/a" : x.coverage + "%") +
+        (publishing && x.progress != null ? " · publishing " + esc(x.progress) + "%" : "") + "</div></div>" +
         statusBadge(x.pass ? "PASS" : x.status) + "</div>";
     }).join("");
   }
@@ -689,7 +696,10 @@ function confirmAndRun(btn, body, title, msg, danger, typed, path) {
     body.confirm = typed || true;
     api(path || "run", { body: body }).then(function (r) {
       renderReport(r);
-      toast(r.ok ? (r.nothingToDo ? r.message : "Done — verification passed") : "Completed with failures", !r.ok);
+      var bg = r.verification && r.verification.publishing ? r.verification.publishing.length : 0;
+      toast(r.ok
+        ? (r.nothingToDo ? r.message : bg ? "Done — " + bg + " store(s) still publishing in the background" : "Done — verification passed")
+        : "Completed with failures", !r.ok);
       loadOverview();
       loadMore();
     }).catch(function (e) { toast(e.message, true); })

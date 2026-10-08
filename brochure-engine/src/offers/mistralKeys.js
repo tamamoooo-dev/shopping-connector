@@ -17,8 +17,11 @@
 //     automatically (honoring the provider's own Retry-After);
 //   • it is primary-preferred: once a key's rate-limit window passes it is used
 //     again ahead of a backup (no permanent demotion), every switch is LOGGED;
-//   • a 5xx / network failure is NOT a key problem (the backup hits the same
-//     provider), so it never parks or retires a key.
+//   • ANY OTHER provider failure (5xx, capacity, network drop, timeout, an
+//     unusable reply) ALSO moves the request to the next available key at once
+//     (user directive 2026-09-30, superseding "5xx never fails over"); the
+//     failing key rests FAILED_KEY_COOLDOWN_MS, never retires, and each key is
+//     tried at most once per request. Crop-download failures still throw.
 //   • ONE key configured ⇒ fully backward compatible: nothing to fail over to,
 //     so a 429 is simply waited out (Retry-After) and retried, exactly as before.
 //
@@ -234,10 +237,13 @@ export function createKeyChain(
   // independent workspaces) first sample any unobserved slot, then choose the
   // highest remaining percentage. Equal percentages use the least-served slot,
   // keeping a fresh pool round-robin instead of draining key #1 first.
-  const usableIndex = (t = now()) => {
+  // `exclude` (a Set of slot indexes) skips keys that already failed the
+  // current request (withFailover's any-error failover).
+  const usableIndex = (t = now(), exclude = null) => {
     const candidates = slots
       .map((slot, index) => ({ slot, index }))
-      .filter(({ slot }) => !slot.dead && !slot.restricted && slot.until <= t);
+      .filter(({ slot, index }) =>
+        !slot.dead && !slot.restricted && slot.until <= t && !exclude?.has(index));
     if (!candidates.length) return -1;
     if (!balance) return candidates[0].index;
     candidates.sort((a, b) => {
@@ -286,11 +292,16 @@ export function createKeyChain(
     // The selected usable key, or null when every key is dead/parked right now.
     // Secret material never crosses snapshot(); only pick/current expose it to
     // the provider call path.
-    pick(t = now()) {
-      const i = usableIndex(t);
+    pick(t = now(), exclude = null) {
+      const i = usableIndex(t, exclude);
       if (i < 0) return null;
       if (!balance && i > 0) everFailedOver = true;
       return { key: slots[i].key, id: slots[i].id, index: i };
+    },
+    // Whether any key outside `exclude` could still serve, now or after a
+    // rate-limit window (dead and restricted keys never can).
+    canTry(exclude = null) {
+      return slots.some((slot, index) => !slot.dead && !slot.restricted && !exclude?.has(index));
     },
     current(t = now()) {
       const i = usableIndex(t);
@@ -355,14 +366,27 @@ export function createKeyChain(
         log(`[${label}-failover] key #${index + 1} ${reason}; switching to usable key #${alt + 1} of ${slots.length}`);
       }
     },
+    // Any other failure (5xx, capacity, network drop, unusable reply): rest
+    // this key briefly so the next requests go straight to a healthy one. Its
+    // quota reading is left as it was — the key is not spent, just failing.
+    markFailed(index, untilMs, reason = 'failed') {
+      const s = slots[index];
+      if (!s) return;
+      s.until = Math.max(s.until, untilMs);
+      s.calls += 1;
+      const alt = usableIndex();
+      if (alt >= 0 && alt !== index) {
+        log(`[${label}-failover] key #${index + 1} ${reason}; switching to usable key #${alt + 1} of ${slots.length}`);
+      }
+    },
     // The soonest moment a parked (not dead) key becomes usable again, or null
     // when a key is usable NOW or every remaining key is auth-dead (nothing to
     // wait for). Drives the "sleep only when all keys are rate-limited" branch.
-    nextResumeAt(t = now()) {
-      if (usableIndex(t) >= 0) return null;
+    nextResumeAt(t = now(), exclude = null) {
+      if (usableIndex(t, exclude) >= 0) return null;
       let soonest = Infinity;
-      for (const s of slots) {
-        if (!s.dead && s.until > t) soonest = Math.min(soonest, s.until);
+      for (const [index, s] of slots.entries()) {
+        if (!s.dead && s.until > t && !exclude?.has(index)) soonest = Math.min(soonest, s.until);
       }
       return soonest === Infinity ? null : soonest;
     },
@@ -591,8 +615,18 @@ export function classifyMistralError(err) {
 // usable one immediately. On a 429 it PARKS the key until its Retry-After window
 // and immediately tries the next usable key — it sleeps ONLY when every key is
 // dead/parked, and then only until the soonest window elapses (bounded by
-// `maxRateRetries` wait-cycles). Transient/other errors propagate unchanged —
-// the caller's own pacing/retry handles them. `now` is injectable for tests.
+// `maxRateRetries` wait-cycles).
+//
+// ANY OTHER ERROR fails over too (user directive 2026-09-30, superseding "5xx
+// never fails over"): a 5xx, a capacity error, a dropped connection, a timeout
+// or an unusable reply sends the SAME request to the next available key at
+// once, and the failing key rests for FAILED_KEY_COOLDOWN_MS so the following
+// requests go straight to a healthy key. Each key is tried at most once per
+// request for these, so a request every key fails surfaces its last error
+// instead of looping. A crop-fetch failure is not a key problem (the image
+// could not be downloaded) and still throws immediately. `now` is injectable.
+export const FAILED_KEY_COOLDOWN_MS = 15 * 1000;
+
 export async function withFailover(keyChain, doCall, {
   maxRateRetries = 2,
   backoffMs = 1500,
@@ -603,8 +637,9 @@ export async function withFailover(keyChain, doCall, {
   let waitCycles = 0;
   let lastErr = null;
   const attempts = [];
+  const failedThisRequest = new Set();
   for (;;) {
-    const slot = keyChain.pick(now());
+    const slot = keyChain.pick(now(), failedThisRequest);
     if (slot) {
       try {
         const result = await doCall(slot.key);
@@ -653,16 +688,28 @@ export async function withFailover(keyChain, doCall, {
           );
           continue;
         }
-        // transient (5xx / network) and other (crop fetch / parse) are not key
-        // problems — the backup hits the same provider, so never fail over.
+        if (err?.stage === 'crop') throw err;
+        // transient / other: this request moves to the next key untried by it.
+        failedThisRequest.add(slot.index);
+        if (keyChain.canTry?.(failedThisRequest) ?? false) {
+          keyChain.markFailed?.(
+            slot.index,
+            now() + FAILED_KEY_COOLDOWN_MS,
+            err?.status ? `failed (${err.status})` : 'failed (network)',
+          );
+          continue;
+        }
         throw err;
       }
     }
+    // Every key this request may still use has already failed it: surface the
+    // last error rather than waiting on a cooldown to retry the same keys.
+    if (failedThisRequest.size && !(keyChain.canTry?.(failedThisRequest) ?? false)) throw lastErr;
     // No key is usable right now. If any is merely rate-limited (not dead), wait
     // until the SOONEST window elapses and resume; if every key is auth-dead
     // there is nothing to wait for. Bounded so a permanently throttled account
     // eventually surfaces the 429 to the caller's own retry/reporting.
-    const resumeAt = keyChain.nextResumeAt(now());
+    const resumeAt = keyChain.nextResumeAt(now(), failedThisRequest);
     if (resumeAt == null) {
       const restrictionErr = keyChain.restrictionError?.();
       if (lastErr) throw lastErr;

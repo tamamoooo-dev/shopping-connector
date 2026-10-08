@@ -277,6 +277,9 @@ function createInProcessDispatcher(ctx, mode) {
   };
 }
 
+// SELF children one manual operation may dispatch, across all of its targets.
+export const MANUAL_PUBLICATION_INVOCATIONS = 48;
+
 // Dispatch an ingest across the target stores through the PRODUCTION path:
 // the cron's SELF service-binding fan-out — one child invocation per store,
 // each with its own subrequest budget, each writing its own audit row.
@@ -292,14 +295,16 @@ async function dispatchIngest(ctx, targets, mode = '', { completePublication = f
       })
     : createInProcessDispatcher(ctx, mode);
   if (completePublication && ctx.self) {
-    // A manual operation is synchronous from the operator's perspective even
-    // when it targets several unhealthy stores. Give every target the same
-    // publication loop used by the single-store button instead of verifying
-    // after one 20-page batch. Divide the coordinator's 48-call safety budget
-    // across targets so a broad repair cannot exceed the Worker subrequest
-    // ceiling. After the first full child seeds each durable job, continuation
-    // children advance brochures only; the final child refreshes exact offer
-    // linkage immediately before atomic publish (engine.js).
+    // Give every target the same publication loop used by the single-store
+    // button instead of verifying after one 20-page batch. The coordinator's
+    // 48-call safety budget is SHARED by the targets (not split evenly — 18
+    // stores got 2 calls each, and every store with more than one batch
+    // "failed"), so small stores publish synchronously and leave their calls
+    // to the large ones. A store still advancing when the budget is spent is
+    // handed to the */2 resume cron and verifies as PUBLISHING. After the first
+    // full child seeds each durable job, continuation children advance
+    // brochures only; the final child refreshes exact offer linkage
+    // immediately before atomic publish (engine.js).
     const resume = createServiceBindingDispatcher({
       self: ctx.self,
       ingestSecret: ctx.ingestSecret,
@@ -307,17 +312,20 @@ async function dispatchIngest(ctx, targets, mode = '', { completePublication = f
       tag: 'ops',
       returnReport: true,
     });
-    const maxInvocations = Math.max(1, Math.floor(48 / targets.length));
+    const budget = { remaining: MANUAL_PUBLICATION_INVOCATIONS };
     return runFanOut(
       subRegistry,
-      (store) => runStoreToPublication(store, dispatch, resume, { maxInvocations }),
+      (store) => runStoreToPublication(store, dispatch, resume, { budget }),
     );
   }
   return runFanOut(subRegistry, dispatch);
 }
 
 // Post-operation verification: re-read the targeted stores through the same
-// status engine the dashboard uses and summarize PASS/FAIL per store.
+// status engine the dashboard uses and summarize PASS/FAIL per store. A store
+// whose durable publication is advancing (PUBLISHING — a stalled or errored
+// job is FAIL) is in progress, not failed: the resume cron finishes it and
+// the old flyer stays live until the atomic commit.
 async function verifyTargets(ctx, targets) {
   const rows = await computeStoreRows(ctx, { stores: targets });
   const lines = rows.map((r) => ({
@@ -328,16 +336,19 @@ async function verifyTargets(ctx, targets) {
     clickable: r.clickable,
     offers: r.offers,
     coverage: r.coverage,
+    progress: r.publication?.progress ?? null,
     pass: r.healthy,
   }));
   const covered = lines.filter((l) => l.coverage != null);
+  const publishing = (l) => l.status === 'PUBLISHING';
   return {
     lines,
     coverage: covered.length
       ? Math.round((covered.reduce((s, l) => s + l.coverage, 0) / covered.length) * 10) / 10
       : null,
-    failures: lines.filter((l) => !l.pass).map((l) => l.store),
-    pass: lines.length > 0 && lines.every((l) => l.pass),
+    failures: lines.filter((l) => !l.pass && !publishing(l)).map((l) => l.store),
+    publishing: lines.filter(publishing).map((l) => l.store),
+    pass: lines.length > 0 && lines.every((l) => l.pass || publishing(l)),
   };
 }
 
@@ -402,6 +413,15 @@ async function runOperation(ctx, body) {
     .map((line) => line.store);
   const noCurrentFailures = noCurrentBrochure.filter((store) =>
     verification.failures.includes(store));
+  // Stores still advancing when the invocation budget ran out: the */2 resume
+  // cron completes them (see runStoreToPublication).
+  const handedOff = fanout.stores
+    .filter((line) => line.ok && line.result?.publication?.handedOff)
+    .map((line) => line.store);
+  const failedStores = new Set([
+    ...fanout.stores.filter((line) => !line.ok).map((line) => line.store),
+    ...verification.failures,
+  ]);
   const ok = fanout.failed === 0 && verification.pass;
   const report = {
     action: `ops:${op}`,
@@ -410,6 +430,7 @@ async function runOperation(ctx, body) {
     fanout: fanout.stores,
     verification,
     source: { noCurrentBrochure },
+    handedOff,
     ok,
     elapsedMs: Date.now() - t0,
   };
@@ -418,7 +439,7 @@ async function runOperation(ctx, body) {
     action: `ops:${op}`,
     stores: targets.length,
     ok,
-    failed: fanout.failed + verification.failures.length,
+    failed: failedStores.size,
     coverage: verification.coverage,
     elapsed_ms: report.elapsedMs,
     error:
@@ -428,12 +449,15 @@ async function runOperation(ctx, body) {
         : verification.failures.length
           ? `unhealthy after run: ${verification.failures.join(', ')}`
           : null),
-    detail: { targets, failures: verification.failures, noCurrentBrochure },
+    detail: { targets, failures: verification.failures, noCurrentBrochure, handedOff },
   });
   if (body.notify) {
     report.notified = await notifyReport(ctx, `Ops ${op}: ${ok ? 'OK' : 'FAILED'}`, [
       `stores: ${targets.length}`,
       `failures: ${verification.failures.join(', ') || 'none'}`,
+      ...(verification.publishing.length
+        ? [`still publishing: ${verification.publishing.join(', ')}`]
+        : []),
       `coverage: ${verification.coverage ?? 'n/a'}%`,
       `elapsed: ${report.elapsedMs}ms`,
     ]);

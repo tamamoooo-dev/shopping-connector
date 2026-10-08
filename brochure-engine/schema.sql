@@ -471,6 +471,9 @@ CREATE TABLE IF NOT EXISTS ops_runs (
 
 CREATE INDEX IF NOT EXISTS ix_ops_runs_store ON ops_runs(store, id);
 CREATE INDEX IF NOT EXISTS ix_ops_runs_origin ON ops_runs(origin, id);
+-- Per-store last OK / last failure and per-action reads (migrate-2026-09-30).
+CREATE INDEX IF NOT EXISTS ix_ops_runs_store_ok ON ops_runs(store, ok, id);
+CREATE INDEX IF NOT EXISTS ix_ops_runs_action ON ops_runs(action, id);
 
 -- Vision enrichment (offers/enrich.js): side-car names for offers whose OCR
 -- debris defeated deriveNames. Joins offers 1:1 by id; never holds prices.

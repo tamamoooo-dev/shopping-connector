@@ -415,6 +415,77 @@ const post = (ctx, path, body, headers = {}) =>
     JSON.stringify(multiCompleted.fanout),
   );
 
+  // Regression 2026-09-30: Run All split the 48-call budget evenly — 18 stores
+  // got 2 calls each — and threw "did not complete within 2 invocations" for
+  // every store whose flyers needed more batches, although each durable job was
+  // advancing and the */2 resume cron published all of them minutes later.
+  // The budget is now shared, and a store still advancing when it runs out is
+  // handed off and verifies as PUBLISHING, not failed.
+  const handoff = await buildCtx();
+  handoff.selfCalls.length = 0;
+  const hops = {};
+  handoff.self.fetch = async (url) => {
+    const store = new URL(url).searchParams.get('store');
+    handoff.selfCalls.push(String(url));
+    hops[store] = (hops[store] || 0) + 1;
+    // alpha publishes on its second hop; beta and gamma are huge but advance.
+    const done = store === 'alpha' && hops[store] === 2;
+    return new Response(JSON.stringify({
+      totals: { detected: done ? 1 : 0, new: done ? 1 : 0, deduped: 0, failed: 0 },
+      resumable: done
+        ? { storeComplete: true, flyerRef: '1', pagesCollected: 5, batch: {} }
+        : { storeComplete: false, flyerRef: '1', nextPage: hops[store] * 8, pagesCollected: 8, batch: {} },
+    }), { headers: { 'content-type': 'application/json' } });
+  };
+  handoff.collectionStore = {
+    async listPending() {
+      return ['beta', 'gamma'].map((store) => ({
+        store, region: 'central', advertised_flyers: 1, advertised_pages: 400,
+        collected_pages: 120, last_error: null, updated_at: new Date().toISOString(),
+      }));
+    },
+  };
+  r = await post(handoff, '/api/run', { op: 'all', confirm: true }, auth);
+  const handed = await r.json();
+  const handedFanout = Object.fromEntries(handed.fanout.map((line) => [line.store, line]));
+  check(
+    'Run All shares one budget and hands still-advancing stores to the resume cron',
+    r.status === 200 &&
+      handoff.selfCalls.length === 48 &&
+      handed.fanout.every((line) => line.ok) &&
+      handedFanout.alpha.result.publication.complete === true &&
+      handedFanout.alpha.result.publication.invocations === 2 &&
+      handedFanout.beta.result.publication.handedOff === true &&
+      handedFanout.gamma.result.publication.handedOff === true &&
+      handedFanout.beta.result.publication.invocations + handedFanout.gamma.result.publication.invocations === 46 &&
+      handed.handedOff.sort().join(',') === 'beta,gamma',
+    JSON.stringify(handed.fanout.map((line) => [line.store, line.ok, line.error || line.result?.publication])),
+  );
+  check(
+    'handed-off stores verify as PUBLISHING, not failures, and the run passes',
+    handed.ok === true &&
+      handed.verification.failures.length === 0 &&
+      handed.verification.publishing.sort().join(',') === 'beta,gamma' &&
+      handed.verification.lines.find((line) => line.store === 'beta').progress === 30,
+    JSON.stringify(handed.verification),
+  );
+
+  // A hop that makes no progress is still a loud failure, never a hand-off.
+  const stuck = await buildCtx();
+  stuck.self.fetch = async () => new Response(JSON.stringify({
+    totals: { detected: 0, new: 0, deduped: 0, failed: 0 },
+    resumable: { storeComplete: false, flyerRef: '9', nextPage: 16, pagesCollected: 0, batch: {} },
+  }), { headers: { 'content-type': 'application/json' } });
+  r = await post(stuck, '/api/run', { op: 'store', stores: ['alpha'], confirm: true }, auth);
+  const stuckReport = await r.json();
+  check(
+    'a publication that stops advancing still fails the store',
+    stuckReport.ok === false &&
+      stuckReport.fanout[0].ok === false &&
+      /made no progress at flyer 9/.test(stuckReport.fanout[0].error),
+    JSON.stringify(stuckReport.fanout),
+  );
+
   // Partial runs carry the mode through to the child URL.
   ctx.selfCalls.length = 0;
   await post(ctx, '/api/run', { op: 'offers', confirm: true }, auth);

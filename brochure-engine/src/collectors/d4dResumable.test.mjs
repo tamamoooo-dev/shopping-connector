@@ -3,7 +3,9 @@ import { createPipeline } from '../pipeline.js';
 import { createMemoryMetadataStore } from '../storage/local.js';
 import {
   collectD4dBatch,
+  collectD4dStore,
   D4D_BATCH_PAGES,
+  D4D_PAID_BATCH_PAGES,
   publishD4dCollection,
   summarizeD4dResult,
 } from './d4dResumable.js';
@@ -348,6 +350,53 @@ assert.equal(collectionEvents.at(-1).status, 'complete');
   assert.equal(finish.batch.startIndex, 12);
   assert.equal(finish.batch.endIndex, 19);
   await publishD4dCollection(legacyCtx, finish);
+}
+
+// Workers Paid (2026-09-30): one invocation keeps hopping until the store is
+// complete (or its time budget ends), checkpointing every hop.
+{
+  const paidObjects = createMemoryObjectStore();
+  const paidMetadata = createMemoryMetadataStore();
+  const paidEvents = [];
+  const paidCtx = {
+    objectStore: paidObjects,
+    metadataStore: paidMetadata,
+    pipeline: createPipeline({ objectStore: paidObjects, metadataStore: paidMetadata }),
+    collectionStore: {
+      async markPending(store, region, detail) { paidEvents.push({ status: 'pending', ...detail }); },
+      async markComplete(store, region, detail) { paidEvents.push({ status: 'complete', ...detail }); },
+    },
+    offerStore,
+    registry,
+  };
+  const paidFetch = createFetch();
+
+  // A time budget that ends after the first hop leaves a resumable checkpoint.
+  let clock = 0;
+  const partial = await collectD4dStore(paidCtx, {
+    store: 'shop',
+    adapter: createAdapter(130),
+    fetchImpl: paidFetch.fetchImpl,
+    budgetMs: 1000,
+    now: () => (clock += 1000),
+  });
+  assert.equal(partial.storeComplete, false);
+  assert.equal(partial.hops, 1);
+  assert.equal(partial.pagesCollected, D4D_PAID_BATCH_PAGES);
+
+  // The next invocation finishes the whole 130-page flyer and publishes it.
+  const whole = await collectD4dStore(paidCtx, {
+    store: 'shop',
+    adapter: createAdapter(130),
+    fetchImpl: paidFetch.fetchImpl,
+  });
+  assert.equal(whole.storeComplete, true);
+  assert.equal(whole.hops, 2);
+  assert.equal(whole.pagesCollected, 130 - D4D_PAID_BATCH_PAGES);
+  assert.deepEqual(whole.counts, { detected: 1, new: 1, deduped: 0 });
+  assert.equal(paidFetch.fetched.length, 130, 'every page downloaded exactly once across both invocations');
+  assert.equal((await paidMetadata.getCurrent('shop', 'central')).length, 1);
+  await publishD4dCollection(paidCtx, whole);
 }
 
 console.log('d4dResumable.test: generic batching, first-missing resume, and bounded legacy migration passed');

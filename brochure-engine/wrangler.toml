@@ -8,6 +8,15 @@ name = "brochure-engine"
 main = "src/index.js"
 compatibility_date = "2025-06-01"
 
+# Workers Paid (2026-09-30): the per-invocation CPU ceiling, raised from the
+# 30 s default to the 5-minute maximum so a heavy invocation (registry
+# resolution, a full store ingest, a multi-hop brochure collection) is never
+# killed with "Exceeded CPU Limit". It is a ceiling, not a reservation: billing
+# counts only the CPU actually used (measured 2026-09-30: every production
+# invocation stayed under 1 s).
+[limits]
+cpu_ms = 300000
+
 [[queues.producers]]
 binding = "BACKGROUND_DRAINS"
 queue = "brochure-background-drains"

@@ -55,7 +55,7 @@ import { detectBrand } from './browse/brands.js';
 import { watchesWithSearchIdentity } from './watchSearchIdentity.js';
 import { processWatchRuns } from './watchSchedule.js';
 import {
-  collectD4dBatch,
+  collectD4dStore,
   isD4dRegion,
   publishD4dCollection,
   summarizeD4dResult,
@@ -259,7 +259,9 @@ async function ingestD4dResumable(ctx, provider, region, mode) {
     if (mode !== 'brochures' && ctx.offerStore && ctx.offersSource) {
       offers = await ingestOffers(ctx, { store: provider.id });
     }
-    result = await collectD4dBatch(ctx, { store: provider.id, region });
+    // Workers Paid: as many checkpointed hops as fit this invocation's budget,
+    // so a store usually publishes in one invocation (collectD4dStore).
+    result = await collectD4dStore(ctx, { store: provider.id, region });
 
     // Publication is atomic at brochure completion. Once the whole store's
     // advertised flyer set is complete, repeat the cheap offers ingest so every
@@ -275,7 +277,7 @@ async function ingestD4dResumable(ctx, provider, region, mode) {
     } else if (result.storeComplete) {
       throw new Error('Exact offer linkage refresh is unavailable');
     }
-    const counts = summarizeD4dResult(result);
+    const counts = result.counts || summarizeD4dResult(result);
     const target = {
       store: provider.id,
       region,

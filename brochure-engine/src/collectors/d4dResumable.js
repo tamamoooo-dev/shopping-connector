@@ -1,6 +1,7 @@
 // Resumable D4D image collection for every D4D-backed provider.
 //
-// One Worker invocation advances one brochure by at most BATCH_PAGES. The
+// One HOP advances one brochure by at most BATCH_PAGES; on Workers Paid one
+// invocation runs many hops (collectD4dStore). The
 // durable manifest contains the advertised flyer/page set and a contiguous list
 // of verified stored page objects. Public meta/hotspots/D1 publication happens
 // only after every advertised page has been verified.
@@ -242,6 +243,8 @@ export async function collectD4dBatch(
     fetchImpl = fetch,
     adapter = d4dAdapter,
     batchPages = D4D_BATCH_PAGES,
+    // Held pages re-verified per hop (read + hash, no download).
+    seedPages = Math.min(8, Math.max(1, batchPages)),
   } = {},
 ) {
   const provider = ctx.registry?.[store];
@@ -326,7 +329,7 @@ export async function collectD4dBatch(
     ctx,
     flyer,
     flyer.heldStorageKey,
-    Math.min(8, Math.max(1, batchPages)),
+    Math.max(1, seedPages),
   );
   if (legacySeed.seeded > 0) {
     await saveManifest(ctx, key, manifest);
@@ -495,6 +498,59 @@ export async function collectD4dBatch(
     advertisedBrochures: manifest.flyers.length,
     collectionTotals: totals,
     manifestKey: key,
+  };
+}
+
+// Workers Paid (2026-09-30). The hop above was sized for the Free plan (10 ms
+// CPU, 50 subrequests per invocation), so a new week took one invocation per
+// 20 downloaded / 8 re-verified pages and per flyer — Danube's unchanged
+// 137-page flyer alone needed ~18 resume ticks (~36 minutes). On Paid one
+// invocation keeps hopping — flyer after flyer, D4D_PAID_BATCH_PAGES per hop —
+// until the store is complete or the wall-clock budget is spent. Every hop is
+// still checkpointed in the manifest, so an interrupted invocation loses at
+// most one hop, and a hop that makes no progress ends the loop.
+export const D4D_PAID_BATCH_PAGES = 60;
+export const D4D_INVOCATION_BUDGET_MS = 45 * 1000;
+export const D4D_MAX_HOPS_PER_INVOCATION = 40;
+
+export async function collectD4dStore(
+  ctx,
+  {
+    budgetMs = D4D_INVOCATION_BUDGET_MS,
+    maxHops = D4D_MAX_HOPS_PER_INVOCATION,
+    batchPages = D4D_PAID_BATCH_PAGES,
+    now = () => Date.now(),
+    ...options
+  } = {},
+) {
+  const deadline = now() + budgetMs;
+  const results = [];
+  let previous = null;
+  for (;;) {
+    const result = await collectD4dBatch(ctx, { ...options, batchPages, seedPages: batchPages });
+    results.push(result);
+    if (result.storeComplete || results.length >= maxHops || now() >= deadline) break;
+    const progress = JSON.stringify([
+      result.flyerRef ?? null,
+      result.nextPage ?? null,
+      result.brochuresCompleted ?? null,
+      result.complete === true,
+    ]);
+    if (progress === previous) break;
+    previous = progress;
+  }
+  const last = results[results.length - 1];
+  const counts = results
+    .map(summarizeD4dResult)
+    .reduce(
+      (sum, c) => ({ detected: sum.detected + c.detected, new: sum.new + c.new, deduped: sum.deduped + c.deduped }),
+      { detected: 0, new: 0, deduped: 0 },
+    );
+  return {
+    ...last,
+    hops: results.length,
+    pagesCollected: results.reduce((n, r) => n + Number(r.pagesCollected || 0), 0),
+    counts,
   };
 }
 

@@ -842,16 +842,25 @@ export function createMemoryOpsStore() {
         detail: run.detail != null ? JSON.stringify(run.detail) : null,
       });
     },
-    async list({ limit = 50, store = '', origin = '', failedOnly = false } = {}) {
+    async list({ limit = 50, store = '', origin = '', action = '', failedOnly = false } = {}) {
       return runs
         .filter(
           (r) =>
             (!store || r.store === store) &&
             (!origin || r.origin === origin) &&
+            (!action || r.action === action) &&
             (!failedOnly || !r.ok),
         )
         .sort((a, b) => b.id - a.id)
         .slice(0, Math.max(1, Math.min(Number(limit) || 50, 400)));
+    },
+    async latestByStore(stores) {
+      const out = {};
+      for (const store of new Set((stores || []).filter(Boolean).map(String))) {
+        const mine = runs.filter((r) => r.store === store).sort((a, b) => b.id - a.id);
+        out[store] = { ok: mine.find((r) => r.ok) || null, fail: mine.find((r) => !r.ok) || null };
+      }
+      return out;
     },
   };
 }

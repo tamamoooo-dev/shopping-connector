@@ -46,29 +46,30 @@ const pct = (num, den) => (den > 0 ? Math.round((num / den) * 1000) / 10 : null)
 // the sweep (the Store Inspector and post-operation verification).
 export async function computeStoreRows(ctx, { now = new Date(), stores = null } = {}) {
   const today = todayISO(now);
-  const [current, offersByStore, runs, pendingCollections] = await Promise.all([
+  const wanted = stores ? new Set(stores) : null;
+  const storeIds = Object.values(ctx.registry)
+    .map((provider) => provider.id)
+    .filter((id) => !wanted || wanted.has(id));
+  const [current, offersByStore, lastRun, pendingCollections] = await Promise.all([
     ctx.metadataStore.listCurrent(),
     ctx.offerStore && ctx.offerStore.countsByStore
       ? ctx.offerStore.countsByStore(today)
       : Promise.resolve({}),
-    ctx.opsStore ? ctx.opsStore.list({ limit: 300 }) : Promise.resolve([]),
+    ctx.opsStore ? latestRunsByStore(ctx.opsStore, storeIds) : Promise.resolve(new Map()),
     ctx.collectionStore && ctx.collectionStore.listPending
       ? ctx.collectionStore.listPending(24).catch(() => [])
       : Promise.resolve([]),
   ]);
 
-  // Latest per-store ingest outcomes from the audit rows the /ingest children
-  // write (newest first, so first sighting per store+kind wins).
-  const lastRun = new Map(); // store -> { ok: row|null, fail: row|null }
-  for (const r of runs) {
-    if (!r.store) continue;
-    const slot = lastRun.get(r.store) || { ok: null, fail: null };
-    if (r.ok && !slot.ok) slot.ok = r;
-    if (!r.ok && !slot.fail) slot.fail = r;
-    lastRun.set(r.store, slot);
-  }
+  // Every flyer's snapshot + offer reads at once: done one flyer after another
+  // they made the console wait ~12 s on ~70 flyers (measured 2026-09-30: under
+  // 0.2 s of it was CPU, the rest sequential I/O).
+  const flyerStats = new Map(await Promise.all(
+    current
+      .filter((row) => !wanted || wanted.has(row.store))
+      .map(async (row) => [row.id, await flyerCoverage(ctx, row)]),
+  ));
 
-  const wanted = stores ? new Set(stores) : null;
   const rows = [];
   for (const provider of Object.values(ctx.registry)) {
     if (wanted && !wanted.has(provider.id)) continue;
@@ -78,43 +79,7 @@ export async function computeStoreRows(ctx, { now = new Date(), stores = null } 
     let clickable = 0;
     let priced = 0;
     for (const row of cur) {
-      const flyerRef = flyerRefFromUrl(row.source_url);
-      let spots = 0;
-      let linked = 0;
-      let pricedSpots = 0;
-      // Tap-geometry snapshots exist only for image-set flyers; reading them is
-      // a KV/R2 get + one D1 query — zero external subrequests.
-      if (row.source_type === 'images' && ctx.objectStore) {
-        const snap = await ctx.objectStore.get(`brochures/${row.storage_key}/hotspots.json`);
-        if (snap) {
-          let pages = [];
-          try {
-            pages = JSON.parse(new TextDecoder().decode(snap.bytes)).pages || [];
-          } catch {
-            pages = []; // corrupt snapshot reads as zero spots, never throws
-          }
-          const spotIds = [];
-          for (const p of pages) for (const s of p.spots || []) spotIds.push(String(s.offerId));
-          spots = spotIds.length;
-          if (spots && flyerRef && ctx.offerStore && ctx.offerStore.byFlyer) {
-            const offerRows = await ctx.offerStore.byFlyer(provider.id, row.region, flyerRef);
-            const held = new Set(offerRows.map((o) => String(o.offer_id)));
-            pricedSpots = spotIds.filter((id) => held.has(id)).length;
-            // The viewer's rule (hotspots.js getHotspotsDoc): a spot is also
-            // tappable when its product is queued unpriced (price pending /
-            // unavailable). Best-effort like the viewer: no queue -> priced only.
-            if (ctx.offerStore.pricePendingIdsByFlyer) {
-              try {
-                const queued = await ctx.offerStore.pricePendingIdsByFlyer(provider.id, row.region, flyerRef);
-                for (const id of queued) held.add(id);
-              } catch {
-                // price_pending missing -> priced spots only, as before
-              }
-            }
-            linked = spotIds.filter((id) => held.has(id)).length;
-          }
-        }
-      }
+      const { flyerRef, spots, linked, pricedSpots } = flyerStats.get(row.id);
       hotspots += spots;
       clickable += linked;
       priced += pricedSpots;
@@ -222,17 +187,76 @@ export async function computeStoreRows(ctx, { now = new Date(), stores = null } 
       lastOkAt: slot.ok ? slot.ok.ts : null,
       lastOkMs: slot.ok ? slot.ok.elapsed_ms : null,
       lastFailAt: slot.fail ? slot.fail.ts : null,
+      // A failure a later successful run superseded is history (lastFailAt,
+      // the Audit Timeline), not a current error under a healthy store.
       lastError:
         publicationError ||
         (publicationStalled
           ? `brochure publication stalled for ${Math.round(publicationAgeMs / 60000)} minutes`
-          : slot.fail ? slot.fail.error : null),
+          : failIsLatest ? slot.fail.error : null),
     });
   }
   // Unhealthy stores first — they must stand out on a phone screen.
   const rank = { FAIL: 0, NO_FLYER: 1, STALE: 2, PUBLISHING: 3, LOW_COVERAGE: 4, OK: 5 };
   rows.sort((a, b) => rank[a.status] - rank[b.status] || a.store.localeCompare(b.store));
   return rows;
+}
+
+// One current flyer's tap coverage: hotspots, spots that open a product (priced
+// or price-pending — the viewer's rule), and spots with a priced offer.
+async function flyerCoverage(ctx, row) {
+  const flyerRef = flyerRefFromUrl(row.source_url);
+  const stats = { flyerRef, spots: 0, linked: 0, pricedSpots: 0 };
+  // Tap-geometry snapshots exist only for image-set flyers; reading them is
+  // a KV/R2 get + D1 queries — zero external subrequests.
+  if (row.source_type !== 'images' || !ctx.objectStore) return stats;
+  const snap = await ctx.objectStore.get(`brochures/${row.storage_key}/hotspots.json`);
+  if (!snap) return stats;
+  let pages = [];
+  try {
+    pages = JSON.parse(new TextDecoder().decode(snap.bytes)).pages || [];
+  } catch {
+    pages = []; // corrupt snapshot reads as zero spots, never throws
+  }
+  const spotIds = [];
+  for (const p of pages) for (const s of p.spots || []) spotIds.push(String(s.offerId));
+  stats.spots = spotIds.length;
+  if (!stats.spots || !flyerRef || !ctx.offerStore || !ctx.offerStore.byFlyer) return stats;
+  const [offerRows, queued] = await Promise.all([
+    ctx.offerStore.byFlyer(row.store, row.region, flyerRef),
+    // The viewer's rule (hotspots.js getHotspotsDoc): a spot is also tappable
+    // when its product is queued unpriced (price pending / unavailable).
+    // Best-effort like the viewer: no queue -> priced only.
+    ctx.offerStore.pricePendingIdsByFlyer
+      ? Promise.resolve(ctx.offerStore.pricePendingIdsByFlyer(row.store, row.region, flyerRef)).catch(() => [])
+      : Promise.resolve([]),
+  ]);
+  const held = new Set(offerRows.map((o) => String(o.offer_id)));
+  stats.pricedSpots = spotIds.filter((id) => held.has(id)).length;
+  for (const id of queued) held.add(id);
+  stats.linked = spotIds.filter((id) => held.has(id)).length;
+  return stats;
+}
+
+// Latest per-store ingest outcomes (store -> { ok: row|null, fail: row|null })
+// from the audit rows the /ingest children write. Read per store: the older
+// newest-300-rows window was flooded by store-less rows (the price drain writes
+// three a minute), so every store's last OK — and a failed store's FAIL, which
+// is what Retry Failed targets — vanished within ~2 hours. The window stays
+// only as the fallback for an audit store without latestByStore.
+async function latestRunsByStore(opsStore, storeIds) {
+  if (typeof opsStore.latestByStore === 'function') {
+    return new Map(Object.entries(await opsStore.latestByStore(storeIds)));
+  }
+  const lastRun = new Map();
+  for (const r of await opsStore.list({ limit: 300 })) {
+    if (!r.store) continue;
+    const slot = lastRun.get(r.store) || { ok: null, fail: null };
+    if (r.ok && !slot.ok) slot.ok = r;
+    if (!r.ok && !slot.fail) slot.fail = r;
+    lastRun.set(r.store, slot);
+  }
+  return lastRun;
 }
 
 // The stores an automated repair should target (the console's Repair Unhealthy
@@ -299,11 +323,15 @@ export async function subsystemChecks(ctx, { storeRows, now = new Date() } = {})
     typeof ctx.offerStore.navigationMetrics === 'function' &&
     ctx.opsStore
   ) {
-    const [metrics, navRuns] = await Promise.all([
+    // Only /ingest children write the navigation audit; read them by action so
+    // the price drain's rows cannot push the latest one out of the window.
+    const [metrics, ...navRunLists] = await Promise.all([
       ctx.offerStore.navigationMetrics(today),
-      ctx.opsStore.list({ limit: 300 }),
+      ...['ingest', 'ingest:brochures'].map((action) => ctx.opsStore.list({ action, limit: 100 })),
     ]);
-    const latest = navRuns
+    const latest = navRunLists
+      .flat()
+      .sort((a, b) => b.id - a.id)
       .map((run) => ({ run, navigation: parseDetail(run).navigation }))
       .find((item) => item.navigation);
     if (!latest) {
@@ -785,13 +813,30 @@ export async function recoverySnapshot(ctx, { now = new Date() } = {}) {
 
 // §5 Cron Monitor: every scheduled task with its last run, next fire, and a
 // short execution log — all from the cron-origin audit rows + the cron specs.
-const CRON_ACTION = { pipeline: 'cron:fanout', watches: 'cron:watches', enrich: 'cron:enrich' };
+// The audit action each schedule writes (enrich and verification write only on
+// fires that had work; brochureResume is its per-store children).
+const CRON_ACTION = {
+  pipeline: 'cron:fanout',
+  watches: 'cron:watches',
+  enrich: 'cron:enrich',
+  verification: 'cron:vision-verification',
+  brochureResume: 'ingest:brochures',
+};
 
 export async function cronMonitor(ctx, { now = new Date() } = {}) {
-  const rows = ctx.opsStore ? await ctx.opsStore.list({ origin: 'cron', limit: 200 }).catch(() => []) : [];
-  const crons = Object.entries(ctx.crons || {}).map(([name, expr]) => {
-    const action = CRON_ACTION[name] || `cron:${name}`;
-    const mine = rows.filter((r) => r.action === action);
+  const schedules = Object.entries(ctx.crons || {}).map(([name, expr]) => [
+    name,
+    expr,
+    CRON_ACTION[name] || `cron:${name}`,
+  ]);
+  // One read per action: a shared newest-200 window was filled by the price
+  // drain and the resume children, so the weekly pipeline fell out of it.
+  const rowLists = ctx.opsStore
+    ? await Promise.all(schedules.map(([, , action]) =>
+      ctx.opsStore.list({ origin: 'cron', action, limit: 8 }).catch(() => [])))
+    : schedules.map(() => []);
+  const crons = schedules.map(([name, expr, action], index) => {
+    const mine = rowLists[index].filter((r) => r.action === action);
     const last = mine[0] || null;
     const next = cronNext(expr, now);
     return {
@@ -836,14 +881,19 @@ export async function pipelineHealth(ctx, { now = new Date() } = {}) {
   const storeRows = await computeStoreRows(ctx, { now });
   const checks = await subsystemChecks(ctx, { storeRows, now });
   const byName = (n) => checks.find((c) => c.name === n);
-  const [offers, cov, verdicts, rstats, hist, cronRows] = await Promise.all([
+  const cronRowsFor = (action) => (ctx.opsStore
+    ? ctx.opsStore.list({ origin: 'cron', action, limit: 1 }).catch(() => [])
+    : Promise.resolve([]));
+  const [offers, cov, verdicts, rstats, hist, fanoutRows, enrichRows] = await Promise.all([
     ctx.offerStore ? ctx.offerStore.counts(today) : Promise.resolve({ current: 0 }),
     ctx.enrichStore ? ctx.enrichStore.coverage(today) : Promise.resolve(null),
     ctx.enrichStore ? ctx.enrichStore.verdictCounts().catch(() => ({})) : Promise.resolve({}),
     ctx.registryStore ? ctx.registryStore.stats().catch(() => null) : Promise.resolve(null),
     ctx.historyStore ? ctx.historyStore.counts().catch(() => null) : Promise.resolve(null),
-    ctx.opsStore ? ctx.opsStore.list({ origin: 'cron', limit: 50 }).catch(() => []) : Promise.resolve([]),
+    cronRowsFor('cron:fanout'),
+    cronRowsFor('cron:enrich'),
   ]);
+  const cronRows = [...fanoutRows, ...enrichRows];
   const lastOf = (action) => {
     const r = cronRows.find((x) => x.action === action);
     return r ? r.ts : null;

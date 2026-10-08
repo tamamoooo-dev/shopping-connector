@@ -24,10 +24,11 @@ for (const [name, run] of [
     return name === 'Stage 1'
       ? { enriched: 1 }
       : { verified: 1, unmatched: 0 };
-  }, { pending: 100, ...CPU_SAFE_BACKGROUND_DRAIN });
+  }, { pending: 200, ...CPU_SAFE_BACKGROUND_DRAIN });
+  // Workers Paid: four offers per child, still at most 28 SELF children.
   assert.equal(report.batches, 28);
-  assert.deepEqual(calls, Array(28).fill(1));
-  console.log(`  ok  ${name} isolates every offer and stays below the SELF invocation ceiling`);
+  assert.deepEqual(calls, Array(28).fill(4));
+  console.log(`  ok  ${name} batches four offers per child and stays below the SELF invocation ceiling`);
 }
 
 for (const [name, run] of [

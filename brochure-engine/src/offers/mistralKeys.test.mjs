@@ -11,12 +11,16 @@
 //  • it SLEEPS only when EVERY key is dead/parked, then resumes at the soonest
 //    window (honoring Retry-After); it is primary-preferred once a window passes,
 //  • single-key config is backward compatible: a 429 is waited out then retried,
-//  • 5xx / crop-fetch errors NEVER retire a key (backup hits the same provider),
+//  • 5xx / crop-fetch errors NEVER retire a key,
+//  • ANY other error (5xx, network, unusable reply) moves the request to the
+//    next key at once and rests the failing one (2026-09-30); crop-fetch errors
+//    do not fail over,
 //  • drainEnrichment surfaces failedOver and keeps draining across a failover.
 
 import {
   createKeyChain, classifyMistral429, classifyMistralError, withFailover, remainingPercentage,
   buildMistralPools, latestMistralUsage, mistralPoolInventory, minuteWindowSpent, nextMinuteWindow,
+  FAILED_KEY_COOLDOWN_MS,
 } from './mistralKeys.js';
 import { enrichWithFailover, drainEnrichment } from './enrich.js';
 
@@ -317,6 +321,72 @@ console.log('withFailover:');
       await withFailover(chain, async () => { throw mistralErr(503); }, { sleepImpl: async () => {} });
     } catch (e) { threw = e; }
     check('5xx propagates without parking a key', threw?.status === 503 && !chain.failedOver());
+  }
+
+  // 2026-09-30 user directive: a 429 OR ANY OTHER error moves the request to
+  // the next available key at once; the failing key rests briefly.
+  {
+    let t = 1_000;
+    const chain = createKeyChain(['a', 'b'], { log: noLog, now: () => t });
+    const seen = [];
+    const result = await withFailover(chain, async (k) => {
+      seen.push(k);
+      if (k === 'a') throw mistralErr(500);
+      return { ok: k };
+    }, { now: () => t, sleepImpl: async () => { throw new Error('must not sleep'); } });
+    check('a 5xx on key a is retried on key b immediately', result.ok === 'b' && seen.join(',') === 'a,b');
+    check('the failing key rests, so the next request starts on the healthy key',
+      chain.pick(t).key === 'b' && chain.snapshot()[0].status === 'limited');
+    t += FAILED_KEY_COOLDOWN_MS;
+    check('after its cooldown the primary is preferred again', chain.pick(t).key === 'a');
+  }
+  {
+    const chain = createKeyChain(['a', 'b'], { log: noLog });
+    const seen = [];
+    const result = await withFailover(chain, async (k) => {
+      seen.push(k);
+      if (k === 'a') throw new TypeError('Network connection lost.');
+      return { ok: k };
+    }, { sleepImpl: async () => {} });
+    check('a dropped connection also fails over', result.ok === 'b' && seen.join(',') === 'a,b');
+  }
+  {
+    const chain = createKeyChain(['a', 'b', 'c'], { log: noLog });
+    const seen = [];
+    let sleeps = 0;
+    let threw = null;
+    try {
+      await withFailover(chain, async (k) => {
+        seen.push(k);
+        throw mistralErr(k === 'c' ? 503 : 500);
+      }, { sleepImpl: async () => { sleeps += 1; } });
+    } catch (err) { threw = err; }
+    check('an error on every key tries each exactly once, then surfaces the last error',
+      seen.join(',') === 'a,b,c' && threw?.status === 503 && sleeps === 0);
+  }
+  {
+    const chain = createKeyChain(['a', 'b'], { log: noLog });
+    const seen = [];
+    let threw = null;
+    try {
+      await withFailover(chain, async (k) => { seen.push(k); throw cropErr(520); }, { sleepImpl: async () => {} });
+    } catch (err) { threw = err; }
+    check('a crop download failure is not a key problem: no failover',
+      seen.join(',') === 'a' && threw?.status === 520 && chain.pick().key === 'a');
+  }
+  {
+    // A 429 on one key and a 5xx on the other: the rate-limited key is waited
+    // for (its window), the 5xx key is not retried within the same request.
+    let t = 0;
+    const chain = createKeyChain(['a', 'b'], { log: noLog, now: () => t });
+    const seen = [];
+    const result = await withFailover(chain, async (k) => {
+      seen.push(k);
+      if (k === 'a' && seen.length === 1) throw Object.assign(mistralErr(429), { retryAfterMs: 2000 });
+      if (k === 'b') throw mistralErr(502);
+      return { ok: k };
+    }, { now: () => t, sleepImpl: async (ms) => { t += ms; } });
+    check('429 + 5xx: waits for the rate window of a, never re-asks b', result.ok === 'a' && seen.join(',') === 'a,b,a');
   }
 
   // Single key (backward compatible): a persistent 429 is waited out, then

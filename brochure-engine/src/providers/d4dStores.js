@@ -42,7 +42,11 @@ export const d4dStoreProviders = [
   { id: 'cityflower', label: 'City Flower', store: 'city-flower-556' },
   { id: 'marksave', label: 'Mark & Save', store: 'mark-save-3179' },
   { id: 'amarket', label: 'A Market', store: 'a-market-3351' },
-  { id: 'grandhyper', label: 'Grand Hyper', store: 'grand-hyper-3181' },
+  // Grand Hyper (grand-hyper-3181) was RETIRED 2026-09-30: D4D has listed only
+  // expired flyers since 23 Aug, so every run reported "no current brochure at
+  // source". Replaced by Mkhazin (مخازن سوبرماركت), probed live the same day:
+  // a current 49-page Riyadh flyer and a products listing.
+  { id: 'mkhazin', label: 'Mkhazin Supermarket', store: 'mkhazin-supermarket-2872' },
   { id: 'makkah', label: 'Makkah Hypermarket', store: 'makkah-hypermarket-796' },
   { id: 'prime', label: 'Prime Supermarket', store: 'prime-supermarket-471' },
   { id: 'alwafa', label: 'Hyper Al Wafa', store: 'hyper-al-wafa-3041' },

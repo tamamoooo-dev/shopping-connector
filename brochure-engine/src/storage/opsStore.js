@@ -8,7 +8,8 @@
 //
 // Interface:
 //   record(run)                    -> Promise<void>   (best-effort; see engine.js)
-//   list({ limit, store, origin, failedOnly }) -> Promise<row[]>  (newest first)
+//   list({ limit, store, origin, action, failedOnly }) -> Promise<row[]>  (newest first)
+//   latestByStore(stores)          -> Promise<{ [store]: { ok: row|null, fail: row|null } }>
 //   listArchiveBefore(cutoff, limit) -> Promise<row[]> (oldest first)
 //   deleteArchived(ids)            -> Promise<number>
 //
@@ -49,7 +50,7 @@ export function createD1OpsStore(db) {
         .run();
     },
 
-    async list({ limit = 50, store = '', origin = '', failedOnly = false } = {}) {
+    async list({ limit = 50, store = '', origin = '', action = '', failedOnly = false } = {}) {
       const where = [];
       const binds = [];
       if (store) {
@@ -60,6 +61,10 @@ export function createD1OpsStore(db) {
         where.push('origin = ?');
         binds.push(origin);
       }
+      if (action) {
+        where.push('action = ?');
+        binds.push(action);
+      }
       if (failedOnly) where.push('ok = 0');
       const sql = `SELECT * FROM ops_runs
         ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
@@ -67,6 +72,27 @@ export function createD1OpsStore(db) {
       binds.push(Math.max(1, Math.min(Number(limit) || 50, 400)));
       const { results } = await db.prepare(sql).bind(...binds).all();
       return (results || []).map(rowToRun);
+    },
+
+    // Newest succeeded and newest failed row of each store, however many other
+    // audit rows were written since. A global newest-N window cannot answer
+    // this: store-less rows (the price drain writes three a minute) pushed
+    // every store's last run out of it within ~2 hours. One indexed
+    // single-row read per (store, ok) — ix_ops_runs_store_ok.
+    async latestByStore(stores) {
+      const ids = [...new Set((stores || []).filter(Boolean).map(String))];
+      const out = {};
+      if (!ids.length) return out;
+      const sql = 'SELECT * FROM ops_runs WHERE store = ? AND ok = ? ORDER BY id DESC LIMIT 1';
+      const results = await db.batch(
+        ids.flatMap((store) => [db.prepare(sql).bind(store, 1), db.prepare(sql).bind(store, 0)]),
+      );
+      ids.forEach((store, i) => {
+        const ok = results[2 * i]?.results?.[0];
+        const fail = results[2 * i + 1]?.results?.[0];
+        out[store] = { ok: ok ? rowToRun(ok) : null, fail: fail ? rowToRun(fail) : null };
+      });
+      return out;
     },
 
     async listArchiveBefore(cutoffISO, limit = 3000) {

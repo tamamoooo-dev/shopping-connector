@@ -63,16 +63,34 @@ export async function runFanOut(registry, dispatchStore) {
 // pages at the production batch size. SELF calls are internal-service
 // subrequests, so they do not consume the Free plan's 50 external-request
 // allowance (the current internal-service allowance is much higher).
+//
+// Running out of invocations while the durable job is still advancing is NOT a
+// failure: the job is persisted and the */2 brochureResume cron owns its
+// completion (the dashboard shows it as PUBLISHING, and as FAIL once it stops
+// moving for PUBLICATION_PROGRESS_MAX_GAP_MS). The loop hands the store off
+// instead of throwing. That was the "did not complete within 2 invocations"
+// Run All error of 2026-09-30: 18 targets split 48 calls into 2 each, while
+// one invocation advances one flyer by <= 20 downloaded or 8 re-verified
+// pages — an unchanged 137-page flyer alone needs ~18. Only a child failure or
+// a hop that makes no progress fails the store.
+//
+// `budget` ({ remaining }) is optional and SHARED by every store of one
+// operation, so stores that finish early leave their calls to the big ones.
+// The first dispatch always runs (it is what seeds the durable job).
 export async function runStoreToPublication(
   store,
   dispatchInitial,
   dispatchResume = dispatchInitial,
-  { maxInvocations = 48 } = {},
+  { maxInvocations = 48, budget = null } = {},
 ) {
   const reports = [];
   let previousProgress = null;
 
   for (let invocation = 1; invocation <= maxInvocations; invocation += 1) {
+    if (budget) {
+      if (invocation > 1 && budget.remaining <= 0) break;
+      budget.remaining -= 1;
+    }
     const report = await (invocation === 1 ? dispatchInitial : dispatchResume)(store);
     reports.push(report);
 
@@ -87,18 +105,7 @@ export async function runStoreToPublication(
 
     const resumable = report?.resumable;
     if (!resumable || resumable.storeComplete === true) {
-      return {
-        ...report,
-        publication: {
-          complete: true,
-          invocations: reports.length,
-          pageBatches: reports.filter((item) => item?.resumable?.batch).length,
-          pagesCollected: reports.reduce(
-            (sum, item) => sum + Number(item?.resumable?.pagesCollected || 0),
-            0,
-          ),
-        },
-      };
+      return { ...report, publication: publicationSummary(reports, { complete: true }) };
     }
 
     const progress = JSON.stringify([
@@ -116,9 +123,28 @@ export async function runStoreToPublication(
     previousProgress = progress;
   }
 
-  throw new Error(
-    `brochure publication ${store} did not complete within ${maxInvocations} invocations`,
-  );
+  const last = reports[reports.length - 1];
+  return {
+    ...last,
+    publication: publicationSummary(reports, {
+      complete: false,
+      handedOff: true,
+      flyerRef: last?.resumable?.flyerRef || null,
+      nextPage: last?.resumable?.nextPage ?? null,
+    }),
+  };
+}
+
+function publicationSummary(reports, fields) {
+  return {
+    ...fields,
+    invocations: reports.length,
+    pageBatches: reports.filter((item) => item?.resumable?.batch).length,
+    pagesCollected: reports.reduce(
+      (sum, item) => sum + Number(item?.resumable?.pagesCollected || 0),
+      0,
+    ),
+  };
 }
 
 // The DEFAULT fan-out mechanism: a SELF service binding (Architecture C).
@@ -225,14 +251,18 @@ export function createWatchCheckDispatcher({ self, ingestSecret, origin = 'https
 // rest — its cause (rate cap, key trouble) would fail them too, and the
 // backlog simply carries to the next fire.
 //
-// Unattended drains intentionally use ONE offer per SELF child. Crop base64,
-// extraction validation, identity building and the Stage-2 R2/D1 commit all
-// consume CPU; grouping 15 of them under one HTTP invocation intermittently
-// crosses the Workers Free CPU limit. Twenty-eight children leave headroom
+// Unattended drains used ONE offer per SELF child because crop base64,
+// extraction validation, identity building and the Stage-2 R2/D1 commit
+// crossed the Workers FREE CPU limit (10 ms) when grouped. On Workers Paid
+// (2026-09-30: 30 s default, 5 min configured in wrangler.toml [limits]) a
+// child takes FOUR, so a fire covers 112 offers instead of 28 — Mistral's
+// per-minute window, not the Worker, now paces it (~9 min per fire at the
+// ~12 requests/min the price drain leaves, inside the 20-minute fire interval
+// and the 15-minute Vision lease). Twenty-eight children still leave headroom
 // below the service-binding limit of 32 invocations for the coordinator and a
-// detached resolution child, while retaining useful per-minute throughput.
+// detached resolution child.
 export const CPU_SAFE_BACKGROUND_DRAIN = Object.freeze({
-  batchSize: 1,
+  batchSize: 4,
   maxBatches: 28,
 });
 
