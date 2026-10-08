@@ -1516,7 +1516,10 @@ export function customSearchDecision(watch, listing, source = 'online') {
 // ever IMPROVE a watch: finding nothing returns resolution `null`, which means
 // "no change", so a free extra look can never overwrite the daily check's
 // recorded outcome with a misleading one.
-export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false } = {}) {
+export async function evaluateWatch(ctx, watch, notes = [], {
+  flyerOnly = false,
+  acceptPartialSweep = false,
+} = {}) {
   const anchor = watchAnchor(watch);
   if (!anchor) {
     // An unanchored watch reads no price and alerts never. It keeps whichever
@@ -1574,13 +1577,21 @@ export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false 
   const observations = [];
 
   // A general-market round represents ALL sources. A partial sweep is not
-  // frozen as the round's answer: the minute scheduler retries until every
-  // configured source has answered, including Amazon.
+  // frozen as the round's answer while retries are still cheap: the minute
+  // scheduler retries until every configured source has answered, including
+  // Amazon. After MARKET_PARTIAL_SWEEP_AFTER_ATTEMPTS (watchSchedule.js) the
+  // caller accepts the sources that did answer, so one store that is down for
+  // the whole slot can no longer starve the round (2026-09-21..10-08: five
+  // market watches retried 360 times a slot and never completed). A partial
+  // answer is marked and may alert, but never re-arms (checkWatch).
+  let partialCoverage = null;
   if (!flyerOnly && watchTrack(watch) === WATCH_TRACK.MARKET_GENERAL && sweep.failed > 0) {
-    return {
-      price: null, resolution: RESOLUTION.PROVIDER_ERROR,
-      reason: `${sweep.failed}/${sweep.attempted} source(s) did not answer.`,
-    };
+    const reason = `${sweep.failed}/${sweep.attempted} source(s) did not answer.`;
+    if (!acceptPartialSweep || sweep.failed >= sweep.attempted) {
+      return { price: null, resolution: RESOLUTION.PROVIDER_ERROR, reason };
+    }
+    partialCoverage = { failed: sweep.failed, attempted: sweep.attempted };
+    notes.push(`${reason} Result covers the ${sweep.attempted - sweep.failed} that did.`);
   }
 
   // A PRODUCT watch takes its flyer price straight from the registry: the
@@ -1714,6 +1725,7 @@ export async function evaluateWatch(ctx, watch, notes = [], { flyerOnly = false 
     exclusions,
     rebindTo,
     sourceRebind,
+    partialCoverage,
     anchorKind: anchor.kind,
     // The resolved product travels WITH the observation so the fail-closed
     // gate can re-verify against the same thing this check decided against,
@@ -1828,12 +1840,13 @@ function monitoringHealthForResolution(resolution) {
 export async function checkWatch(ctx, watch, {
   flyerOnly = false,
   allowIdentityRebind = true,
+  acceptPartialSweep = false,
 } = {}) {
   const line = {
     id: watch.id, label: watch.label, status: 'no-data', price: null,
     alerted: false, alertType: null, resolution: null, notes: [],
   };
-  const best = await evaluateWatch(ctx, watch, line.notes, { flyerOnly });
+  const best = await evaluateWatch(ctx, watch, line.notes, { flyerOnly, acceptPartialSweep });
   const now = new Date().toISOString();
   line.resolution = best.resolution;
 
@@ -1900,6 +1913,11 @@ export async function checkWatch(ctx, watch, {
     : null;
   const close = !hit && closeBoundary != null && best.price <= closeBoundary + EPS;
   line.status = hit ? 'below-target' : close ? 'close-target' : 'above-target';
+  if (best.partialCoverage) line.partialCoverage = best.partialCoverage;
+  // A partial sweep may not have seen the store that is below target, so it
+  // can raise an alert but never clear one: re-arming on it would repeat the
+  // alert as soon as the missing store answers again.
+  const keepArmed = Boolean(best.partialCoverage);
 
   const alertType = hit && !watch.isBelow
     ? 'target'
@@ -1948,8 +1966,8 @@ export async function checkWatch(ctx, watch, {
   }
 
   await record({
-    isBelow: hit,
-    isClose: close,
+    isBelow: hit || (keepArmed && Boolean(watch.isBelow)),
+    isClose: close || (keepArmed && !hit && Boolean(watch.isClose)),
     resolvedAt: now,
     lastPrice: best.price,
     lastPurchasePrice: best.purchasePrice ?? best.price,

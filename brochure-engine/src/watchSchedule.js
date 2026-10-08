@@ -9,6 +9,10 @@ import { checkWatch, RESOLUTION } from './monitor.js';
 import { latestRiyadhSlot, WATCH_TRACK, watchTrack } from './watchPlan.js';
 
 export const WATCH_RUN_CLAIM_LIMIT = 3;
+// A market-wide round waits for every store for this many minute attempts,
+// then completes with the stores that answered (monitor.js evaluateWatch).
+// `attempts` counts the claim, so the first evaluation sees 1.
+export const MARKET_PARTIAL_SWEEP_AFTER_ATTEMPTS = 15;
 
 export async function claimScheduledWatchRuns(ctx, {
   nowMs = Date.now(),
@@ -52,6 +56,7 @@ export async function processWatchRuns(ctx, { ids = [], nowMs = Date.now() } = {
         line = await checkWatch(ctx, watch, {
           // The selected Amazon ASIN must never drift to a similar product.
           allowIdentityRebind: watchTrack(watch) !== WATCH_TRACK.AMAZON_EXACT,
+          acceptPartialSweep: run.attempts >= MARKET_PARTIAL_SWEEP_AFTER_ATTEMPTS,
         });
         retryable = line.resolution === RESOLUTION.PROVIDER_ERROR;
       }
