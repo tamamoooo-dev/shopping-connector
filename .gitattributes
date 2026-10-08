@@ -1,0 +1,5 @@
+# Frozen records that tests compare byte-for-byte (enrich.test.mjs asserts the
+# production prompt against production-prompt.txt). Without this, core.autocrlf
+# rewrites them with CRLF on Windows checkouts and the suite fails.
+brochure-engine/benchmarks/**/production-prompt.txt text eol=lf
+brochure-engine/benchmarks/**/PRODUCTION-PROMPT.md text eol=lf
