@@ -66,6 +66,7 @@ import { createServiceBindingSearchClient } from './searchClient.js';
 import { createD4dOffersSource } from './offers/d4dOffers.js';
 import { isD1RetentionTick, pruneStoredBytes } from './retention.js';
 import { buildHealthDigest, isDigestTick } from './ops/digest.js';
+import { isBackupStartTick, runBackupStep, startBackup } from './backup.js';
 import { othaimProvider } from './providers/othaim.js';
 import { hyperpandaProvider } from './providers/hyperpanda.js';
 import { carrefourProvider } from './providers/carrefour.js';
@@ -552,6 +553,31 @@ const worker = {
           console.log('brochure-engine price fallback lanes', JSON.stringify({ lines }));
         })().catch((err) => {
           console.error('brochure-engine price fallback unavailable', err?.message || String(err));
+        }),
+      );
+      // Weekly D1 export to R2 (backup.js): starts Sunday 02:00 UTC (or at once
+      // when no export has ever run), then a few parts a minute until done.
+      // Idle minutes cost one R2 read and no D1 write.
+      if (!event.backgroundStage && env.BROCHURES) ctx.waitUntil(
+        (async () => {
+          const at = event.scheduledTime || Date.now();
+          if (isBackupStartTick(at) || !(await env.BROCHURES.head('backups/d1/active.json'))) {
+            const started = await startBackup(env.DB, env.BROCHURES, { now: new Date(at) });
+            console.log('brochure-engine d1 backup start', JSON.stringify(started));
+          }
+          const active = await env.BROCHURES.get('backups/d1/active.json');
+          if (!active || JSON.parse(await active.text()).done) return;
+          const lease = createD1VisionJobStore(env.DB, { id: 'd1-backup' });
+          await lease.ensureRunning({ scope: 'all', origin: 'cron' });
+          if (!(await lease.tryLease({ nowMs: Date.now(), leaseMs: 5 * 60 * 1000 }))) return;
+          try {
+            const step = await runBackupStep(env.DB, env.BROCHURES, { now: new Date() });
+            console.log('brochure-engine d1 backup step', JSON.stringify(step));
+          } finally {
+            await lease.update({ lease_until: null }).catch(() => {});
+          }
+        })().catch((err) => {
+          console.error('brochure-engine d1 backup unavailable', err?.message || String(err));
         }),
       );
       // Daily health digest (ops/digest.js): one push at 05:00 UTC to the alert
