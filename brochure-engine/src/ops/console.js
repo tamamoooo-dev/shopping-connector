@@ -26,6 +26,7 @@
 
 import { ingestAll, handleRequest } from '../engine.js';
 import { ingestOffers } from '../offers/ingest.js';
+import { buildHealthDigest } from './digest.js';
 import {
   runFanOut, runStoreToPublication, createServiceBindingDispatcher,
   runEnrichDrain, createEnrichDispatcher,
@@ -1551,6 +1552,8 @@ async function apiRoute(request, ctx, url, sub) {
           history: await ctx.recoveryQueue.history(id),
         });
       }
+      case 'digest': // the daily health digest, as it would be pushed now
+        return opsJson(await buildHealthDigest(ctx));
       case 'crons': // §5 Cron Monitor
         return opsJson(await cronMonitor(ctx));
       case 'pipeline': // §6 Pipeline Health
@@ -1688,6 +1691,14 @@ async function apiRoute(request, ctx, url, sub) {
           error: verification.failures.length ? `unhealthy: ${verification.failures.join(', ')}` : null,
         });
         return opsJson(report);
+      }
+      case 'digest': { // push the daily health digest now (verifies delivery)
+        requireConfirm(body, true);
+        if (!ctx.notifier) throw new OpsError('NTFY_TOPIC not set', 409);
+        const digest = await buildHealthDigest(ctx);
+        await ctx.notifier.send({ title: digest.title, body: digest.body, tags: digest.ok ? 'white_check_mark' : 'warning' });
+        await auditOp(ctx, { action: 'ops:digest', ok: true, elapsed_ms: 0, error: null });
+        return opsJson({ sent: true, ...digest });
       }
       case 'selftest': {
         const result = await selfTest(ctx);

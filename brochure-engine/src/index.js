@@ -65,6 +65,7 @@ import { createPipeline } from './pipeline.js';
 import { createServiceBindingSearchClient } from './searchClient.js';
 import { createD4dOffersSource } from './offers/d4dOffers.js';
 import { isD1RetentionTick, pruneStoredBytes } from './retention.js';
+import { buildHealthDigest, isDigestTick } from './ops/digest.js';
 import { othaimProvider } from './providers/othaim.js';
 import { hyperpandaProvider } from './providers/hyperpanda.js';
 import { carrefourProvider } from './providers/carrefour.js';
@@ -339,6 +340,8 @@ function buildContext(env) {
   const smallKeys = mistralPools.small.filter((slot) => slot.key);
   const ocrKeys = mistralPools.ocr.filter((slot) => slot.key);
   return {
+    // Raw D1 for the few read-only counts that have no store (ops/digest.js).
+    db: env.DB || null,
     registry,
     objectStore,
     metadataStore,
@@ -549,6 +552,28 @@ const worker = {
           console.log('brochure-engine price fallback lanes', JSON.stringify({ lines }));
         })().catch((err) => {
           console.error('brochure-engine price fallback unavailable', err?.message || String(err));
+        }),
+      );
+      // Daily health digest (ops/digest.js): one push at 05:00 UTC to the alert
+      // topic. A once-a-day lease, because a tick can be delivered twice.
+      if (!event.backgroundStage) ctx.waitUntil(
+        (async () => {
+          const at = event.scheduledTime || Date.now();
+          if (!isDigestTick(at)) return;
+          const context = buildContext(env);
+          if (!context.notifier) return;
+          const lease = createD1VisionJobStore(env.DB, { id: 'daily-digest' });
+          await lease.ensureRunning({ scope: 'all', origin: 'cron' });
+          if (!(await lease.tryLease({ nowMs: Date.now(), leaseMs: 20 * 60 * 60 * 1000 }))) return;
+          const digest = await buildHealthDigest(context, { now: new Date(at) });
+          await context.notifier.send({
+            title: digest.title,
+            body: digest.body,
+            tags: digest.ok ? 'white_check_mark' : 'warning',
+          });
+          console.log('brochure-engine daily digest', JSON.stringify({ ok: digest.ok, problems: digest.problems }));
+        })().catch((err) => {
+          console.error('brochure-engine daily digest unavailable', err?.message || String(err));
         }),
       );
       // Stage 1 also fires at STAGE_ONE_TICK_MINUTES, interleaved with the

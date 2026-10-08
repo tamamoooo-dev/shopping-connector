@@ -2044,11 +2044,11 @@ export function createNtfyNotifier({ topic, server = 'https://ntfy.sh' }) {
   if (!topic) return null;
   const url = `${server.replace(/\/$/, '')}/${encodeURIComponent(topic)}`;
   return {
-    async send({ title, body, link }) {
+    async send({ title, body, link, tags = 'bell,moneybag' }) {
       // HTTP header values must be Latin-1; Arabic titles go into the body
       // instead of the Title header (ntfy renders the first line prominently).
       const asciiTitle = title && /^[\x20-\x7e]*$/.test(title) ? title : null;
-      const headers = { Title: asciiTitle || 'Souq price alert', Tags: 'bell,moneybag' };
+      const headers = { Title: asciiTitle || 'Souq price alert', Tags: tags };
       if (link && /^[\x20-\x7e]*$/.test(link)) headers.Click = link;
       const text = asciiTitle ? body || '' : [title, body].filter(Boolean).join('\n');
       const res = await fetch(url, { method: 'POST', headers, body: text });
