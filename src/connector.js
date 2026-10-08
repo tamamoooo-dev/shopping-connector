@@ -37,19 +37,29 @@ function json(body, status = 200, extraHeaders = {}) {
 // must stay stateless, so instead it simply tries strategies in their declared
 // order on every request. Providers declare their best/most-reliable strategy
 // first, so ranking is preserved without any stored state.
+//
+// "The store has no match" and "the store did not answer" are different
+// answers. A strategy that completes and returns an empty list is the store
+// saying "no match" (providers THROW on blocks, bad shapes and unparsed
+// pages), so it yields 200 with `empty: true`. Only when every strategy threw
+// is the store unreachable (502). Treating "no match" as 502 made the watch
+// monitor read a missing product as a store outage and retry it all day.
 async function runProvider(provider, query) {
   const failures = [];
+  let answered = null;
   for (const strategy of provider.strategies) {
     try {
       const results = await strategy.run(query);
       if (results && results.length) {
         return { strategy: strategy.name, results };
       }
+      answered = answered || strategy.name;
       failures.push(`${strategy.name}: no results`);
     } catch (err) {
       failures.push(`${strategy.name}: ${err.message}`);
     }
   }
+  if (answered) return { strategy: answered, results: [], empty: true, failures };
   const error = new Error('No strategy returned results.');
   error.failures = failures;
   throw error;
@@ -119,9 +129,12 @@ export async function handleRequest(request, registry) {
   }
 
   try {
-    const { strategy, results } = await runProvider(provider, query);
+    const { strategy, results, empty, failures } = await runProvider(provider, query);
     // Envelope wraps the SAME normalized result objects the frontend expects.
     const window = results.slice(0, limit);
+    if (empty) {
+      return json({ provider: provider.id, query, strategy, count: 0, results: [], empty: true, failures });
+    }
     return json({ provider: provider.id, query, strategy, count: window.length, results: window });
   } catch (err) {
     return json(
