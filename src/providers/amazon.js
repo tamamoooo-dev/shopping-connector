@@ -291,6 +291,12 @@ export function parseProducts(html) {
   return results;
 }
 
+export function selectExactProduct(results, asin) {
+  const wanted = String(asin || '').trim().toUpperCase();
+  if (!/^B[A-Z0-9]{9}$/.test(wanted)) return null;
+  return (results || []).find((item) => String(item?.id || '').toUpperCase() === wanted) || null;
+}
+
 // Fetch the search HTML with browser-like headers, rotating the UA per attempt.
 function fetchSearchHtml(url, ua) {
   return fetch(url, {
@@ -359,4 +365,21 @@ export const amazonProvider = {
   label: 'Amazon SA',
   // Durable first, best-effort fallback second.
   strategies: [paapiStrategy, searchHtmlStrategy],
+  async lookup(productId) {
+    const asin = String(productId || '').trim().toUpperCase();
+    if (!/^B[A-Z0-9]{9}$/.test(asin)) throw new Error('Amazon exact lookup requires a valid ASIN.');
+    const failures = [];
+    for (const strategy of this.strategies) {
+      try {
+        const exact = selectExactProduct(await strategy.run(asin), asin);
+        if (exact) return exact;
+        failures.push(`${strategy.name}: exact ASIN was not returned`);
+      } catch (err) {
+        failures.push(`${strategy.name}: ${err.message}`);
+      }
+    }
+    const error = new Error(`Amazon could not reach exact ASIN ${asin}.`);
+    error.failures = failures;
+    throw error;
+  },
 };

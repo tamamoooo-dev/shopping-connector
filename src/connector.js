@@ -71,8 +71,29 @@ export async function handleRequest(request, registry) {
       status: 'ok',
       stateless: true,
       providers: Object.keys(registry),
-      usage: '/search?provider=<id>&q=<query>',
+      usage: '/search?provider=<id>&q=<query> or /product?provider=amazon&id=<ASIN>',
     });
+  }
+
+  if (url.pathname === '/product') {
+    if (request.method !== 'GET') return json({ error: 'Method not allowed' }, 405);
+    const providerId = (url.searchParams.get('provider') || '').trim();
+    const productId = (url.searchParams.get('id') || '').trim();
+    if (!providerId) return json({ error: "Missing required parameter 'provider'." }, 400);
+    if (!productId) return json({ error: "Missing required parameter 'id'." }, 400);
+    const provider = registry[providerId];
+    if (!provider || typeof provider.lookup !== 'function') {
+      return json({ error: `Exact product lookup is unavailable for '${providerId}'.` }, 404);
+    }
+    try {
+      const product = await provider.lookup(productId);
+      if (!product || String(product.id) !== productId) {
+        return json({ provider: providerId, productId, error: 'Exact product was not returned.' }, 502);
+      }
+      return json({ provider: providerId, productId, product });
+    } catch (err) {
+      return json({ provider: providerId, productId, error: err.message, failures: err.failures || [] }, 502);
+    }
   }
 
   if (url.pathname !== '/search') {

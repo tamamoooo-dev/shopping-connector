@@ -7,7 +7,7 @@
 // Fixtures are trimmed from real amazon.sa markup (verified live 2026-07). Run:
 //   node src/providers/amazon.test.mjs
 
-import { parseProducts } from './amazon.js';
+import { parseProducts, selectExactProduct } from './amazon.js';
 
 let passed = 0;
 const fail = (m) => {
@@ -69,5 +69,7 @@ ok(whole.brand === '', 'single-h2 block should have no brand');
 // Arabic block: title-only, full name intact, link is /dp/<asin>.
 ok(arabic.name === 'حليب كامل الدسم من نادك، 18 × 125 مل', `arabic name wrong: "${arabic.name}"`);
 ok(arabic.link === 'https://www.amazon.sa/dp/B098RKQQZD', `link wrong: "${arabic.link}"`);
+ok(selectExactProduct(r, 'B086CLM1PM') === nadec, 'exact lookup selects only the requested ASIN');
+ok(selectExactProduct(r, 'B000000000') === null, 'similar results never replace a missing ASIN');
 
 console.log(`amazon.test: ${passed} passed, 0 failed`);
