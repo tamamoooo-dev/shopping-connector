@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 // restore-d1-backup.mjs — turn one weekly R2 export (src/backup.js) back into SQL.
 //
-//   node restore-d1-backup.mjs <YYYY-MM-DD> <out-dir>
+//   node restore-d1-backup.mjs <YYYY-MM-DD> <out-dir> [--tables a,b,c]
+//
+// --tables restores only the named tables (and their indexes), e.g. just
+// `watches` after a bad edit, without downloading the whole set.
 //
 // Downloads the set's manifest and every part (their keys are deterministic:
 // backups/d1/<id>/<table>/<00000>.jsonl) with the local wrangler, then writes
@@ -21,9 +24,12 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const [id, outDir] = process.argv.slice(2);
-if (!/^\d{4}-\d{2}-\d{2}$/.test(id || '') || !outDir) {
-  console.error('usage: node restore-d1-backup.mjs <YYYY-MM-DD> <out-dir>');
+const args = process.argv.slice(2);
+const tablesAt = args.indexOf('--tables');
+const only = tablesAt >= 0 ? new Set((args.splice(tablesAt, 2)[1] || '').split(',').filter(Boolean)) : null;
+const [id, outDir] = args;
+if (!/^\d{4}-\d{2}-\d{2}$/.test(id || '') || !outDir || (only && !only.size)) {
+  console.error('usage: node restore-d1-backup.mjs <YYYY-MM-DD> <out-dir> [--tables a,b,c]');
   process.exit(2);
 }
 const wrangler = join(here, 'node_modules', 'wrangler', 'bin', 'wrangler.js');
@@ -36,6 +42,16 @@ const fetchObject = (key, file) => {
 const prefix = `backups/d1/${id}`;
 const manifest = JSON.parse(readFileSync(fetchObject(`${prefix}/manifest.json`, join(outDir, 'manifest.json')), 'utf8'));
 if (!manifest.done) console.warn(`warning: set ${id} did not finish; restoring the tables it completed`);
+if (only) {
+  const missing = [...only].filter((name) => !manifest.tables.some((table) => table.name === name));
+  if (missing.length) {
+    console.error(`not in set ${id}: ${missing.join(', ')}`);
+    process.exit(2);
+  }
+  manifest.tables = manifest.tables.filter((table) => only.has(table.name));
+  manifest.indexes = (manifest.indexes || []).filter((sql) =>
+    [...only].some((name) => new RegExp(`\\bON\\s+"?${name}"?\\s*\\(`, 'i').test(sql)));
+}
 
 const sqlValue = (v) => (v == null ? 'NULL' : typeof v === 'number' ? String(v) : `'${String(v).replace(/'/g, "''")}'`);
 const out = createWriteStream(join(outDir, 'restore.sql'));
