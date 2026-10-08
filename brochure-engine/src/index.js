@@ -611,52 +611,62 @@ const worker = {
               const minute = new Date(scheduledAt).getUTCMinutes();
               if (![5, 25, 45].includes(minute)) return;
               if (!context.mistralPools.medium.some((slot) => slot.key)) return;
-              const candidates = await context.visionVerificationStore.listPending({
-                currentOn: today,
-                limit: CPU_SAFE_BACKGROUND_DRAIN.batchSize * CPU_SAFE_BACKGROUND_DRAIN.maxBatches,
-              }).catch(() => []);
-              if (!candidates.length) return;
-              const t0 = Date.now();
-              const drain = await runDrainLanes(
-                runVisionVerificationDrain,
-                createVisionVerificationDispatcher({
-                  self: env.SELF,
-                  ingestSecret: env.INGEST_SECRET,
-                }),
-                {
-                  lanes: STAGE_TWO_LANES,
-                  candidateIds: candidates.map((item) => item.offerId),
-                  ...CPU_SAFE_BACKGROUND_DRAIN,
-                  deadlineMs: DRAIN_DISPATCH_WINDOW_MS,
-                },
-              );
-              const resolution = await runDetachedResolution(env);
-              console.log('brochure-engine vision verification drain', JSON.stringify({
-                pending: drain.pending,
-                batches: drain.batches,
-                ok: drain.ok,
-                failed: drain.failed,
-                verified: drain.verified,
-                unmatched: drain.unmatched,
-              }));
-              await context.opsStore.record({
-                ts: drain.startedAt,
-                action: 'cron:vision-verification',
-                origin: 'cron',
-                ok: drain.failed === 0 && resolution.ok,
-                failed: drain.failed + (resolution.ok ? 0 : 1),
-                elapsed_ms: Date.now() - t0,
-                error: drain.lines?.find((line) => !line.ok)?.error || resolution.error || null,
-                detail: {
+              // Same single-fire discipline as Stage 1: a late or duplicated
+              // tick (two fires 59 s apart were measured on 2026-10-08) must
+              // not select the same queue rows twice.
+              const stageTwoLease = createD1VisionJobStore(env.DB, { id: 'steady-verification' });
+              await stageTwoLease.ensureRunning({ scope: 'all', origin: 'cron' });
+              if (!(await stageTwoLease.tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS }))) return;
+              try {
+                const candidates = await context.visionVerificationStore.listPending({
+                  currentOn: today,
+                  limit: CPU_SAFE_BACKGROUND_DRAIN.batchSize * CPU_SAFE_BACKGROUND_DRAIN.maxBatches,
+                }).catch(() => []);
+                if (!candidates.length) return;
+                const t0 = Date.now();
+                const drain = await runDrainLanes(
+                  runVisionVerificationDrain,
+                  createVisionVerificationDispatcher({
+                    self: env.SELF,
+                    ingestSecret: env.INGEST_SECRET,
+                  }),
+                  {
+                    lanes: STAGE_TWO_LANES,
+                    candidateIds: candidates.map((item) => item.offerId),
+                    ...CPU_SAFE_BACKGROUND_DRAIN,
+                    deadlineMs: DRAIN_DISPATCH_WINDOW_MS,
+                  },
+                );
+                const resolution = await runDetachedResolution(env);
+                console.log('brochure-engine vision verification drain', JSON.stringify({
                   pending: drain.pending,
                   batches: drain.batches,
+                  ok: drain.ok,
+                  failed: drain.failed,
                   verified: drain.verified,
                   unmatched: drain.unmatched,
-                  providerLimit: drain.providerLimit,
-                  providerError: drain.providerError,
-                  resolution,
-                },
-              }).catch(() => {});
+                }));
+                await context.opsStore.record({
+                  ts: drain.startedAt,
+                  action: 'cron:vision-verification',
+                  origin: 'cron',
+                  ok: drain.failed === 0 && resolution.ok,
+                  failed: drain.failed + (resolution.ok ? 0 : 1),
+                  elapsed_ms: Date.now() - t0,
+                  error: drain.lines?.find((line) => !line.ok)?.error || resolution.error || null,
+                  detail: {
+                    pending: drain.pending,
+                    batches: drain.batches,
+                    verified: drain.verified,
+                    unmatched: drain.unmatched,
+                    providerLimit: drain.providerLimit,
+                    providerError: drain.providerError,
+                    resolution,
+                  },
+                }).catch(() => {});
+              } finally {
+                await stageTwoLease.update({ lease_until: null }).catch(() => {});
+              }
               return;
             }
             if (!(await context.visionVerificationJobStore
