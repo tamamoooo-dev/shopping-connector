@@ -1,0 +1,32 @@
+name: tests
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  engine:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Engine suite
+        working-directory: brochure-engine
+        run: node run-tests.mjs
+
+  connector:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - name: Connector tests
+        run: |
+          set -e
+          for f in $(find src -name '*.test.mjs' | sort); do
+            echo "── $f"
+            node "$f"
+          done
