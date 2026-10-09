@@ -7,8 +7,10 @@ import { createR2VisionVerificationHistoryStore } from '../storage/visionVerific
 import { createSqliteD1, insertOffers } from '../storage/testSqliteD1.mjs';
 import {
   drainVisionVerification,
+  REJUDGE_SWEEP_KEY,
   rejudgeStoredAttempt,
   rejudgeVerificationBacklog,
+  runRejudgeSweep,
 } from './visionVerification.js';
 import { createKeyChain } from './mistralKeys.js';
 
@@ -156,6 +158,29 @@ await test('a flagged offer is read again, never re-judged back into service', a
   await f.verificationStore.flagForReverification(['s:r:d4d:1']);
   const report = await rejudgeVerificationBacklog(stores(f), { currentOn: TODAY, dryRun: true });
   assert.deepEqual([report.scanned, report.passing], [1, 0]);
+  f.close();
+});
+
+await test('the automatic sweep pages once through every unsettled row, then stops for this rule version', async () => {
+  const ids = ['s:r:d4d:1', 's:r:d4d:2', 's:r:d4d:3'];
+  const f = fresh(ids);
+  for (const id of ids) await seedRejected(f, id);
+  f.raw.prepare("UPDATE offer_vision_verification_queue SET attempts = 5 WHERE offer_id = 's:r:d4d:3'").run();
+  const saved = new Map();
+  const objectStore = {
+    async get(key) { return saved.has(key) ? { bytes: saved.get(key) } : null; },
+    async put(key, bytes) { saved.set(key, bytes); },
+  };
+  const first = await runRejudgeSweep(stores(f), { objectStore, currentOn: TODAY, limit: 2 });
+  assert.deepEqual([first.published, first.state.done, first.state.cursor], [2, false, 's:r:d4d:2']);
+  const second = await runRejudgeSweep(stores(f), { objectStore, currentOn: TODAY, limit: 2 });
+  assert.deepEqual([second.published, second.state.done, second.state.published], [1, true, 3],
+    'the capped row is re-judged too');
+  const third = await runRejudgeSweep(stores(f), { objectStore, currentOn: TODAY, limit: 2 });
+  assert.equal(third.skipped, 'done', 'once per rule version');
+  const nextVersion = await runRejudgeSweep(stores(f), { objectStore, currentOn: TODAY, limit: 2, version: 'business-acceptance-v6' });
+  assert.ok(!nextVersion.skipped && nextVersion.state.version === 'business-acceptance-v6', 'a new rule version sweeps again');
+  assert.ok(saved.has(REJUDGE_SWEEP_KEY));
   f.close();
 });
 

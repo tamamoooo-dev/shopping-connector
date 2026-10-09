@@ -14,6 +14,7 @@ import {
   mistralErrorDetails,
 } from './mistralKeys.js';
 import {
+  BUSINESS_ACCEPTANCE_VERSION,
   evaluateBusinessAcceptance,
 } from './businessAcceptance.js';
 import {
@@ -130,6 +131,55 @@ export async function rejudgeVerificationBacklog(
     }
   }
   return report;
+}
+
+// THE AUTOMATIC RE-JUDGE SWEEP (2026-10-09). When the admission rule changes
+// version, every unsettled queue row is re-judged ONCE against its stored
+// read — in pages, from the Stage 2 coordinator, before any paid read. The
+// cursor and totals live in one small object-store record, so the sweep
+// resumes across fires, survives deploys, and runs exactly once per rule
+// version: a future rule change re-judges stored evidence with no manual step.
+export const REJUDGE_SWEEP_KEY = 'ops/vision-rejudge-sweep.json';
+export const REJUDGE_SWEEP_PAGE = 200;
+
+export async function runRejudgeSweep(stores, {
+  objectStore,
+  currentOn,
+  version = BUSINESS_ACCEPTANCE_VERSION,
+  limit = REJUDGE_SWEEP_PAGE,
+  now = new Date(),
+} = {}) {
+  if (!objectStore?.get || !objectStore?.put) return { skipped: 'no-object-store' };
+  const rec = await objectStore.get(REJUDGE_SWEEP_KEY).catch(() => null);
+  let state = null;
+  if (rec?.bytes) {
+    try { state = JSON.parse(new TextDecoder().decode(rec.bytes)); } catch { state = null; }
+  }
+  if (state?.version === version && state.done) return { skipped: 'done', state };
+  const resume = state?.version === version
+    ? state
+    : { version, cursor: '', scanned: 0, published: 0, errors: 0, startedAt: now.toISOString() };
+  const report = await rejudgeVerificationBacklog(stores, {
+    currentOn, limit, dryRun: false, after: resume.cursor || '',
+  });
+  if (report.unavailable) return { skipped: 'unavailable' };
+  const next = {
+    version,
+    startedAt: resume.startedAt,
+    updatedAt: now.toISOString(),
+    cursor: report.nextCursor,
+    // A page with errors still advances: its rows stay unsettled, and the
+    // drain re-judges the due ones before reading them anyway.
+    done: !report.nextCursor,
+    pages: (Number(resume.pages) || 0) + 1,
+    scanned: (Number(resume.scanned) || 0) + report.scanned,
+    published: (Number(resume.published) || 0) + report.published,
+    errors: (Number(resume.errors) || 0) + report.errors.length,
+  };
+  await objectStore.put(REJUDGE_SWEEP_KEY, new TextEncoder().encode(JSON.stringify(next)), {
+    contentType: 'application/json',
+  });
+  return { ...report, state: next };
 }
 
 function finish(report, chain) {

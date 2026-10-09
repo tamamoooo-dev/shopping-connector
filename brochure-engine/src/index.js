@@ -77,6 +77,7 @@ import { nestoProvider } from './providers/nesto.js';
 import { d4dStoreProviders } from './providers/d4dStores.js';
 import { buildMistralPools, isTerminalMistralLimit, MISTRAL_POOL_DEFINITIONS } from './offers/mistralKeys.js';
 import { PRICE_FALLBACK_DEFAULTS } from './offers/priceFallback.js';
+import { runRejudgeSweep } from './offers/visionVerification.js';
 
 // M1: Othaim via the official PdfIndexCollector. The other stores via the
 // reusable AggregatorCollector (D4D adapter) with an official-offers-page
@@ -667,6 +668,33 @@ const worker = {
               await stageTwoLease.ensureRunning({ scope: 'all', origin: 'cron' });
               if (!(await stageTwoLease.tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS }))) return;
               try {
+                // Re-judge stored reads under the current rule first (zero
+                // model calls, one page a fire, once per rule version), so
+                // rows it publishes are never read again below.
+                const sweepAt = new Date();
+                const sweep = await runRejudgeSweep({
+                  verificationStore: context.visionVerificationStore,
+                  verificationHistoryStore: context.visionVerificationHistoryStore,
+                  enrichStore: context.enrichStore,
+                }, { objectStore: context.objectStore, currentOn: today, now: sweepAt })
+                  .catch((err) => ({ error: String(err?.message || err).slice(0, 200), errors: [] }));
+                if (sweep && !sweep.skipped) {
+                  await context.opsStore.record({
+                    ts: sweepAt.toISOString(),
+                    action: 'cron:vision-rejudge',
+                    origin: 'cron',
+                    ok: !sweep.error && !(sweep.errors || []).length,
+                    offers: sweep.published ?? 0,
+                    failed: (sweep.errors || []).length + (sweep.error ? 1 : 0),
+                    elapsed_ms: Date.now() - sweepAt.getTime(),
+                    error: sweep.error || sweep.errors?.[0] || null,
+                    detail: {
+                      scanned: sweep.scanned, passing: sweep.passing, published: sweep.published,
+                      skipped: sweep.skipped, staleClaims: sweep.staleClaims,
+                      samples: sweep.samples, state: sweep.state,
+                    },
+                  }).catch(() => {});
+                }
                 const candidates = await context.visionVerificationStore.listPending({
                   currentOn: today,
                   limit: CPU_SAFE_BACKGROUND_DRAIN.batchSize * CPU_SAFE_BACKGROUND_DRAIN.maxBatches,
