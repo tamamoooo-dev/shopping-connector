@@ -57,6 +57,7 @@ export async function processWatchRuns(ctx, { ids = [], nowMs = Date.now() } = {
           // The selected Amazon ASIN must never drift to a similar product.
           allowIdentityRebind: watchTrack(watch) !== WATCH_TRACK.AMAZON_EXACT,
           acceptPartialSweep: run.attempts >= MARKET_PARTIAL_SWEEP_AFTER_ATTEMPTS,
+          alertKey: run.id,
         });
         retryable = line.resolution === RESOLUTION.PROVIDER_ERROR;
       }

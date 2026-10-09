@@ -86,7 +86,7 @@ await test('an ACCEPTED verdict round-trips with its mandatory set intact', asyn
   assert.equal(stored.accepted, true);
   assert.equal(stored.version, BUSINESS_ACCEPTANCE_VERSION);
   assert.deepEqual(stored.missing, []);
-  assert.deepEqual(stored.mandatory, { price: true, english_name: true });
+  assert.deepEqual(stored.mandatory, { price: true, product_name: true });
   assert.equal(stored.decidedAt, AT);
   close();
 });
@@ -121,14 +121,14 @@ await test('a single failed condition is recorded ALONE, not as a bare rejection
     acceptedFields: [],
     structured: buildStructuredProduct({ name_en: 'Mystery Product', brand: 'Arwa' }),
   });
-  assert.deepEqual([...noEnglishName.missing], ['english_name']);
+  assert.deepEqual([...noEnglishName.missing], ['product_name']);
   await store.saveVisionOutcome({
     attempt: attempt('a:r:d4d:3', true), canonicalRow: null, acceptance: noEnglishName,
   });
   const stored = await store.getAcceptanceVerdict('a:r:d4d:3');
-  assert.deepEqual(stored.missing, ['english_name']);
+  assert.deepEqual(stored.missing, ['product_name']);
   assert.equal(stored.mandatory.price, true);
-  assert.equal(stored.mandatory.english_name, false);
+  assert.equal(stored.mandatory.product_name, false);
   close();
 });
 
@@ -228,10 +228,10 @@ await test('acceptanceSummary counts conditions separately, and they OVERLAP', a
   assert.equal(summary.acceptanceRate, 25);
   // Overlapping counts: s4 appears in BOTH buckets. Summing these would
   // exceed the reject count, which is exactly why they are not summed.
-  assert.equal(summary.missingByCondition.english_name, 2);
+  assert.equal(summary.missingByCondition.product_name, 2);
   assert.equal(summary.missingByCondition.price, 2);
   // The disjoint view: offers a SINGLE condition is keeping out.
-  assert.equal(summary.onlyCondition.english_name, 1);
+  assert.equal(summary.onlyCondition.product_name, 1);
   assert.equal(summary.onlyCondition.price, 1);
   close();
 });

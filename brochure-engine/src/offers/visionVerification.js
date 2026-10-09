@@ -20,6 +20,117 @@ import {
   visionVerificationFingerprint,
   visionVerificationFingerprintHash,
 } from '../storage/visionVerificationStore.js';
+import { CORROBORATION_FLOOR } from './servingFloor.js';
+
+// RE-JUDGE STORED EVIDENCE (2026-10-09). A rule change must not cost a new
+// model call for a crop that was already read: when the admission contract
+// moves (business-acceptance-v5 admits a validated Arabic-only name), the
+// newest stored read of the CURRENT crop is judged again under the current
+// rule first. Pure: returns `{ row, acceptance, validation, key }` for a read
+// that now passes, else null. A flagged offer is never re-judged — the flag
+// says its stored read is the suspect.
+export function rejudgeStoredAttempt(record, item) {
+  const candidate = record?.candidate;
+  if (!candidate || item?.flagged) return null;
+  if (record.crop_url && item?.imageUrl && record.crop_url !== item.imageUrl) return null;
+  const validation = record.validation || {};
+  const acceptedFields = Array.isArray(validation.acceptedFields) ? validation.acceptedFields : [];
+  // validatedExtractionCorroboration, replayed: English keeps its stored
+  // verdict; an Arabic-only read is admitted by S3's accepted `name_ar`.
+  const corroboration = candidate.name != null
+    ? candidate.corroboration ?? null
+    : candidate.name_ar != null && acceptedFields.includes('name_ar') ? 1 : null;
+  const row = { ...candidate, corroboration };
+  const acceptance = evaluateBusinessAcceptance({
+    offer: item,
+    acceptedFields,
+    structured: candidate.structured_product ?? null,
+    observation: candidate.structured_product ? null : candidate.extraction_json ?? null,
+  });
+  const passes = (row.name != null || row.name_ar != null)
+    && acceptance.accepted
+    && Number(row.corroboration) >= CORROBORATION_FLOOR;
+  return passes ? { row, acceptance, validation, key: record.key || null } : null;
+}
+
+// The newest passing stored read of one queue item, or null.
+export async function findRejudgeableAttempt(verificationHistoryStore, item) {
+  if (!verificationHistoryStore?.readAttempts || item?.flagged) return null;
+  const records = await verificationHistoryStore.readAttempts(item.offerId, { limit: 4 });
+  for (const record of records) {
+    const rejudged = rejudgeStoredAttempt(record, item);
+    if (rejudged) return rejudged;
+  }
+  return null;
+}
+
+// Commit a re-judged read through the normal Stage 2 boundary. No read
+// happened, so the read count is left as it was.
+async function commitRejudged({ enrichStore }, item, token, rejudged) {
+  const attemptedAt = new Date().toISOString();
+  const fingerprint = visionVerificationFingerprint(rejudged.row);
+  return enrichStore.saveVisionVerificationOutcome({
+    fence: { offerId: item.offerId, token, at: attemptedAt },
+    priorFingerprintHashes: [...(item.fingerprintHashes || [])],
+    attempt: {
+      offerId: item.offerId,
+      source: 'vision-verification-rejudge',
+      validation: rejudged.validation,
+      accepted: true,
+      attemptedAt,
+    },
+    candidateRow: { ...rejudged.row, enriched_at: attemptedAt },
+    fingerprint,
+    fingerprintHash: await visionVerificationFingerprintHash(fingerprint),
+    nextAttemptNo: Math.max(1, Number(item.attempts) || 1),
+    acceptance: rejudged.acceptance,
+  });
+}
+
+// The backlog pass behind the ops `verification/rejudge` action: unsettled
+// items — past the read cap too, since a re-judge is free — whose stored read
+// now passes are published with ZERO model calls. A dry run reports what would
+// publish and writes nothing. Paged: pass the returned `nextCursor` as
+// `after` until it is null.
+export async function rejudgeVerificationBacklog(
+  { verificationStore, verificationHistoryStore, enrichStore },
+  { currentOn, limit = 50, dryRun = true, after = '' } = {},
+) {
+  const report = { scanned: 0, passing: 0, published: 0, skipped: 0, staleClaims: 0, errors: [], samples: [], nextCursor: null };
+  if (!verificationStore || !(await verificationStore.ready())) return { ...report, unavailable: true };
+  const pending = verificationStore.listRejudgeCandidates
+    ? await verificationStore.listRejudgeCandidates({ currentOn, limit, after })
+    : await verificationStore.listPending({ currentOn, limit });
+  report.scanned = pending.length;
+  if (verificationStore.listRejudgeCandidates && pending.length >= Math.max(1, Math.min(Number(limit) || 50, 200))) {
+    report.nextCursor = pending[pending.length - 1].offerId;
+  }
+  for (const item of pending) {
+    try {
+      const rejudged = await findRejudgeableAttempt(verificationHistoryStore, item);
+      if (!rejudged) { report.skipped += 1; continue; }
+      report.passing += 1;
+      if (report.samples.length < 12) {
+        report.samples.push({
+          offerId: item.offerId,
+          name: rejudged.row.name ?? null,
+          nameAr: rejudged.row.name_ar ?? null,
+          brand: rejudged.row.brand ?? null,
+          size: rejudged.row.size ?? null,
+        });
+      }
+      if (dryRun) continue;
+      const token = await verificationStore.claim({ offerId: item.offerId });
+      if (!token) { report.staleClaims += 1; continue; }
+      const outcome = await commitRejudged({ enrichStore }, item, token, rejudged);
+      if (outcome?.verified) report.published += 1;
+    } catch (err) {
+      if (err?.staleClaim) { report.staleClaims += 1; continue; }
+      report.errors.push(String(err?.message || err).slice(0, 200));
+    }
+  }
+  return report;
+}
 
 function finish(report, chain) {
   report.failedOver = chain?.failedOver?.() || false;
@@ -53,6 +164,7 @@ export async function drainVisionVerification(
     attempted: 0,
     verified: 0,
     unmatched: 0,
+    rejudged: 0,
     failed: 0,
     staleClaims: 0,
     providerLimit: null,
@@ -81,6 +193,16 @@ export async function drainVisionVerification(
     const token = await verificationStore.claim({ offerId: item.offerId });
     if (!token) continue;
     try {
+      // Stored evidence first: a read that passes the current rule is
+      // published without a new model call.
+      const rejudged = await findRejudgeableAttempt(verificationHistoryStore, item).catch(() => null);
+      if (rejudged) {
+        const outcome = await commitRejudged({ enrichStore }, item, token, rejudged);
+        report.rejudged += 1;
+        if (outcome?.verified) report.verified += 1;
+        else report.unmatched += 1;
+        continue;
+      }
       const observed = await extractWithFailover(
         {
           id: item.offerId,

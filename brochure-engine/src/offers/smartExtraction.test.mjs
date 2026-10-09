@@ -179,6 +179,25 @@ console.log('pipeline orchestration:');
     && result.extraction.productName === 'OCR Product' && result.diagnostics.visionRequests === 0);
 }
 
+console.log('Arabic-only serving gate (business-acceptance-v5, 2026-10-09):');
+{
+  const visionOnly = (output) => runSmartExtraction({
+    strategy: 'vision-only',
+    runVision: async () => ({ parsedObject: output, rawReply: JSON.stringify(output) }),
+    runOcr: async () => { throw new Error('OCR must not run'); },
+  });
+  const arabicOnly = await visionOnly({ ...completeVision, name_en: null, brand: null });
+  check('a validated Arabic name alone clears the serving gate',
+    arabicOnly.extraction.productName == null && arabicOnly.extraction.arabicName === completeVision.name_ar
+    && validatedExtractionCorroboration(arabicOnly) === 1);
+  const arabicNoise = await visionOnly({ ...completeVision, name_en: null, name_ar: 'SAR 19.99' });
+  check('an Arabic field the validator rejected admits nothing',
+    validatedExtractionCorroboration(arabicNoise) === null);
+  const english = await visionOnly(completeVision);
+  check('English stays the admission field whenever it was read',
+    validatedExtractionCorroboration(english) === 1 && english.extraction.productName === completeVision.name_en);
+}
+
 if (failures) {
   console.error(`\n${failures} FAILURE(S)`);
   process.exit(1);

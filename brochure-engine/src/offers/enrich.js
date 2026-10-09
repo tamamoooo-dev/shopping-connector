@@ -79,6 +79,7 @@ import {
   visionVerificationFingerprint,
   visionVerificationFingerprintHash,
 } from '../storage/visionVerificationStore.js';
+import { CORROBORATION_FLOOR } from './servingFloor.js';
 
 // --- the enrichment record -----------------------------------------------------
 // Enrichment:
@@ -94,8 +95,9 @@ import {
 // The corroboration a record must clear before any read path may serve its
 // names. Historical rows used D4D OCR here. New crop-only extraction does not
 // compute an OCR score at all; corroboration remains NULL pending a separate,
-// explicitly approved post-validation design decision.
-export const CORROBORATION_FLOOR = 0.3;
+// explicitly approved post-validation design decision. The value lives in a
+// leaf module so the verification store can share it without an import cycle.
+export { CORROBORATION_FLOOR };
 
 // True when a stored enrichment row's names may be shown/matched.
 export function servable(row) {
@@ -591,9 +593,38 @@ export function buildOcrRequest({ model = DEFAULT_OCR_MODEL, contentType = 'imag
   };
 }
 
+// Every provider call is time-boxed (2026-10-09). Nothing was: one hung
+// connection held a SELF child, its drain lane and the 15-minute Vision lease
+// until the cron invocation itself was killed — a dead run with no audit row.
+// A read takes 5-13 s, so 60 s is generous; a timeout is `transient` to
+// classifyMistralError and fails over to the next key like a 5xx.
+export const MISTRAL_TIMEOUT_MS = 60 * 1000;
+export const CROP_TIMEOUT_MS = 30 * 1000;
+
+export async function fetchWithTimeout(fetchImpl, url, init = {}, { timeoutMs, label = 'fetch' } = {}) {
+  if (!timeoutMs || typeof AbortSignal?.timeout !== 'function') return fetchImpl(url, init);
+  const signal = AbortSignal.timeout(timeoutMs);
+  try {
+    return await fetchImpl(url, { ...init, signal });
+  } catch (err) {
+    if (signal.aborted) {
+      const timeout = new Error(`${label} timeout after ${Math.round(timeoutMs / 1000)} s`);
+      timeout.timeout = true;
+      throw timeout;
+    }
+    throw err;
+  }
+}
+
 async function fetchOfferCrop(offer, { fetchImpl = fetch, onCrop = null } = {}) {
   if (!needsEnrichment(offer)) return null;
-  const imgRes = await fetchImpl(offer.imageUrl);
+  let imgRes;
+  try {
+    imgRes = await fetchWithTimeout(fetchImpl, offer.imageUrl, {}, { timeoutMs: CROP_TIMEOUT_MS, label: 'crop fetch' });
+  } catch (err) {
+    if (err?.timeout) err.stage = 'crop';
+    throw err;
+  }
   if (!imgRes.ok) {
     const err = new Error(`crop fetch ${imgRes.status}: ${offer.imageUrl}`);
     err.stage = 'crop';
@@ -606,12 +637,22 @@ async function fetchOfferCrop(offer, { fetchImpl = fetch, onCrop = null } = {}) 
   return { contentType, bytes, base64: toBase64(bytes), cropUrl: offer.imageUrl };
 }
 
-export async function postMistral(url, body, { apiKey, fetchImpl, stage }) {
-  const res = await fetchImpl(url, {
-    method: 'POST',
-    headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
+export async function postMistral(url, body, { apiKey, fetchImpl, stage, timeoutMs = MISTRAL_TIMEOUT_MS }) {
+  let res;
+  try {
+    res = await fetchWithTimeout(fetchImpl, url, {
+      method: 'POST',
+      headers: { authorization: `Bearer ${apiKey}`, 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    }, { timeoutMs, label: 'mistral' });
+  } catch (err) {
+    if (err?.timeout) {
+      err.stage = stage;
+      err.model = body?.model || null;
+      err.endpoint = url;
+    }
+    throw err;
+  }
   if (!res.ok) {
     const responseBody = await res.text();
     let providerError = null;
@@ -805,16 +846,21 @@ export function validatedExtractionCorroboration(result) {
   const extraction = result?.extraction || {};
   const provenance = result?.provenance || {};
   const diagnostics = result?.diagnostics || {};
-  // English is the extracted admission field. Arabic is still preserved for
+  // English is the primary admission field. Arabic is still preserved for
   // display, but a missing/rejected/different Arabic observation cannot make an
-  // otherwise valid English product non-servable.
-  if (!extraction.productName) return null;
+  // otherwise valid English product non-servable. With no English name, a
+  // validated Arabic name admits the read on its own (business-acceptance-v5,
+  // user directive 2026-10-09: valid Arabic-only products are served).
+  const nameField = extraction.productName
+    ? ['productName', 'name_en']
+    : extraction.arabicName ? ['arabicName', 'name_ar'] : null;
+  if (!nameField) return null;
   if (diagnostics.visionRequests > 0 && diagnostics.acceptedVisionFieldsOverwritten !== 0) return null;
   const accepted = {
     [EXTRACTION_PROVENANCE.VISION]: new Set(diagnostics.validationResult?.acceptedFields || []),
     [EXTRACTION_PROVENANCE.OCR]: new Set(diagnostics.ocrValidationResult?.acceptedFields || []),
   };
-  const fields = [['productName', 'name_en']];
+  const fields = [nameField];
   for (const [outputField, validationField] of fields) {
     if (!extraction[outputField]) continue;
     const source = provenance[outputField];
@@ -1199,12 +1245,12 @@ export async function drainEnrichment(
             : preservedObservation(result.diagnostics.visionOutput),
         });
         // Optional Arabic, brand and size diagnostics may still request OCR,
-        // but they cannot reject a priced product with an accepted English
-        // name. Nothing becomes servable until Stage 2 matches twice.
-        // S1 already admits only offers with a usable commerce price. Its local
-        // extraction label therefore needs only the accepted English read;
-        // Stage 2 still enforces the full business verdict before verification.
-        passed = acceptance.mandatory.english_name && !!verificationCandidate?.corroboration;
+        // but they cannot reject a priced product with an accepted product
+        // name (English, or Arabic alone since v5). S1 already admits only
+        // offers with a usable commerce price, so the local extraction label
+        // needs only the accepted name read; saveVisionOutcome publishes it
+        // under the one-reading rule.
+        passed = acceptance.mandatory.product_name && !!verificationCandidate?.corroboration;
         canonicalRow = passed ? verificationCandidate : null;
         if (canonicalRow?.identityDiagnostics) recordIdentityDiagnostics(canonicalRow.identityDiagnostics);
         recordAcceptance(acceptance);

@@ -17,6 +17,18 @@ compatibility_date = "2025-06-01"
 [limits]
 cpu_ms = 300000
 
+# Workers Logs (2026-10-09): persisted, searchable invocation logs in the
+# dashboard, replacing ad-hoc `wrangler tail` sessions. No Worker CPU cost (the
+# runtime collects them). Volume measured with `wrangler tail` on 2026-10-09:
+# the idle base is ~1.6 invocations a minute (minute tick + */2 resume) with
+# almost no log lines, ~70k events a month; Vision/verification/price lanes
+# add their SELF children on top, a few hundred thousand events a month at
+# full drain — far inside the 20M a month Workers Paid includes, so full
+# sampling costs nothing extra. Lower head_sampling_rate if that ever changes.
+[observability]
+enabled = true
+head_sampling_rate = 1
+
 [[queues.producers]]
 binding = "BACKGROUND_DRAINS"
 queue = "brochure-background-drains"
@@ -54,6 +66,12 @@ NAVIGATION_DISAGREEMENT_RATE_THRESHOLD = "0"
 # got 429. Only throughput changes, never the rules.
 PRICE_FALLBACK_LANES = "3"
 PRICE_FALLBACK_RESERVE = "6"
+# ntfy phone push OFF (2026-10-09, user decision): no push for price alerts,
+# the daily health digest or ops reports. Everything is still RECORDED —
+# alerts in D1 (#/alerts), the digest as a daily `cron:digest` ops row, ops
+# reports in the audit log — and /__ops shows Notifier: DISABLED. The
+# NTFY_TOPIC secret is left in place; delete this line to turn push back on.
+NTFY_PUSH = "off"
 
 # Optional runtime extraction policy. Leave unset for the validated default
 # (`vision-first`), or configure in the Worker environment as one of:
@@ -68,7 +86,7 @@ PRICE_FALLBACK_RESERVE = "6"
 # cleaned display_arabic with raw fallback. Reverting rolls back immediately.
 
 # Ingest cron (§6.3) — Architecture C: Self Service-Binding Fan-out.
-# Fires on the Saudi publication days (Tue & Wed) at 06:00 UTC (= 09:00 AST).
+# Fires Mon-Thu at 06:00 UTC (= 09:00 AST) — see the schedule note below.
 # Each fire refreshes ALL stores TOGETHER: scheduled() fans out to one child
 # Worker invocation per store via the SELF binding below, and each child carries
 # its own budget (Workers Paid since 2026-09: 10k subrequests, 5 min CPU), so an
@@ -78,12 +96,15 @@ PRICE_FALLBACK_RESERVE = "6"
 # spread the refresh across ~8 days.) Day/time are easily tunable here.
 [triggers]
 crons = [
-  # Tue & Wed catch the Saudi weekly drop; Fri closes the WEEKEND coverage
-  # hole: ~20% of offers expire Thu-Mon and weekend flyers publish Thu/Fri,
-  # so without a Friday fire the marketplace thins out exactly when the user
-  # shops. Same per-fire budget as Tue/Wed (§19.C); unchanged flyers dedupe
-  # to zero KV writes, offers upsert is D1-only.
-  "0 6 * * 2,3,5", # brochure/offers pipeline (fan-out -> prices); retention is daily below
+  # DAY NAMES, never numbers (2026-10-09): Cloudflare counts Sunday = 1, so
+  # the old "2,3,5" — meant as Tue/Wed/Fri — measured Mon/Tue/Thu in ops_runs.
+  # Measured first detections: Tuesday-start flyers (the largest group) are
+  # NOT on D4D yet at the Tuesday 09:00 fire — the 2026-10-06 editions were
+  # first seen Thursday 10-08. WED catches them a day sooner; MON (Sunday/
+  # Monday starts) and THU (weekend editions) are kept from the schedule that
+  # actually ran. Unchanged flyers dedupe to zero writes; Vision reads only
+  # new offers, so an extra fire adds no model spend for a flyer already read.
+  "0 6 * * MON,TUE,WED,THU", # brochure/offers pipeline (fan-out -> prices); retention is daily below
   "45 5 * * *",    # Monday registry maintenance (the daily fires are inert otherwise)
   # Vision enrichment drain (steady-state autonomy, 2026-07-19): Vision is an
   # INGESTION step — every new offer goes through it exactly once (user
@@ -91,7 +112,8 @@ crons = [
   # the Tuesday-night burst without manual backfills. Stage 1 (2026-10-08):
   # up to 112 offers a fire, dealt into STAGE_ONE_LANES=3 parallel lanes of
   # 15-offer SELF children, here AND on the minute tick at :00/:20/:40 — 6 fires
-  # an hour, ~670 offers/h ceiling; Mistral (2 keys × 30/min) is the real limit.
+  # an hour, ~670 offers/h ceiling; Mistral (5 independent keys × 30/min,
+  # 150 requests a minute, probed 2026-10-09) is shared by every lane.
   # Every fire takes the steady-vision D1 lease first: cron events arrive at
   # least once. An empty queue runs the daily resolution pass instead.
   "10,30,50 * * * *", # steady-state vision drain (yields to a background job)

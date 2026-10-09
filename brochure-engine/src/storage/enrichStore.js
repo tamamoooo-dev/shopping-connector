@@ -32,7 +32,7 @@
 // matches against, exactly as search_text is for OCR.
 
 import { normalizeText } from '../matching.js';
-import { CORROBORATION_FLOOR } from '../offers/enrich.js';
+import { CORROBORATION_FLOOR, servable } from '../offers/enrich.js';
 import {
   BUILDER_STATUS,
   BUILDER_SCORE_VERSION,
@@ -955,11 +955,15 @@ export function createD1EnrichStore(db) {
         // ONE READING (user decision 2026-09-24): a Stage-1 read that already
         // clears the bar Stage 2 applies — a name, a business verdict that is
         // not a rejection, corroboration at the servable floor — is published
-        // NOW, in this same batch. Brand and size never block it. Stage 2 still
-        // runs afterwards as the re-check: a match rewrites this row, a
-        // mismatch leaves the published read in place.
+        // NOW, in this same batch. Brand and size never block it. Since
+        // 2026-10-09 (user directive: never reprocess a validated product)
+        // Stage 2 does not re-read it unless it is flagged or its crop changes;
+        // a rejected read is re-read at most STAGE_TWO_MAX_ATTEMPTS times.
+        // A product name in either script (business-acceptance-v5). A
+        // published read settles Stage 2: it is re-read only when flagged or
+        // when its crop changes (visionVerificationStore STAGE_TWO_DUE).
         const publishNow = !!canonicalRow
-          && canonicalRow.name != null
+          && (canonicalRow.name != null || canonicalRow.name_ar != null)
           && acceptance?.accepted !== false
           && Number(canonicalRow.corroboration) >= CORROBORATION_FLOOR;
         if (publishNow) statements.push(canonicalStatement(canonicalRow));
@@ -1098,7 +1102,8 @@ export function createD1EnrichStore(db) {
         ? await db.prepare('SELECT * FROM offer_enrichments WHERE id = ?')
           .bind(attempt.offerId).first().catch(() => null)
         : null;
-      const recheck = !!published?.name && compatibleVisionIdentity(published, candidateRow);
+      const recheck = !!(published?.name || published?.name_ar)
+        && compatibleVisionIdentity(published, candidateRow);
       const rowToWrite = recheck
         ? {
           ...candidateRow,
@@ -1107,11 +1112,21 @@ export function createD1EnrichStore(db) {
           name_ar: candidateRow.name_ar ?? published.name_ar ?? null,
         }
         : candidateRow;
-      const verified = (previousCount >= 1 || recheck)
-        && !!candidateRow
-        && candidateRow.name != null
+      const passes = !!candidateRow
+        && (candidateRow.name != null || candidateRow.name_ar != null)
         && acceptance?.accepted !== false
         && Number(candidateRow.corroboration) >= CORROBORATION_FLOOR;
+      // ONE READING in Stage 2 too (2026-10-09). Stage 2 now re-reads only an
+      // offer with nothing published (a failed or flagged read) or a published
+      // read whose crop has changed. A passing read of such an offer publishes,
+      // exactly as a passing Stage 1 read does; a published read is replaced
+      // only by a compatible re-read, a second matching observation, or a read
+      // of the changed crop.
+      const publishedServable = servable(published);
+      const cropChanged = publishedServable && !!published.crop_url && !!candidateRow?.crop_url
+        && published.crop_url !== candidateRow.crop_url;
+      const verified = passes
+        && (previousCount >= 1 || recheck || !publishedServable || cropChanged);
       let bestCount = 0;
       for (const count of counts.values()) {
         if (count > bestCount) {

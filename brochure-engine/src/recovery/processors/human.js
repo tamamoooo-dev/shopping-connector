@@ -75,6 +75,9 @@ const FIELD_TO_RESULT_KEY = Object.freeze({
 // the commerce path the whole design keeps sealed. It is shown as blocking and
 // explained, never edited.
 const CONDITION_FIELDS = Object.freeze({
+  // v5 (2026-10-09): either script admits the product; English stays the
+  // field a reviewer is asked for first.
+  product_name: Object.freeze(['name_en', 'name_ar']),
   english_name: Object.freeze(['name_en']),
   comparable_quantity: Object.freeze(['size', 'pack_count']),
   price: Object.freeze([]),
@@ -83,6 +86,7 @@ const CONDITION_FIELDS = Object.freeze({
 const CONDITION_WHY = Object.freeze({
   price: 'Price comes from the retailer feed, not from extraction, so review cannot set it. '
     + 'This offer needs a usable price and currency on the offer row before any processor can clear S4.',
+  product_name: 'S4 admits an English or Arabic name from the validator verdict; typing one here is self-evidencing (C-7).',
   english_name: 'S4 admits the English name from the validator verdict; typing one here is self-evidencing (C-7).',
   comparable_quantity: 'Needs a magnitude and unit (e.g. "330 ml", "1 kg") or a pack count that resolves.',
 });
@@ -144,7 +148,9 @@ export function buildReviewPlan(item) {
   // Servability is a conjunct of the admission rule alongside S4 (C-9), so an
   // offer can sit here with an empty `missing` list purely because it has no
   // canonical identity. `name_en` is what a reviewer can move that with.
-  if (identityBlocked && !missing.includes('english_name')) missing.push('english_name');
+  if (identityBlocked && !missing.includes('english_name') && !missing.includes('product_name')) {
+    missing.push('product_name');
+  }
 
   const seen = new Set();
   const fields = [];

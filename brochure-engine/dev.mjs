@@ -153,7 +153,7 @@ function buildContext() {
     identityNormalizationMode: process.env.IDENTITY_NORMALIZATION_MODE,
     isDevelopment: true,
     self: undefined,
-    crons: { pipeline: '0 6 * * 2,3,5', watches: '45 5 * * *' },
+    crons: { pipeline: '0 6 * * MON,TUE,WED,THU', watches: '45 5 * * *' },
   };
 }
 

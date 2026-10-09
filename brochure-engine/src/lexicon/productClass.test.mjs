@@ -201,7 +201,7 @@ await test('non-grocery accepts the retailer name as-is but never rescues a miss
   const noName = evaluateBusinessAcceptance({
     offer: offer('tv'), acceptedFields: [], observation: { name: 'Samsung TV' },
   });
-  assert.deepEqual([...noName.missing], ['english_name']);
+  assert.deepEqual([...noName.missing], ['product_name']);
   const sourceNamed = evaluateBusinessAcceptance({
     offer: { ...offer('tv'), name: 'Samsung TV' },
     acceptedFields: [],

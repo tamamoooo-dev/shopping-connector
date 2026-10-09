@@ -72,6 +72,7 @@ import { runMaintenance, writeMergeSetting, readMergeSetting } from '../registry
 import { resolveLegacyWatches } from '../monitor.js';
 import { deriveIdentity } from '../priceHistory.js';
 import { servable, DEFAULT_MODEL } from '../offers/enrich.js';
+import { rejudgeVerificationBacklog } from '../offers/visionVerification.js';
 import {
   readVisionModelSetting,
   writeVisionModelSetting,
@@ -1138,7 +1139,7 @@ async function runHeal(ctx, body) {
       `failures: ${verification?.failures.join(', ') || 'none'}`,
       `coverage: ${verification?.coverage ?? 'n/a'}%`,
     ]);
-    return sent ? 'sent' : 'no notifier configured';
+    return sent ? 'sent' : ctx.pushDisabled ? 'push disabled (NTFY_PUSH)' : 'no notifier configured';
   });
 
   let health = null;
@@ -1552,7 +1553,7 @@ async function apiRoute(request, ctx, url, sub) {
           history: await ctx.recoveryQueue.history(id),
         });
       }
-      case 'digest': // the daily health digest, as it would be pushed now
+      case 'digest': // the daily health digest as of now (pushed only while push is on)
         return opsJson(await buildHealthDigest(ctx));
       case 'crons': // §5 Cron Monitor
         return opsJson(await cronMonitor(ctx));
@@ -1624,6 +1625,60 @@ async function apiRoute(request, ctx, url, sub) {
       case 'verification/stop': {
         return opsJson(await runVisionVerificationStop(ctx));
       }
+      case 'verification/rejudge': {
+        // Publish unsettled reads whose STORED evidence passes the current
+        // rule, with zero model calls (the business-acceptance-v5 backlog).
+        // A dry run is the default and writes nothing. Paged: send back the
+        // returned nextCursor as `after` until it is null.
+        requireConfirm(body, true);
+        const dryRun = body.dryRun !== false;
+        const t0 = Date.now();
+        const report = await rejudgeVerificationBacklog({
+          verificationStore: ctx.visionVerificationStore,
+          verificationHistoryStore: ctx.visionVerificationHistoryStore,
+          enrichStore: ctx.enrichStore,
+        }, {
+          currentOn: todayISO(),
+          limit: Math.max(1, Math.min(Number(body.limit) || 50, 200)),
+          dryRun,
+          after: typeof body.after === 'string' ? body.after.slice(0, 300) : '',
+        });
+        if (!dryRun) {
+          await auditOp(ctx, {
+            action: 'ops:verification-rejudge',
+            ok: report.errors.length === 0,
+            offers: report.published,
+            elapsed_ms: Date.now() - t0,
+            error: report.errors[0] || null,
+            detail: { scanned: report.scanned, passing: report.passing, published: report.published,
+              skipped: report.skipped, staleClaims: report.staleClaims, nextCursor: report.nextCursor },
+          });
+        }
+        return opsJson({ dryRun, elapsedMs: Date.now() - t0, ...report });
+      }
+      case 'verification/flag': {
+        // Flag offers for review: each gets a fresh Stage 2 cycle (its
+        // published read is quarantined until a passing read replaces it).
+        // The only path that re-reads a validated product on demand.
+        requireConfirm(body, true);
+        const ids = Array.isArray(body.offerIds) ? body.offerIds : [];
+        if (!ids.length) throw new OpsError('offerIds required (up to 50)', 400);
+        if (!ctx.visionVerificationStore?.flagForReverification) {
+          throw new OpsError('Vision verification unavailable', 503);
+        }
+        const flagged = await ctx.visionVerificationStore.flagForReverification(ids, {
+          reason: body.reason ? `flagged: ${String(body.reason)}` : 'flagged for review',
+        });
+        await auditOp(ctx, {
+          action: 'ops:verification-flag',
+          ok: true,
+          offers: flagged.length,
+          elapsed_ms: 0,
+          error: null,
+          detail: { requested: ids.length, flagged },
+        });
+        return opsJson({ flagged, skipped: ids.length - flagged.length });
+      }
       case 'vision/model': {
         // Developer Tool: switch the extraction model. Confirm-gated like every
         // console mutation — this one changes the quality of every product
@@ -1694,6 +1749,9 @@ async function apiRoute(request, ctx, url, sub) {
       }
       case 'digest': { // push the daily health digest now (verifies delivery)
         requireConfirm(body, true);
+        if (ctx.pushDisabled) {
+          throw new OpsError('push is disabled (NTFY_PUSH="off"): the digest is recorded daily as cron:digest; GET digest previews it', 409);
+        }
         if (!ctx.notifier) throw new OpsError('NTFY_TOPIC not set', 409);
         const digest = await buildHealthDigest(ctx);
         await ctx.notifier.send({ title: digest.title, body: digest.body, tags: digest.ok ? 'white_check_mark' : 'warning' });

@@ -58,14 +58,14 @@ import { recoveryRegistry } from './recovery/processors/index.js';
 import { createD1VisionJobStore } from './storage/visionJobStore.js';
 import { createD1RegistryStore } from './storage/registryStore.js';
 import { builtArabicNamesEnabled } from './lexicon/arabicRollout.js';
-import { createNtfyNotifier } from './monitor.js';
+import { createNtfyNotifier, ntfyPushDisabled } from './monitor.js';
 import { claimScheduledWatchRuns } from './watchSchedule.js';
 import { runMaintenance } from './registry/lifecycle.js';
 import { createPipeline } from './pipeline.js';
 import { createServiceBindingSearchClient } from './searchClient.js';
 import { createD4dOffersSource } from './offers/d4dOffers.js';
 import { isD1RetentionTick, pruneStoredBytes } from './retention.js';
-import { buildHealthDigest, isDigestTick } from './ops/digest.js';
+import { isDigestTick, runDailyDigest } from './ops/digest.js';
 import { isBackupStartTick, runBackupStep, startBackup } from './backup.js';
 import { othaimProvider } from './providers/othaim.js';
 import { hyperpandaProvider } from './providers/hyperpanda.js';
@@ -100,7 +100,7 @@ const registry = Object.fromEntries(
 // runtime can't read its own config, and the Ops Console shows next-run times
 // computed from these).
 const CRONS = {
-  pipeline: '0 6 * * 2,3,5', // weekly brochure/offers fan-out
+  pipeline: '0 6 * * MON,TUE,WED,THU', // brochure/offers fan-out (day NAMES: Cloudflare counts Sunday = 1)
   watches: '* * * * *', // durable 07:00/19:00 Riyadh rounds + minute retries
   maintenance: '45 5 * * *', // Monday registry maintenance
   enrich: '10,30,50 * * * *', // steady-state vision drain (yields to a background job)
@@ -301,9 +301,11 @@ function buildContext(env) {
   // Price Monitoring (watches + alerts) shares the same D1 too. Push delivery
   // is optional: set the NTFY_TOPIC secret to a private ntfy.sh topic and the
   // monitor pushes each alert to the user's phone; absent, alerts are in-app.
+  // NTFY_PUSH="off" turns push off while keeping the secret (2026-10-09).
   const watchStore = createD1WatchStore(env.DB);
   const watchRunStore = createD1WatchRunStore(env.DB);
-  const notifier = env.NTFY_TOPIC
+  const pushDisabled = ntfyPushDisabled(env);
+  const notifier = env.NTFY_TOPIC && !pushDisabled
     ? createNtfyNotifier({ topic: env.NTFY_TOPIC, server: env.NTFY_SERVER || 'https://ntfy.sh' })
     : null;
   // The Operations Console (ops/ subsystem): its audit store shares D1, its
@@ -355,6 +357,7 @@ function buildContext(env) {
     watchStore,
     watchRunStore,
     notifier,
+    pushDisabled,
     searchClient,
     ingestSecret: env.INGEST_SECRET,
     opsStore,
@@ -475,7 +478,7 @@ const worker = {
     //     Riyadh, with a failed lookup retried on subsequent minute ticks.
     //   • "* * * * *" — the vision price fallback's parallel lanes.
     //   • "45 5 * * *" — Monday registry maintenance.
-    //   • "0 6 * * 2,3,5" — the WEEKLY brochure/offers pipeline (fan-out ->
+    //   • "0 6 * * MON,TUE,WED,THU" — the brochure/offers pipeline (fan-out ->
     //     price capture -> retention), unchanged below.
     // Shared one-minute background tick. Manual Vision has first priority while
     // its job runs. Otherwise armed Recovery drains through fresh SELF children.
@@ -580,24 +583,19 @@ const worker = {
           console.error('brochure-engine d1 backup unavailable', err?.message || String(err));
         }),
       );
-      // Daily health digest (ops/digest.js): one push at 05:00 UTC to the alert
-      // topic. A once-a-day lease, because a tick can be delivered twice.
+      // Daily health digest (ops/digest.js) at 05:00 UTC: recorded as a
+      // cron:digest ops row every day, pushed only while push is on. A
+      // once-a-day lease, because a tick can be delivered twice.
       if (!event.backgroundStage) ctx.waitUntil(
         (async () => {
           const at = event.scheduledTime || Date.now();
           if (!isDigestTick(at)) return;
           const context = buildContext(env);
-          if (!context.notifier) return;
           const lease = createD1VisionJobStore(env.DB, { id: 'daily-digest' });
           await lease.ensureRunning({ scope: 'all', origin: 'cron' });
           if (!(await lease.tryLease({ nowMs: Date.now(), leaseMs: 20 * 60 * 60 * 1000 }))) return;
-          const digest = await buildHealthDigest(context, { now: new Date(at) });
-          await context.notifier.send({
-            title: digest.title,
-            body: digest.body,
-            tags: digest.ok ? 'white_check_mark' : 'warning',
-          });
-          console.log('brochure-engine daily digest', JSON.stringify({ ok: digest.ok, problems: digest.problems }));
+          const digest = await runDailyDigest(context, { now: new Date(at) });
+          console.log('brochure-engine daily digest', JSON.stringify({ ok: digest.ok, problems: digest.problems, push: digest.push }));
         })().catch((err) => {
           console.error('brochure-engine daily digest unavailable', err?.message || String(err));
         }),

@@ -476,7 +476,7 @@ document.querySelectorAll("nav button").forEach(function (b) {
 var STATUS_COLOR = { OK: "var(--ok)", PUBLISHING: "var(--warn)", LOW_COVERAGE: "var(--warn)", STALE: "var(--warn)", NO_FLYER: "var(--bad)", FAIL: "var(--bad)" };
 var STATUS_BADGE = { OK: "b-ok", PUBLISHING: "b-warn", LOW_COVERAGE: "b-warn", STALE: "b-warn", NO_FLYER: "b-bad", FAIL: "b-bad" };
 function statusBadge(s) {
-  var cls = STATUS_BADGE[s] || (s === "PASS" ? "b-ok" : s === "FAIL" ? "b-bad" : s === "UNCONFIGURED" || s === "UNKNOWN" ? "b-unk" : "b-warn");
+  var cls = STATUS_BADGE[s] || (s === "PASS" ? "b-ok" : s === "FAIL" ? "b-bad" : s === "UNCONFIGURED" || s === "UNKNOWN" || s === "DISABLED" ? "b-unk" : "b-warn");
   return '<span class="badge ' + cls + '">' + esc(s).replace("_", " ") + "</span>";
 }
 function scoreColor(p) { return p == null ? "var(--unk)" : p >= 90 ? "var(--ok)" : p >= 70 ? "var(--warn)" : "var(--bad)"; }

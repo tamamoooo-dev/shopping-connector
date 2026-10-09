@@ -100,16 +100,27 @@ import {
 // untouched either way.
 // v4 restores the user-owned admission contract: a usable commerce price plus
 // an accepted English product name. Comparable quantity remains available in
-// the returned diagnostics, but no longer blocks admission. Arabic remains an
-// extracted display field and never participates in this gate.
-export const BUSINESS_ACCEPTANCE_VERSION = 'business-acceptance-v4';
+// the returned diagnostics, but no longer blocks admission.
+//
+// v5 · 2026-10-09 — A PRODUCT NAME IN EITHER SCRIPT (user directive: "Allow
+// valid Arabic-only products to appear in search results and product listings
+// without requiring an English name"). Measured before: 2,895 of the 3,152
+// read-but-unserved current offers were held back by `english_name` alone.
+// "Valid" is S3's own verdict, exactly as for English: the Vision validator
+// accepted `name_ar` (at least two Arabic letters, not promotional, price or
+// identifier noise, inside the length limit). Nothing is generated or
+// translated, so refuse-rather-than-guess still holds. English stays the
+// primary identity whenever it was read; it is reported as `englishName`.
+// Monotonic: every v4 acceptance is a v5 acceptance. Reverting is restoring
+// the v4 constant, condition name and `productNameAdmitted`.
+export const BUSINESS_ACCEPTANCE_VERSION = 'business-acceptance-v5';
 
 // The mandatory set, ordered. This array IS the contract: adding to it is a new
 // version, and the per-condition `missing` list is derived from it so the two
 // can never disagree.
 export const MANDATORY_CONDITIONS = Object.freeze([
   'price',
-  'english_name',
+  'product_name',
 ]);
 
 // Grocery M3 reuses S3's verdict rather than re-judging the name. Non-grocery
@@ -126,6 +137,12 @@ function englishNameAdmitted(acceptedFields, offer, nonGrocery) {
   return [offer?.name, offer?.name_ar].some(
     (value) => typeof value === 'string' && value.trim().length > 0,
   );
+}
+
+// v5: the English rule above, or S3's accepted Arabic name.
+function productNameAdmitted(acceptedFields, offer, nonGrocery) {
+  if (englishNameAdmitted(acceptedFields, offer, nonGrocery)) return true;
+  return Array.isArray(acceptedFields) && acceptedFields.includes('name_ar');
 }
 
 /**
@@ -176,7 +193,7 @@ export function evaluateBusinessAcceptance({
 
   const mandatory = Object.freeze({
     price: hasUsableCommercePrice(offer || {}),
-    english_name: englishNameAdmitted(acceptedFields, offer, nonGrocery),
+    product_name: productNameAdmitted(acceptedFields, offer, nonGrocery),
   });
 
   // Per-condition, never aggregated. `missing: ['comparable_quantity']` is
@@ -189,6 +206,8 @@ export function evaluateBusinessAcceptance({
     version: BUSINESS_ACCEPTANCE_VERSION,
     mandatory,
     missing: Object.freeze(missing),
+    // Diagnostic, not a condition: whether the English identity was read.
+    englishName: englishNameAdmitted(acceptedFields, offer, nonGrocery),
     comparableQuantity: quantity,
   });
 }
@@ -204,7 +223,7 @@ export function evaluateLegacyBusinessAcceptance(input = {}) {
     price: current.mandatory.price,
     comparable_quantity:
       current.comparableQuantity.status === COMPARABLE_QUANTITY_STATUS.RESOLVED,
-    english_name: current.mandatory.english_name,
+    english_name: current.englishName,
   });
   const legacyConditions = ['price', 'comparable_quantity', 'english_name'];
   const missing = Object.freeze(legacyConditions.filter((condition) => !mandatory[condition]));

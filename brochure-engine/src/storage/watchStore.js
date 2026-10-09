@@ -33,7 +33,7 @@
 //   updateState(id, fields)          -> void      (checked_at / last_* / is_below)
 //   rebindProduct(id, registryProductId) -> boolean  (the ANCHOR only, and only
 //                                       when a registry merge relocated it)
-//   insertAlert(alert)               -> void
+//   insertAlert(alert)               -> boolean   (false: that id already exists)
 //   listAlerts({ limit, unseenOnly, profileId }) -> alert docs, newest first
 //   markAlertsSeen(profileId?)       -> number marked
 //   countUnseen(profileId?)          -> number
@@ -499,10 +499,12 @@ export function createD1WatchStore(db) {
       return (res?.meta?.changes || 0) > 0;
     },
 
+    // Idempotent: a round's alert id is deterministic (monitor.js checkWatch),
+    // so a re-run of the same round is ignored. Returns whether a row landed.
     async insertAlert(alert) {
-      await db
+      const res = await db
         .prepare(
-          `INSERT INTO alerts
+          `INSERT OR IGNORE INTO alerts
              (id, watch_id, price, purchase_price, target_price, unit_label, alert_type,
               currency, store, source, name, link, observed_at, seen)
            VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,0)`,
@@ -514,6 +516,7 @@ export function createD1WatchStore(db) {
           alert.name ?? null, alert.link ?? null, alert.observedAt,
         )
         .run();
+      return (res?.meta?.changes ?? 1) > 0;
     },
 
     // Alerts scope through their watch (watch_id -> watches.profile_id) — one

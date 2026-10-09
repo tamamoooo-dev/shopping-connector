@@ -67,5 +67,32 @@ export function createR2VisionVerificationHistoryStore(bucket) {
       if (!stored) throw new Error('Vision Verification R2 attempt write was refused');
       return { key, size: bytes.byteLength };
     },
+
+    // The stored reads of one offer, newest first (keys sort by attempt time).
+    // Lets a rule change be re-judged against evidence already paid for
+    // instead of a new model call (2026-10-09). Unparseable bodies are skipped.
+    async readAttempts(offerId, { limit = 4 } = {}) {
+      if (!bucket || typeof bucket.list !== 'function') return [];
+      const prefix = `vision-verification/attempts/${safeSegment(offerId)}/`;
+      const keys = [];
+      let cursor;
+      do {
+        const page = await bucket.list({ prefix, cursor });
+        for (const object of page?.objects || []) keys.push(object.key);
+        cursor = page?.truncated ? page.cursor : undefined;
+      } while (cursor);
+      const newest = keys.sort().reverse().slice(0, Math.max(1, Number(limit) || 4));
+      const records = [];
+      for (const key of newest) {
+        const object = await bucket.get(key);
+        if (!object) continue;
+        try {
+          records.push({ key, ...JSON.parse(await object.text()) });
+        } catch {
+          /* skip a damaged record */
+        }
+      }
+      return records;
+    },
   };
 }

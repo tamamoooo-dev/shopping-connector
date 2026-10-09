@@ -1841,6 +1841,10 @@ export async function checkWatch(ctx, watch, {
   flyerOnly = false,
   allowIdentityRebind = true,
   acceptPartialSweep = false,
+  // A scheduled round passes its watch_run id: the alert id becomes
+  // deterministic, so a round that re-runs (lease expired mid-check, a retried
+  // child) can never record or push the same alert twice.
+  alertKey = null,
 } = {}) {
   const line = {
     id: watch.id, label: watch.label, status: 'no-data', price: null,
@@ -1926,7 +1930,9 @@ export async function checkWatch(ctx, watch, {
       : null;
   if (alertType) {
     const alert = {
-      id: newId('a'),
+      // Per round AND type: a retry that now finds `target` after a recorded
+      // `close` still alerts; the same type in the same round never repeats.
+      id: alertKey ? `a_${alertKey}_${alertType}` : newId('a'),
       watchId: watch.id,
       price: best.price,
       purchasePrice: best.purchasePrice ?? best.price,
@@ -1940,10 +1946,11 @@ export async function checkWatch(ctx, watch, {
       link: best.link,
       observedAt: now,
     };
-    await ctx.watchStore.insertAlert(alert);
-    line.alerted = true;
+    const inserted = (await ctx.watchStore.insertAlert(alert)) !== false;
+    line.alerted = inserted;
     line.alertType = alertType;
-    if (ctx.notifier) {
+    if (!inserted) line.notes.push('alert already recorded for this round');
+    if (inserted && ctx.notifier) {
       try {
         let notificationWatch = watch;
         if (!watch.sourceSnapshot && watch.registryProductId && ctx.registryStore) {
@@ -2040,6 +2047,14 @@ export async function checkWatches(ctx, { ids } = {}) {
 // ntfy.sh: a free, no-account push service — the user installs the ntfy app and
 // subscribes to their private topic; the engine POSTs one message per alert.
 // Configured entirely by the NTFY_TOPIC secret (absent -> in-app alerts only).
+// NTFY_PUSH="off" (wrangler.toml [vars], 2026-10-09) switches push delivery
+// off without touching the secret: every alert, digest and report is still
+// recorded in D1 and shown on #/alerts and /__ops — only the phone push stops.
+// Reversible: delete the var and redeploy.
+export function ntfyPushDisabled(env) {
+  return /^(off|false|0|no|disabled)$/i.test(String(env?.NTFY_PUSH ?? '').trim());
+}
+
 export function createNtfyNotifier({ topic, server = 'https://ntfy.sh' }) {
   if (!topic) return null;
   const url = `${server.replace(/\/$/, '')}/${encodeURIComponent(topic)}`;

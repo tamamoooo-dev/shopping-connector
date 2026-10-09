@@ -1,6 +1,8 @@
 // digest.test.mjs — the daily health digest's verdicts.
 import assert from 'node:assert/strict';
-import { composeDigest, isDigestTick } from './digest.js';
+import { composeDigest, isDigestTick, runDailyDigest } from './digest.js';
+import { ntfyPushDisabled } from '../monitor.js';
+import { createMemoryOpsStore } from '../storage/local.js';
 
 let passed = 0;
 const ok = (condition, message) => { assert.ok(condition, message); passed += 1; };
@@ -33,5 +35,32 @@ ok(/^[\x20-\x7e]*$/.test(sick.title), 'the title stays ASCII so ntfy can carry i
 
 const sparse = composeDigest({ stores: [], vision: null, prices: null, watches: null, keys: null });
 ok(sparse.ok && sparse.body.includes('Stores: all 0 OK'), 'missing inputs never invent problems');
+
+// --- push off (2026-10-09): the digest is recorded, never pushed ----------------
+ok(ntfyPushDisabled({ NTFY_PUSH: 'off' }) && ntfyPushDisabled({ NTFY_PUSH: ' OFF ' }) && ntfyPushDisabled({ NTFY_PUSH: 'false' }),
+  'NTFY_PUSH off/false switches push off');
+ok(!ntfyPushDisabled({}) && !ntfyPushDisabled({ NTFY_PUSH: 'on' }), 'absent or on keeps push');
+
+{
+  const opsStore = createMemoryOpsStore();
+  const at = new Date(Date.UTC(2026, 9, 9, 5, 0));
+  const ran = await runDailyDigest({ opsStore, notifier: null, pushDisabled: true }, { now: at });
+  const [row] = await opsStore.list({ action: 'cron:digest', limit: 1 });
+  ok(ran.push === 'disabled' && !ran.pushed, 'push off: nothing is sent');
+  ok(row && row.ok && row.origin === 'cron', 'push off: the digest is still recorded as cron:digest');
+  const detail = JSON.parse(row.detail);
+  ok(detail.title === ran.title && detail.body === ran.body && detail.push === 'disabled',
+    'the recorded row carries the full digest');
+}
+{
+  const opsStore = createMemoryOpsStore();
+  const sent = [];
+  const ran = await runDailyDigest({ opsStore, notifier: { async send(p) { sent.push(p); } } }, { now: new Date() });
+  ok(ran.pushed && sent.length === 1 && sent[0].title === ran.title, 'push on: one push, the same digest');
+  const failing = createMemoryOpsStore();
+  const broken = await runDailyDigest({ opsStore: failing, notifier: { async send() { throw new Error('ntfy 503'); } } }, { now: new Date() });
+  const [row] = await failing.list({ action: 'cron:digest', limit: 1 });
+  ok(!broken.pushed && row && !row.ok && /ntfy 503/.test(row.error), 'a failed push is recorded as a failed run, not lost');
+}
 
 console.log(`digest.test: ${passed} passed, 0 failed`);

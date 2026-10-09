@@ -326,7 +326,50 @@ export async function runEnrichDrain(
   };
 }
 
-export function createEnrichDispatcher({ self, ingestSecret, origin = 'https://brochure-engine.internal', tag } = {}) {
+// A SELF child that never answers must not hold its lane (2026-10-09). The
+// drain lanes awaited children with no bound, so one hung child held the
+// coordinator — and with it the 15-minute Vision lease — until the cron
+// invocation was killed at its wall-time limit: no `cron:enrich` row, lease
+// left to expire, the next fires skipped. A child is now given
+// SELF_CHILD_TIMEOUT_MS; past it the lane stops like any failed child, and the
+// coordinator records its run and releases the lease. 8 min of dispatching
+// (DRAIN_DISPATCH_WINDOW_MS) + 5 min for the last child stays under the
+// 15-minute cron limit. The offers of an abandoned child are simply still
+// unread (or still claimed, for Stage 2) and are picked up by a later fire.
+export const SELF_CHILD_TIMEOUT_MS = 5 * 60 * 1000;
+
+export async function fetchSelfChild(self, url, init, { timeoutMs = SELF_CHILD_TIMEOUT_MS, label = 'child' } = {}) {
+  const controller = typeof AbortController === 'function' ? new AbortController() : null;
+  let timer;
+  const expired = new Promise((_, reject) => {
+    timer = setTimeout(() => {
+      // Reject BEFORE aborting: abort() rejects the fetch synchronously, and
+      // the race must settle on the timeout, not on a bare AbortError.
+      const err = new Error(`${label} -> no answer after ${Math.round(timeoutMs / 1000)} s`);
+      err.timeout = true;
+      reject(err);
+      controller?.abort();
+    }, timeoutMs);
+  });
+  try {
+    const res = await Promise.race([
+      self.fetch(url, controller ? { ...init, signal: controller.signal } : init),
+      expired,
+    ]);
+    const body = await Promise.race([res.json().catch(() => ({})), expired]);
+    return { res, body };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+export function createEnrichDispatcher({
+  self,
+  ingestSecret,
+  origin = 'https://brochure-engine.internal',
+  tag,
+  childTimeoutMs = SELF_CHILD_TIMEOUT_MS,
+} = {}) {
   if (!self || typeof self.fetch !== 'function') {
     throw new Error('scheduler: a SELF service binding (env.SELF) is required for the enrich dispatcher');
   }
@@ -334,13 +377,12 @@ export function createEnrichDispatcher({ self, ingestSecret, origin = 'https://b
     const query = Array.isArray(limitOrIds)
       ? `ids=${encodeURIComponent(limitOrIds.join(','))}`
       : `limit=${encodeURIComponent(limitOrIds)}`;
-    const res = await self.fetch(`${origin}/enrich?${query}`, {
+    const { res, body } = await fetchSelfChild(self, `${origin}/enrich?${query}`, {
       method: 'POST',
       // `tag: 'ops'` marks operator-triggered children so their audit rows
       // say origin ops, not cron (engine.js /enrich reads X-Ops-Origin).
       headers: { 'X-Ingest-Secret': ingestSecret || '', ...(tag ? { 'X-Ops-Origin': tag } : {}) },
-    });
-    const body = await res.json().catch(() => ({}));
+    }, { timeoutMs: childTimeoutMs, label: 'enrich drain' });
     if (!res.ok) {
       const err = new Error(`enrich drain -> HTTP ${res.status}`);
       err.body = body;
@@ -489,6 +531,7 @@ export function createVisionVerificationDispatcher({
   ingestSecret,
   origin = 'https://brochure-engine.internal',
   tag,
+  childTimeoutMs = SELF_CHILD_TIMEOUT_MS,
 } = {}) {
   if (!self || typeof self.fetch !== 'function') {
     throw new Error('scheduler: a SELF service binding is required for the vision verification dispatcher');
@@ -497,11 +540,10 @@ export function createVisionVerificationDispatcher({
     const query = Array.isArray(limitOrIds)
       ? `ids=${encodeURIComponent(limitOrIds.join(','))}`
       : `limit=${encodeURIComponent(limitOrIds)}`;
-    const res = await self.fetch(`${origin}/vision-verification?${query}`, {
+    const { res, body } = await fetchSelfChild(self, `${origin}/vision-verification?${query}`, {
       method: 'POST',
       headers: { 'X-Ingest-Secret': ingestSecret || '', ...(tag ? { 'X-Ops-Origin': tag } : {}) },
-    });
-    const body = await res.json().catch(() => ({}));
+    }, { timeoutMs: childTimeoutMs, label: 'vision verification drain' });
     if (!res.ok) {
       const err = new Error(`vision verification drain -> HTTP ${res.status}`);
       err.body = body;
@@ -525,11 +567,10 @@ export function createResolutionDispatcher({
     throw new Error('scheduler: a SELF service binding is required for the resolution dispatcher');
   }
   return async function dispatchResolution(limit) {
-    const res = await self.fetch(`${origin}/resolve?limit=${encodeURIComponent(limit)}`, {
+    const { res, body } = await fetchSelfChild(self, `${origin}/resolve?limit=${encodeURIComponent(limit)}`, {
       method: 'POST',
       headers: { 'X-Ingest-Secret': ingestSecret || '', ...(tag ? { 'X-Ops-Origin': tag } : {}) },
-    });
-    const body = await res.json().catch(() => ({}));
+    }, { label: 'resolution drain' });
     if (!res.ok) {
       const err = new Error(`resolution drain -> HTTP ${res.status}`);
       err.body = body;

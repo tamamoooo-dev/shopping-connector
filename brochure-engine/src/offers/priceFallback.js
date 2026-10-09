@@ -32,7 +32,9 @@
 //     rejected items that had never been read.
 
 import { buildOffer, offerToRow } from './contract.js';
-import { buildVisionRequest, MISTRAL_URL, postMistral, toBase64, visionObservationFromReply } from './enrich.js';
+import {
+  buildVisionRequest, CROP_TIMEOUT_MS, fetchWithTimeout, MISTRAL_URL, postMistral, toBase64, visionObservationFromReply,
+} from './enrich.js';
 import { withFailover, classifyMistralError } from './mistralKeys.js';
 import { deriveIdentity } from '../priceHistory.js';
 import { detectBrand } from '../browse/brands.js';
@@ -143,7 +145,13 @@ export function decidePrice(readings, description) {
 
 // --- the drain ------------------------------------------------------------------------
 async function fetchCrop(url, fetchImpl) {
-  const res = await fetchImpl(url);
+  let res;
+  try {
+    res = await fetchWithTimeout(fetchImpl, url, {}, { timeoutMs: CROP_TIMEOUT_MS, label: 'crop fetch' });
+  } catch (err) {
+    if (err?.timeout) err.stage = 'crop';
+    throw err;
+  }
   if (!res.ok) {
     const err = new Error(`crop fetch ${res.status}: ${url}`);
     err.stage = 'crop';

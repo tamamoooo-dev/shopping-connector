@@ -303,6 +303,9 @@ async function buildFixture() {
   check('Hotspots detail exposes clickable/total', by.Hotspots.detail === '3/6 spots clickable', by.Hotspots.detail);
   check('Search unconfigured without connector', by.Search.status === 'UNCONFIGURED');
   check('Notifier unconfigured without topic', by.Notifier.status === 'UNCONFIGURED');
+  const offChecks = await subsystemChecks({ ...ctx, pushDisabled: true }, { now: NOW });
+  check('Notifier DISABLED when push is switched off',
+    offChecks.find((c) => c.name === 'Notifier').status === 'DISABLED');
   check('Scheduler UNKNOWN before any coordinator row', by.Scheduler.status === 'UNKNOWN', by.Scheduler.detail);
 
   // A recent cron coordinator row flips the heartbeat to PASS…
@@ -320,6 +323,7 @@ async function buildFixture() {
     { status: 'FAIL' },
     { status: 'UNCONFIGURED' },
     { status: 'UNKNOWN' },
+    { status: 'DISABLED' },
   ]) === 50);
   console.log('subsystem checks ✅');
 }
@@ -369,6 +373,9 @@ async function buildFixture() {
   check('watches next fire tomorrow 05:45Z', watches.nextRun === '2026-07-11T05:45:00.000Z', watches.nextRun);
 
   check('cronNext same-day when before fire time', cronNext('0 6 * * 2,3,5', new Date('2026-07-10T04:00:00Z'))?.toISOString() === '2026-07-10T06:00:00.000Z');
+  // Day names (production form): Thu 2026-10-08 06:01 -> next is Mon 10-12, skipping Fri-Sun.
+  check('cronNext reads day names', cronNext('0 6 * * MON,TUE,WED,THU', new Date('2026-10-08T06:01:00Z'))?.toISOString() === '2026-10-12T06:00:00.000Z');
+  check('cronNext day names are case-insensitive', cronNext('0 6 * * wed', new Date('2026-10-09T00:00:00Z'))?.toISOString() === '2026-10-14T06:00:00.000Z');
   check('cronNext rejects malformed exprs', cronNext('not a cron') === null && cronNext('0 6 * *') === null);
   console.log('scheduler info ✅');
 }

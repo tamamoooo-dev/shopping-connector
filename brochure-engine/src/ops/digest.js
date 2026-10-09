@@ -136,3 +136,45 @@ export async function gatherDigestInputs(ctx, { now = new Date() } = {}) {
 export async function buildHealthDigest(ctx, { now = new Date() } = {}) {
   return composeDigest(await gatherDigestInputs(ctx, { now }));
 }
+
+// The daily run (2026-10-09). The digest is RECORDED every day as a
+// `cron:digest` ops row — the console history is its durable home — and pushed
+// only when a notifier exists (push can be off: NTFY_PUSH, monitor.js). `ok`
+// is whether the job did its work; the system's health is `detail.healthy`.
+export async function runDailyDigest(ctx, { now = new Date() } = {}) {
+  const t0 = Date.now();
+  const digest = await buildHealthDigest(ctx, { now });
+  const push = ctx.pushDisabled ? 'disabled' : ctx.notifier ? 'ntfy' : 'unconfigured';
+  let pushed = false;
+  let pushError = null;
+  if (ctx.notifier) {
+    try {
+      await ctx.notifier.send({
+        title: digest.title,
+        body: digest.body,
+        tags: digest.ok ? 'white_check_mark' : 'warning',
+      });
+      pushed = true;
+    } catch (err) {
+      pushError = String(err?.message || err).slice(0, 200);
+    }
+  }
+  await ctx.opsStore?.record?.({
+    ts: now.toISOString(),
+    action: 'cron:digest',
+    origin: 'cron',
+    ok: !pushError,
+    failed: digest.problems.length,
+    elapsed_ms: Date.now() - t0,
+    error: pushError ? `push: ${pushError}` : null,
+    detail: {
+      healthy: digest.ok,
+      title: digest.title,
+      body: digest.body,
+      problems: digest.problems,
+      push,
+      pushed,
+    },
+  }).catch(() => {});
+  return { ...digest, push, pushed, pushError };
+}

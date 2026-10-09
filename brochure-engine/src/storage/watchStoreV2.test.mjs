@@ -81,6 +81,10 @@ try {
   assert.equal(alert.alertType, 'close');
   assert.equal(alert.purchasePrice, 20.7);
   assert.equal(alert.unitLabel, 'SAR/kg');
+  // A re-run round re-sends the same deterministic id: ignored, reported false.
+  assert.equal(await store.insertAlert({ ...alert, id: 'a_v2', price: 1 }), false);
+  assert.equal((await store.listAlerts({ profileId: watch.profileId })).length, 1);
+  assert.equal((await store.listAlerts({ profileId: watch.profileId }))[0].price, 23);
 
   // --- the ANCHOR moves only when the registry relocates it ---------------------
   const product = {

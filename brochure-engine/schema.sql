@@ -386,7 +386,7 @@ CREATE TABLE IF NOT EXISTS watches (
 );
 
 CREATE TABLE IF NOT EXISTS alerts (
-  id           TEXT PRIMARY KEY,   -- a_<random>
+  id           TEXT PRIMARY KEY,   -- a_<round>_<type> (scheduled) | a_<random> (manual)
   watch_id     TEXT NOT NULL,
   price        REAL NOT NULL,
   purchase_price REAL,

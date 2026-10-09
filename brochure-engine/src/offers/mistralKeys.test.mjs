@@ -20,7 +20,7 @@
 import {
   createKeyChain, classifyMistral429, classifyMistralError, withFailover, remainingPercentage,
   buildMistralPools, latestMistralUsage, mistralPoolInventory, minuteWindowSpent, nextMinuteWindow,
-  FAILED_KEY_COOLDOWN_MS,
+  FAILED_KEY_COOLDOWN_MS, EXHAUSTED_KEY_RECHECK_MS, longHorizonPercentage,
 } from './mistralKeys.js';
 import { enrichWithFailover, drainEnrichment } from './enrich.js';
 
@@ -192,16 +192,17 @@ console.log('stored invalid keys:');
 {
   const t = Date.parse('2026-09-24T20:00:00Z');
   const hoursAgo = (h) => new Date(t - h * 3600_000).toISOString();
-  const usage = { 'key-1': { id: 'key-1', status: 'invalid', observedAt: hoursAgo(1), rateLimit: { status: 402 } } };
+  const usage = { 'key-1': { id: 'key-1', status: 'invalid', observedAt: hoursAgo(0.5), rateLimit: { status: 402 } } };
   const c = createKeyChain(['dead', 'live'], { log: noLog, now: () => t, usage });
-  check('a key seen 402 an hour ago is skipped (no wasted call)', c.pick(t).key === 'live');
+  check('a key seen 402 half an hour ago is skipped (no wasted call)', c.pick(t).key === 'live');
   const snap = c.snapshot()[0];
   check('it stays reported invalid with its original observation time',
-    snap.status === 'invalid' && snap.observedAt === hoursAgo(1));
+    snap.status === 'invalid' && snap.observedAt === hoursAgo(0.5));
   const later = createKeyChain(['dead', 'live'], {
-    log: noLog, now: () => t, usage: { 'key-1': { ...usage['key-1'], observedAt: hoursAgo(7) } },
+    log: noLog, now: () => t, usage: { 'key-1': { ...usage['key-1'], observedAt: hoursAgo(1.05) } },
   });
-  check('after the 6-hour recheck window it is tried again (a topped-up key rejoins)', later.pick(t).key === 'dead');
+  check('after the 1-hour recheck window it is tried again (a topped-up key rejoins)',
+    EXHAUSTED_KEY_RECHECK_MS === 3600_000 && later.pick(t).key === 'dead');
 }
 
 // --- withFailover ----------------------------------------------------------------
@@ -413,7 +414,7 @@ console.log('withFailover:');
       { id: 'medium-1', label: 'Medium key 1', key: 'a' },
       { id: 'medium-2', label: 'Medium key 2', key: 'b' },
       { id: 'medium-3', label: 'Medium key 3', key: 'c' },
-    ], { balance: true, log: noLog });
+    ], { balance: true, log: noLog, startOffset: 0 });
     const seen = [];
     const percentages = [90, 90, 90, 89, 89];
     for (const remainingPct of percentages) {
@@ -443,8 +444,8 @@ console.log('withFailover:');
       log: noLog,
       now: () => nowMs,
       usage: {
-        'medium-1': { remainingPct: 75, observedAt: '2026-07-30T11:00:00.000Z' },
-        'medium-2': { remainingPct: 0, observedAt: '2026-07-30T11:00:00.000Z' },
+        'medium-1': { remainingPct: 75, observedAt: '2026-07-30T11:30:00.000Z' },
+        'medium-2': { remainingPct: 0, observedAt: '2026-07-30T11:30:00.000Z' },
       },
     });
     check('fresh exhausted observation stays parked behind a healthier key',
@@ -468,12 +469,12 @@ console.log('withFailover:');
       usage: {
         'small-1': {
           status: 'restricted',
-          observedAt: '2026-07-30T11:00:00.000Z',
+          observedAt: '2026-07-30T11:30:00.000Z',
           rateLimit: {
             status: 429,
             limitRequestsMinute: '0',
             remainingRequestsMinute: '0',
-            observedAt: '2026-07-30T11:00:00.000Z',
+            observedAt: '2026-07-30T11:30:00.000Z',
           },
         },
       },
@@ -486,6 +487,64 @@ console.log('withFailover:');
     check('fresh persisted zero allowance suppresses cross-invocation retry traffic',
       calls === 0 && persistedError?.mistralCategory === 'request_allowance_zero');
   }
+}
+
+// --- balanced pools across concurrent invocations (2026-10-09) ---------------------
+console.log('balanced spread:');
+{
+  const keys = ['k1', 'k2', 'k3', 'k4', 'k5'].map((key, i) => ({ id: `key-${i + 1}`, key }));
+  // Every SELF child builds a fresh chain from the same snapshot. A fixed start
+  // sent all of them to key #1; a random start spreads them.
+  const first = new Map();
+  for (let i = 0; i < 1000; i += 1) {
+    const pick = createKeyChain(keys, { balance: true, log: noLog }).pick();
+    first.set(pick.key, (first.get(pick.key) || 0) + 1);
+  }
+  check('concurrent fresh chains start on every key, not all on key #1',
+    first.size === 5 && [...first.values()].every((n) => n > 120 && n < 280), JSON.stringify([...first]));
+
+  // Inside one chain: round-robin from its start.
+  const t = Date.parse('2026-10-09T10:00:10Z');
+  const rr = createKeyChain(keys, { balance: true, log: noLog, now: () => t, startOffset: 2 });
+  const order = [];
+  for (let i = 0; i < 5; i += 1) {
+    const pick = rr.pick(t);
+    order.push(pick.key);
+    rr.markSuccess(pick.index, { limitRequestsMinute: '30', remainingRequestsMinute: '29', observedAt: new Date(t).toISOString() });
+  }
+  check('one chain visits every key once before repeating', order.join(',') === 'k3,k4,k5,k1,k2', order.join(','));
+
+  // A previous minute's window has reset: its spent requests no longer rank.
+  const lastMinute = '2026-10-09T09:59:30Z';
+  const stale = createKeyChain(keys.slice(0, 2), {
+    balance: true, log: noLog, now: () => t, startOffset: 0,
+    usage: {
+      'key-1': { rateLimit: { limitRequestsMinute: '30', remainingRequestsMinute: '0', observedAt: lastMinute }, observedAt: lastMinute },
+      'key-2': { rateLimit: { limitRequestsMinute: '30', remainingRequestsMinute: '25', observedAt: lastMinute }, observedAt: lastMinute },
+    },
+  });
+  check('a spent window from an earlier minute does not demote the key', stale.pick(t).key === 'k1');
+  const sameMinute = '2026-10-09T10:00:05Z';
+  const live = createKeyChain(keys.slice(0, 2), {
+    balance: true, log: noLog, now: () => t, startOffset: 0,
+    usage: {
+      'key-1': { rateLimit: { limitRequestsMinute: '30', remainingRequestsMinute: '3', observedAt: sameMinute }, observedAt: sameMinute },
+      'key-2': { rateLimit: { limitRequestsMinute: '30', remainingRequestsMinute: '25', observedAt: sameMinute }, observedAt: sameMinute },
+    },
+  });
+  check('inside its own minute the observation still ranks', live.pick(t).key === 'k2');
+  const month = createKeyChain(keys.slice(0, 2), {
+    balance: true, log: noLog, now: () => t, startOffset: 0,
+    usage: {
+      'key-1': { rateLimit: { remainingRequestsMinute: '30', limitRequestsMinute: '30', remainingTokensMonth: '10', limitTokensMonth: '100', observedAt: lastMinute }, observedAt: lastMinute },
+      'key-2': { rateLimit: { remainingRequestsMinute: '1', limitRequestsMinute: '30', remainingTokensMonth: '90', limitTokensMonth: '100', observedAt: lastMinute }, observedAt: lastMinute },
+    },
+  });
+  check('the monthly allowance outlives the minute and still ranks', month.pick(t).key === 'k2');
+  check('longHorizonPercentage: month part, null for minute-only, undefined for an aggregate',
+    longHorizonPercentage({ remainingTokensMonth: '25', limitTokensMonth: '100' }) === 25 &&
+    longHorizonPercentage({ remainingRequestsMinute: '3', limitRequestsMinute: '30' }) === null &&
+    longHorizonPercentage({ remainingPct: 40 }) === undefined);
 }
 
 // --- model-scoped pool inventory + durable audit snapshot ---------------------

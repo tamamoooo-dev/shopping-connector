@@ -790,7 +790,9 @@ export function createMemoryWatchStore() {
       return true;
     },
     async insertAlert(alert) {
+      if (alerts.has(alert.id)) return false;
       alerts.set(alert.id, { ...alert, seen: false });
+      return true;
     },
     // Alerts scope through their watch, exactly like the D1 impl.
     async listAlerts({ limit = 50, unseenOnly = false, profileId = null } = {}) {

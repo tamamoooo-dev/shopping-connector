@@ -41,7 +41,28 @@ test('each admission condition can reject alone, and names itself', () => {
   const noName = evaluateBusinessAcceptance({
     offer, acceptedFields: ['brand'], structured: complete,
   });
-  assert.deepEqual([...noName.missing], ['english_name']);
+  assert.deepEqual([...noName.missing], ['product_name']);
+});
+
+test('v5: a validated Arabic name admits an Arabic-only product (2026-10-09)', () => {
+  const arabicOnly = evaluateBusinessAcceptance({
+    offer,
+    acceptedFields: ['name_ar', 'size'],
+    structured: buildStructuredProduct({ name_ar: 'مياه أروى', size: '330 ml' }),
+  });
+  assert.equal(arabicOnly.accepted, true);
+  assert.equal(arabicOnly.mandatory.product_name, true);
+  assert.equal(arabicOnly.englishName, false, 'English absence stays visible as a diagnostic');
+  const both = evaluateBusinessAcceptance({ offer, acceptedFields: accepted, structured: complete });
+  assert.equal(both.englishName, true);
+});
+
+test('v5: an Arabic string S3 did not accept still admits nothing', () => {
+  const verdict = evaluateBusinessAcceptance({
+    offer, acceptedFields: ['brand'], structured: buildStructuredProduct({ name_ar: 'مياه أروى' }),
+  });
+  assert.equal(verdict.accepted, false);
+  assert.deepEqual([...verdict.missing], ['product_name']);
 });
 
 test('reject reasons are per-condition and never aggregated (R6)', () => {
@@ -103,7 +124,8 @@ test('M3 reuses S3\'s verdict rather than re-judging the string', () => {
   const verdict = evaluateBusinessAcceptance({
     offer, acceptedFields: [], structured: complete,
   });
-  assert.equal(verdict.mandatory.english_name, false);
+  assert.equal(verdict.mandatory.product_name, false);
+  assert.equal(verdict.englishName, false);
 });
 
 test('the verdict is frozen, versioned and deterministic', () => {

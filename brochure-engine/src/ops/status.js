@@ -411,9 +411,13 @@ export async function subsystemChecks(ctx, { storeRows, now = new Date() } = {})
   });
 
   checks.push(
-    ctx.notifier
-      ? { name: 'Notifier', status: 'PASS', detail: 'ntfy configured' }
-      : { name: 'Notifier', status: 'UNCONFIGURED', detail: 'NTFY_TOPIC not set' },
+    // DISABLED is a decision, not a fault: excluded from healthPct like
+    // UNCONFIGURED (alerts are still recorded in-app; NTFY_PUSH="off").
+    ctx.pushDisabled
+      ? { name: 'Notifier', status: 'DISABLED', detail: 'push off (NTFY_PUSH) — alerts and digests recorded in-app only' }
+      : ctx.notifier
+        ? { name: 'Notifier', status: 'PASS', detail: 'ntfy configured' }
+        : { name: 'Notifier', status: 'UNCONFIGURED', detail: 'NTFY_TOPIC not set' },
   );
 
   checks.push(await schedulerCheck(ctx, { now }));
@@ -508,9 +512,15 @@ export async function schedulerInfo(ctx, { now = new Date() } = {}) {
 
 // Minimal 5-field cron "next fire" (UTC, minute resolution, 28-day scan cap —
 // plenty for weekly schedules; null for anything it can't parse).
+// Day-of-week NUMBERS are ambiguous: Cloudflare counts Sunday = 1 (measured
+// 2026-10-09: "2,3,5" fired Mon/Tue/Thu) while this parser, like standard
+// cron, counts Sunday = 0. Production schedules therefore use day NAMES,
+// which both read the same way.
+const DOW_NAMES = { SUN: 0, MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6 };
 export function cronNext(expr, from = new Date()) {
   const fields = String(expr || '').trim().split(/\s+/);
   if (fields.length !== 5) return null;
+  fields[4] = fields[4].toUpperCase().replace(/\b(SUN|MON|TUE|WED|THU|FRI|SAT)\b/g, (n) => String(DOW_NAMES[n]));
   const parse = (f, min, max) => {
     const set = new Set();
     for (const part of f.split(',')) {

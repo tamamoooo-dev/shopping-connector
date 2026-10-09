@@ -382,7 +382,7 @@ console.log('S4 acceptance in the drain:');
   // offers — which a single "rejected: 2" could never have told an operator.
   check('per-condition tallies are reported, never a bare reject count (R6)',
     report.acceptance.missing.price === 1 &&
-    report.acceptance.missing.english_name === 1);
+    report.acceptance.missing.product_name === 1);
   // R3: a verdict must be attributable to the rule that produced it. Asserted
   // against the EXPORTED constant rather than a literal — pinning the literal
   // makes every legitimate version bump look like a regression, while the

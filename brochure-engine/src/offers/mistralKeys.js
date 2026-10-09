@@ -42,8 +42,11 @@ function finiteNumber(value) {
 // resets happen outside the Worker and Mistral may report an exhausted key as
 // 401 without a reset header. Re-sample a previously exhausted slot at most
 // once per window so it automatically rejoins the balanced pool after reset,
-// while healthy keys continue serving between probes.
-const EXHAUSTED_KEY_RECHECK_MS = 6 * 60 * 60 * 1000;
+// while healthy keys continue serving between probes. One hour since
+// 2026-10-09 (was six): a topped-up key rejoins within the hour, and a probe
+// of a still-dead key costs one refused request, persisted as the next
+// observation so later invocations stop probing it again.
+export const EXHAUSTED_KEY_RECHECK_MS = 60 * 60 * 1000;
 
 // Mistral's per-minute allowance is a FIXED window that resets on the
 // wall-clock minute (measured 2026-09-24: remaining-req-minute counts 30 -> 0,
@@ -65,6 +68,21 @@ export function minuteWindowSpent(rateLimit) {
     finiteNumber(limit) > 0 && finiteNumber(remaining) === 0;
   return spent(rateLimit.remainingRequestsMinute, rateLimit.limitRequestsMinute) ||
     spent(rateLimit.remainingTokensMinute, rateLimit.limitTokensMinute);
+}
+
+// The part of an observation that outlives its minute (2026-10-09). The
+// minute window resets on the wall clock, so an earlier minute's
+// remaining-requests says nothing about the current one; only the monthly
+// token allowance carries over. Returns undefined for an aggregate with no
+// per-field breakdown (legacy observations), which is kept as it was.
+export function longHorizonPercentage(rateLimit) {
+  if (!rateLimit) return undefined;
+  const minuteFields = ['remainingRequestsMinute', 'limitRequestsMinute', 'remainingTokensMinute', 'limitTokensMinute'];
+  const hasBreakdown = minuteFields.some((field) => finiteNumber(rateLimit[field]) != null);
+  const r = finiteNumber(rateLimit.remainingTokensMonth);
+  const l = finiteNumber(rateLimit.limitTokensMonth);
+  if (r != null && l != null && l > 0) return Math.round(Math.max(0, Math.min(100, (r / l) * 100)) * 10) / 10;
+  return hasBreakdown ? null : undefined;
 }
 
 export function remainingPercentage(rateLimit) {
@@ -188,6 +206,11 @@ export function createKeyChain(
     // window. Background drains set it so they cannot starve Stage-1 Vision on
     // a shared key; 0 (the default) still parks a key its reply shows spent.
     reserve = 0,
+    // Where a balanced chain starts among equally ranked keys. Every SELF
+    // child builds its own chain from the same snapshot, so a fixed start sent
+    // every concurrent lane to key #1 first (2026-10-09); a random start
+    // spreads them over the pool. Tests pin it.
+    startOffset = null,
   } = {},
 ) {
   const seen = new Set();
@@ -232,6 +255,21 @@ export function createKeyChain(
     });
   }
   let everFailedOver = false;
+  const offset = slots.length
+    ? ((Number.isInteger(startOffset) ? startOffset : Math.floor(Math.random() * slots.length)) % slots.length + slots.length) % slots.length
+    : 0;
+  const rotation = (index) => (index - offset + slots.length) % slots.length;
+  // The percentage a balanced pick ranks by: the full observation inside its
+  // own minute window, only its long-horizon part after the window reset.
+  const rankPct = (slot, t) => {
+    if (slot.remainingPct == null) return null;
+    const observedMs = Date.parse(slot.observedAt || '');
+    if (Number.isFinite(observedMs) && Math.floor(observedMs / MINUTE_MS) === Math.floor(t / MINUTE_MS)) {
+      return slot.remainingPct;
+    }
+    const longPct = longHorizonPercentage(slot.rateLimit);
+    return longPct === undefined ? slot.remainingPct : longPct;
+  };
 
   // The legacy chain stays primary-preferred. Balanced pools (Medium's three
   // independent workspaces) first sample any unobserved slot, then choose the
@@ -247,13 +285,13 @@ export function createKeyChain(
     if (!candidates.length) return -1;
     if (!balance) return candidates[0].index;
     candidates.sort((a, b) => {
-      const ap = a.slot.remainingPct;
-      const bp = b.slot.remainingPct;
+      const ap = rankPct(a.slot, t);
+      const bp = rankPct(b.slot, t);
       if (ap == null && bp != null) return -1;
       if (ap != null && bp == null) return 1;
       if (ap != null && bp != null && ap !== bp) return bp - ap;
       if (a.slot.calls !== b.slot.calls) return a.slot.calls - b.slot.calls;
-      return a.index - b.index;
+      return rotation(a.index) - rotation(b.index);
     });
     return candidates[0].index;
   };

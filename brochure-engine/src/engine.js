@@ -95,10 +95,15 @@ function mistralPool(ctx, pool) {
   return [ctx.mistralKey, ctx.mistralKeyBackup];
 }
 
+// Every pool is balanced (2026-10-09). The five keys are independent
+// workspaces, 30 requests/minute each, and every pool lists all five
+// (buildMistralPools), so primary-preferred pools sent every concurrent lane to
+// the same first key until it 429'd. Balanced chains rank by what is left in
+// the current minute and start at a random key among equals.
 function createPoolChain(ctx, pool, usage = {}, { reserve = 0 } = {}) {
   return createKeyChain(mistralPool(ctx, pool), {
     label: `mistral-${pool}`,
-    balance: pool === 'medium',
+    balance: true,
     usage,
     reserve,
   });
