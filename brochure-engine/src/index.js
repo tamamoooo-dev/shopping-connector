@@ -218,7 +218,7 @@ async function runRejudgeSweepTick(env, { scheduledTime = Date.now() } = {}) {
       concurrency: REJUDGE_SWEEP_CONCURRENCY,
     }).catch((err) => ({ status: 'error', error: String(err?.message || err).slice(0, 200), errors: [] }));
     if (sweep.status === 'done' || sweep.state?.done) rejudgeSweepDoneVersion = BUSINESS_ACCEPTANCE_VERSION;
-    if (sweep.status !== 'ran' && sweep.status !== 'error') return;
+    if (sweep.status !== 'ran' && !sweep.error) return;
     const errors = sweep.errors || [];
     console.log('brochure-engine vision rejudge sweep', JSON.stringify({
       status: sweep.status, scanned: sweep.scanned, published: sweep.published,

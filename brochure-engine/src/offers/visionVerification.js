@@ -168,13 +168,13 @@ export async function rejudgeVerificationBacklog(
 export const REJUDGE_SWEEP_KEY = 'ops/vision-rejudge-sweep.json';
 export const REJUDGE_SWEEP_PAGE = 200;
 
+// Absent (or unparseable) → null, a fresh sweep. A failed READ throws: on
+// 2026-10-09 one swallowed read restarted the sweep and lost its totals
+// (rows were safe — settled rows are never listed again).
 export async function readRejudgeSweepState(objectStore) {
-  try {
-    const rec = await objectStore?.get?.(REJUDGE_SWEEP_KEY);
-    return rec?.bytes ? JSON.parse(new TextDecoder().decode(rec.bytes)) : null;
-  } catch {
-    return null;
-  }
+  const rec = await objectStore.get(REJUDGE_SWEEP_KEY);
+  if (!rec?.bytes) return null;
+  try { return JSON.parse(new TextDecoder().decode(rec.bytes)); } catch { return null; }
 }
 
 export async function runRejudgeSweep(stores, {
@@ -189,7 +189,12 @@ export async function runRejudgeSweep(stores, {
   // `status`, not `skipped`: the page report already carries a numeric
   // `skipped` (rows whose stored read still fails).
   if (!objectStore?.get || !objectStore?.put) return { status: 'no-object-store' };
-  const state = await readRejudgeSweepState(objectStore);
+  let state;
+  try {
+    state = await readRejudgeSweepState(objectStore);
+  } catch (err) {
+    return { status: 'unavailable', error: `sweep state unreadable: ${String(err?.message || err).slice(0, 160)}`, errors: [] };
+  }
   if (state?.version === version && state.done) return { status: 'done', state };
   const resume = state?.version === version
     ? state

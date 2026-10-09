@@ -255,4 +255,22 @@ await test('a sweep fire that starts nothing keeps its cursor and is never marke
   f.close();
 });
 
+await test('a failed state read stops the fire; it never restarts the sweep over its totals', async () => {
+  const f = fresh(['s:r:d4d:1', 's:r:d4d:2']);
+  for (const id of ['s:r:d4d:1', 's:r:d4d:2']) await seedRejected(f, id);
+  const objectStore = sweepObjectStore();
+  await runRejudgeSweep(stores(f), { objectStore, currentOn: TODAY, limit: 1 });
+  const before = objectStore.saved.get(REJUDGE_SWEEP_KEY);
+  const flaky = { ...objectStore, async get() { throw new Error('R2 read failed'); } };
+  const failed = await runRejudgeSweep(stores(f), { objectStore: flaky, currentOn: TODAY, limit: 1 });
+  assert.equal(failed.status, 'unavailable');
+  assert.match(failed.error, /R2 read failed/);
+  assert.equal(objectStore.saved.get(REJUDGE_SWEEP_KEY), before, 'state untouched');
+  assert.equal(f.raw.prepare("SELECT COUNT(*) n FROM offer_vision_verification_queue WHERE status='verified'").get().n, 1,
+    'no rows judged on that fire');
+  const resumed = await runRejudgeSweep(stores(f), { objectStore, currentOn: TODAY, limit: 1 });
+  assert.deepEqual([resumed.state.pages, resumed.state.published], [2, 2], 'totals carried across the failure');
+  f.close();
+});
+
 console.log(`\nRe-judge: ${tests} tests OK`);
