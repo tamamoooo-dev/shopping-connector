@@ -77,7 +77,9 @@ import { nestoProvider } from './providers/nesto.js';
 import { d4dStoreProviders } from './providers/d4dStores.js';
 import { buildMistralPools, isTerminalMistralLimit, MISTRAL_POOL_DEFINITIONS } from './offers/mistralKeys.js';
 import { PRICE_FALLBACK_DEFAULTS } from './offers/priceFallback.js';
-import { runRejudgeSweep } from './offers/visionVerification.js';
+import { readRejudgeSweepState, runRejudgeSweep } from './offers/visionVerification.js';
+import { BUSINESS_ACCEPTANCE_VERSION } from './offers/businessAcceptance.js';
+import { latestRiyadhSlot } from './watchPlan.js';
 
 // M1: Othaim via the official PdfIndexCollector. The other stores via the
 // reusable AggregatorCollector (D4D adapter) with an official-offers-page
@@ -169,6 +171,76 @@ async function runDetachedResolution(env, { tag = '' } = {}) {
     return { ok: false, error: err?.message || String(err) };
   } finally {
     await lease.update({ lease_until: null });
+  }
+}
+
+// The re-judge sweep's own task (2026-10-09), on the */2 trigger: a separate
+// invocation, so its R2/D1 calls never share the minute tick's six
+// connections with the price lanes, a watch round or a Stage 1/2 coordinator.
+// Measured inline in the Stage 2 coordinator first: ~3 s a row, so one
+// 200-row page held the coordinator 9.5 minutes. Here a fire works at most
+// REJUDGE_SWEEP_DEADLINE_MS, REJUDGE_SWEEP_CONCURRENCY rows at once, under its
+// own lease, and every page is audited (cron:vision-rejudge). It stands aside
+// for a watch round's first half-hour (monitoring first), the retention
+// minute and a brochure resume. Once the rule version is done, a warm isolate
+// costs nothing and a cold one one R2 read.
+const REJUDGE_SWEEP_DEADLINE_MS = 90 * 1000;
+const REJUDGE_SWEEP_CONCURRENCY = 4;
+const REJUDGE_SWEEP_LEASE_MS = 3 * 60 * 1000;
+const WATCH_ROUND_QUIET_MS = 30 * 60 * 1000;
+let rejudgeSweepDoneVersion = null;
+
+async function runRejudgeSweepTick(env, { scheduledTime = Date.now() } = {}) {
+  if (rejudgeSweepDoneVersion === BUSINESS_ACCEPTANCE_VERSION) return;
+  if (isD1RetentionTick(scheduledTime)) return;
+  if (scheduledTime - latestRiyadhSlot(scheduledTime).scheduledMs < WATCH_ROUND_QUIET_MS) return;
+  const context = buildContext(env);
+  const state = await readRejudgeSweepState(context.objectStore);
+  if (state?.version === BUSINESS_ACCEPTANCE_VERSION && state.done) {
+    rejudgeSweepDoneVersion = BUSINESS_ACCEPTANCE_VERSION;
+    return;
+  }
+  if ((await context.collectionStore.listPending(1)).length) return;
+  const lease = createD1VisionJobStore(env.DB, { id: 'rejudge-sweep' });
+  await lease.ensureRunning({ scope: 'all', origin: 'cron' });
+  if (!(await lease.tryLease({ nowMs: Date.now(), leaseMs: REJUDGE_SWEEP_LEASE_MS }))) return;
+  const startedAt = new Date();
+  try {
+    const sweep = await runRejudgeSweep({
+      verificationStore: context.visionVerificationStore,
+      verificationHistoryStore: context.visionVerificationHistoryStore,
+      enrichStore: context.enrichStore,
+    }, {
+      objectStore: context.objectStore,
+      currentOn: startedAt.toISOString().slice(0, 10),
+      now: startedAt,
+      deadlineMs: REJUDGE_SWEEP_DEADLINE_MS,
+      concurrency: REJUDGE_SWEEP_CONCURRENCY,
+    }).catch((err) => ({ status: 'error', error: String(err?.message || err).slice(0, 200), errors: [] }));
+    if (sweep.status === 'done' || sweep.state?.done) rejudgeSweepDoneVersion = BUSINESS_ACCEPTANCE_VERSION;
+    if (sweep.status !== 'ran' && sweep.status !== 'error') return;
+    const errors = sweep.errors || [];
+    console.log('brochure-engine vision rejudge sweep', JSON.stringify({
+      status: sweep.status, scanned: sweep.scanned, published: sweep.published,
+      errors: errors.length, cursor: sweep.state?.cursor, done: sweep.state?.done,
+    }));
+    await context.opsStore.record({
+      ts: startedAt.toISOString(),
+      action: 'cron:vision-rejudge',
+      origin: 'cron',
+      ok: !sweep.error && !errors.length,
+      offers: sweep.published ?? 0,
+      failed: errors.length + (sweep.error ? 1 : 0),
+      elapsed_ms: Date.now() - startedAt.getTime(),
+      error: sweep.error || errors[0] || null,
+      detail: {
+        scanned: sweep.scanned, passing: sweep.passing, published: sweep.published,
+        skipped: sweep.skipped, staleClaims: sweep.staleClaims, cutShort: sweep.cutShort,
+        samples: sweep.samples, state: sweep.state,
+      },
+    }).catch(() => {});
+  } finally {
+    await lease.update({ lease_until: null }).catch(() => {});
   }
 }
 
@@ -468,6 +540,11 @@ const worker = {
           );
         })(),
       );
+      ctx.waitUntil(
+        runRejudgeSweepTick(env, { scheduledTime: event.scheduledTime || Date.now() }).catch((err) => {
+          console.error('brochure-engine vision rejudge sweep unavailable', err?.message || String(err));
+        }),
+      );
       return;
     }
 
@@ -668,33 +745,9 @@ const worker = {
               await stageTwoLease.ensureRunning({ scope: 'all', origin: 'cron' });
               if (!(await stageTwoLease.tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS }))) return;
               try {
-                // Re-judge stored reads under the current rule first (zero
-                // model calls, one page a fire, once per rule version), so
-                // rows it publishes are never read again below.
-                const sweepAt = new Date();
-                const sweep = await runRejudgeSweep({
-                  verificationStore: context.visionVerificationStore,
-                  verificationHistoryStore: context.visionVerificationHistoryStore,
-                  enrichStore: context.enrichStore,
-                }, { objectStore: context.objectStore, currentOn: today, now: sweepAt })
-                  .catch((err) => ({ error: String(err?.message || err).slice(0, 200), errors: [] }));
-                if (sweep && !sweep.skipped) {
-                  await context.opsStore.record({
-                    ts: sweepAt.toISOString(),
-                    action: 'cron:vision-rejudge',
-                    origin: 'cron',
-                    ok: !sweep.error && !(sweep.errors || []).length,
-                    offers: sweep.published ?? 0,
-                    failed: (sweep.errors || []).length + (sweep.error ? 1 : 0),
-                    elapsed_ms: Date.now() - sweepAt.getTime(),
-                    error: sweep.error || sweep.errors?.[0] || null,
-                    detail: {
-                      scanned: sweep.scanned, passing: sweep.passing, published: sweep.published,
-                      skipped: sweep.skipped, staleClaims: sweep.staleClaims,
-                      samples: sweep.samples, state: sweep.state,
-                    },
-                  }).catch(() => {});
-                }
+                // The re-judge sweep runs on the */2 trigger
+                // (runRejudgeSweepTick); every due row is re-judged against
+                // its stored read inside the drain before any paid read.
                 const candidates = await context.visionVerificationStore.listPending({
                   currentOn: today,
                   limit: CPU_SAFE_BACKGROUND_DRAIN.batchSize * CPU_SAFE_BACKGROUND_DRAIN.maxBatches,

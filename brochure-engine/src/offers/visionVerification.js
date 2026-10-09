@@ -93,23 +93,37 @@ async function commitRejudged({ enrichStore }, item, token, rejudged) {
 // now passes are published with ZERO model calls. A dry run reports what would
 // publish and writes nothing. Paged: pass the returned `nextCursor` as
 // `after` until it is null.
+// `concurrency` rows are judged at once (a commit measured ~3 s, almost all
+// waiting on D1/R2). `deadlineMs` (from entry) stops STARTING rows; started
+// rows always finish, and the cursor then points at the last row started, so
+// nothing between pages is skipped. `exhausted` is the only "no rows left"
+// signal — a page cut short is never the end.
 export async function rejudgeVerificationBacklog(
   { verificationStore, verificationHistoryStore, enrichStore },
-  { currentOn, limit = 50, dryRun = true, after = '' } = {},
+  { currentOn, limit = 50, dryRun = true, after = '', concurrency = 1, deadlineMs = null, now = () => Date.now() } = {},
 ) {
-  const report = { scanned: 0, passing: 0, published: 0, skipped: 0, staleClaims: 0, errors: [], samples: [], nextCursor: null };
+  const report = { scanned: 0, passing: 0, published: 0, skipped: 0, staleClaims: 0, errors: [], samples: [], nextCursor: null, cutShort: false, exhausted: false };
+  const stopAt = deadlineMs == null ? null : now() + Number(deadlineMs);
   if (!verificationStore || !(await verificationStore.ready())) return { ...report, unavailable: true };
+  const pageSize = Math.max(1, Math.min(Number(limit) || 50, 200));
   const pending = verificationStore.listRejudgeCandidates
-    ? await verificationStore.listRejudgeCandidates({ currentOn, limit, after })
-    : await verificationStore.listPending({ currentOn, limit });
-  report.scanned = pending.length;
-  if (verificationStore.listRejudgeCandidates && pending.length >= Math.max(1, Math.min(Number(limit) || 50, 200))) {
-    report.nextCursor = pending[pending.length - 1].offerId;
-  }
-  for (const item of pending) {
+    ? await verificationStore.listRejudgeCandidates({ currentOn, limit: pageSize, after })
+    : await verificationStore.listPending({ currentOn, limit: pageSize });
+  let next = 0;
+  let lastStarted = -1;
+  const worker = async () => {
+    while (next < pending.length && (stopAt == null || now() < stopAt)) {
+      const index = next;
+      next += 1;
+      lastStarted = Math.max(lastStarted, index);
+      report.scanned += 1;
+      await judgeOne(pending[index]);
+    }
+  };
+  const judgeOne = async (item) => {
     try {
       const rejudged = await findRejudgeableAttempt(verificationHistoryStore, item);
-      if (!rejudged) { report.skipped += 1; continue; }
+      if (!rejudged) { report.skipped += 1; return; }
       report.passing += 1;
       if (report.samples.length < 12) {
         report.samples.push({
@@ -120,57 +134,78 @@ export async function rejudgeVerificationBacklog(
           size: rejudged.row.size ?? null,
         });
       }
-      if (dryRun) continue;
+      if (dryRun) return;
       const token = await verificationStore.claim({ offerId: item.offerId });
-      if (!token) { report.staleClaims += 1; continue; }
+      if (!token) { report.staleClaims += 1; return; }
       const outcome = await commitRejudged({ enrichStore }, item, token, rejudged);
       if (outcome?.verified) report.published += 1;
     } catch (err) {
-      if (err?.staleClaim) { report.staleClaims += 1; continue; }
+      if (err?.staleClaim) { report.staleClaims += 1; return; }
       report.errors.push(String(err?.message || err).slice(0, 200));
     }
+  };
+  const lanes = Math.max(1, Math.min(Math.floor(Number(concurrency)) || 1, 8));
+  await Promise.all(Array.from({ length: lanes }, worker));
+  report.cutShort = lastStarted < pending.length - 1;
+  if (!verificationStore.listRejudgeCandidates) {
+    report.exhausted = !report.cutShort; // listPending cannot page
+  } else if (report.cutShort) {
+    report.nextCursor = lastStarted >= 0 ? pending[lastStarted].offerId : (after || null);
+  } else if (pending.length >= pageSize) {
+    report.nextCursor = pending[pending.length - 1].offerId;
+  } else {
+    report.exhausted = true;
   }
   return report;
 }
 
 // THE AUTOMATIC RE-JUDGE SWEEP (2026-10-09). When the admission rule changes
 // version, every unsettled queue row is re-judged ONCE against its stored
-// read — in pages, from the Stage 2 coordinator, before any paid read. The
-// cursor and totals live in one small object-store record, so the sweep
-// resumes across fires, survives deploys, and runs exactly once per rule
+// read — in pages, from its own */2 cron task (index.js), with zero model
+// calls. The cursor and totals live in one small object-store record, so the
+// sweep resumes across fires, survives deploys, and runs exactly once per rule
 // version: a future rule change re-judges stored evidence with no manual step.
 export const REJUDGE_SWEEP_KEY = 'ops/vision-rejudge-sweep.json';
 export const REJUDGE_SWEEP_PAGE = 200;
+
+export async function readRejudgeSweepState(objectStore) {
+  try {
+    const rec = await objectStore?.get?.(REJUDGE_SWEEP_KEY);
+    return rec?.bytes ? JSON.parse(new TextDecoder().decode(rec.bytes)) : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function runRejudgeSweep(stores, {
   objectStore,
   currentOn,
   version = BUSINESS_ACCEPTANCE_VERSION,
   limit = REJUDGE_SWEEP_PAGE,
+  concurrency = 1,
+  deadlineMs = null,
   now = new Date(),
 } = {}) {
-  if (!objectStore?.get || !objectStore?.put) return { skipped: 'no-object-store' };
-  const rec = await objectStore.get(REJUDGE_SWEEP_KEY).catch(() => null);
-  let state = null;
-  if (rec?.bytes) {
-    try { state = JSON.parse(new TextDecoder().decode(rec.bytes)); } catch { state = null; }
-  }
-  if (state?.version === version && state.done) return { skipped: 'done', state };
+  // `status`, not `skipped`: the page report already carries a numeric
+  // `skipped` (rows whose stored read still fails).
+  if (!objectStore?.get || !objectStore?.put) return { status: 'no-object-store' };
+  const state = await readRejudgeSweepState(objectStore);
+  if (state?.version === version && state.done) return { status: 'done', state };
   const resume = state?.version === version
     ? state
     : { version, cursor: '', scanned: 0, published: 0, errors: 0, startedAt: now.toISOString() };
   const report = await rejudgeVerificationBacklog(stores, {
-    currentOn, limit, dryRun: false, after: resume.cursor || '',
+    currentOn, limit, dryRun: false, after: resume.cursor || '', concurrency, deadlineMs,
   });
-  if (report.unavailable) return { skipped: 'unavailable' };
+  if (report.unavailable) return { status: 'unavailable' };
   const next = {
     version,
     startedAt: resume.startedAt,
     updatedAt: now.toISOString(),
-    cursor: report.nextCursor,
+    cursor: report.nextCursor ?? resume.cursor ?? '',
     // A page with errors still advances: its rows stay unsettled, and the
     // drain re-judges the due ones before reading them anyway.
-    done: !report.nextCursor,
+    done: report.exhausted === true,
     pages: (Number(resume.pages) || 0) + 1,
     scanned: (Number(resume.scanned) || 0) + report.scanned,
     published: (Number(resume.published) || 0) + report.published,
@@ -179,7 +214,7 @@ export async function runRejudgeSweep(stores, {
   await objectStore.put(REJUDGE_SWEEP_KEY, new TextEncoder().encode(JSON.stringify(next)), {
     contentType: 'application/json',
   });
-  return { ...report, state: next };
+  return { ...report, status: 'ran', state: next };
 }
 
 function finish(report, chain) {

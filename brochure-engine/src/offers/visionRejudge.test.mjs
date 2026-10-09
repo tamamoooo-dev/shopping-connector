@@ -177,10 +177,81 @@ await test('the automatic sweep pages once through every unsettled row, then sto
   assert.deepEqual([second.published, second.state.done, second.state.published], [1, true, 3],
     'the capped row is re-judged too');
   const third = await runRejudgeSweep(stores(f), { objectStore, currentOn: TODAY, limit: 2 });
-  assert.equal(third.skipped, 'done', 'once per rule version');
+  assert.equal(third.status, 'done', 'once per rule version');
   const nextVersion = await runRejudgeSweep(stores(f), { objectStore, currentOn: TODAY, limit: 2, version: 'business-acceptance-v6' });
-  assert.ok(!nextVersion.skipped && nextVersion.state.version === 'business-acceptance-v6', 'a new rule version sweeps again');
+  assert.ok(nextVersion.status === 'ran' && nextVersion.state.version === 'business-acceptance-v6', 'a new rule version sweeps again');
   assert.ok(saved.has(REJUDGE_SWEEP_KEY));
+  f.close();
+});
+
+// A fake clock: every call advances 10 ms.
+const tickingClock = () => { let t = 0; return () => (t += 10); };
+
+function sweepObjectStore() {
+  const saved = new Map();
+  return {
+    saved,
+    async get(key) { return saved.has(key) ? { bytes: saved.get(key) } : null; },
+    async put(key, bytes) { saved.set(key, bytes); },
+  };
+}
+
+await test('a deadline stops starting rows; the cursor resumes at the next one, nothing skipped', async () => {
+  const ids = ['s:r:d4d:1', 's:r:d4d:2', 's:r:d4d:3', 's:r:d4d:4'];
+  const f = fresh(ids);
+  for (const id of ids) await seedRejected(f, id);
+  // Entry reads the clock once (t=10, stop at 35); each start reads it again:
+  // rows 1 and 2 start (t=20, 30), the third check (t=40) stops the page.
+  const cut = await rejudgeVerificationBacklog(stores(f), {
+    currentOn: TODAY, dryRun: false, limit: 50, deadlineMs: 25, now: tickingClock(),
+  });
+  assert.deepEqual([cut.scanned, cut.published, cut.cutShort, cut.exhausted, cut.nextCursor],
+    [2, 2, true, false, 's:r:d4d:2']);
+  const rest = await rejudgeVerificationBacklog(stores(f), {
+    currentOn: TODAY, dryRun: false, limit: 50, after: cut.nextCursor,
+  });
+  assert.deepEqual([rest.scanned, rest.published, rest.exhausted, rest.nextCursor], [2, 2, true, null]);
+  assert.equal(f.raw.prepare("SELECT COUNT(*) n FROM offer_vision_verification_queue WHERE status='verified'").get().n, 4);
+  f.close();
+});
+
+await test('rows are judged `concurrency` at a time, never more', async () => {
+  const ids = ['s:r:d4d:1', 's:r:d4d:2', 's:r:d4d:3', 's:r:d4d:4', 's:r:d4d:5'];
+  const f = fresh(ids);
+  for (const id of ids) await seedRejected(f, id);
+  let inFlight = 0;
+  let peak = 0;
+  const history = {
+    async readAttempts(...args) {
+      inFlight += 1;
+      peak = Math.max(peak, inFlight);
+      await new Promise((resolve) => setTimeout(resolve, 5));
+      try { return await f.history.readAttempts(...args); } finally { inFlight -= 1; }
+    },
+  };
+  const report = await rejudgeVerificationBacklog({ ...stores(f), verificationHistoryStore: history }, {
+    currentOn: TODAY, dryRun: false, concurrency: 3,
+  });
+  assert.deepEqual([report.scanned, report.published, peak], [5, 5, 3]);
+  f.close();
+});
+
+await test('a sweep fire that starts nothing keeps its cursor and is never marked done', async () => {
+  const ids = ['s:r:d4d:1', 's:r:d4d:2'];
+  const f = fresh(ids);
+  for (const id of ids) await seedRejected(f, id);
+  const objectStore = sweepObjectStore();
+  const idle = await runRejudgeSweep(stores(f), { objectStore, currentOn: TODAY, deadlineMs: 0 });
+  assert.deepEqual([idle.status, idle.scanned, idle.state.done, idle.state.cursor], ['ran', 0, false, '']);
+  const cut = await runRejudgeSweep(stores(f), {
+    objectStore, currentOn: TODAY, deadlineMs: 15, now: new Date(), concurrency: 1,
+  });
+  // A short real deadline: whatever it started is kept, the rest resumes.
+  assert.equal(cut.status, 'ran');
+  const finish = await runRejudgeSweep(stores(f), { objectStore, currentOn: TODAY, concurrency: 4 });
+  assert.equal(finish.state.done, true);
+  assert.equal(finish.state.published, 2, 'every row published exactly once across the fires');
+  assert.equal((await runRejudgeSweep(stores(f), { objectStore, currentOn: TODAY })).status, 'done');
   f.close();
 });
 
