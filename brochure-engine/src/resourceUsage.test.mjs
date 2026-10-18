@@ -49,6 +49,8 @@ assert.equal(price('Wafer', '100g/125g', 10), null);
 assert.equal(price('Rice', '1kg / 1000g', 10).value, 10);
 assert.equal(price('Rice', '500g / pack', 10).value, 20);
 assert.equal(price('Loose Rice /Kg', null, 10).value, 10);
+assert.deepEqual(resolveComparableQuantity({name:'Noodles',size:'5 x 83g / 90g'}).reference,{quantity:5,unit:'piece'});
+assert.equal(price('Noodles', '5 x 83g / 6 x 90g', 7.5), null);
 assert.equal(price('Soap', '3+1 x 120g', 13.99).value, 13.99 / .48);
 assert.equal(price('Dettol Soap (3 + 1x 120g)', '120g', 13.99).value, 13.99 / .48);
 assert.equal(price('Lulu Corn Flakes 375g 2s', '375g', 10.99).value, 10.99 / .75);

@@ -206,6 +206,17 @@ function protectQuantity(quantity, { size, name, text }) {
     const measures = raw.split('/').map(part => parsePackageSize({ size: part })?.canonical)
       .filter(p => p && ['g', 'ml'].includes(p.unit));
     if (measures.length > 1 && measures.some(p => p.unit !== measures[0].unit || p.total !== measures[0].total)) {
+      // "5 x 83g / 90g" varies in weight but still proves five packets.
+      // Keep that count as the reference; never choose one variant's mass.
+      const count = quantity.pack;
+      if (Number.isInteger(count) && count > 1 && measures[0].pack === count
+          && measures.every(p => p.pack === 1 || p.pack === count)) {
+        return Object.freeze({ ...quantity, evidence: COMPARABLE_QUANTITY_EVIDENCE.COUNT,
+          quantity: count, unit: 'piece',
+          reference: Object.freeze({ quantity: count, unit: 'piece' }),
+          unitPriceComparable: true, source: 'explicit_alternative_pack_count',
+        });
+      }
       reason = 'range_or_variant';
     }
   }
