@@ -28,6 +28,7 @@ import {
   parseSize,
   matchStage,
   offerFamily,
+  offerMatchItem,
   productType,
   resolveJourneyPool,
   querySize,
@@ -191,7 +192,7 @@ function interpretIdentity(row, q, tokens) {
   const names = `${row.name || ''} ${row.name_ar || ''}`;
   return {
     row,
-    stage: matchStage({ name: names }, q),
+    stage: matchStage(offerMatchItem(pseudo), q),
     family: offerFamily(pseudo),
     type: productType(names),
     text: names,

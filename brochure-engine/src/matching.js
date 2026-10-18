@@ -88,6 +88,11 @@ const SEARCH_WORDINGS = [
   ['cornflakes', 'corn flakes'], ['sunflower', 'sun flower'],
   ['dishwashing', 'dish washing'], ['mouthwash', 'mouth wash'],
   ['almond', 'almonds'], ['diaper', 'diapers'],
+  ['alsafi', 'al safi'],
+  ['hotdog', 'hot dog', 'هوت دوج', 'هوت دوغ'],
+  ['cereal', 'cereals', 'حبوب الافطار', 'حبوب افطار'],
+  ['chestbag', 'chest bag', 'حقيبه صدر'],
+  ['travelpack', 'travel pack', 'مجموعه سفر'],
   ['ويفر', 'وافر'], ['لواكر', 'لوكر'],
 ];
 const SYNONYMS = [
@@ -95,15 +100,43 @@ const SYNONYMS = [
   ['milk', 'حليب', 'لبن'],
   ['eggs', 'egg', 'بيض', 'بيضه'],
   ['chicken', 'دجاج', 'فراخ'],
+  ['strips', 'strip', 'ستربس'],
+  ['nuggets', 'nugget', 'ناجتس', 'ناجت', 'ناغتس'],
+  ['meat', 'لحم'],
+  ['powder', 'بودره', 'مسحوق'],
+  ['grinder', 'مفرمه', 'مطحنه'],
+  ['geepas', 'جيباس'],
+  ['kettle', 'غلايه'],
+  ['olsenmark', 'اولسنمارك'],
+  ['himalaya', 'هيمالايا'],
+  ['nestle', 'نستله'],
+  ['pants', 'trousers', 'بنطلون', 'سروال'],
+  ['ladies', 'women', 'womens', 'نسائي', 'نسائيه'],
+  ['men', 'mens', 'رجالي', 'رجاليه'],
+  ['slipper', 'slippers', 'شباشب', 'شبشب'],
   ['rice', 'رز', 'ارز'],
   ['sugar', 'سكر'],
   ['water', 'ماء', 'مياه', 'مويه'],
   ['oil', 'زيت'],
+  ['olive', 'olives', 'زيتون'],
   ['bread', 'خبز', 'عيش'],
   ['cheese', 'جبن', 'جبنه'],
   ['tea', 'شاي'],
   ['coffee', 'قهوه'],
-  ['yogurt', 'yoghurt', 'زبادي', 'روب'],
+  ['yogurt', 'yoghurt', 'زبادي', 'زيادي', 'روب'],
+  ['labneh', 'لبنه'],
+  ['greek', 'يوناني'],
+  ['ringo', 'رينجو', 'رينغو'],
+  ['nadec', 'نادك', 'ناديك'],
+  ['doux', 'دو', 'دوكس'],
+  ['parachute', 'باراشوت'],
+  ['sunsilk', 'سنسيلك', 'سنسليك', 'صانسيلك'],
+  ['huggies', 'هجيز'],
+  ['alsafi', 'al safi', 'الصافي'],
+  ['wafer', 'wafers', 'waffer', 'ويفر', 'وافر'],
+  ['waffle', 'waffles', 'وافل'],
+  ['jelly', 'جيلي'],
+  ['squeezer', 'juicer', 'عصاره'],
   ['juice', 'عصير'],
   ['butter', 'زبده'],
   // fat-content descriptors: "منزوع الدسم" and "خالي الدسم" both mean skimmed
@@ -194,9 +227,10 @@ export function expandToken(tok) {
 // produce keyword regardless of position. A name whose ONLY family signal is
 // the produce noun ("طماطم طازجة", "Fresh Tomatoes 1kg") IS the produce.
 const BASE_FAMILIES = {
+  diaper: ['diaper', 'diapers', 'حفاضات', 'حفايض'],
   milk: ['milk', 'حليب'],
   laban: ['laban', 'لبن'],
-  yogurt: ['yogurt', 'yoghurt', 'زبادي', 'روب'],
+  yogurt: ['yogurt', 'yoghurt', 'labneh', 'زبادي', 'زيادي', 'لبنه', 'روب'],
   cheese: ['cheese', 'جبن', 'جبنه', 'موزاريلا', 'mozzarella', 'شيدر', 'cheddar', 'حلوم', 'halloumi', 'فيتا', 'feta', 'قشقوان'],
   cream: ['cream', 'قشطه', 'قشده', 'كريمه'],
   butter: ['butter', 'زبده'],
@@ -223,13 +257,13 @@ const DERIVED_FAMILIES = {
   // incl. confectionery brands that ARE the product name on shelves ("جالكسي
   // الفراولة" carries no word for chocolate) — same precedent as نسكافيه/coffee
   chocolate: ['chocolate', 'cocoa', 'شوكولاته', 'شيكولاته', 'شوكلاته', 'شكولاته', 'شوكلت', 'شوكولا', 'كاكاو', 'جالكسي', 'كيندر', 'kinder', 'اوريو', 'oreo', 'سنيكرز', 'snickers', 'تويكس', 'twix', 'كيتكات', 'kitkat'],
-  biscuit: ['biscuit', 'biscuits', 'cookie', 'cookies', 'wafer', 'cracker', 'crackers', 'بسكويت', 'كوكيز', 'ويفر'],
+  biscuit: ['biscuit', 'biscuits', 'cookie', 'cookies', 'wafer', 'wafers', 'waffer', 'waffle', 'waffles', 'cracker', 'crackers', 'بسكويت', 'كوكيز', 'ويفر', 'وافر', 'وافل'],
   cake: ['cake', 'cakes', 'muffin', 'croissant', 'كيك', 'كيكه', 'كعك', 'مافن', 'كرواسون'],
   pastry: ['pastry', 'pastries', 'puff', 'dough', 'عجينه', 'عجين', 'فطاير', 'فطيره', 'سمبوسه', 'سمبوسك', 'بف', 'باف', 'donut', 'donuts', 'دونات'],
   icecream: ['icecream', 'gelato', 'ايس', 'بوظه'],
   powder: ['powder', 'بودره', 'مسحوق', 'مجفف', 'مجففه'],
   cereal: ['cereal', 'cereals', 'flakes', 'oats', 'granola', 'muesli', 'كورن', 'فليكس', 'شوفان', 'جرانولا'],
-  candy: ['candy', 'gum', 'marshmallow', 'lollipop', 'chupa', 'chups', 'حلوى', 'حلاوه', 'جيلي', 'علكه', 'لولي', 'مصاص', 'مصاصه', 'مصاصات', 'شوبا', 'شوبس'],
+  candy: ['candy', 'jelly', 'gum', 'marshmallow', 'lollipop', 'chupa', 'chups', 'حلوى', 'حلاوه', 'حلاوي', 'جيلي', 'علكه', 'لولي', 'مصاص', 'مصاصه', 'مصاصات', 'شوبا', 'شوبس'],
   chips: ['chips', 'crisps', 'شيبس'],
   sauce: ['sauce', 'ketchup', 'mayonnaise', 'paste', 'puree', 'صوص', 'صلصه', 'كاتشب', 'مايونيز', 'مسطرده', 'معجون', 'بيوريه'],
   dessert: ['dessert', 'custard', 'pudding', 'حلا', 'مهلبيه', 'كاسترد', 'بودينج'],
@@ -255,7 +289,7 @@ const DERIVED_FAMILIES = {
   // مشابك/مشبك: hair clips and clothes pins — produce-shaped accessory names
   // ("مشابك شعر موز" banana hair clips, found live 2026-07-16) must never
   // rank in a produce band.
-  care: ['shampoo', 'soap', 'lotion', 'conditioner', 'detergent', 'dishwashing', 'شامبو', 'صابون', 'لوشن', 'بلسم', 'معطر', 'منظف', 'مطهر', 'غسول', 'ملمع', 'مشبك', 'مشابك'],
+  care: ['makeup', 'cosmetics', 'مكياج', 'dishwash', 'shampoo', 'soap', 'lotion', 'conditioner', 'detergent', 'dishwashing', 'شامبو', 'صابون', 'لوشن', 'بلسم', 'معطر', 'منظف', 'مطهر', 'غسول', 'ملمع', 'مشبك', 'مشابك'],
   // housewares/appliances: vessels and machines are the PRODUCT; the food or
   // drink word next to them names their PURPOSE ("ابريق ماء" is a jug,
   // "غلاية ماء" a kettle, "جهاز طهي بالبخار مع خزان ماء" a food steamer —
@@ -270,7 +304,7 @@ const DERIVED_FAMILIES = {
   // results (found live 2026-07-16), and the ambiguity is self-neutralizing —
   // a lupin query containing ترمس classifies to the SAME family as the lupin
   // products, and same-family never gates.
-  houseware: ['slicer', 'steamer', 'blender', 'thermos', 'flask', 'jug', 'pitcher', 'teapot', 'قطاعة', 'قطاعه', 'غلايه', 'قلايه', 'ابريق', 'اباريق', 'قربه', 'جهاز', 'اجهزه', 'ماكينه', 'مكواه', 'سخان', 'قدر', 'مقلاه', 'طنجره', 'مضخه', 'مضخات', 'ترمس'],
+  houseware: ['grinder', 'مفرمه', 'مطحنه', 'cooker', 'squeezer', 'juicer', 'عصاره', 'slicer', 'steamer', 'blender', 'thermos', 'flask', 'jug', 'pitcher', 'teapot', 'قطاعة', 'قطاعه', 'غلايه', 'قلايه', 'ابريق', 'اباريق', 'قربه', 'جهاز', 'اجهزه', 'ماكينه', 'مكواه', 'سخان', 'قدر', 'مقلاه', 'طنجره', 'مضخه', 'مضخات', 'ترمس'],
   petfood: ['cat', 'cats', 'kitten', 'kittens', 'dog', 'dogs', 'قطط', 'كلاب'],
 };
 // Fresh fruit & vegetables — the LOWEST family tier (see the tier note above).
@@ -278,6 +312,7 @@ const DERIVED_FAMILIES = {
 // English colour/flavour words ("orange", "cherry") are deliberately Arabic-only
 // so "Tide Orange" and "Cherry Tomatoes" never classify as fruit.
 const PRODUCE_FAMILIES = {
+  olive: ['olive', 'olives', 'زيتون'],
   tomato: ['tomato', 'tomatoes', 'طماطم', 'طماط', 'بندوره'],
   potato: ['potato', 'potatoes', 'بطاطس', 'بطاطا'],
   onion: ['onion', 'onions', 'بصل'],
@@ -360,7 +395,11 @@ function familyKey(word) {
 // The product family of a name (or any text), or null.
 // Tier order: derived > base > produce (see the tier note above).
 export function productFamily(name) {
-  const words = normalizeText(name).split(' ');
+  const normalized = normalizeText(name);
+  if (/(^| )(spring rolls?|egg rolls?|سبرينغ رولز|سبرنج رول|رول (?:ال)?بيض)( |$)/.test(normalized)) return 'pastry';
+  if (/(^| )dish (wash|washing)( |$)/.test(normalized)) return 'care';
+  if (/(^| )حبوب (?:ال)?افطار( |$)/.test(normalized)) return 'cereal';
+  const words = normalized.split(' ');
   let base = null;
   let produce = null;
   for (let i = 0; i < words.length; i++) {
@@ -381,6 +420,8 @@ export function productFamily(name) {
   // A visible, unambiguous product line fills a gap after derived heads have
   // had precedence. This also handles OCR's "بيض القهوة" (missing م in مبيض).
   if (/(^| )(coffee mate|كوفي ميت)( |$)/.test(normalizeText(name))) return 'creamer';
+  if (base === 'rice' && /(^| )(flour|دقيق|طحين)( |$)/.test(normalized)) return 'flour';
+  if (base === 'rice' && /(^| )(vinegar|خل)( |$)/.test(normalized)) return 'vinegar';
   return base || produce;
 }
 
@@ -534,6 +575,8 @@ export function producePresence(text, family) {
 // recovering offers whose OCR name is debris ("casc 18 200ml") into their true
 // family — sharpening both the /offers family ranking and the watch gate.
 const CATEGORY_FAMILY = {
+  'baby-diapers': 'diaper',
+  dishwasher: 'care',
   eggs: 'eggs',
   rice: 'rice',
   water: 'water',
@@ -561,14 +604,29 @@ export function categoryFamily(slug) {
 }
 
 // The family of a flyer OFFER: its name-derived family (most specific), falling
-// back to its aggregator category. Name always wins, so "milk chocolate" in the
-// chocolates category is chocolate, and an "egg curry" is a prepared dish — the
-// category only fills the gap when the name yields nothing.
+// back to its aggregator category. A concrete product name wins. A fruit-only
+// name in a mapped non-produce aisle can instead be a flavour; rice in the
+// breakfast-cereal aisle is cereal, not a bag of rice.
 export function offerFamily(offer) {
   if (!offer) return null;
   const nameFam = productFamily(`${offer.name || ''} ${offer.nameAr || ''}`);
+  const categoryFam = categoryFamily(offer.category);
+  // A fruit word alone can be a flavour in a poorly transcribed product name.
+  // A mapped non-produce aisle supplies the missing head noun, not a new name.
+  if (isProduceFamily(nameFam) && categoryFam && !isProduceFamily(categoryFam)) return categoryFam;
+  if (nameFam === 'rice' && categoryFam === 'cereal') return categoryFam;
   if (nameFam) return nameFam;
-  return categoryFamily(offer.category);
+  return categoryFam;
+}
+
+// Matching-only projection of existing offer fields; never a display name or
+// a quantity observation. The unambiguous diaper aisle can fill a missing
+// product noun, but cannot overwrite a known different product such as soap.
+export function offerMatchItem(offer = {}) {
+  const names = `${offer.name || ''} ${offer.nameAr || ''}`.trim();
+  const categoryEvidence = offer.category === 'baby-diapers' && !productFamily(names) ? 'diapers' : '';
+  return { name: [names, categoryEvidence].filter(Boolean).join(' '),
+    brand: offer.brandSlug || '', size: offer.size || '', category: offer.category };
 }
 
 // --- token-in-text scoring ------------------------------------------------------
@@ -805,7 +863,7 @@ function rawMatchStage(item, qTokens, query) {
     // ليمون is a flavour in it). Unknown family never demotes.
     const qFam = queryFamily(query);
     if (qFam) {
-      const fam = productFamily(item.name || '');
+      const fam = offerFamily({ name: item.name, category: item.category });
       if (fam && fam !== qFam) return 1;
     }
     if (role !== 'primary' && t < 2) return 2;
@@ -836,7 +894,7 @@ function rawMatchStage(item, qTokens, query) {
   // Unknown family never demotes (failure mode stays "not demoted").
   const qFam = queryFamily(query);
   if (qFam) {
-    const fam = productFamily(item.name || '');
+    const fam = offerFamily({ name: item.name, category: item.category });
     if (fam && fam !== qFam) return 1;
   }
   if (phraseInName(qTokens, nameWords)) return 5;

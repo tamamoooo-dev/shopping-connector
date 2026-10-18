@@ -1,0 +1,231 @@
+{
+  "reviewedAt": "2026-10-18T12:00:53.520Z",
+  "method": "Assistant inspected each of these 25 original crops. These are targeted development/reference checks, annotated after inspecting failures and candidate results, not an independent blind relevance benchmark. Strawberry fruit includes frozen bags; no freshness claim or new quantity annotation is made.",
+  "records": [
+    {
+      "index": 1,
+      "id": "tamimi:central:d4d:99051816",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/c96817a9e009e35758bbd219dfe62240.jpg",
+      "sha256": "70228d232abe4382cb3ae6142732ed591ff0d83da753b5182af4ae570aec840a",
+      "name": "CRISPY RICE",
+      "category": "cereals-bars",
+      "label": "cereal"
+    },
+    {
+      "index": 2,
+      "id": "nesto:central:d4d:99155691",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/c9714f4c9e63fc9f51bba3de6957988a.jpg",
+      "sha256": "166214fbc10b253f1c59ae5fa8818e5d2a72061b3afa9ba9ee0d589207459f0f",
+      "name": "Saflout S.Horse Glutinous Rice Flour 500Gm",
+      "category": null,
+      "label": "flour"
+    },
+    {
+      "index": 3,
+      "id": "hyperpanda:central:d4d:99123447",
+      "image": "https://cdn.d4donline.com/u/i/26/10/14/89497fef2247fda321b8d02eb5b64e82.jpg",
+      "sha256": "3c27e5a0b7f0246b234029deb50441095187f0cfbbeb9955dad208638da8842e",
+      "name": "Prime Rice Cooker with Steam, RC-002",
+      "category": "kitchen-appliance",
+      "label": "houseware"
+    },
+    {
+      "index": 4,
+      "id": "prime:central:d4d:99135939",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/ead30229bb9cd0e4620cec70bb938e89.jpg",
+      "sha256": "f014efc49ec60dc1a7447bdd5b19fd61f3d0bfe0b0f9b6b3e85a38e28dd82182",
+      "name": "LA EXPLANADA GOURMET ACEITUNAS RELLENAS DE LIMÓN OLIVES STUFFED WITH LEMON 350GM",
+      "category": "canned-packeted",
+      "label": "olive"
+    },
+    {
+      "index": 5,
+      "id": "marksave:central:d4d:99061971",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/fc8a017e9ee234751c7851a3de8dac84.jpg",
+      "sha256": "869d9958dd6301a997abf3d9c8465a40e68eb3bdcc6734a501f0bce5356a321c",
+      "name": "null",
+      "category": "eggs",
+      "label": "eggs"
+    },
+    {
+      "index": 6,
+      "id": "prime:central:d4d:99137055",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/1240433c9545819a606cdae455635d71.jpg",
+      "sha256": "334b80ea4396cc8a7fd692c34dc87769eb300982adad3927085c4972c4901c29",
+      "name": null,
+      "category": null,
+      "label": "candy"
+    },
+    {
+      "index": 7,
+      "id": "alwafa:central:d4d:99096720",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/ef4d276242dc8c9206dd079d1f66ae42.jpg",
+      "sha256": "03c0cbb9eff0854d210ef67540b2de24dfac07228644aadb109e8e05625986b2",
+      "name": "Rinzo Dish Wash Lemon 1Lt",
+      "category": "dishwasher",
+      "label": "care"
+    },
+    {
+      "index": 8,
+      "id": "tamimi:central:d4d:99050151",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/b83e2605656a36780c2d995931acbeec.jpg",
+      "sha256": "9764cf2e06c41564992edc5e9dad574c299978419e0d4877f0216fdede6f9978",
+      "name": "SUNBULAH SPRING ROLLS, WHOLE WHEAT, OR EGG ROLL, 160 GRAMS",
+      "category": "other-frozen-food",
+      "label": "pastry"
+    },
+    {
+      "index": 9,
+      "id": "prime:central:d4d:99135150",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/7f2cbec141590ce1be03a9f03240ef11.jpg",
+      "sha256": "e3bb38dade43825616589fae320a4f50b60f111e88701d95ffcff6e533414b2a",
+      "name": "YUMMY FREEZERS STRAWBERRY 1 KG",
+      "category": "fresh-fruits",
+      "label": "strawberry"
+    },
+    {
+      "index": 10,
+      "id": "ramez:central:d4d:99145989",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/acf6508e61a0b69a1c95cdfc82285b8d.jpg",
+      "sha256": "0f66e5c16be57adf23d3f132d0831a3e69833dd25e6ab3d63c1f4da9c1d619bb",
+      "name": "Ultimo Montana Strawberry Frozen",
+      "category": "frozen-fruits-veg",
+      "label": "strawberry"
+    },
+    {
+      "index": 11,
+      "id": "lulu:central:d4d:99104667",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/df00646b7115f79dcedf7761dcedaf00.jpg",
+      "sha256": "b8e280bedb710828f60c7cef53d33507ceebc0e1f914652a181484131cb99d80",
+      "name": null,
+      "category": "frozen-fruits-veg",
+      "label": "strawberry"
+    },
+    {
+      "index": 12,
+      "id": "nesto:central:d4d:99082323",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/ff1e7eaaf7b87e55bbb169827cae58f5.jpg",
+      "sha256": "fce6c101f7031466c9f322a91bdf0b5b399cf6f632a869a42a651ed9fb477653",
+      "name": "Dari Frozen Strawberry 1Kg",
+      "category": "frozen-fruits-veg",
+      "label": "strawberry"
+    },
+    {
+      "index": 13,
+      "id": "lulu:central:d4d:99104508",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/ba57e7a92aa18d0ec1c9321acdfbc596.jpg",
+      "sha256": "064e76634a70a6424fe9ad0e63175c416f822d2806ce176e246d3e802a408bc1",
+      "name": "Planet Y Premium Frozen Strawberries 350gm",
+      "category": "frozen-fruits-veg",
+      "label": "strawberry"
+    },
+    {
+      "index": 14,
+      "id": "nesto:central:d4d:99088218",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/380bb6931830ad37958d2ace790abfd7.jpg",
+      "sha256": "e3ccaa5221f6c1461d8d4ccd0bda3dc4646995ed731ee33e7536e6fa44045668",
+      "name": "Dari Frozen Strawberry 1Kg",
+      "category": "frozen-fruits-veg",
+      "label": "strawberry"
+    },
+    {
+      "index": 15,
+      "id": "nesto:central:d4d:99155880",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/0150e9a32fb51c2344da813e0f09ce03.jpg",
+      "sha256": "acb0e0ed5438aded757be70b9545dd751578b9aac4dba34ea8da9a6f8bd7c8f8",
+      "name": "Dari Frozen Strawberry 1Kg",
+      "category": "frozen-fruits-veg",
+      "label": "strawberry"
+    },
+    {
+      "index": 16,
+      "id": "farm:central:d4d:99042141",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/03cd8ef9a9d37b1a580eef92fcf51c37.jpg",
+      "sha256": "04af27e29fe2b6e6065e3d67d059449161eb09907d7124e563b2087bfe8cc97f",
+      "name": "SUNBULAH STRAWBERRY 800GR",
+      "category": "frozen-fruits-veg",
+      "label": "strawberry"
+    },
+    {
+      "index": 17,
+      "id": "hyperpanda:central:d4d:99118209",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/01851c6c5cbe793b6cc1870ccd8184d4.jpg",
+      "sha256": "dd90e8f8d26d03ab3769f1e70d96755b2284fe76d2cf1241682fe8165e6d83e4",
+      "name": "Sunbulah Strawberry (800g)",
+      "category": "frozen-fruits-veg",
+      "label": "strawberry"
+    },
+    {
+      "index": 18,
+      "id": "hyperpanda:central:d4d:99118215",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/9a3f1694ef7fa62cc784394b5e3bf098.jpg",
+      "sha256": "04769ac7ed036bc9859d9c0fc4c67aeb1dc9f044f57bb033c5c3386710384859",
+      "name": null,
+      "category": "frozen-fruits-veg",
+      "label": "strawberry"
+    },
+    {
+      "index": 19,
+      "id": "aljazera:central:d4d:99055140",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/1a508268e53a421cb7c3861be027574a.jpg",
+      "sha256": "e6994bf06a03203df05b748ed750ecb28b170c6a5e2303b879c1ed433ffc3f98",
+      "name": "LIME GREEN (PACK)",
+      "category": null,
+      "label": "citrus"
+    },
+    {
+      "index": 20,
+      "id": "nesto:central:d4d:99155544",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/781fd5925613f10637021940a23fbe37.jpg",
+      "sha256": "5c92d444db2f1f8e8b791dda017af88d45851127c93f2f032872efb8dd2d032f",
+      "name": "Lemon Big Per Kg",
+      "category": null,
+      "label": "citrus"
+    },
+    {
+      "index": 21,
+      "id": "othaim:central:d4d:99101172",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/319b6463421fe0c3b75114c174138e9d.jpg",
+      "sha256": "9bbc8ea197920731a489b7babf2474b8c98f4948d4c7a27494e5e65dbb60e608",
+      "name": "Lemon",
+      "category": "fresh-fruits",
+      "label": "citrus"
+    },
+    {
+      "index": 22,
+      "id": "cityflower:central:d4d:99035814",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/d02caebaecb67e434ec9f12452b6bf4a.jpg",
+      "sha256": "1c0f8b1680b0c3c5f8bc9a2d25cbd7046884276248cf2ff3e5b55e54ea9732ff",
+      "name": "Royal King 1121 Long White Basmati Rice 1kg",
+      "category": "rice",
+      "label": "rice"
+    },
+    {
+      "index": 23,
+      "id": "danube:central:d4d:98685306",
+      "image": "https://cdn.d4donline.com/u/a/26/10/7/ebb2b0cb62c81990d72d23921b002781.jpg",
+      "sha256": "49d90655fb005b209790249890cfd2ad2e0eccc9cb244f648ec62e9e0e93601f",
+      "name": "Yoco Crunchia di Fragola Double Waffle With Strawberry Filling 50g",
+      "category": null,
+      "label": "biscuit"
+    },
+    {
+      "index": 24,
+      "id": "nesto:central:d4d:99090615",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/b64c75ef4d67d1f70d3d7a2c187824be.jpg",
+      "sha256": "ffb635123869e5055624829cca1025c0c71d4ae155e64abf84df8749c3bffcaa",
+      "name": null,
+      "category": "yogurt-labneh",
+      "label": "yogurt"
+    },
+    {
+      "index": 25,
+      "id": "alwafa:central:d4d:99075639",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/47cdc06ad3875a2184aa589b0c986d91.jpg",
+      "sha256": "74e9ef411bcfdbac1aa155ee859fa65766244281f1dd22e534ff829a894879a6",
+      "name": "Lemon Squeezer Steel/Plastic Astd",
+      "category": null,
+      "label": "houseware"
+    }
+  ]
+}

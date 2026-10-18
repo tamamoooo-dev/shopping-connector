@@ -26,7 +26,7 @@ import { marketDate } from '../marketDate.js';
 //     differently from 5-week facts.
 
 import {
-  matchStage, offerFamily, productType, resolveJourneyPool, querySize, sizeContradicts,
+  matchStage, offerFamily, offerMatchItem, productType, resolveJourneyPool, querySize, sizeContradicts,
 } from '../matching.js';
 import { queryTokens, offerRelevance, relevanceScore } from '../offers/contract.js';
 import { variantLabel } from '../priceHistory.js';
@@ -63,7 +63,7 @@ function interpretProduct(p, q, tokens) {
   const names = `${p.display_name || ''} ${p.display_name_ar || ''}`;
   return {
     row: p,
-    stage: matchStage({ name: names }, q),
+    stage: matchStage(offerMatchItem(pseudo), q),
     family: offerFamily(pseudo),
     type: productType(names),
     text: names,

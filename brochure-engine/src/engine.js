@@ -30,7 +30,7 @@ import { drainResolution } from './registry/drain.js';
 import { runMaintenance } from './registry/lifecycle.js';
 import { applyReviewAction } from './registry/review.js';
 import { getRegistryPricesDoc } from './registry/history.js';
-import { queryFamily, offerFamily, productType, freshProduceIntent, isProcessedProduce, producePresence, matchStage } from './matching.js';
+import { queryFamily, offerFamily, offerMatchItem, productType, freshProduceIntent, isProcessedProduce, producePresence, matchStage } from './matching.js';
 import { pruneStoredBytes } from './retention.js';
 import {
   anchorWatch,
@@ -462,7 +462,7 @@ export async function handleRequest(request, ctx) {
         // (multi word); famRank/score/price only order within a stage. It
         // subsumes the old name-tier key: any stage ≥1 is a name match, and
         // OCR-text-only matches (stage 0) stay ranked last as before.
-        const stage = q ? matchStage({ name: `${offer.name || ''} ${offer.nameAr || ''}`, size: offer.size, brand: r.e_brand }, q) : 0;
+        const stage = q ? matchStage({ ...offerMatchItem(offer), brand: r.e_brand || offer.brandSlug || '' }, q) : 0;
         return { offer, stage, score: relevanceScore(rel), famRank };
       })
       .filter((s) => s.score > 0);

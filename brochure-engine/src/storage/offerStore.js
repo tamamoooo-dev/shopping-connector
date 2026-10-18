@@ -110,7 +110,7 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
     // fetch.
     async search({ q = '', store = '', region = '', currentOn = null, limit = 60 } = {}) {
       const tokens = queryTokens(q);
-      const hay = CANON_HAYSTACK_SQL;
+      const hay = 'o._search_hay';
       const col = (c) => `o.${c}`;
       const where = [];
       const binds = [];
@@ -156,13 +156,22 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
       const esc = (v) => v.replace(/[%_\\]/g, (c) => '\\' + c);
       const boundaryParts = [];
       const boundaryBinds = [];
+      const groups = new Map();
       for (const tok of tokens) {
         const variants = expandToken(tok);
+        const key = variants.join('\0');
+        const group = groups.get(key);
+        if (group) group.weight += 1;
+        else groups.set(key, { variants, weight: 1 });
+      }
+      // Repeated translations express the same condition. Keep their exact
+      // ranking weight without cloning a large expression for each spelling.
+      for (const { variants, weight } of groups.values()) {
         where.push(`(${variants.map(() => `${hay} LIKE ? ESCAPE '\\'`).join(' OR ')})`);
         for (const v of variants) binds.push(`%${esc(v)}%`);
         boundaryParts.push(
           `(CASE WHEN ${variants.map(() => `(' ' || ${hay} || ' ') LIKE ? ESCAPE '\\'`).join(' OR ')} THEN 2 ` +
-            `WHEN ${variants.map(() => `(' ' || ${hay}) LIKE ? ESCAPE '\\'`).join(' OR ')} THEN 1 ELSE 0 END)`,
+            `WHEN ${variants.map(() => `(' ' || ${hay}) LIKE ? ESCAPE '\\'`).join(' OR ')} THEN 1 ELSE 0 END) * ${weight}`,
         );
         for (const v of variants) boundaryBinds.push(`% ${esc(v)} %`);
         for (const v of variants) boundaryBinds.push(`% ${esc(v)}%`);
@@ -170,12 +179,20 @@ export function createD1OfferStore(db, { builtArabicNamesEnabled = false } = {})
       const orderBy = boundaryParts.length
         ? `ORDER BY (${boundaryParts.join(' + ')}) DESC, ${col('price')} ASC`
         : `ORDER BY ${col('price')} ASC`;
-      const sql = `SELECT o.*, ${enrichmentColumns} FROM offers o ${ENRICH_JOIN}
+      // Alias the unchanged expression in a flattenable subquery. Repeating it
+      // for every synonym/boundary can exceed D1's 100 KB statement limit.
+      // No MATERIALIZED fence: the planner may keep the existing scan plan.
+      const from = tokens.length
+        ? `SELECT o.* FROM (SELECT o.*, ${enrichmentColumns}, ${CANON_HAYSTACK_SQL} AS _search_hay
+            FROM offers o ${ENRICH_JOIN}) o`
+        : `SELECT o.*, ${enrichmentColumns} FROM offers o ${ENRICH_JOIN}`;
+      const sql = `${from}
         ${where.length ? 'WHERE ' + where.join(' AND ') : ''}
         ${orderBy} LIMIT ?`;
       binds.push(...boundaryBinds);
       binds.push(Math.max(1, Math.min(Number(limit) || 60, 300)));
       const { results } = await db.prepare(sql).bind(...binds).all();
+      for (const row of results || []) delete row._search_hay;
       return results || [];
     },
 

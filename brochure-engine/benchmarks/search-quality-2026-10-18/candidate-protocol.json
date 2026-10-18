@@ -1,0 +1,31 @@
+{
+  "frozenAt": "2026-10-18T11:58:25.732Z",
+  "baselineEngine": "8fe94ac",
+  "baselineFrontend": "59748de",
+  "hashes": {
+    "src/matching.js": "d6e3ec43d8f4a714e60b0b74deeb12e8d1f02744f2b836b2b240699d777c4ba3",
+    "src/engine.js": "b057dca76474c19bfa94236954eb24f724250815d05f4e19383902946c6ece15",
+    "src/priceHistory.js": "147a5f131b70d303a1edb638ac54972e9ad1c2da07d3ac5f29cb5a15c905e308",
+    "src/registry/history.js": "03d2ee95d73961625f7d99fd29cb46ff993975b5bbb6d005fc87cd2bd1f5cb25",
+    "../../brochure-frontend-release-2026-10-18/src/match.js": "ba22830bb098be29848e4090f2353039fbc40c20a000ebc0d937d3c3046deeeb",
+    "../../brochure-frontend-release-2026-10-18/src/compare.js": "81acd801dfed375beb77d711f9fa48e4e9eb342c25c983b6c72e2e4187692182",
+    "../../brochure-frontend-release-2026-10-18/src/marketplace.js": "cdd547a980929b2a3716662720b1f57e00fceb537a8b0b63d664b40b95adbf1a",
+    "src/storage/offerStore.js": "612071d9a63054257e96df16790e5c957c35c5b7cf9600b84c1c8e3c919139a6",
+    "../../brochure-frontend-release-2026-10-18/index.html": "b6dc8d05d3cb9fb40e975e4f678cfa249cc2f47d15934881e3b8a06092b935ec"
+  },
+  "note": "Development includes inspected cases and iterative tuning. Expanded queries are additional checks, not a blinded or independently annotated benchmark. No later runtime edits may be reported under these hashes.",
+  "rawCaptureHashes": {
+    "src/matching.js": "6f58f7b5c88c0f53fd19d1c59e7154d24235f98cf747050e8b0e3017d2100c89",
+    "src/engine.js": "93d4c11beaa2f70847ca8d981f61279c09d7626e7cf22f23d5efc9f4674c5e51",
+    "src/priceHistory.js": "0f08f86f31d33f10a21488ca1dfa6cb8fbf9ec14b477c5aff821cec2f8d41962",
+    "src/registry/history.js": "d36f76d6c00c48b650b0a24abc1ba1bb717dd13f1589c7c21334971f65620280",
+    "../../brochure-frontend-release-2026-10-18/src/match.js": "31e99aa188bc659a420ca38c78cd1b955419bdea4dfe628c557aecdcf2bbdd52",
+    "../../brochure-frontend-release-2026-10-18/src/compare.js": "9e0208e7181a3a53ef7d64949258593ebdfda75984cc420f4ee9ad4fff5282ce",
+    "../../brochure-frontend-release-2026-10-18/src/marketplace.js": "d2f38d5f9466c148c8adc20c3475823ad6a640e65a19dc5f574e243265596324",
+    "src/storage/offerStore.js": "012910d37b4fc9edcca63ee4dcfaab77edcacf5818e7921352b8700226d551d9",
+    "../../brochure-frontend-release-2026-10-18/index.html": "ee3265ba1de10cbb1ce61cff0606b9e5e8c403d160991f6d54d1d9156ce781c5"
+  },
+  "hashNormalization": "UTF-8, CRLF normalized to LF for portable Git checkouts",
+  "executionChangesFinalizedAt": "2026-10-18T12:45:20.193Z",
+  "executionChangesNote": "The dictionary freeze is preserved. Later SQL-only changes are separately checked for identical rows/fields/order, and the HTML import map is separately checked in real Chrome with simulated stale modules."
+}

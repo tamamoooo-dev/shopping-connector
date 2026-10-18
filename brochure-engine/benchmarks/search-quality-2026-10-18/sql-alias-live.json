@@ -1,0 +1,206 @@
+{
+  "checkedAt": "2026-10-18T12:45:20.177Z",
+  "pairedResultsIdentical": true,
+  "notes": "Direct native Wrangler used after transient OAuth failures and a Windows libuv subprocess crash. Long old statements cannot run through Windows CLI; both remain covered by the local full-catalogue differential proof.",
+  "records": [
+    {
+      "q": "فراوله",
+      "variant": "before",
+      "file": "live-sql-0.sql",
+      "sqlBytes": 12681,
+      "runnable": true,
+      "count": 160,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "EEUR",
+        "served_by_colo": "FRA",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 547.1313
+        },
+        "duration": 547.1313,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 478629888,
+        "rows_read": 65529,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "q": "فراوله",
+      "variant": "after",
+      "file": "live-sql-1.sql",
+      "sqlBytes": 2939,
+      "runnable": true,
+      "count": 160,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "EEUR",
+        "served_by_colo": "FRA",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 1642.0971
+        },
+        "duration": 1642.0971,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 478629888,
+        "rows_read": 65689,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "q": "rice 1kg",
+      "variant": "before",
+      "file": "live-sql-2.sql",
+      "sqlBytes": 12621,
+      "runnable": true,
+      "count": 300,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "EEUR",
+        "served_by_colo": "FRA",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 426.8474
+        },
+        "duration": 426.8474,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 478629888,
+        "rows_read": 74616,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "q": "rice 1kg",
+      "variant": "after",
+      "file": "live-sql-3.sql",
+      "sqlBytes": 2879,
+      "runnable": true,
+      "count": 300,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "EEUR",
+        "served_by_colo": "FRA",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 827.6355
+        },
+        "duration": 827.6355,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 478629888,
+        "rows_read": 75612,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "q": "nadec greek yoghurt",
+      "variant": "before",
+      "file": "live-sql-4.sql",
+      "sqlBytes": 39638,
+      "runnable": false,
+      "skipped": "old query exceeds CLI or SQL size limit"
+    },
+    {
+      "q": "nadec greek yoghurt",
+      "variant": "after",
+      "file": "live-sql-5.sql",
+      "sqlBytes": 4158,
+      "runnable": true,
+      "count": 12,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "EEUR",
+        "served_by_colo": "FRA",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 323.3728
+        },
+        "duration": 323.3728,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 478629888,
+        "rows_read": 65318,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "q": "nuggets nugget ناجتس ناجت ناغتس nuggets",
+      "variant": "before",
+      "file": "live-sql-6.sql",
+      "sqlBytes": 116662,
+      "runnable": false,
+      "skipped": "old query exceeds CLI or SQL size limit"
+    },
+    {
+      "q": "nuggets nugget ناجتس ناجت ناغتس nuggets",
+      "variant": "after",
+      "file": "live-sql-7.sql",
+      "sqlBytes": 3244,
+      "runnable": true,
+      "count": 106,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "EEUR",
+        "served_by_colo": "FRA",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 2394.8006
+        },
+        "duration": 2394.8006,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 478629888,
+        "rows_read": 90948,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    },
+    {
+      "q": "nuggets wafer yoghurt ladies water slipper",
+      "variant": "before",
+      "file": "live-sql-8.sql",
+      "sqlBytes": 108920,
+      "runnable": false,
+      "skipped": "old query exceeds CLI or SQL size limit"
+    },
+    {
+      "q": "nuggets wafer yoghurt ladies water slipper",
+      "variant": "after",
+      "file": "live-sql-9.sql",
+      "sqlBytes": 7248,
+      "runnable": true,
+      "count": 0,
+      "meta": {
+        "served_by": "v3-prod",
+        "served_by_region": "EEUR",
+        "served_by_colo": "FRA",
+        "served_by_primary": true,
+        "timings": {
+          "sql_duration_ms": 583.8914
+        },
+        "duration": 583.8914,
+        "changes": 0,
+        "last_row_id": 0,
+        "changed_db": false,
+        "size_after": 478629888,
+        "rows_read": 91053,
+        "rows_written": 0,
+        "total_attempts": 1
+      }
+    }
+  ]
+}

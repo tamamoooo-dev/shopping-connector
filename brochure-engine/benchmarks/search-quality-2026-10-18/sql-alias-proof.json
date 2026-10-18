@@ -1,0 +1,833 @@
+{
+  "checkedAt": "2026-10-18T12:44:48.149Z",
+  "queries": 118,
+  "allRowsFieldsAndOrderIdentical": true,
+  "records": [
+    {
+      "q": "فراوله",
+      "count": 160,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "strawberry",
+      "count": 160,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "زبادي فراولة",
+      "count": 21,
+      "beforeBytes": 31611,
+      "afterBytes": 3483,
+      "bindings": 26
+    },
+    {
+      "q": "فراولة مجمدة",
+      "count": 8,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "طماطم",
+      "count": 156,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "tomato",
+      "count": 156,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "معجون طماطم",
+      "count": 35,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "ليمون",
+      "count": 188,
+      "beforeBytes": 8722,
+      "afterBytes": 2658,
+      "bindings": 8
+    },
+    {
+      "q": "lemon",
+      "count": 188,
+      "beforeBytes": 8722,
+      "afterBytes": 2658,
+      "bindings": 8
+    },
+    {
+      "q": "حليب",
+      "count": 300,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "حليب فراولة",
+      "count": 33,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "بيض",
+      "count": 300,
+      "beforeBytes": 16338,
+      "afterBytes": 2918,
+      "bindings": 14
+    },
+    {
+      "q": "eggs",
+      "count": 300,
+      "beforeBytes": 16338,
+      "afterBytes": 2918,
+      "bindings": 14
+    },
+    {
+      "q": "ويفر رينجو",
+      "count": 4,
+      "beforeBytes": 31611,
+      "afterBytes": 3483,
+      "bindings": 26
+    },
+    {
+      "q": "زبادي يوناني نادك",
+      "count": 12,
+      "beforeBytes": 39268,
+      "afterBytes": 3788,
+      "bindings": 32
+    },
+    {
+      "q": "nadec greek yoghurt",
+      "count": 12,
+      "beforeBytes": 39268,
+      "afterBytes": 3788,
+      "bindings": 32
+    },
+    {
+      "q": "alsafi labneh",
+      "count": 11,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "cornflakes",
+      "count": 21,
+      "beforeBytes": 8722,
+      "afterBytes": 2658,
+      "bindings": 8
+    },
+    {
+      "q": "ماء أروى 1.5L",
+      "count": 9,
+      "beforeBytes": 27803,
+      "afterBytes": 3353,
+      "bindings": 23
+    },
+    {
+      "q": "rice 1kg",
+      "count": 300,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "sunflower oil",
+      "count": 82,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "زيت زيتون عافية",
+      "count": 4,
+      "beforeBytes": 24036,
+      "afterBytes": 3268,
+      "bindings": 20
+    },
+    {
+      "q": "حليب المراعي",
+      "count": 41,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "حليب نادك",
+      "count": 18,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "banana",
+      "count": 126,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "موز",
+      "count": 126,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "apple",
+      "count": 107,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "تفاح",
+      "count": 107,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "mango",
+      "count": 57,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "مانجو",
+      "count": 57,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "strawberry milk",
+      "count": 33,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "strawberry waffle",
+      "count": 1,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "وافل فراولة",
+      "count": 1,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "جيلي فراولة",
+      "count": 2,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "lemon squeezer",
+      "count": 1,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "عصارة ليمون",
+      "count": 1,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "white eggs",
+      "count": 193,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "بيض سمان",
+      "count": 1,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "sunflower oil 1.5L",
+      "count": 82,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "لبنة الصافي",
+      "count": 11,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "زيتون",
+      "count": 247,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "olive oil",
+      "count": 228,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "egg roll",
+      "count": 15,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "rice flour",
+      "count": 26,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "huggies diapers",
+      "count": 17,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "حفاضات هجيز",
+      "count": 17,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "parachute shampoo",
+      "count": 2,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "sunsilk shampoo",
+      "count": 22,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "al kabeer beef hotdog",
+      "count": 1,
+      "beforeBytes": 27885,
+      "afterBytes": 3443,
+      "bindings": 23
+    },
+    {
+      "q": "هوت دوج الكبير",
+      "count": 1,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "doux chicken strips",
+      "count": 84,
+      "beforeBytes": 35460,
+      "afterBytes": 3658,
+      "bindings": 29
+    },
+    {
+      "q": "ستربس دجاج دو",
+      "count": 84,
+      "beforeBytes": 35460,
+      "afterBytes": 3658,
+      "bindings": 29
+    },
+    {
+      "q": "parachute shampoo",
+      "count": 2,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "شامبو باراشوت",
+      "count": 2,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "daewoo juicer",
+      "count": 1,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "عصارة دايو",
+      "count": 1,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "olsenmark kettle",
+      "count": 12,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "غلاية اولسنمارك",
+      "count": 12,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "swiszone watch",
+      "count": 4,
+      "beforeBytes": 8763,
+      "afterBytes": 2703,
+      "bindings": 8
+    },
+    {
+      "q": "ساعة سويز",
+      "count": 0,
+      "beforeBytes": 8763,
+      "afterBytes": 2703,
+      "bindings": 8
+    },
+    {
+      "q": "quaker oats",
+      "count": 3,
+      "beforeBytes": 8763,
+      "afterBytes": 2703,
+      "bindings": 8
+    },
+    {
+      "q": "شوفان كويكر",
+      "count": 3,
+      "beforeBytes": 8763,
+      "afterBytes": 2703,
+      "bindings": 8
+    },
+    {
+      "q": "gloria fruit cocktail",
+      "count": 1,
+      "beforeBytes": 12612,
+      "afterBytes": 2878,
+      "bindings": 11
+    },
+    {
+      "q": "كوكتيل فواكه غلوريا",
+      "count": 0,
+      "beforeBytes": 12612,
+      "afterBytes": 2878,
+      "bindings": 11
+    },
+    {
+      "q": "afia olive oil",
+      "count": 3,
+      "beforeBytes": 24036,
+      "afterBytes": 3268,
+      "bindings": 20
+    },
+    {
+      "q": "زيت زيتون عافية",
+      "count": 4,
+      "beforeBytes": 24036,
+      "afterBytes": 3268,
+      "bindings": 20
+    },
+    {
+      "q": "skittles",
+      "count": 11,
+      "beforeBytes": 4914,
+      "afterBytes": 2528,
+      "bindings": 5
+    },
+    {
+      "q": "سكيتلز",
+      "count": 11,
+      "beforeBytes": 4914,
+      "afterBytes": 2528,
+      "bindings": 5
+    },
+    {
+      "q": "himalaya baby travel pack",
+      "count": 2,
+      "beforeBytes": 24036,
+      "afterBytes": 3268,
+      "bindings": 20
+    },
+    {
+      "q": "مجموعة سفر هيمالايا",
+      "count": 2,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "sunsilk shampoo",
+      "count": 22,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "شامبو صانسيلك",
+      "count": 22,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "ringo wafer",
+      "count": 4,
+      "beforeBytes": 31611,
+      "afterBytes": 3483,
+      "bindings": 26
+    },
+    {
+      "q": "ويفر رينجو",
+      "count": 4,
+      "beforeBytes": 31611,
+      "afterBytes": 3483,
+      "bindings": 26
+    },
+    {
+      "q": "huggies diapers",
+      "count": 17,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "حفاضات هجيز",
+      "count": 17,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "montana vegetables",
+      "count": 4,
+      "beforeBytes": 8763,
+      "afterBytes": 2703,
+      "bindings": 8
+    },
+    {
+      "q": "خضار مونتانا",
+      "count": 4,
+      "beforeBytes": 8763,
+      "afterBytes": 2703,
+      "bindings": 8
+    },
+    {
+      "q": "seara chicken nuggets",
+      "count": 22,
+      "beforeBytes": 35460,
+      "afterBytes": 3658,
+      "bindings": 29
+    },
+    {
+      "q": "ناجتس دجاج سيارا",
+      "count": 22,
+      "beforeBytes": 35460,
+      "afterBytes": 3658,
+      "bindings": 29
+    },
+    {
+      "q": "langnese honey",
+      "count": 6,
+      "beforeBytes": 8763,
+      "afterBytes": 2703,
+      "bindings": 8
+    },
+    {
+      "q": "عسل لانجنيز",
+      "count": 2,
+      "beforeBytes": 8763,
+      "afterBytes": 2703,
+      "bindings": 8
+    },
+    {
+      "q": "panda hazelnut spread",
+      "count": 3,
+      "beforeBytes": 12612,
+      "afterBytes": 2878,
+      "bindings": 11
+    },
+    {
+      "q": "كريمة بندق بنده",
+      "count": 3,
+      "beforeBytes": 12612,
+      "afterBytes": 2878,
+      "bindings": 11
+    },
+    {
+      "q": "egyptian green olives",
+      "count": 3,
+      "beforeBytes": 20228,
+      "afterBytes": 3138,
+      "bindings": 17
+    },
+    {
+      "q": "زيتون أخضر مصري",
+      "count": 3,
+      "beforeBytes": 20228,
+      "afterBytes": 3138,
+      "bindings": 17
+    },
+    {
+      "q": "trands wireless mouse",
+      "count": 1,
+      "beforeBytes": 12612,
+      "afterBytes": 2878,
+      "bindings": 11
+    },
+    {
+      "q": "ماوس تراندز",
+      "count": 0,
+      "beforeBytes": 8763,
+      "afterBytes": 2703,
+      "bindings": 8
+    },
+    {
+      "q": "oks steel scrubber",
+      "count": 2,
+      "beforeBytes": 12612,
+      "afterBytes": 2878,
+      "bindings": 11
+    },
+    {
+      "q": "ليفة اوكس ستيل",
+      "count": 2,
+      "beforeBytes": 12612,
+      "afterBytes": 2878,
+      "bindings": 11
+    },
+    {
+      "q": "chest bag",
+      "count": 5,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "حقيبة صدر",
+      "count": 5,
+      "beforeBytes": 12530,
+      "afterBytes": 2788,
+      "bindings": 11
+    },
+    {
+      "q": "al waleed milk powder",
+      "count": 5,
+      "beforeBytes": 31693,
+      "afterBytes": 3573,
+      "bindings": 26
+    },
+    {
+      "q": "حليب بودرة الوليد",
+      "count": 5,
+      "beforeBytes": 27844,
+      "afterBytes": 3398,
+      "bindings": 23
+    },
+    {
+      "q": "men slipper",
+      "count": 33,
+      "beforeBytes": 31611,
+      "afterBytes": 3483,
+      "bindings": 26
+    },
+    {
+      "q": "شباشب رجالية",
+      "count": 33,
+      "beforeBytes": 31611,
+      "afterBytes": 3483,
+      "bindings": 26
+    },
+    {
+      "q": "alsafi labneh",
+      "count": 11,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "لبنة الصافي",
+      "count": 11,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "alfolla smoked turkey",
+      "count": 1,
+      "beforeBytes": 12612,
+      "afterBytes": 2878,
+      "bindings": 11
+    },
+    {
+      "q": "رستو حبش الفلة",
+      "count": 1,
+      "beforeBytes": 12612,
+      "afterBytes": 2878,
+      "bindings": 11
+    },
+    {
+      "q": "bread knife",
+      "count": 1,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "سكين خبز",
+      "count": 1,
+      "beforeBytes": 16379,
+      "afterBytes": 2963,
+      "bindings": 14
+    },
+    {
+      "q": "nadec greek yoghurt",
+      "count": 12,
+      "beforeBytes": 39268,
+      "afterBytes": 3788,
+      "bindings": 32
+    },
+    {
+      "q": "زبادي يوناني نادك",
+      "count": 12,
+      "beforeBytes": 39268,
+      "afterBytes": 3788,
+      "bindings": 32
+    },
+    {
+      "q": "ladies pants",
+      "count": 8,
+      "beforeBytes": 35419,
+      "afterBytes": 3613,
+      "bindings": 29
+    },
+    {
+      "q": "بنطلون نسائي",
+      "count": 8,
+      "beforeBytes": 35419,
+      "afterBytes": 3613,
+      "bindings": 29
+    },
+    {
+      "q": "geepas meat grinder",
+      "count": 1,
+      "beforeBytes": 27844,
+      "afterBytes": 3398,
+      "bindings": 23
+    },
+    {
+      "q": "مفرمة جيباس",
+      "count": 8,
+      "beforeBytes": 20187,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "aljameel olive oil",
+      "count": 2,
+      "beforeBytes": 24036,
+      "afterBytes": 3268,
+      "bindings": 20
+    },
+    {
+      "q": "زيت زيتون الجميل",
+      "count": 9,
+      "beforeBytes": 24036,
+      "afterBytes": 3268,
+      "bindings": 20
+    },
+    {
+      "q": "nestle cereal",
+      "count": 25,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "حبوب إفطار نستله",
+      "count": 25,
+      "beforeBytes": 23995,
+      "afterBytes": 3223,
+      "bindings": 20
+    },
+    {
+      "q": "",
+      "count": 300,
+      "beforeBytes": 1059,
+      "afterBytes": 1059,
+      "bindings": 2
+    },
+    {
+      "q": "nuggets nugget ناجتس ناجت ناغتس nuggets",
+      "count": 106,
+      "beforeBytes": 115551,
+      "afterBytes": 3048,
+      "bindings": 17
+    },
+    {
+      "q": "wafer yoghurt ladies slipper water eggs",
+      "count": 0,
+      "beforeBytes": 104127,
+      "afterBytes": 6133,
+      "bindings": 83
+    },
+    {
+      "q": "nuggets wafer yoghurt ladies water slipper",
+      "count": 0,
+      "beforeBytes": 107935,
+      "afterBytes": 6263,
+      "bindings": 86
+    },
+    {
+      "q": "milk حليب sugar",
+      "count": 17,
+      "beforeBytes": 31652,
+      "afterBytes": 3093,
+      "bindings": 17
+    },
+    {
+      "q": "nadec نادك milk",
+      "count": 18,
+      "beforeBytes": 35460,
+      "afterBytes": 3223,
+      "bindings": 20
+    }
+  ]
+}

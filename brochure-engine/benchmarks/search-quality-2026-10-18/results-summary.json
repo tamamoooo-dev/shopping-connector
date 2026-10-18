@@ -1,0 +1,7046 @@
+{
+  "generatedAt": "2026-10-18T12:45:21.432Z",
+  "baselineEngine": "8fe94ac",
+  "baselineFrontend": "59748de",
+  "catalogRows": 12972,
+  "queryCount": 48,
+  "visualReferences": 25,
+  "strawberryTop10": {
+    "before": 7,
+    "after": 10,
+    "definition": "Fruit, including frozen strawberries; not a fresh-only score."
+  },
+  "targetProbes": {
+    "total": 64,
+    "available": 60,
+    "unavailable": [
+      {
+        "q": "afia olive oil",
+        "id": "carrefour:central:d4d:99099741"
+      },
+      {
+        "q": "زيت زيتون عافية",
+        "id": "carrefour:central:d4d:99099741"
+      },
+      {
+        "q": "skittles",
+        "id": "carrefour:central:d4d:99099669"
+      },
+      {
+        "q": "سكيتلز",
+        "id": "carrefour:central:d4d:99099669"
+      }
+    ],
+    "engineBefore": 47,
+    "engineAfter": 55,
+    "frontendBefore": 32,
+    "frontendAfter": 53,
+    "regressions": [],
+    "remaining": [
+      {
+        "q": "ساعة سويز",
+        "before": {
+          "engineFound": false,
+          "frontendFound": false,
+          "rank": null
+        },
+        "after": {
+          "engineFound": false,
+          "frontendFound": false,
+          "rank": null
+        },
+        "target": "alwafa:central:d4d:99094656",
+        "index": 6,
+        "lang": "ar"
+      },
+      {
+        "q": "كوكتيل فواكه غلوريا",
+        "before": {
+          "engineFound": false,
+          "frontendFound": false,
+          "rank": null
+        },
+        "after": {
+          "engineFound": false,
+          "frontendFound": false,
+          "rank": null
+        },
+        "target": "amarket:central:d4d:99077634",
+        "index": 8,
+        "lang": "ar"
+      },
+      {
+        "q": "عسل لانجنيز",
+        "before": {
+          "engineFound": false,
+          "frontendFound": false,
+          "rank": null
+        },
+        "after": {
+          "engineFound": false,
+          "frontendFound": false,
+          "rank": null
+        },
+        "target": "hyperpanda:central:d4d:99118386",
+        "index": 17,
+        "lang": "ar"
+      },
+      {
+        "q": "كريمة بندق بنده",
+        "before": {
+          "engineFound": false,
+          "frontendFound": false,
+          "rank": null
+        },
+        "after": {
+          "engineFound": false,
+          "frontendFound": false,
+          "rank": null
+        },
+        "target": "hyperpanda:central:d4d:99120081",
+        "index": 18,
+        "lang": "ar"
+      },
+      {
+        "q": "ماوس تراندز",
+        "before": {
+          "engineFound": false,
+          "frontendFound": false,
+          "rank": null
+        },
+        "after": {
+          "engineFound": false,
+          "frontendFound": false,
+          "rank": null
+        },
+        "target": "lulu:central:d4d:98962230",
+        "index": 20,
+        "lang": "ar"
+      },
+      {
+        "q": "oks steel scrubber",
+        "before": {
+          "engineFound": true,
+          "frontendFound": false,
+          "rank": null
+        },
+        "after": {
+          "engineFound": true,
+          "frontendFound": false,
+          "rank": null
+        },
+        "target": "marksave:central:d4d:99062379",
+        "index": 21,
+        "lang": "en"
+      },
+      {
+        "q": "men slipper",
+        "before": {
+          "engineFound": true,
+          "frontendFound": false,
+          "rank": null
+        },
+        "after": {
+          "engineFound": true,
+          "frontendFound": false,
+          "rank": null
+        },
+        "target": "nesto:central:d4d:99079401",
+        "index": 24,
+        "lang": "en"
+      }
+    ]
+  },
+  "commonOfferComparisons": 2122,
+  "changedDisplayOrPriceFields": [],
+  "vectorChanges": 37,
+  "knownDivergences": {
+    "normalizeText": 16,
+    "canonicalMatchText": 16,
+    "queryTokens": 2,
+    "matchStage": 12
+  },
+  "queries": [
+    {
+      "q": "فراوله",
+      "engineBefore": 120,
+      "engineAfter": 120,
+      "frontendBefore": 82,
+      "frontendAfter": 82,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99137055",
+          "name": "حلاوي الجيليان كز/فراولة 6×80جم العلالي",
+          "price": 2.25,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "danube:central:d4d:98685306",
+          "name": "وافل محشوة فراولة",
+          "price": 2.5,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "nesto:central:d4d:99090615",
+          "name": "ناديك جو زادي يوناني بالتووت الأزرق / سادة / تووت مختلط / فراولة 160 جم نادك",
+          "price": 3.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "prime:central:d4d:99135150",
+          "name": "فراولة يامي فريزر 1 كجم",
+          "price": 5.95,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "ramez:central:d4d:99145989",
+          "name": "فراولة مجمدة 1 كجم",
+          "price": 7.95,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "lulu:central:d4d:99104667",
+          "name": "فراولة مونтана/دارى",
+          "price": 8.5,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "nesto:central:d4d:99082323",
+          "name": "داري فراولة مجمدة 1 كجم",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "lulu:central:d4d:99104508",
+          "name": "بلانيت واي بريميوم فراولة مجمدة 350 جرام",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "nesto:central:d4d:99088218",
+          "name": "داري فراولة مجمدة الكجم",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "nesto:central:d4d:99155880",
+          "name": "Dari Frozen Strawberry 1Kg",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99135150",
+          "name": "فراولة يامي فريزر 1 كجم",
+          "price": 5.95,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "ramez:central:d4d:99145989",
+          "name": "فراولة مجمدة 1 كجم",
+          "price": 7.95,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 3,
+          "id": "lulu:central:d4d:99104667",
+          "name": "فراولة مونтана/دارى",
+          "price": 8.5,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "nesto:central:d4d:99082323",
+          "name": "داري فراولة مجمدة 1 كجم",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "lulu:central:d4d:99104508",
+          "name": "بلانيت واي بريميوم فراولة مجمدة 350 جرام",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99088218",
+          "name": "داري فراولة مجمدة الكجم",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "nesto:central:d4d:99155880",
+          "name": "Dari Frozen Strawberry 1Kg",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99042141",
+          "name": "فراولة سونبلاه ۸۰۰ غرام سنبلة",
+          "price": 9.5,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "hyperpanda:central:d4d:99118209",
+          "name": "فراولة السبله ١٨٠٠ جرام سنبلة",
+          "price": 9.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "hyperpanda:central:d4d:99118215",
+          "name": "فراولة الكبير (900 جرام)",
+          "price": 10.99,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 2
+        }
+      ]
+    },
+    {
+      "q": "strawberry",
+      "engineBefore": 120,
+      "engineAfter": 120,
+      "frontendBefore": 80,
+      "frontendAfter": 80,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99137055",
+          "name": "حلاوي الجيليان كز/فراولة 6×80جم العلالي",
+          "price": 2.25,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "danube:central:d4d:98685306",
+          "name": "Yoco Crunchia di Fragola Double Waffle With Strawberry Filling 50g",
+          "price": 2.5,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "nesto:central:d4d:99090615",
+          "name": "ناديك جو زادي يوناني بالتووت الأزرق / سادة / تووت مختلط / فراولة 160 جم نادك",
+          "price": 3.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "prime:central:d4d:99135150",
+          "name": "YUMMY FREEZERS STRAWBERRY 1 KG",
+          "price": 5.95,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "ramez:central:d4d:99145989",
+          "name": "Ultimo Montana Strawberry Frozen",
+          "price": 7.95,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "lulu:central:d4d:99104667",
+          "name": "فراولة مونтана/دارى",
+          "price": 8.5,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "nesto:central:d4d:99082323",
+          "name": "Dari Frozen Strawberry 1Kg",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "lulu:central:d4d:99104508",
+          "name": "Planet Y Premium Frozen Strawberries 350gm",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "farm:central:d4d:99042141",
+          "name": "SUNBULAH STRAWBERRY 800GR",
+          "price": 9.5,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "hyperpanda:central:d4d:99118209",
+          "name": "Sunbulah Strawberry (800g)",
+          "price": 9.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99135150",
+          "name": "YUMMY FREEZERS STRAWBERRY 1 KG",
+          "price": 5.95,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "ramez:central:d4d:99145989",
+          "name": "Ultimo Montana Strawberry Frozen",
+          "price": 7.95,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 3,
+          "id": "lulu:central:d4d:99104667",
+          "name": "فراولة مونтана/دارى",
+          "price": 8.5,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "nesto:central:d4d:99082323",
+          "name": "Dari Frozen Strawberry 1Kg",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "lulu:central:d4d:99104508",
+          "name": "Planet Y Premium Frozen Strawberries 350gm",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99042141",
+          "name": "SUNBULAH STRAWBERRY 800GR",
+          "price": 9.5,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "hyperpanda:central:d4d:99118209",
+          "name": "Sunbulah Strawberry (800g)",
+          "price": 9.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "hyperpanda:central:d4d:99118215",
+          "name": "فراولة الكبير (900 جرام)",
+          "price": 10.99,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "aljazera:central:d4d:99055455",
+          "name": "SUNBULAH STRAWBERRY 800G",
+          "price": 15.75,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "tamimi:central:d4d:99049839",
+          "name": "DRISCOLL'S STRAWBERRY, SOUTH AFRICA, 250 GRAMS",
+          "price": 22.99,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "زبادي فراولة",
+      "engineBefore": 17,
+      "engineAfter": 17,
+      "frontendBefore": 5,
+      "frontendAfter": 5,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "nesto:central:d4d:99088317",
+          "name": "نادك جو زادي يوناني بالتووت الأزرق / سادة / تووت مختلط / فراولة 160 جم",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99155979",
+          "name": "ناديك جو يوناني بالثوت المازجي / سادة / توتي مشكل / فراولة 160 جم نادك",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "danube:central:d4d:98686551",
+          "name": "زبادي بروتين بنكهة الفراولة / التوت الأزرق أرلا",
+          "price": 5.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "lulu:central:d4d:99104439",
+          "name": "المراعي زيادي يوناني",
+          "price": 7.5,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "hyperpanda:central:d4d:99117894",
+          "name": "ربادي يونالي بالفراولة (٣ × ١٦٠ جم) نادك",
+          "price": 9.75,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "nesto:central:d4d:99088317",
+          "name": "نادك جو زادي يوناني بالتووت الأزرق / سادة / تووت مختلط / فراولة 160 جم",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99155979",
+          "name": "ناديك جو يوناني بالثوت المازجي / سادة / توتي مشكل / فراولة 160 جم نادك",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "danube:central:d4d:98686551",
+          "name": "زبادي بروتين بنكهة الفراولة / التوت الأزرق أرلا",
+          "price": 5.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "lulu:central:d4d:99104439",
+          "name": "المراعي زيادي يوناني",
+          "price": 7.5,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "hyperpanda:central:d4d:99117894",
+          "name": "ربادي يونالي بالفراولة (٣ × ١٦٠ جم) نادك",
+          "price": 9.75,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "فراولة مجمدة",
+      "engineBefore": 8,
+      "engineAfter": 8,
+      "frontendBefore": 4,
+      "frontendAfter": 4,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "ramez:central:d4d:99145989",
+          "name": "فراولة مجمدة 1 كجم",
+          "price": 7.95,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99082323",
+          "name": "داري فراولة مجمدة 1 كجم",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "lulu:central:d4d:99104508",
+          "name": "بلانيت واي بريميوم فراولة مجمدة 350 جرام",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "nesto:central:d4d:99088218",
+          "name": "داري فراولة مجمدة الكجم",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "ramez:central:d4d:99145989",
+          "name": "فراولة مجمدة 1 كجم",
+          "price": 7.95,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99082323",
+          "name": "داري فراولة مجمدة 1 كجم",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "lulu:central:d4d:99104508",
+          "name": "بلانيت واي بريميوم فراولة مجمدة 350 جرام",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "nesto:central:d4d:99088218",
+          "name": "داري فراولة مجمدة الكجم",
+          "price": 8.99,
+          "family": "strawberry",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "طماطم",
+      "engineBefore": 120,
+      "engineAfter": 120,
+      "frontendBefore": 115,
+      "frontendAfter": 115,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "othaim:central:d4d:99101097",
+          "name": "طماطم روزانا مقشرة",
+          "price": 2.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "amarket:central:d4d:99076842",
+          "name": "طماطم",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "amarket:central:d4d:99077406",
+          "name": "طماطم حنا مقشرة كاملة هناء",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "amarket:central:d4d:99077463",
+          "name": "طماطم مقشرة ومقطعة 400 جرام قودي",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99042246",
+          "name": "المزرعة طماطم مقشرة 400 غرام",
+          "price": 3.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99155541",
+          "name": "طماطم",
+          "price": 3.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "marksave:central:d4d:99062157",
+          "name": "طماطم",
+          "price": 3.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "amarket:central:d4d:99077475",
+          "name": "مقادير طماطم مقشرة / مقطعة 400 جرام",
+          "price": 4.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "farm:central:d4d:99040818",
+          "name": "ديفيلا طماطم مقشرة ٤٠٠ غرام",
+          "price": 4.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "farm:central:d4d:99040479",
+          "name": "طماطم / دوقيني",
+          "price": 5.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "othaim:central:d4d:99101097",
+          "name": "طماطم روزانا مقشرة",
+          "price": 2.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "amarket:central:d4d:99076842",
+          "name": "طماطم",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "amarket:central:d4d:99077406",
+          "name": "طماطم حنا مقشرة كاملة هناء",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "amarket:central:d4d:99077463",
+          "name": "طماطم مقشرة ومقطعة 400 جرام قودي",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99042246",
+          "name": "المزرعة طماطم مقشرة 400 غرام",
+          "price": 3.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99155541",
+          "name": "طماطم",
+          "price": 3.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "marksave:central:d4d:99062157",
+          "name": "طماطم",
+          "price": 3.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "amarket:central:d4d:99077475",
+          "name": "مقادير طماطم مقشرة / مقطعة 400 جرام",
+          "price": 4.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "farm:central:d4d:99040818",
+          "name": "ديفيلا طماطم مقشرة ٤٠٠ غرام",
+          "price": 4.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "farm:central:d4d:99040479",
+          "name": "طماطم / دوقيني",
+          "price": 5.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "tomato",
+      "engineBefore": 120,
+      "engineAfter": 120,
+      "frontendBefore": 114,
+      "frontendAfter": 114,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "othaim:central:d4d:99101097",
+          "name": "Rosanna W.Peeled Tomato 400g",
+          "price": 2.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "amarket:central:d4d:99076842",
+          "name": "طماطم",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "amarket:central:d4d:99077406",
+          "name": "HANAA WHOLE PEELED TOMATOES 400GM",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "amarket:central:d4d:99077463",
+          "name": "GOODY PEELED TOMATOES 400G",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99042246",
+          "name": "FARM المزرعة PEELED TOMATOES 400GR",
+          "price": 3.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99155541",
+          "name": "طماطم",
+          "price": 3.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "marksave:central:d4d:99062157",
+          "name": "طماطم",
+          "price": 3.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "amarket:central:d4d:99077475",
+          "name": "MAQADIR PEELED/CHOPPED TOMATOES 400 GM",
+          "price": 4.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "farm:central:d4d:99040818",
+          "name": "DIVELLA POMODORI PELATI INTERI 100% Italiani 400 GR",
+          "price": 4.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "farm:central:d4d:99040479",
+          "name": "TOMATO CLUSTER / TOMATO",
+          "price": 5.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "othaim:central:d4d:99101097",
+          "name": "Rosanna W.Peeled Tomato 400g",
+          "price": 2.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "amarket:central:d4d:99076842",
+          "name": "طماطم",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "amarket:central:d4d:99077406",
+          "name": "HANAA WHOLE PEELED TOMATOES 400GM",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "amarket:central:d4d:99077463",
+          "name": "GOODY PEELED TOMATOES 400G",
+          "price": 2.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99042246",
+          "name": "FARM المزرعة PEELED TOMATOES 400GR",
+          "price": 3.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99155541",
+          "name": "طماطم",
+          "price": 3.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "marksave:central:d4d:99062157",
+          "name": "طماطم",
+          "price": 3.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "amarket:central:d4d:99077475",
+          "name": "MAQADIR PEELED/CHOPPED TOMATOES 400 GM",
+          "price": 4.5,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "farm:central:d4d:99040818",
+          "name": "DIVELLA POMODORI PELATI INTERI 100% Italiani 400 GR",
+          "price": 4.99,
+          "family": "tomato",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "farm:central:d4d:99040479",
+          "name": "TOMATO CLUSTER / TOMATO",
+          "price": 5.99,
+          "family": "tomato",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "معجون طماطم",
+      "engineBefore": 35,
+      "engineAfter": 35,
+      "frontendBefore": 23,
+      "frontendAfter": 23,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "almadina:central:d4d:99109728",
+          "name": "طكس معجون طماطم",
+          "price": 5,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "amarket:central:d4d:99077472",
+          "name": "الري معجون الطماطم/حريس 135 جرام",
+          "price": 5.75,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "prime:central:d4d:99136104",
+          "name": "الزوق معجون طماطم 70 جم 12 جرام",
+          "price": 7.95,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "lulu:central:d4d:99104124",
+          "name": "معجون طماطم الوطنية",
+          "price": 7.99,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "tamimi:central:d4d:99049686",
+          "name": "معجون طماطم الوطنية ١٣٥ جرام",
+          "price": 7.99,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "prime:central:d4d:99136110",
+          "name": "دانه معجون طماطم 135 جرام",
+          "price": 8.95,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "prime:central:d4d:99136101",
+          "name": "ريفوني معجون طماطم ١٢٥×٨ جرام",
+          "price": 8.95,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "nesto:central:d4d:99082188",
+          "name": "معجون طماطم لونا ١٣٥ × ٨ علب",
+          "price": 8.99,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "othaim:central:d4d:99102369",
+          "name": "معجون طماطم كي دي كي دي دي",
+          "price": 8.99,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "othaim:central:d4d:99101100",
+          "name": "معجون طماطم هالي",
+          "price": 8.99,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "almadina:central:d4d:99109728",
+          "name": "طكس معجون طماطم",
+          "price": 5,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "amarket:central:d4d:99077472",
+          "name": "الري معجون الطماطم/حريس 135 جرام",
+          "price": 5.75,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "prime:central:d4d:99136104",
+          "name": "الزوق معجون طماطم 70 جم 12 جرام",
+          "price": 7.95,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "lulu:central:d4d:99104124",
+          "name": "معجون طماطم الوطنية",
+          "price": 7.99,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "tamimi:central:d4d:99049686",
+          "name": "معجون طماطم الوطنية ١٣٥ جرام",
+          "price": 7.99,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "prime:central:d4d:99136110",
+          "name": "دانه معجون طماطم 135 جرام",
+          "price": 8.95,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "prime:central:d4d:99136101",
+          "name": "ريفوني معجون طماطم ١٢٥×٨ جرام",
+          "price": 8.95,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "nesto:central:d4d:99082188",
+          "name": "معجون طماطم لونا ١٣٥ × ٨ علب",
+          "price": 8.99,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "othaim:central:d4d:99102369",
+          "name": "معجون طماطم كي دي كي دي دي",
+          "price": 8.99,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "othaim:central:d4d:99101100",
+          "name": "معجون طماطم هالي",
+          "price": 8.99,
+          "family": "sauce",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "ليمون",
+      "engineBefore": 120,
+      "engineAfter": 120,
+      "frontendBefore": 94,
+      "frontendAfter": 94,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "aljazera:central:d4d:99055140",
+          "name": "ليمون أخضر (عبوة)",
+          "price": 3.99,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99155544",
+          "name": "ليمون كبير أمريكان للكيلو",
+          "price": 4.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "othaim:central:d4d:99101172",
+          "name": "ليمون",
+          "price": 4.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "alwafa:central:d4d:99075639",
+          "name": "مصعد ليمون من الفولاذ أو البلاستيك",
+          "price": 5,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "alwafa:central:d4d:99096720",
+          "name": "مغسل الأطباق رينزو الليمون",
+          "price": 5,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "alwafa:central:d4d:99096726",
+          "name": "مسحول الأطباق لوكس صن لايت الليمون 725 مل لكس",
+          "price": 5,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "almadina:central:d4d:99109593",
+          "name": "باور سائل غسيل الأطباق بالليمون ١.٥ لتر",
+          "price": 5,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "alwafa:central:d4d:99075504",
+          "name": "مغسل أطباق راحة الليمون",
+          "price": 5,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "alwafa:central:d4d:99075510",
+          "name": "مصل الأطباق لوكس صن ليمون 725 مل لكس",
+          "price": 5,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "prime:central:d4d:99135939",
+          "name": "لا إكسبلانادا جورميه زيتون محشي بالليمون 350 جم",
+          "price": 5.5,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "aljazera:central:d4d:99055140",
+          "name": "ليمون أخضر (عبوة)",
+          "price": 3.99,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99155544",
+          "name": "ليمون كبير أمريكان للكيلو",
+          "price": 4.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "othaim:central:d4d:99101172",
+          "name": "ليمون",
+          "price": 4.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "amarket:central:d4d:99076911",
+          "name": "ليمون",
+          "price": 5.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "tamimi:central:d4d:99049854",
+          "name": "ليمون, جنوب أفريقيا",
+          "price": 5.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "marksave:central:d4d:99062184",
+          "name": "ليمون كبير",
+          "price": 5.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "farm:central:d4d:99041322",
+          "name": "الدرة حامض الليمون ١٠٠٠ مل",
+          "price": 5.99,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "cityflower:central:d4d:99035760",
+          "name": "جولة كادو 1 كغ",
+          "price": 6.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "carrefour:central:d4d:99152022",
+          "name": "جيرين ليمون لايم",
+          "price": 9.99,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "nesto:central:d4d:99082797",
+          "name": "مزييل شحوم الموتور برائحة الليمون",
+          "price": 11.99,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "lemon",
+      "engineBefore": 120,
+      "engineAfter": 120,
+      "frontendBefore": 88,
+      "frontendAfter": 88,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "aljazera:central:d4d:99055140",
+          "name": "LIME GREEN (PACK)",
+          "price": 3.99,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99155544",
+          "name": "Lemon Big Per Kg",
+          "price": 4.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "othaim:central:d4d:99101172",
+          "name": "Lemon",
+          "price": 4.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "alwafa:central:d4d:99075639",
+          "name": "Lemon Squeezer Steel/Plastic Astd",
+          "price": 5,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "alwafa:central:d4d:99096720",
+          "name": "Rinzo Dish Wash Lemon 1Lt",
+          "price": 5,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "alwafa:central:d4d:99096726",
+          "name": "Lux Sunlight Lemon Dish Wash 725ml",
+          "price": 5,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "almadina:central:d4d:99109593",
+          "name": "POWER DISH WASHING LIQUID LEMON 1.5LTR",
+          "price": 5,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "prime:central:d4d:99135939",
+          "name": "LA EXPLANADA GOURMET ACEITUNAS RELLENAS DE LIMÓN OLIVES STUFFED WITH LEMON 350GM",
+          "price": 5.5,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:99160464",
+          "name": "DETO CLEAN DISHWASH LIQUID LEMON 1 LTR",
+          "price": 5.75,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "almadina:central:d4d:99112944",
+          "name": "Fairy Lemon 400ml",
+          "price": 5.95,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "aljazera:central:d4d:99055140",
+          "name": "LIME GREEN (PACK)",
+          "price": 3.99,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99155544",
+          "name": "Lemon Big Per Kg",
+          "price": 4.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "othaim:central:d4d:99101172",
+          "name": "Lemon",
+          "price": 4.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "amarket:central:d4d:99076911",
+          "name": "LEMON",
+          "price": 5.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "tamimi:central:d4d:99049854",
+          "name": "LEMON, SOUTH AFRICA",
+          "price": 5.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "marksave:central:d4d:99062184",
+          "name": "Lemon Big",
+          "price": 5.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "farm:central:d4d:99041322",
+          "name": "DURRA CITRIC LIQUID 1000ML",
+          "price": 5.99,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "cityflower:central:d4d:99035760",
+          "name": "Lemon Big 1kg",
+          "price": 6.99,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "carrefour:central:d4d:99152022",
+          "name": "GREEN LEMON LIME 240ML X6 ASSORTED",
+          "price": 9.99,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "nesto:central:d4d:99082797",
+          "name": "SMAC EXPRES multi Degreaser Lemon 650MI",
+          "price": 11.99,
+          "family": "lemon",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "حليب",
+      "engineBefore": 120,
+      "engineAfter": 120,
+      "frontendBefore": 115,
+      "frontendAfter": 115,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "ramez:central:d4d:99146025",
+          "name": "يوك شاية الحليب المبخر 170 جم بوك",
+          "price": 2.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "prime:central:d4d:99135582",
+          "name": "النقطة شيبية حليب (محلى) 390 مل برايم",
+          "price": 3.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "danube:central:d4d:98685372",
+          "name": "حليب مخر أبو قوس ١٣٣ مل راينبو",
+          "price": 3.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "amarket:central:d4d:99077622",
+          "name": "حليب بوني مكررة كامل الدسم ١٥٩ مل",
+          "price": 3.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "amarket:central:d4d:99077490",
+          "name": "مقادير حليب ذرة حلوة 400 جرام",
+          "price": 4.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "hyperpanda:central:d4d:99117795",
+          "name": "خبز بالحليب فونتي (9 حبوب / الكيس)",
+          "price": 4.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "amarket:central:d4d:99077538",
+          "name": "حليب مسحور بوك",
+          "price": 4.75,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "marksave:central:d4d:99063723",
+          "name": "Deligos MILK RUSK 280 Gm",
+          "price": 4.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "marksave:central:d4d:99061755",
+          "name": "دليغوس بقسمات الحليب / بالقمح",
+          "price": 4.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "prime:central:d4d:99135591",
+          "name": "لينا حليب مبخر مماثل 170 جرام",
+          "price": 4.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "ramez:central:d4d:99146025",
+          "name": "يوك شاية الحليب المبخر 170 جم بوك",
+          "price": 2.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "prime:central:d4d:99135582",
+          "name": "النقطة شيبية حليب (محلى) 390 مل برايم",
+          "price": 3.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "danube:central:d4d:98685372",
+          "name": "حليب مخر أبو قوس ١٣٣ مل راينبو",
+          "price": 3.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "amarket:central:d4d:99077622",
+          "name": "حليب بوني مكررة كامل الدسم ١٥٩ مل",
+          "price": 3.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "amarket:central:d4d:99077490",
+          "name": "مقادير حليب ذرة حلوة 400 جرام",
+          "price": 4.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "hyperpanda:central:d4d:99117795",
+          "name": "خبز بالحليب فونتي (9 حبوب / الكيس)",
+          "price": 4.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "amarket:central:d4d:99077538",
+          "name": "حليب مسحور بوك",
+          "price": 4.75,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "marksave:central:d4d:99063723",
+          "name": "Deligos MILK RUSK 280 Gm",
+          "price": 4.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "marksave:central:d4d:99061755",
+          "name": "دليغوس بقسمات الحليب / بالقمح",
+          "price": 4.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "prime:central:d4d:99135591",
+          "name": "لينا حليب مبخر مماثل 170 جرام",
+          "price": 4.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "حليب فراولة",
+      "engineBefore": 33,
+      "engineAfter": 33,
+      "frontendBefore": 10,
+      "frontendAfter": 10,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "ramez:central:d4d:99146169",
+          "name": "لونا حليب ملون الموز",
+          "price": 19.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "farm:central:d4d:99041841",
+          "name": "لونا حليب طعم الفراولة بالفيتامين",
+          "price": 19.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "lulu:central:d4d:99104118",
+          "name": "الحليب طعم طازج الفراولة المراعي",
+          "price": 25.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "farm:central:d4d:99041751",
+          "name": "يوبرو تريبل زيرو بروتين حليب الفراولة / شوكولا / فانيلا / ماتشا ٣٠٠ مل",
+          "price": 5.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041706",
+          "name": "المعجون حليب بروتين 34 غرام خالي من السكر بالشوكولا / فانيليا / فراولة وموز 400 مل",
+          "price": 6.5,
+          "family": "sauce",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99041394",
+          "name": "شوكولا باللبن اللاتيه / الدارك بالفراولة",
+          "price": 9.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 7,
+          "id": "prime:central:d4d:99135366",
+          "name": "ناديك حليب يو اتش تي فراولة/شوكولا 18×185 مل قليل/كامل الدسم 18×200 نادك",
+          "price": 26.95,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99041823",
+          "name": "حليب طعم الفراولة / الشوكولا 18 × 185 مل / 18 × 200",
+          "price": 26.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 9,
+          "id": "alwafa:central:d4d:99094491",
+          "name": "شوكولا كريمة القلب بحشوة الفستق/الكركم/البستا/فراولة",
+          "price": 29.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "nesto:central:d4d:99155604",
+          "name": "شوكولا كريم الحليب بالعسل / الكاكاو / الكرميل / البستا / الفراولة",
+          "price": 29.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "ramez:central:d4d:99146169",
+          "name": "لونا حليب ملون الموز",
+          "price": 19.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "farm:central:d4d:99041841",
+          "name": "لونا حليب طعم الفراولة بالفيتامين",
+          "price": 19.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "lulu:central:d4d:99104118",
+          "name": "الحليب طعم طازج الفراولة المراعي",
+          "price": 25.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "farm:central:d4d:99041751",
+          "name": "يوبرو تريبل زيرو بروتين حليب الفراولة / شوكولا / فانيلا / ماتشا ٣٠٠ مل",
+          "price": 5.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041706",
+          "name": "المعجون حليب بروتين 34 غرام خالي من السكر بالشوكولا / فانيليا / فراولة وموز 400 مل",
+          "price": 6.5,
+          "family": "sauce",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99041394",
+          "name": "شوكولا باللبن اللاتيه / الدارك بالفراولة",
+          "price": 9.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 7,
+          "id": "prime:central:d4d:99135366",
+          "name": "ناديك حليب يو اتش تي فراولة/شوكولا 18×185 مل قليل/كامل الدسم 18×200 نادك",
+          "price": 26.95,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99041823",
+          "name": "حليب طعم الفراولة / الشوكولا 18 × 185 مل / 18 × 200",
+          "price": 26.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 9,
+          "id": "alwafa:central:d4d:99094491",
+          "name": "شوكولا كريمة القلب بحشوة الفستق/الكركم/البستا/فراولة",
+          "price": 29.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "nesto:central:d4d:99155604",
+          "name": "شوكولا كريم الحليب بالعسل / الكاكاو / الكرميل / البستا / الفراولة",
+          "price": 29.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        }
+      ]
+    },
+    {
+      "q": "بيض",
+      "engineBefore": 40,
+      "engineAfter": 40,
+      "frontendBefore": 23,
+      "frontendAfter": 23,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "marksave:central:d4d:99061971",
+          "name": "البطاطه البيض الأبيض كبير جدة 10 حبات الوطنية",
+          "price": 7.5,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99050151",
+          "name": "سبرينغ رولز، قمح كامل أو بالبيض، السنيلة، 160 جرام سنبلة",
+          "price": 8.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "marksave:central:d4d:99061992",
+          "name": "أسترا بيض سمان 18",
+          "price": 10.95,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "nesto:central:d4d:99155952",
+          "name": "الفلاح بيض أبيض كبير 30",
+          "price": 12.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "nesto:central:d4d:99094020",
+          "name": "الامين بيض كبير ٣٠ بيضة",
+          "price": 12.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "lulu:central:d4d:99104424",
+          "name": "فاكيه بيض أبيض طازج ووسط ٣٠",
+          "price": 13.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "tamimi:central:d4d:99049539",
+          "name": "بيض أبيض كبير، قارية، 30",
+          "price": 14.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "almadina:central:d4d:99109842",
+          "name": "بيض أبيض ٣٠",
+          "price": 15,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:98546790",
+          "name": "قطعة البيض",
+          "price": 2.25,
+          "family": "houseware",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "nesto:central:d4d:99082332",
+          "name": "رول الربيع بيض صنبلح سنبلة",
+          "price": 3.99,
+          "family": "pastry",
+          "stage": 1,
+          "band": 0
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "marksave:central:d4d:99061971",
+          "name": "البطاطه البيض الأبيض كبير جدة 10 حبات الوطنية",
+          "price": 7.5,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "marksave:central:d4d:99061992",
+          "name": "أسترا بيض سمان 18",
+          "price": 10.95,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "nesto:central:d4d:99155952",
+          "name": "الفلاح بيض أبيض كبير 30",
+          "price": 12.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "nesto:central:d4d:99094020",
+          "name": "الامين بيض كبير ٣٠ بيضة",
+          "price": 12.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "lulu:central:d4d:99104424",
+          "name": "فاكيه بيض أبيض طازج ووسط ٣٠",
+          "price": 13.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "tamimi:central:d4d:99049539",
+          "name": "بيض أبيض كبير، قارية، 30",
+          "price": 14.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "almadina:central:d4d:99109842",
+          "name": "بيض أبيض ٣٠",
+          "price": 15,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "prime:central:d4d:98546790",
+          "name": "قطعة البيض",
+          "price": 2.25,
+          "family": "houseware",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 9,
+          "id": "nesto:central:d4d:99082332",
+          "name": "رول الربيع بيض صنبلح سنبلة",
+          "price": 3.99,
+          "family": "pastry",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "nesto:central:d4d:99088227",
+          "name": "رغيف الربيع رول العادي / برجر / بيض سنبلة",
+          "price": 3.99,
+          "family": "pastry",
+          "stage": 1,
+          "band": 0
+        }
+      ]
+    },
+    {
+      "q": "eggs",
+      "engineBefore": 40,
+      "engineAfter": 40,
+      "frontendBefore": 19,
+      "frontendAfter": 19,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "marksave:central:d4d:99061971",
+          "name": "البطاطه البيض الأبيض كبير جدة 10 حبات الوطنية",
+          "price": 7.5,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99050151",
+          "name": "SUNBULAH SPRING ROLLS, WHOLE WHEAT, OR EGG ROLL, 160 GRAMS",
+          "price": 8.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "marksave:central:d4d:99061992",
+          "name": "Astra Quail Eggs 18'S",
+          "price": 10.95,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "nesto:central:d4d:99155952",
+          "name": "Al Falah White Egg Large 30's",
+          "price": 12.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "lulu:central:d4d:99104424",
+          "name": "Fakieh Fresh White Eggs Medium 30s",
+          "price": 13.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "tamimi:central:d4d:99049539",
+          "name": "QARYAH LARGE WHITE EGGS, 30 COUNTS",
+          "price": 14.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "almadina:central:d4d:99109842",
+          "name": "WHITE EGG 30S",
+          "price": 15,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "prime:central:d4d:98546790",
+          "name": "EXCELLENT HOUSEWARE EGG SLICER PP 13X8CM",
+          "price": 2.25,
+          "family": "houseware",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 9,
+          "id": "nesto:central:d4d:99082332",
+          "name": "Sunbulah Egg Spring Roll Pastry 160Gm",
+          "price": 3.99,
+          "family": "pastry",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "amarket:central:d4d:99077466",
+          "name": "مقادير خل البيض طبيعي 473 مل",
+          "price": 4.25,
+          "family": "vinegar",
+          "stage": 1,
+          "band": 0
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "marksave:central:d4d:99061971",
+          "name": "البطاطه البيض الأبيض كبير جدة 10 حبات الوطنية",
+          "price": 7.5,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "marksave:central:d4d:99061992",
+          "name": "Astra Quail Eggs 18'S",
+          "price": 10.95,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "nesto:central:d4d:99155952",
+          "name": "Al Falah White Egg Large 30's",
+          "price": 12.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "lulu:central:d4d:99104424",
+          "name": "Fakieh Fresh White Eggs Medium 30s",
+          "price": 13.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "tamimi:central:d4d:99049539",
+          "name": "QARYAH LARGE WHITE EGGS, 30 COUNTS",
+          "price": 14.99,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "almadina:central:d4d:99109842",
+          "name": "WHITE EGG 30S",
+          "price": 15,
+          "family": "eggs",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "prime:central:d4d:98546790",
+          "name": "EXCELLENT HOUSEWARE EGG SLICER PP 13X8CM",
+          "price": 2.25,
+          "family": "houseware",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 8,
+          "id": "nesto:central:d4d:99082332",
+          "name": "Sunbulah Egg Spring Roll Pastry 160Gm",
+          "price": 3.99,
+          "family": "pastry",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 9,
+          "id": "amarket:central:d4d:99077466",
+          "name": "مقادير خل البيض طبيعي 473 مل",
+          "price": 4.25,
+          "family": "vinegar",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "farm:central:d4d:99040761",
+          "name": "EL CORTE INGLES TOAST WITH TOMATO & OREGANO ! GARLIC & PARSLEY 160 GR",
+          "price": 7.99,
+          "family": "bread",
+          "stage": 1,
+          "band": 0
+        }
+      ]
+    },
+    {
+      "q": "ويفر رينجو",
+      "engineBefore": 4,
+      "engineAfter": 4,
+      "frontendBefore": 2,
+      "frontendAfter": 4,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "danube:central:d4d:98685804",
+          "name": "وافر سكويت رينجو تيشوب ١٢×١٦ غرام",
+          "price": 9.99,
+          "family": "biscuit",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "amarket:central:d4d:99077817",
+          "name": "وافر رينجو رول 16 غرام",
+          "price": 9.25,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "amarket:central:d4d:99077817",
+          "name": "وافر رينجو رول 16 غرام",
+          "price": 9.25,
+          "family": "biscuit",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "danube:central:d4d:98685804",
+          "name": "وافر سكويت رينجو تيشوب ١٢×١٦ غرام",
+          "price": 9.99,
+          "family": "biscuit",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "danube:central:d4d:98685801",
+          "name": "وافر سكويت رينغو تشوب",
+          "price": 9.99,
+          "family": "biscuit",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "farm:central:d4d:99041475",
+          "name": "تشوب رينغو وفير غير مخطط سادة / بالبندق ١٢",
+          "price": 9.99,
+          "family": "biscuit",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "زبادي يوناني نادك",
+      "engineBefore": 9,
+      "engineAfter": 12,
+      "frontendBefore": 6,
+      "frontendAfter": 9,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "tamimi:central:d4d:99050040",
+          "name": "زبادي يوناني، أصناف متنوعة، نادك، 160 جرام",
+          "price": 2.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99088317",
+          "name": "نادك جو زادي يوناني بالتووت الأزرق / سادة / تووت مختلط / فراولة 160 جم",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "danube:central:d4d:98686512",
+          "name": "زبادي يوناني نادك",
+          "price": 8.99,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "prime:central:d4d:99135336",
+          "name": "ناديك زيادي يوناني ١٦٠ جرام نادك",
+          "price": 3.95,
+          "family": "yogurt",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "hyperpanda:central:d4d:99117894",
+          "name": "ربادي يونالي بالفراولة (٣ × ١٦٠ جم) نادك",
+          "price": 9.75,
+          "family": "yogurt",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99082422",
+          "name": "ناديك جو زادي يوناني بالثوت الأزرق / سادة / توت مشكل / فراولة 160 جم نادك",
+          "price": 3.99,
+          "family": "berries",
+          "stage": 1,
+          "band": 0
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "tamimi:central:d4d:99050040",
+          "name": "زبادي يوناني، أصناف متنوعة، نادك، 160 جرام",
+          "price": 2.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "prime:central:d4d:99135336",
+          "name": "ناديك زيادي يوناني ١٦٠ جرام نادك",
+          "price": 3.95,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "nesto:central:d4d:99088317",
+          "name": "نادك جو زادي يوناني بالتووت الأزرق / سادة / تووت مختلط / فراولة 160 جم",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "nesto:central:d4d:99155979",
+          "name": "ناديك جو يوناني بالثوت المازجي / سادة / توتي مشكل / فراولة 160 جم نادك",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "danube:central:d4d:98686512",
+          "name": "زبادي يوناني نادك",
+          "price": 8.99,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "hyperpanda:central:d4d:99117894",
+          "name": "ربادي يونالي بالفراولة (٣ × ١٦٠ جم) نادك",
+          "price": 9.75,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "alwafa:central:d4d:99096474",
+          "name": "Nadec Go Greek Yogurt Asstd 160gm 2+1 Free",
+          "price": 10,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "nesto:central:d4d:99082422",
+          "name": "ناديك جو زادي يوناني بالثوت الأزرق / سادة / توت مشكل / فراولة 160 جم نادك",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "alwafa:central:d4d:99094581",
+          "name": "ناديك جو جريك زادي نادك",
+          "price": 10,
+          "family": "yogurt",
+          "stage": 1,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "nadec greek yoghurt",
+      "engineBefore": 12,
+      "engineAfter": 12,
+      "frontendBefore": 5,
+      "frontendAfter": 9,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "tamimi:central:d4d:99050040",
+          "name": "NADEC GREEK YOGHURT, ASSORTED ITEMS, 160 GRAMS",
+          "price": 2.99,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99088317",
+          "name": "nadec Go!life GREEK YOGHURT Blueberry/Plain/Mixed Berry/Strawberry 160gm",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "hyperpanda:central:d4d:99117894",
+          "name": "Nadec Greek Yoghurt Strawberry (3 x 160g)",
+          "price": 9.75,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "alwafa:central:d4d:99096474",
+          "name": "Nadec Go Greek Yogurt Asstd 160gm 2+1 Free",
+          "price": 10,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "alwafa:central:d4d:99094581",
+          "name": "Nadec Go Greek Ygrt 160gm 2+1 F",
+          "price": 10,
+          "family": "yogurt",
+          "stage": 1,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "tamimi:central:d4d:99050040",
+          "name": "NADEC GREEK YOGHURT, ASSORTED ITEMS, 160 GRAMS",
+          "price": 2.99,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "prime:central:d4d:99135336",
+          "name": "ناديك زيادي يوناني ١٦٠ جرام نادك",
+          "price": 3.95,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "nesto:central:d4d:99088317",
+          "name": "nadec Go!life GREEK YOGHURT Blueberry/Plain/Mixed Berry/Strawberry 160gm",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "danube:central:d4d:98686512",
+          "name": "زبادي يوناني نادك",
+          "price": 8.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "hyperpanda:central:d4d:99117894",
+          "name": "Nadec Greek Yoghurt Strawberry (3 x 160g)",
+          "price": 9.75,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "alwafa:central:d4d:99096474",
+          "name": "Nadec Go Greek Yogurt Asstd 160gm 2+1 Free",
+          "price": 10,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "nesto:central:d4d:99082422",
+          "name": "ناديك جو زادي يوناني بالثوت الأزرق / سادة / توت مشكل / فراولة 160 جم نادك",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "nesto:central:d4d:99090615",
+          "name": "ناديك جو زادي يوناني بالتووت الأزرق / سادة / تووت مختلط / فراولة 160 جم نادك",
+          "price": 3.99,
+          "family": "yogurt",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "alwafa:central:d4d:99094581",
+          "name": "Nadec Go Greek Ygrt 160gm 2+1 F",
+          "price": 10,
+          "family": "yogurt",
+          "stage": 1,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "alsafi labneh",
+      "engineBefore": 10,
+      "engineAfter": 11,
+      "frontendBefore": 2,
+      "frontendAfter": 7,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "danube:central:d4d:98686302",
+          "name": "Alsafi Creamy Labneh 400g",
+          "price": 9.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "farm:central:d4d:99041745",
+          "name": "ALSAFI CREAMY LABNEH 700GR",
+          "price": 15.5,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 2
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "othaim:central:d4d:99101436",
+          "name": "لبنة الصافي",
+          "price": 7.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99050004",
+          "name": "AL SAFI LABNEH, 400 GRAMS",
+          "price": 8.5,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "danube:central:d4d:98686302",
+          "name": "Alsafi Creamy Labneh 400g",
+          "price": 9.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "lulu:central:d4d:99104433",
+          "name": "Al Safi Turkish Labneh 700gm",
+          "price": 14.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "alwafa:central:d4d:99096450",
+          "name": "Al Safi Turkish Labneh 700Gm",
+          "price": 15,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99041745",
+          "name": "ALSAFI CREAMY LABNEH 700GR",
+          "price": 15.5,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "hyperpanda:central:d4d:99118029",
+          "name": "Al Safi Creamy Labneh (700g)",
+          "price": 15.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "cornflakes",
+      "engineBefore": 21,
+      "engineAfter": 21,
+      "frontendBefore": 13,
+      "frontendAfter": 13,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "farm:central:d4d:99041541",
+          "name": "POPPINS CORN FLAKES 375GR",
+          "price": 9.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "danube:central:d4d:98685288",
+          "name": "CORN FLAKES Strawberry 250g",
+          "price": 10.99,
+          "family": "cereal",
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 3,
+          "id": "lulu:central:d4d:99104166",
+          "name": "Lulu Corn Flakes Classic 375g 2s",
+          "price": 10.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "tamimi:central:d4d:99050439",
+          "name": "Kellogg's CORN FLAKES, 375 GRAMS",
+          "price": 14.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "lulu:central:d4d:99104163",
+          "name": "Kelloggs Corn Flakes 450g",
+          "price": 14.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "alwafa:central:d4d:99094530",
+          "name": "Kellogg's Corn Flakes 450gm",
+          "price": 15,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "farm:central:d4d:99040911",
+          "name": "KIDZY CORN FLAKES NO-ADDED SUGAR 375 GR",
+          "price": 15.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "danube:central:d4d:98685258",
+          "name": "Vitabella Traditional Corn Flakes 300g",
+          "price": 16.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "hyperpanda:central:d4d:99118467",
+          "name": "Nestle Country Corn Flakes (500g)",
+          "price": 17.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "danube:central:d4d:98685267",
+          "name": "Nestle country Corn Flakes 500g",
+          "price": 19.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "farm:central:d4d:99041541",
+          "name": "POPPINS CORN FLAKES 375GR",
+          "price": 9.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "danube:central:d4d:98685288",
+          "name": "CORN FLAKES Strawberry 250g",
+          "price": 10.99,
+          "family": "cereal",
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 3,
+          "id": "lulu:central:d4d:99104166",
+          "name": "Lulu Corn Flakes Classic 375g 2s",
+          "price": 10.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "tamimi:central:d4d:99050439",
+          "name": "Kellogg's CORN FLAKES, 375 GRAMS",
+          "price": 14.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "lulu:central:d4d:99104163",
+          "name": "Kelloggs Corn Flakes 450g",
+          "price": 14.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "alwafa:central:d4d:99094530",
+          "name": "Kellogg's Corn Flakes 450gm",
+          "price": 15,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "farm:central:d4d:99040911",
+          "name": "KIDZY CORN FLAKES NO-ADDED SUGAR 375 GR",
+          "price": 15.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "danube:central:d4d:98685258",
+          "name": "Vitabella Traditional Corn Flakes 300g",
+          "price": 16.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "hyperpanda:central:d4d:99118467",
+          "name": "Nestle Country Corn Flakes (500g)",
+          "price": 17.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "danube:central:d4d:98685267",
+          "name": "Nestle country Corn Flakes 500g",
+          "price": 19.99,
+          "family": "cereal",
+          "stage": 4,
+          "band": 2
+        }
+      ]
+    },
+    {
+      "q": "ماء أروى 1.5L",
+      "engineBefore": 9,
+      "engineAfter": 9,
+      "frontendBefore": 9,
+      "frontendAfter": 9,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "othaim:central:d4d:99101925",
+          "name": "مياه اروا أروى",
+          "price": 14.99,
+          "family": "water",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "aljazera:central:d4d:99055680",
+          "name": "أروى مياه الشرب (6) 1.0 لتر",
+          "price": 6.99,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "tamimi:central:d4d:99051036",
+          "name": "مياه زيرو، أروا، 6 × 1.0 لتر أروى",
+          "price": 8.25,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "farm:central:d4d:99041628",
+          "name": "مياه أروا 6 × 1.5 لتر أروى",
+          "price": 8.5,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041655",
+          "name": "مياه أروا خالية من الصوديوم أروى",
+          "price": 9.99,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "aljazera:central:d4d:99055677",
+          "name": "مياه الشرب زيرو سوديوم أروى",
+          "price": 12.75,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "hyperpanda:central:d4d:99119094",
+          "name": "Arwa Water (48 × 200ml)",
+          "price": 15.5,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "tamimi:central:d4d:99051030",
+          "name": "ARWA WATER, 48 X 200 ML",
+          "price": 16.99,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "tamimi:central:d4d:99051033",
+          "name": "ARWA WATER , 40 X 330 ML",
+          "price": 16.99,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "othaim:central:d4d:99101925",
+          "name": "مياه اروا أروى",
+          "price": 14.99,
+          "family": "water",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "aljazera:central:d4d:99055680",
+          "name": "أروى مياه الشرب (6) 1.0 لتر",
+          "price": 6.99,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "tamimi:central:d4d:99051036",
+          "name": "مياه زيرو، أروا، 6 × 1.0 لتر أروى",
+          "price": 8.25,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "farm:central:d4d:99041628",
+          "name": "مياه أروا 6 × 1.5 لتر أروى",
+          "price": 8.5,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041655",
+          "name": "مياه أروا خالية من الصوديوم أروى",
+          "price": 9.99,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "aljazera:central:d4d:99055677",
+          "name": "مياه الشرب زيرو سوديوم أروى",
+          "price": 12.75,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "hyperpanda:central:d4d:99119094",
+          "name": "Arwa Water (48 × 200ml)",
+          "price": 15.5,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "tamimi:central:d4d:99051030",
+          "name": "ARWA WATER, 48 X 200 ML",
+          "price": 16.99,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "tamimi:central:d4d:99051033",
+          "name": "ARWA WATER , 40 X 330 ML",
+          "price": 16.99,
+          "family": "water",
+          "stage": 1,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "rice 1kg",
+      "engineBefore": 120,
+      "engineAfter": 120,
+      "frontendBefore": 94,
+      "frontendAfter": 94,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "cityflower:central:d4d:99035814",
+          "name": "Royal King 1121 Long White Basmati Rice 1kg",
+          "price": 5.95,
+          "family": "rice",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99051816",
+          "name": "CRISPY RICE",
+          "price": 19.99,
+          "family": "rice",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "lulu:central:d4d:99103947",
+          "name": "Volga Golden Jasmine Rice 10lb",
+          "price": 24.99,
+          "family": "rice",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "tamimi:central:d4d:99050535",
+          "name": "أرز كارلوز مصري، أورلندا",
+          "price": 29.99,
+          "family": "rice",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "alwafa:central:d4d:99096012",
+          "name": "أرز منجهابي ابو حسين طويل",
+          "price": 30,
+          "family": "rice",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "marksave:central:d4d:99064032",
+          "name": "assorted was roc rice rai now طقم مكياج ار اند سي r c 24h makeup kit",
+          "price": 69.99,
+          "family": "rice",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "hyperpanda:central:d4d:99123447",
+          "name": "Prime Rice Cooker with Steam, RC-002",
+          "price": 70,
+          "family": "rice",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "nesto:central:d4d:99155691",
+          "name": "Saflout S.Horse Glutinous Rice Flour 500Gm",
+          "price": 4.99,
+          "family": "rice",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:99135903",
+          "name": "ORBITAT VINE LEAVES STUFFED WITH RICE 470GM",
+          "price": 5.25,
+          "family": "rice",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "tamimi:central:d4d:99046182",
+          "name": "أبو بنت، أرز جاهز للتسخين، أصناف متنوعة، 70 جرام",
+          "price": 7.99,
+          "family": "rice",
+          "stage": 1,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "cityflower:central:d4d:99035814",
+          "name": "Royal King 1121 Long White Basmati Rice 1kg",
+          "price": 5.95,
+          "family": "rice",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "lulu:central:d4d:99103947",
+          "name": "Volga Golden Jasmine Rice 10lb",
+          "price": 24.99,
+          "family": "rice",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "prime:central:d4d:99135903",
+          "name": "ORBITAT VINE LEAVES STUFFED WITH RICE 470GM",
+          "price": 5.25,
+          "family": "rice",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "tamimi:central:d4d:99046182",
+          "name": "أبو بنت، أرز جاهز للتسخين، أصناف متنوعة، 70 جرام",
+          "price": 7.99,
+          "family": "rice",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "tamimi:central:d4d:99050817",
+          "name": "MAMA HANDI VEGETARIAN 80 GRAMS",
+          "price": 8.99,
+          "family": "rice",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "danube:central:d4d:98683326",
+          "name": "Sunwhite Cooked Basmati / Thai Jasmine Rice 250g",
+          "price": 9.5,
+          "family": "rice",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "almadina:central:d4d:99109686",
+          "name": "PUFFED RICE MURRI 400GM",
+          "price": 10,
+          "family": "rice",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "marksave:central:d4d:99063684",
+          "name": "Thennal White Rice 2kg",
+          "price": 10.95,
+          "family": "rice",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:99135651",
+          "name": "SALOUMI INDIAN SELLA RICE (ZAKAAT RICE) 3KG",
+          "price": 11.95,
+          "family": "rice",
+          "stage": 1,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "tamimi:central:d4d:99051693",
+          "name": "O ORGANICS RICE BOWL WHITE FAMILY, 210 GRAMS",
+          "price": 14.99,
+          "family": "rice",
+          "stage": 1,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "sunflower oil",
+      "engineBefore": 82,
+      "engineAfter": 82,
+      "frontendBefore": 54,
+      "frontendAfter": 54,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99137094",
+          "name": "OIL SUNFLOWER ( MIX ) 1.5 LTR (SUNNY)",
+          "price": 13.5,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "prime:central:d4d:99135675",
+          "name": "PRIME 100% PURE SUNFLOWER OIL 1.5 LTR",
+          "price": 13.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "farm:central:d4d:99040989",
+          "name": "BARAKA CORN / SUNFLOWERR OIL 1.5 LTR",
+          "price": 13.99,
+          "family": "oil",
+          "stage": 3,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "almadina:central:d4d:99112611",
+          "name": "Zahrati Sunflower oil 1.5 ltr",
+          "price": 14.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "lulu:central:d4d:99103950",
+          "name": "Rahaf Sunflower Oil 1.5L",
+          "price": 14.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99094026",
+          "name": "Al Wafa Sunflower Oil 1.5Lt",
+          "price": 14.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "alwafa:central:d4d:99096306",
+          "name": "Al Wafa Sunflower Oil 1.5Lt",
+          "price": 15,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "alwafa:central:d4d:99096336",
+          "name": "Zahrati Pure Sunflower Oil 1.5Lt",
+          "price": 15,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:99135693",
+          "name": "SHAROOQ PURE SUNFLOWER OIL 1.5 LTR.",
+          "price": 15.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "danube:central:d4d:98683446",
+          "name": "Crystal Sunflower Oil 1.5Ltr",
+          "price": 15.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99137094",
+          "name": "OIL SUNFLOWER ( MIX ) 1.5 LTR (SUNNY)",
+          "price": 13.5,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "prime:central:d4d:99135675",
+          "name": "PRIME 100% PURE SUNFLOWER OIL 1.5 LTR",
+          "price": 13.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "farm:central:d4d:99040989",
+          "name": "BARAKA CORN / SUNFLOWERR OIL 1.5 LTR",
+          "price": 13.99,
+          "family": "oil",
+          "stage": 3,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "almadina:central:d4d:99112611",
+          "name": "Zahrati Sunflower oil 1.5 ltr",
+          "price": 14.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "lulu:central:d4d:99103950",
+          "name": "Rahaf Sunflower Oil 1.5L",
+          "price": 14.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99094026",
+          "name": "Al Wafa Sunflower Oil 1.5Lt",
+          "price": 14.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "alwafa:central:d4d:99096306",
+          "name": "Al Wafa Sunflower Oil 1.5Lt",
+          "price": 15,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "alwafa:central:d4d:99096336",
+          "name": "Zahrati Pure Sunflower Oil 1.5Lt",
+          "price": 15,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:99135693",
+          "name": "SHAROOQ PURE SUNFLOWER OIL 1.5 LTR.",
+          "price": 15.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "danube:central:d4d:98683446",
+          "name": "Crystal Sunflower Oil 1.5Ltr",
+          "price": 15.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "زيت زيتون عافية",
+      "engineBefore": 4,
+      "engineAfter": 4,
+      "frontendBefore": 4,
+      "frontendAfter": 4,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "hyperpanda:central:d4d:99119625",
+          "name": "زيت زيتون عذراء عضوي عفياء عافية",
+          "price": 16.99,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "farm:central:d4d:99041007",
+          "name": "عاقية زيت زيتون عضوي لتر عافية",
+          "price": 59.99,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "hyperpanda:central:d4d:99119637",
+          "name": "زيت زيتون بكر ممتاز عضوي عائلي (2 لتر) عافية",
+          "price": 113.99,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "ramez:central:d4d:99146160",
+          "name": "زيت زيتون",
+          "price": 13.95,
+          "family": "oil",
+          "stage": 1,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "hyperpanda:central:d4d:99119625",
+          "name": "زيت زيتون عذراء عضوي عفياء عافية",
+          "price": 16.99,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "farm:central:d4d:99041007",
+          "name": "عاقية زيت زيتون عضوي لتر عافية",
+          "price": 59.99,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "hyperpanda:central:d4d:99119637",
+          "name": "زيت زيتون بكر ممتاز عضوي عائلي (2 لتر) عافية",
+          "price": 113.99,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "ramez:central:d4d:99146160",
+          "name": "زيت زيتون",
+          "price": 13.95,
+          "family": "oil",
+          "stage": 1,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "حليب المراعي",
+      "engineBefore": 35,
+      "engineAfter": 35,
+      "frontendBefore": 26,
+      "frontendAfter": 26,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "lulu:central:d4d:99104013",
+          "name": "المراعي حليب مخثر ٣ × ١٧٠ جرام",
+          "price": 5.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "amarket:central:d4d:99077139",
+          "name": "المراعي حليب البروتين 400 مل",
+          "price": 6.25,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "tamimi:central:d4d:99049947",
+          "name": "حليب بروتين، أصناف متنوعة، المراعي، 400 مل",
+          "price": 6.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "lulu:central:d4d:99104442",
+          "name": "المراعي حليب بروتين 400 مل",
+          "price": 6.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "almadina:central:d4d:99112527",
+          "name": "حليب مخر المرايي 170 × 6 جم المراعي",
+          "price": 8.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "hyperpanda:central:d4d:99117282",
+          "name": "حليب مركز المراعي",
+          "price": 8.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "ramez:central:d4d:99146061",
+          "name": "حليب ميكسر المراعي",
+          "price": 9.25,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "nesto:central:d4d:99082140",
+          "name": "حليب المراعي كامل الدسم",
+          "price": 9.99,
+          "family": "milk",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "alwafa:central:d4d:99096288",
+          "name": "حليب مجزر المراعي",
+          "price": 10,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "tamimi:central:d4d:99050385",
+          "name": "حليب مبخر المراعي، ١٧٠ × ٦ جرام",
+          "price": 10.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "lulu:central:d4d:99104013",
+          "name": "المراعي حليب مخثر ٣ × ١٧٠ جرام",
+          "price": 5.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "amarket:central:d4d:99077139",
+          "name": "المراعي حليب البروتين 400 مل",
+          "price": 6.25,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "tamimi:central:d4d:99049947",
+          "name": "حليب بروتين، أصناف متنوعة، المراعي، 400 مل",
+          "price": 6.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "lulu:central:d4d:99104442",
+          "name": "المراعي حليب بروتين 400 مل",
+          "price": 6.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "almadina:central:d4d:99112527",
+          "name": "حليب مخر المرايي 170 × 6 جم المراعي",
+          "price": 8.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "hyperpanda:central:d4d:99117282",
+          "name": "حليب مركز المراعي",
+          "price": 8.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "ramez:central:d4d:99146061",
+          "name": "حليب ميكسر المراعي",
+          "price": 9.25,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "nesto:central:d4d:99082140",
+          "name": "حليب المراعي كامل الدسم",
+          "price": 9.99,
+          "family": "milk",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "alwafa:central:d4d:99096288",
+          "name": "حليب مجزر المراعي",
+          "price": 10,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "tamimi:central:d4d:99050385",
+          "name": "حليب مبخر المراعي، ١٧٠ × ٦ جرام",
+          "price": 10.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "حليب نادك",
+      "engineBefore": 17,
+      "engineAfter": 17,
+      "frontendBefore": 13,
+      "frontendAfter": 14,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "hyperpanda:central:d4d:99117891",
+          "name": "حليب طويل الأجل نادك",
+          "price": 15.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "othaim:central:d4d:99101451",
+          "name": "حليب نادك بغطاء",
+          "price": 17.5,
+          "family": "milk",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "ramez:central:d4d:99146175",
+          "name": "نادك حليب مفلطور 18×125 مل",
+          "price": 17.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "danube:central:d4d:98686308",
+          "name": "حليب نادك ١٢٥ مل ١٨ علب",
+          "price": 18.99,
+          "family": "milk",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "amarket:central:d4d:99077460",
+          "name": "حليب نيدك كابتن نادك",
+          "price": 20.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "prime:central:d4d:99137034",
+          "name": "ناديك حليب طويل الأجل ١٢×١ لتر نادك",
+          "price": 49.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "carrefour:central:d4d:99151929",
+          "name": "نادق حليب كامل الدسم 1 لتر ×12 نادك",
+          "price": 54.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "prime:central:d4d:99135369",
+          "name": "حليب طويل الأجل نادك",
+          "price": 56.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "danube:central:d4d:98686305",
+          "name": "حليب كامل الدسم نادك 12×1 لتر",
+          "price": 59.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "hyperpanda:central:d4d:99117906",
+          "name": "حليب طويل الأجل نادك",
+          "price": 60.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "hyperpanda:central:d4d:99117891",
+          "name": "حليب طويل الأجل نادك",
+          "price": 15.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "othaim:central:d4d:99101451",
+          "name": "حليب نادك بغطاء",
+          "price": 17.5,
+          "family": "milk",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "ramez:central:d4d:99146175",
+          "name": "نادك حليب مفلطور 18×125 مل",
+          "price": 17.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "danube:central:d4d:98686308",
+          "name": "حليب نادك ١٢٥ مل ١٨ علب",
+          "price": 18.99,
+          "family": "milk",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "amarket:central:d4d:99077460",
+          "name": "حليب نيدك كابتن نادك",
+          "price": 20.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "prime:central:d4d:99137034",
+          "name": "ناديك حليب طويل الأجل ١٢×١ لتر نادك",
+          "price": 49.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "carrefour:central:d4d:99151929",
+          "name": "نادق حليب كامل الدسم 1 لتر ×12 نادك",
+          "price": 54.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "prime:central:d4d:99135369",
+          "name": "حليب طويل الأجل نادك",
+          "price": 56.5,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "danube:central:d4d:98686305",
+          "name": "حليب كامل الدسم نادك 12×1 لتر",
+          "price": 59.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "hyperpanda:central:d4d:99117906",
+          "name": "حليب طويل الأجل نادك",
+          "price": 60.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "banana",
+      "engineBefore": 30,
+      "engineAfter": 30,
+      "frontendBefore": 13,
+      "frontendAfter": 13,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "aljazera:central:d4d:99055125",
+          "name": "BANANA (KG)",
+          "price": 4.99,
+          "family": "banana",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99050673",
+          "name": "ORIENT GARDENS Banana Pepper Rings, 340 GRAMS",
+          "price": 5.5,
+          "family": "banana",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "amarket:central:d4d:99076848",
+          "name": "موز",
+          "price": 5.99,
+          "family": "banana",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "prime:central:d4d:99136182",
+          "name": "ZAHRA SAFFA BANANA/VANILLA/STRAWBERRY CAKE MIX SUPER MOIST 500GM",
+          "price": 5.5,
+          "family": "cake",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041742",
+          "name": "دانو عصير مع الحليب الطازج 5 فيتامينات / البرتقال والموز وال / الخوخ والمشمش 900 مل",
+          "price": 8.99,
+          "family": "juice",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99155814",
+          "name": "Relish Coconut & Cas Cookies 12x42Gm",
+          "price": 10.99,
+          "family": "biscuit",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 7,
+          "id": "lulu:central:d4d:99104262",
+          "name": "Best Kabayan Glutinous Rice Cake/CakeRoll/Steamed Banana 454gm",
+          "price": 11.99,
+          "family": "cake",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99040914",
+          "name": "HEY BABY! TEETHING BISCUITS BANANA / BLUEBERRY / APPLE FLAVOURED 50 GR",
+          "price": 12.99,
+          "family": "biscuit",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 9,
+          "id": "danube:central:d4d:98687214",
+          "name": "Kids Biorepair Strawberry & Banana 6×200 ml",
+          "price": 14.99,
+          "family": "sauce",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "farm:central:d4d:99040920",
+          "name": "WELLO SUPER OATS CHOCO HAZELNUT / APPLE CINNAMON / PEANUT BUTTER & BANANA 200 GR",
+          "price": 14.99,
+          "family": "cereal",
+          "stage": 1,
+          "band": 0
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "aljazera:central:d4d:99055125",
+          "name": "BANANA (KG)",
+          "price": 4.99,
+          "family": "banana",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99050673",
+          "name": "ORIENT GARDENS Banana Pepper Rings, 340 GRAMS",
+          "price": 5.5,
+          "family": "banana",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "amarket:central:d4d:99076848",
+          "name": "موز",
+          "price": 5.99,
+          "family": "banana",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "prime:central:d4d:99136182",
+          "name": "ZAHRA SAFFA BANANA/VANILLA/STRAWBERRY CAKE MIX SUPER MOIST 500GM",
+          "price": 5.5,
+          "family": "cake",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041742",
+          "name": "دانو عصير مع الحليب الطازج 5 فيتامينات / البرتقال والموز وال / الخوخ والمشمش 900 مل",
+          "price": 8.99,
+          "family": "juice",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99155814",
+          "name": "Relish Coconut & Cas Cookies 12x42Gm",
+          "price": 10.99,
+          "family": "biscuit",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 7,
+          "id": "lulu:central:d4d:99104262",
+          "name": "Best Kabayan Glutinous Rice Cake/CakeRoll/Steamed Banana 454gm",
+          "price": 11.99,
+          "family": "cake",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99040914",
+          "name": "HEY BABY! TEETHING BISCUITS BANANA / BLUEBERRY / APPLE FLAVOURED 50 GR",
+          "price": 12.99,
+          "family": "biscuit",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 9,
+          "id": "danube:central:d4d:98687214",
+          "name": "Kids Biorepair Strawberry & Banana 6×200 ml",
+          "price": 14.99,
+          "family": "sauce",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "farm:central:d4d:99040920",
+          "name": "WELLO SUPER OATS CHOCO HAZELNUT / APPLE CINNAMON / PEANUT BUTTER & BANANA 200 GR",
+          "price": 14.99,
+          "family": "cereal",
+          "stage": 1,
+          "band": 0
+        }
+      ]
+    },
+    {
+      "q": "موز",
+      "engineBefore": 30,
+      "engineAfter": 30,
+      "frontendBefore": 13,
+      "frontendAfter": 13,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "aljazera:central:d4d:99055125",
+          "name": "كفم جوم",
+          "price": 4.99,
+          "family": "banana",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99050673",
+          "name": "حلقات فلفل الموز، ٣٤٠ جرام",
+          "price": 5.5,
+          "family": "banana",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "amarket:central:d4d:99076848",
+          "name": "موز",
+          "price": 5.99,
+          "family": "banana",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "prime:central:d4d:99136182",
+          "name": "زهرات صفا كيك سوبر مويست موز / فانيلا / فراولة ٥٠٠ جرام",
+          "price": 5.5,
+          "family": "cake",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041742",
+          "name": "دانو عصير مع الحليب الطازج 5 فيتامينات / البرتقال والموز وال / الخوخ والمشمش 900 مل",
+          "price": 8.99,
+          "family": "juice",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99155814",
+          "name": "بسكوت ريش كوز الموز والجوز 12×42جم",
+          "price": 10.99,
+          "family": "biscuit",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 7,
+          "id": "lulu:central:d4d:99104262",
+          "name": "كيك أرز لزج/كيك رول/موز مشوي",
+          "price": 11.99,
+          "family": "cake",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99040914",
+          "name": "هيهي بسكويت التسنين للأطفال بالفلافور البانانا / التوت الأزرق / التفاح ٥٠ غرام",
+          "price": 12.99,
+          "family": "biscuit",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 9,
+          "id": "danube:central:d4d:98687214",
+          "name": "معجون أسنان أطفال متنوع من عمر 6-0 سنوات",
+          "price": 14.99,
+          "family": "sauce",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "farm:central:d4d:99040920",
+          "name": "ويلو شوفان بالشوكولا والبندق / بالتفاح والقرفة / بالفول السوداني والموز ٢٠٠ غرام",
+          "price": 14.99,
+          "family": "cereal",
+          "stage": 1,
+          "band": 0
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "aljazera:central:d4d:99055125",
+          "name": "كفم جوم",
+          "price": 4.99,
+          "family": "banana",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99050673",
+          "name": "حلقات فلفل الموز، ٣٤٠ جرام",
+          "price": 5.5,
+          "family": "banana",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "amarket:central:d4d:99076848",
+          "name": "موز",
+          "price": 5.99,
+          "family": "banana",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "prime:central:d4d:99136182",
+          "name": "زهرات صفا كيك سوبر مويست موز / فانيلا / فراولة ٥٠٠ جرام",
+          "price": 5.5,
+          "family": "cake",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041742",
+          "name": "دانو عصير مع الحليب الطازج 5 فيتامينات / البرتقال والموز وال / الخوخ والمشمش 900 مل",
+          "price": 8.99,
+          "family": "juice",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99155814",
+          "name": "بسكوت ريش كوز الموز والجوز 12×42جم",
+          "price": 10.99,
+          "family": "biscuit",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 7,
+          "id": "lulu:central:d4d:99104262",
+          "name": "كيك أرز لزج/كيك رول/موز مشوي",
+          "price": 11.99,
+          "family": "cake",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99040914",
+          "name": "هيهي بسكويت التسنين للأطفال بالفلافور البانانا / التوت الأزرق / التفاح ٥٠ غرام",
+          "price": 12.99,
+          "family": "biscuit",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 9,
+          "id": "danube:central:d4d:98687214",
+          "name": "معجون أسنان أطفال متنوع من عمر 6-0 سنوات",
+          "price": 14.99,
+          "family": "sauce",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "farm:central:d4d:99040920",
+          "name": "ويلو شوفان بالشوكولا والبندق / بالتفاح والقرفة / بالفول السوداني والموز ٢٠٠ غرام",
+          "price": 14.99,
+          "family": "cereal",
+          "stage": 1,
+          "band": 0
+        }
+      ]
+    },
+    {
+      "q": "apple",
+      "engineBefore": 102,
+      "engineAfter": 102,
+      "frontendBefore": 55,
+      "frontendAfter": 55,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "hyperpanda:central:d4d:99117264",
+          "name": "European Gala Apple (Per Kg)",
+          "price": 4.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99155538",
+          "name": "Apple Gala Per Kg",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "othaim:central:d4d:99101022",
+          "name": "Apples Royal Gala",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "alwafa:central:d4d:99094428",
+          "name": "Apple Gala Per Kg",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "aljazera:central:d4d:99055128",
+          "name": "GALA APPLES (KG)",
+          "price": 6.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99040470",
+          "name": "GALA APPLE",
+          "price": 7.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "tamimi:central:d4d:99049845",
+          "name": "APPLE PINKLADY, CHILE",
+          "price": 8.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "nesto:central:d4d:99156102",
+          "name": "Kojie Plas Apple Natural Brown 500+500ML",
+          "price": 19.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "alwafa:central:d4d:99075462",
+          "name": "wissland apple pro سويس لاند كريم صبغه الشعر بخلاصه التفاح مل swissland black…",
+          "price": 30,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "lulu:central:d4d:99107376",
+          "name": "Apple Lightning connector Earpod MWTY3ZE/ USB-C EarPods MYQY3ZE/A",
+          "price": 89,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "hyperpanda:central:d4d:99117264",
+          "name": "European Gala Apple (Per Kg)",
+          "price": 4.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99155538",
+          "name": "Apple Gala Per Kg",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "othaim:central:d4d:99101022",
+          "name": "Apples Royal Gala",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "alwafa:central:d4d:99094428",
+          "name": "Apple Gala Per Kg",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "aljazera:central:d4d:99055128",
+          "name": "GALA APPLES (KG)",
+          "price": 6.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99040470",
+          "name": "GALA APPLE",
+          "price": 7.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "tamimi:central:d4d:99049845",
+          "name": "APPLE PINKLADY, CHILE",
+          "price": 8.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "nesto:central:d4d:99156102",
+          "name": "Kojie Plas Apple Natural Brown 500+500ML",
+          "price": 19.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "alwafa:central:d4d:99075462",
+          "name": "wissland apple pro سويس لاند كريم صبغه الشعر بخلاصه التفاح مل swissland black…",
+          "price": 30,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "lulu:central:d4d:99107376",
+          "name": "Apple Lightning connector Earpod MWTY3ZE/ USB-C EarPods MYQY3ZE/A",
+          "price": 89,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "تفاح",
+      "engineBefore": 102,
+      "engineAfter": 102,
+      "frontendBefore": 57,
+      "frontendAfter": 57,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "hyperpanda:central:d4d:99117264",
+          "name": "تفاح جالا أوروبي (للكيلو)",
+          "price": 4.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99155538",
+          "name": "تفاح جالا",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "othaim:central:d4d:99101022",
+          "name": "تفاح رويال جالا",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "alwafa:central:d4d:99094428",
+          "name": "تفاح جالا للكيلو",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "nesto:central:d4d:99094059",
+          "name": "تفاح غالا",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "aljazera:central:d4d:99055128",
+          "name": "تفاح جالا (كغم)",
+          "price": 6.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "farm:central:d4d:99040470",
+          "name": "تفاح جالا",
+          "price": 7.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "tamimi:central:d4d:99049845",
+          "name": "تفاح بينك ليدي, تشيلي",
+          "price": 8.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "nesto:central:d4d:99156102",
+          "name": "كوجي بلاس صفة الشعر البلي كوالسفة الفاكهة الاكثر + 0.00 مل",
+          "price": 19.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "alwafa:central:d4d:99075462",
+          "name": "wissland apple pro سويس لاند كريم صبغه الشعر بخلاصه التفاح مل swissland black…",
+          "price": 30,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "hyperpanda:central:d4d:99117264",
+          "name": "تفاح جالا أوروبي (للكيلو)",
+          "price": 4.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99155538",
+          "name": "تفاح جالا",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "othaim:central:d4d:99101022",
+          "name": "تفاح رويال جالا",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "alwafa:central:d4d:99094428",
+          "name": "تفاح جالا للكيلو",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "nesto:central:d4d:99094059",
+          "name": "تفاح غالا",
+          "price": 5.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "aljazera:central:d4d:99055128",
+          "name": "تفاح جالا (كغم)",
+          "price": 6.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "farm:central:d4d:99040470",
+          "name": "تفاح جالا",
+          "price": 7.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "tamimi:central:d4d:99049845",
+          "name": "تفاح بينك ليدي, تشيلي",
+          "price": 8.99,
+          "family": "apple",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "nesto:central:d4d:99156102",
+          "name": "كوجي بلاس صفة الشعر البلي كوالسفة الفاكهة الاكثر + 0.00 مل",
+          "price": 19.99,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "alwafa:central:d4d:99075462",
+          "name": "wissland apple pro سويس لاند كريم صبغه الشعر بخلاصه التفاح مل swissland black…",
+          "price": 30,
+          "family": "apple",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "mango",
+      "engineBefore": 57,
+      "engineAfter": 57,
+      "frontendBefore": 25,
+      "frontendAfter": 25,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99135159",
+          "name": "TASTY MANGO PULP 1KG",
+          "price": 5.75,
+          "family": "mango",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "othaim:central:d4d:99101166",
+          "name": "Mango Keit",
+          "price": 5.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "prime:central:d4d:99135144",
+          "name": "DAMACO TOTAPURI MANGO PULP 1KG",
+          "price": 6.5,
+          "family": "mango",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "cityflower:central:d4d:99035754",
+          "name": "Mango Egypt 1kg",
+          "price": 6.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "marksave:central:d4d:99062163",
+          "name": "Mango Egypt",
+          "price": 7.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99042027",
+          "name": "MONTAMA Mango Pulp / DARI TOTAPURI Mango Slice 1KG",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "tamimi:central:d4d:99050214",
+          "name": "MONTANO OR DARI MANGO PULP, 1 KILO",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "hyperpanda:central:d4d:99118110",
+          "name": "Montana Mango / Strawberry / GuavaPulp (1Kg)",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "ramez:central:d4d:99145917",
+          "name": "Al Kabeer Mango Pulp المانجو 1 كجم",
+          "price": 11.95,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "aljazera:central:d4d:99055542",
+          "name": "MONTANA MANGO PULP 1KG",
+          "price": 11.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99135159",
+          "name": "TASTY MANGO PULP 1KG",
+          "price": 5.75,
+          "family": "mango",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "othaim:central:d4d:99101166",
+          "name": "Mango Keit",
+          "price": 5.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "prime:central:d4d:99135144",
+          "name": "DAMACO TOTAPURI MANGO PULP 1KG",
+          "price": 6.5,
+          "family": "mango",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "cityflower:central:d4d:99035754",
+          "name": "Mango Egypt 1kg",
+          "price": 6.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "marksave:central:d4d:99062163",
+          "name": "Mango Egypt",
+          "price": 7.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99042027",
+          "name": "MONTAMA Mango Pulp / DARI TOTAPURI Mango Slice 1KG",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "tamimi:central:d4d:99050214",
+          "name": "MONTANO OR DARI MANGO PULP, 1 KILO",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "hyperpanda:central:d4d:99118110",
+          "name": "Montana Mango / Strawberry / GuavaPulp (1Kg)",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "ramez:central:d4d:99145917",
+          "name": "Al Kabeer Mango Pulp المانجو 1 كجم",
+          "price": 11.95,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "aljazera:central:d4d:99055542",
+          "name": "MONTANA MANGO PULP 1KG",
+          "price": 11.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        }
+      ]
+    },
+    {
+      "q": "مانجو",
+      "engineBefore": 57,
+      "engineAfter": 57,
+      "frontendBefore": 28,
+      "frontendAfter": 28,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99135159",
+          "name": "لب المانجو المحمض",
+          "price": 5.75,
+          "family": "mango",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "othaim:central:d4d:99101166",
+          "name": "مانجو كيت",
+          "price": 5.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "prime:central:d4d:99135144",
+          "name": "داماكو مانجو مطحون وتابوري 1 كيلو",
+          "price": 6.5,
+          "family": "mango",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "cityflower:central:d4d:99035754",
+          "name": "مانجو مصرية 1 كغ",
+          "price": 6.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "marksave:central:d4d:99062163",
+          "name": "مانجو مصري",
+          "price": 7.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99042027",
+          "name": "مونتاما لب المانجو / داري مانجو توتابوري شريحة 1 كجم",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "tamimi:central:d4d:99050214",
+          "name": "لب مانجو، مونتانا أو داري، ١ كيلو",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "hyperpanda:central:d4d:99118110",
+          "name": "لب المانجو / فراولة / الجوافة موشانا (1 كيلو) مونتانا",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "ramez:central:d4d:99145917",
+          "name": "لب المانجو الكبير",
+          "price": 11.95,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "aljazera:central:d4d:99055542",
+          "name": "مونتانا لب مانجو (1 كغم)",
+          "price": 11.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99135159",
+          "name": "لب المانجو المحمض",
+          "price": 5.75,
+          "family": "mango",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "othaim:central:d4d:99101166",
+          "name": "مانجو كيت",
+          "price": 5.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "prime:central:d4d:99135144",
+          "name": "داماكو مانجو مطحون وتابوري 1 كيلو",
+          "price": 6.5,
+          "family": "mango",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "cityflower:central:d4d:99035754",
+          "name": "مانجو مصرية 1 كغ",
+          "price": 6.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "marksave:central:d4d:99062163",
+          "name": "مانجو مصري",
+          "price": 7.99,
+          "family": "mango",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99042027",
+          "name": "مونتاما لب المانجو / داري مانجو توتابوري شريحة 1 كجم",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "tamimi:central:d4d:99050214",
+          "name": "لب مانجو، مونتانا أو داري، ١ كيلو",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "hyperpanda:central:d4d:99118110",
+          "name": "لب المانجو / فراولة / الجوافة موشانا (1 كيلو) مونتانا",
+          "price": 9.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "ramez:central:d4d:99145917",
+          "name": "لب المانجو الكبير",
+          "price": 11.95,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "aljazera:central:d4d:99055542",
+          "name": "مونتانا لب مانجو (1 كغم)",
+          "price": 11.99,
+          "family": "mango",
+          "stage": 4,
+          "band": 2
+        }
+      ]
+    },
+    {
+      "q": "strawberry milk",
+      "engineBefore": 33,
+      "engineAfter": 33,
+      "frontendBefore": 10,
+      "frontendAfter": 10,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "ramez:central:d4d:99146169",
+          "name": "Luna Strawberry Flavour Vitamin D 18*200 مل",
+          "price": 19.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "farm:central:d4d:99041841",
+          "name": "Luna Strawberry Flavoured Milk Vitamin D 18 x 200ml",
+          "price": 19.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "lulu:central:d4d:99104118",
+          "name": "Almarai Strawberry Milk 18 x 200ml",
+          "price": 25.99,
+          "family": "milk",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "farm:central:d4d:99041751",
+          "name": "YO PRO TRIPLE ZERO PROTEIN MILK STRAWBERRY / CHOCOLATE / VANILLA / MATCHA 300ML",
+          "price": 5.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041706",
+          "name": "المعجون حليب بروتين 34 غرام خالي من السكر بالشوكولا / فانيليا / فراولة وموز 400 مل",
+          "price": 6.5,
+          "family": "sauce",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99041394",
+          "name": "BE-KIND PROTEIN BAR DARK CHOCOLATE RASPBERRY / MILK CHOCOLATE LATTE 50GR",
+          "price": 9.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 7,
+          "id": "prime:central:d4d:99135366",
+          "name": "NADEC UHT STRAWBERRY/CHOCOLATE MILK 18X185ML MILK LOW/FULL FAT 18X200ML",
+          "price": 26.95,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99041823",
+          "name": "حليب طعم الفراولة / الشوكولا 18 × 185 مل / 18 × 200",
+          "price": 26.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 9,
+          "id": "alwafa:central:d4d:99094491",
+          "name": "Planet Choco Karak/Caramel/Pistha/S.berry Milk Cream Filling Stick PER KG",
+          "price": 29.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "nesto:central:d4d:99155604",
+          "name": "شوكولا كريم الحليب بالعسل / الكاكاو / الكرميل / البستا / الفراولة",
+          "price": 29.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "ramez:central:d4d:99146169",
+          "name": "Luna Strawberry Flavour Vitamin D 18*200 مل",
+          "price": 19.95,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "farm:central:d4d:99041841",
+          "name": "Luna Strawberry Flavoured Milk Vitamin D 18 x 200ml",
+          "price": 19.99,
+          "family": "milk",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "lulu:central:d4d:99104118",
+          "name": "Almarai Strawberry Milk 18 x 200ml",
+          "price": 25.99,
+          "family": "milk",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "farm:central:d4d:99041751",
+          "name": "YO PRO TRIPLE ZERO PROTEIN MILK STRAWBERRY / CHOCOLATE / VANILLA / MATCHA 300ML",
+          "price": 5.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041706",
+          "name": "المعجون حليب بروتين 34 غرام خالي من السكر بالشوكولا / فانيليا / فراولة وموز 400 مل",
+          "price": 6.5,
+          "family": "sauce",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99041394",
+          "name": "BE-KIND PROTEIN BAR DARK CHOCOLATE RASPBERRY / MILK CHOCOLATE LATTE 50GR",
+          "price": 9.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 7,
+          "id": "prime:central:d4d:99135366",
+          "name": "NADEC UHT STRAWBERRY/CHOCOLATE MILK 18X185ML MILK LOW/FULL FAT 18X200ML",
+          "price": 26.95,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99041823",
+          "name": "حليب طعم الفراولة / الشوكولا 18 × 185 مل / 18 × 200",
+          "price": 26.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 9,
+          "id": "alwafa:central:d4d:99094491",
+          "name": "Planet Choco Karak/Caramel/Pistha/S.berry Milk Cream Filling Stick PER KG",
+          "price": 29.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 10,
+          "id": "nesto:central:d4d:99155604",
+          "name": "شوكولا كريم الحليب بالعسل / الكاكاو / الكرميل / البستا / الفراولة",
+          "price": 29.99,
+          "family": "chocolate",
+          "stage": 1,
+          "band": 0
+        }
+      ]
+    },
+    {
+      "q": "strawberry waffle",
+      "engineBefore": 1,
+      "engineAfter": 1,
+      "frontendBefore": 1,
+      "frontendAfter": 1,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "danube:central:d4d:98685306",
+          "name": "Yoco Crunchia di Fragola Double Waffle With Strawberry Filling 50g",
+          "price": 2.5,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "danube:central:d4d:98685306",
+          "name": "Yoco Crunchia di Fragola Double Waffle With Strawberry Filling 50g",
+          "price": 2.5,
+          "family": "biscuit",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "وافل فراولة",
+      "engineBefore": 1,
+      "engineAfter": 1,
+      "frontendBefore": 1,
+      "frontendAfter": 1,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "danube:central:d4d:98685306",
+          "name": "وافل محشوة فراولة",
+          "price": 2.5,
+          "family": "strawberry",
+          "stage": 4,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "danube:central:d4d:98685306",
+          "name": "وافل محشوة فراولة",
+          "price": 2.5,
+          "family": "biscuit",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "جيلي فراولة",
+      "engineBefore": 2,
+      "engineAfter": 2,
+      "frontendBefore": 1,
+      "frontendAfter": 1,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99137055",
+          "name": "حلاوي الجيليان كز/فراولة 6×80جم العلالي",
+          "price": 2.25,
+          "family": "strawberry",
+          "stage": 1,
+          "band": 0
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99137055",
+          "name": "حلاوي الجيليان كز/فراولة 6×80جم العلالي",
+          "price": 2.25,
+          "family": "candy",
+          "stage": 3,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "lemon squeezer",
+      "engineBefore": 1,
+      "engineAfter": 1,
+      "frontendBefore": 1,
+      "frontendAfter": 1,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "alwafa:central:d4d:99075639",
+          "name": "Lemon Squeezer Steel/Plastic Astd",
+          "price": 5,
+          "family": "lemon",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "alwafa:central:d4d:99075639",
+          "name": "Lemon Squeezer Steel/Plastic Astd",
+          "price": 5,
+          "family": "houseware",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "عصارة ليمون",
+      "engineBefore": 0,
+      "engineAfter": 1,
+      "frontendBefore": 0,
+      "frontendAfter": 1,
+      "top10Before": [],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "alwafa:central:d4d:99075639",
+          "name": "مصعد ليمون من الفولاذ أو البلاستيك",
+          "price": 5,
+          "family": "houseware",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "white eggs",
+      "engineBefore": 11,
+      "engineAfter": 11,
+      "frontendBefore": 5,
+      "frontendAfter": 5,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "nesto:central:d4d:99155952",
+          "name": "Al Falah White Egg Large 30's",
+          "price": 12.99,
+          "family": "eggs",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "lulu:central:d4d:99104424",
+          "name": "Fakieh Fresh White Eggs Medium 30s",
+          "price": 13.99,
+          "family": "eggs",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "tamimi:central:d4d:99049539",
+          "name": "QARYAH LARGE WHITE EGGS, 30 COUNTS",
+          "price": 14.99,
+          "family": "eggs",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "almadina:central:d4d:99109842",
+          "name": "WHITE EGG 30S",
+          "price": 15,
+          "family": "eggs",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041781",
+          "name": "PUCK CUBED WHITE CHEESE FETA / GARLIC & PARSLEY / PAPRIKA & CHILLI 410GR",
+          "price": 9.99,
+          "family": "cheese",
+          "stage": 1,
+          "band": 0
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "nesto:central:d4d:99155952",
+          "name": "Al Falah White Egg Large 30's",
+          "price": 12.99,
+          "family": "eggs",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "lulu:central:d4d:99104424",
+          "name": "Fakieh Fresh White Eggs Medium 30s",
+          "price": 13.99,
+          "family": "eggs",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "tamimi:central:d4d:99049539",
+          "name": "QARYAH LARGE WHITE EGGS, 30 COUNTS",
+          "price": 14.99,
+          "family": "eggs",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "almadina:central:d4d:99109842",
+          "name": "WHITE EGG 30S",
+          "price": 15,
+          "family": "eggs",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "farm:central:d4d:99041781",
+          "name": "PUCK CUBED WHITE CHEESE FETA / GARLIC & PARSLEY / PAPRIKA & CHILLI 410GR",
+          "price": 9.99,
+          "family": "cheese",
+          "stage": 1,
+          "band": 0
+        }
+      ]
+    },
+    {
+      "q": "بيض سمان",
+      "engineBefore": 1,
+      "engineAfter": 1,
+      "frontendBefore": 1,
+      "frontendAfter": 1,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "marksave:central:d4d:99061992",
+          "name": "أسترا بيض سمان 18",
+          "price": 10.95,
+          "family": "eggs",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "marksave:central:d4d:99061992",
+          "name": "أسترا بيض سمان 18",
+          "price": 10.95,
+          "family": "eggs",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "sunflower oil 1.5L",
+      "engineBefore": 82,
+      "engineAfter": 82,
+      "frontendBefore": 54,
+      "frontendAfter": 54,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99137094",
+          "name": "OIL SUNFLOWER ( MIX ) 1.5 LTR (SUNNY)",
+          "price": 13.5,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "prime:central:d4d:99135675",
+          "name": "PRIME 100% PURE SUNFLOWER OIL 1.5 LTR",
+          "price": 13.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "farm:central:d4d:99040989",
+          "name": "BARAKA CORN / SUNFLOWERR OIL 1.5 LTR",
+          "price": 13.99,
+          "family": "oil",
+          "stage": 3,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "almadina:central:d4d:99112611",
+          "name": "Zahrati Sunflower oil 1.5 ltr",
+          "price": 14.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "lulu:central:d4d:99103950",
+          "name": "Rahaf Sunflower Oil 1.5L",
+          "price": 14.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99094026",
+          "name": "Al Wafa Sunflower Oil 1.5Lt",
+          "price": 14.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "alwafa:central:d4d:99096306",
+          "name": "Al Wafa Sunflower Oil 1.5Lt",
+          "price": 15,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "alwafa:central:d4d:99096336",
+          "name": "Zahrati Pure Sunflower Oil 1.5Lt",
+          "price": 15,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:99135693",
+          "name": "SHAROOQ PURE SUNFLOWER OIL 1.5 LTR.",
+          "price": 15.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "danube:central:d4d:98683446",
+          "name": "Crystal Sunflower Oil 1.5Ltr",
+          "price": 15.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "prime:central:d4d:99137094",
+          "name": "OIL SUNFLOWER ( MIX ) 1.5 LTR (SUNNY)",
+          "price": 13.5,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "prime:central:d4d:99135675",
+          "name": "PRIME 100% PURE SUNFLOWER OIL 1.5 LTR",
+          "price": 13.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "farm:central:d4d:99040989",
+          "name": "BARAKA CORN / SUNFLOWERR OIL 1.5 LTR",
+          "price": 13.99,
+          "family": "oil",
+          "stage": 3,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "almadina:central:d4d:99112611",
+          "name": "Zahrati Sunflower oil 1.5 ltr",
+          "price": 14.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "lulu:central:d4d:99103950",
+          "name": "Rahaf Sunflower Oil 1.5L",
+          "price": 14.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "nesto:central:d4d:99094026",
+          "name": "Al Wafa Sunflower Oil 1.5Lt",
+          "price": 14.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "alwafa:central:d4d:99096306",
+          "name": "Al Wafa Sunflower Oil 1.5Lt",
+          "price": 15,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "alwafa:central:d4d:99096336",
+          "name": "Zahrati Pure Sunflower Oil 1.5Lt",
+          "price": 15,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:99135693",
+          "name": "SHAROOQ PURE SUNFLOWER OIL 1.5 LTR.",
+          "price": 15.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "danube:central:d4d:98683446",
+          "name": "Crystal Sunflower Oil 1.5Ltr",
+          "price": 15.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "لبنة الصافي",
+      "engineBefore": 9,
+      "engineAfter": 11,
+      "frontendBefore": 7,
+      "frontendAfter": 7,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "othaim:central:d4d:99101436",
+          "name": "لبنة الصافي",
+          "price": 7.99,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99050004",
+          "name": "لبنة الصفى، ٤٠٠ جرام الصافي",
+          "price": 8.5,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 3,
+          "id": "danube:central:d4d:98686302",
+          "name": "لبنة كريمية الصافي ٤٠٠ غرام",
+          "price": 9.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "lulu:central:d4d:99104433",
+          "name": "لبنة تركية الصافي",
+          "price": 14.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "alwafa:central:d4d:99096450",
+          "name": "الصفى لبنة تركية الصافي",
+          "price": 15,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99041745",
+          "name": "الصافي لبنة كريمية 700 غرام",
+          "price": 15.5,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "hyperpanda:central:d4d:99118029",
+          "name": "لبنة كريمية الصافي (جرام 700)",
+          "price": 15.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 2
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "othaim:central:d4d:99101436",
+          "name": "لبنة الصافي",
+          "price": 7.99,
+          "family": "yogurt",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99050004",
+          "name": "لبنة الصفى، ٤٠٠ جرام الصافي",
+          "price": 8.5,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "danube:central:d4d:98686302",
+          "name": "لبنة كريمية الصافي ٤٠٠ غرام",
+          "price": 9.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "lulu:central:d4d:99104433",
+          "name": "لبنة تركية الصافي",
+          "price": 14.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "alwafa:central:d4d:99096450",
+          "name": "الصفى لبنة تركية الصافي",
+          "price": 15,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "farm:central:d4d:99041745",
+          "name": "الصافي لبنة كريمية 700 غرام",
+          "price": 15.5,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "hyperpanda:central:d4d:99118029",
+          "name": "لبنة كريمية الصافي (جرام 700)",
+          "price": 15.99,
+          "family": "yogurt",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "زيتون",
+      "engineBefore": 120,
+      "engineAfter": 120,
+      "frontendBefore": 109,
+      "frontendAfter": 111,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "tamimi:central:d4d:99049206",
+          "name": "زيتون أخضر أردني",
+          "price": 1.6,
+          "family": null,
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99049215",
+          "name": "زيتون أسود طبيعي، زينة، مصر",
+          "price": 2.1,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 3,
+          "id": "tamimi:central:d4d:99049896",
+          "name": "زيتون أخضر مشقوق، اليونان",
+          "price": 2.2,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "tamimi:central:d4d:99049209",
+          "name": "زيتون أخضر، إسبانيا",
+          "price": 2.5,
+          "family": null,
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "tamimi:central:d4d:99049233",
+          "name": "زيتون أخضر مشوي سوري",
+          "price": 3.5,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "prime:central:d4d:99135924",
+          "name": "أكورسا زيتون أخضر كامل 200 جم",
+          "price": 4.25,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "farm:central:d4d:99041346",
+          "name": "تورنت زيتون كامل أخضر / أسود ٢٠٠ غرام",
+          "price": 4.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "prime:central:d4d:99135939",
+          "name": "لا إكسبلانادا جورميه زيتون محشي بالليمون 350 جم",
+          "price": 5.5,
+          "family": "lemon",
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:99135933",
+          "name": "زيتون محشي بالبرتقال/بالهالينو",
+          "price": 5.95,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 10,
+          "id": "prime:central:d4d:99135936",
+          "name": "زيتون محشي بالفلفل المشوي/بالكمأة ٣٥٠ جم",
+          "price": 5.95,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "tamimi:central:d4d:99049206",
+          "name": "زيتون أخضر أردني",
+          "price": 1.6,
+          "family": "olive",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99049215",
+          "name": "زيتون أسود طبيعي، زينة، مصر",
+          "price": 2.1,
+          "family": "olive",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "tamimi:central:d4d:99049896",
+          "name": "زيتون أخضر مشقوق، اليونان",
+          "price": 2.2,
+          "family": "olive",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "tamimi:central:d4d:99049209",
+          "name": "زيتون أخضر، إسبانيا",
+          "price": 2.5,
+          "family": "olive",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "hyperpanda:central:d4d:99117729",
+          "name": "سياباتا بالزيتون الأخضر الأمريكاني (10) جرام",
+          "price": 2.99,
+          "family": "olive",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "tamimi:central:d4d:99049233",
+          "name": "زيتون أخضر مشوي سوري",
+          "price": 3.5,
+          "family": "olive",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "prime:central:d4d:99135924",
+          "name": "أكورسا زيتون أخضر كامل 200 جم",
+          "price": 4.25,
+          "family": "olive",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99041346",
+          "name": "تورنت زيتون كامل أخضر / أسود ٢٠٠ غرام",
+          "price": 4.99,
+          "family": "olive",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:99135939",
+          "name": "لا إكسبلانادا جورميه زيتون محشي بالليمون 350 جم",
+          "price": 5.5,
+          "family": "olive",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "prime:central:d4d:99135933",
+          "name": "زيتون محشي بالبرتقال/بالهالينو",
+          "price": 5.95,
+          "family": "olive",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "olive oil",
+      "engineBefore": 120,
+      "engineAfter": 120,
+      "frontendBefore": 85,
+      "frontendAfter": 104,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "ramez:central:d4d:99146445",
+          "name": "Zaman Extra Virgin Olive Oil 250 مل",
+          "price": 8.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99046209",
+          "name": "ALJAMEEL EXTRA VIRGIN OLIVE OIL, 250 ML",
+          "price": 12.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "nesto:central:d4d:99087999",
+          "name": "Sinan Spanish Olive Oil 500ml",
+          "price": 12.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "hyperpanda:central:d4d:99119709",
+          "name": "Al Basha Olive Pomace Oil (500ml)",
+          "price": 12.99,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "aljazera:central:d4d:99056157",
+          "name": "DE LA MAISON OLIVE OIL SPAIN 500ML",
+          "price": 13.5,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "prime:central:d4d:99135663",
+          "name": "UNIVERSAL BLENDED OLIVE OIL 500ML",
+          "price": 13.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "danube:central:d4d:98683674",
+          "name": "Al Jouf Organic Extra Virgin Olive Oil 250ml",
+          "price": 13.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "danube:central:d4d:98683455",
+          "name": "Watania Organic Olive Oil 250ml",
+          "price": 13.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "farm:central:d4d:99042270",
+          "name": "FARM VIRGIN OLIVE OIL 500ML",
+          "price": 13.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "hyperpanda:central:d4d:99119700",
+          "name": "Al Wazir Organic Extra Virgin Olive Oil (250ml)",
+          "price": 13.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "ramez:central:d4d:99146166",
+          "name": "زيتون مع زيت نانيعة 500 مل",
+          "price": 7.95,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "ramez:central:d4d:99146445",
+          "name": "Zaman Extra Virgin Olive Oil 250 مل",
+          "price": 8.95,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "prime:central:d4d:99135669",
+          "name": "وطنية زيت زيتون عضوي",
+          "price": 11.5,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "othaim:central:d4d:99101682",
+          "name": "Coopoliva Spanish Oil 250ml",
+          "price": 11.99,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "ramez:central:d4d:99146448",
+          "name": "زيت زيتون أوليفا سيزر 250 مل",
+          "price": 12.95,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "tamimi:central:d4d:99046209",
+          "name": "ALJAMEEL EXTRA VIRGIN OLIVE OIL, 250 ML",
+          "price": 12.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "nesto:central:d4d:99087999",
+          "name": "Sinan Spanish Olive Oil 500ml",
+          "price": 12.99,
+          "family": "oil",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "nesto:central:d4d:99082104",
+          "name": "زيت الزيتون الإسباني ۵۰۰ مل",
+          "price": 12.99,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "amarket:central:d4d:99077295",
+          "name": "زيت زيتون 500 مل",
+          "price": 12.99,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "hyperpanda:central:d4d:99119709",
+          "name": "Al Basha Olive Pomace Oil (500ml)",
+          "price": 12.99,
+          "family": "oil",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "egg roll",
+      "engineBefore": 10,
+      "engineAfter": 10,
+      "frontendBefore": 4,
+      "frontendAfter": 4,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "tamimi:central:d4d:99050151",
+          "name": "SUNBULAH SPRING ROLLS, WHOLE WHEAT, OR EGG ROLL, 160 GRAMS",
+          "price": 8.99,
+          "family": "eggs",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99082332",
+          "name": "Sunbulah Egg Spring Roll Pastry 160Gm",
+          "price": 3.99,
+          "family": "pastry",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 3,
+          "id": "alwafa:central:d4d:99096480",
+          "name": "Sunbulah رقيقات سبراج رول / الباش  Egg Spring Roll/Pastry 160Gm",
+          "price": 10,
+          "family": "pastry",
+          "stage": 1,
+          "band": 0
+        },
+        {
+          "rank": 4,
+          "id": "alwafa:central:d4d:99075264",
+          "name": "Sunbulah Egg Spring Roll/Pastry 160Gm",
+          "price": 10,
+          "family": "pastry",
+          "stage": 1,
+          "band": 0
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "nesto:central:d4d:99082332",
+          "name": "Sunbulah Egg Spring Roll Pastry 160Gm",
+          "price": 3.99,
+          "family": "pastry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99050151",
+          "name": "SUNBULAH SPRING ROLLS, WHOLE WHEAT, OR EGG ROLL, 160 GRAMS",
+          "price": 8.99,
+          "family": "pastry",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "alwafa:central:d4d:99096480",
+          "name": "Sunbulah رقيقات سبراج رول / الباش  Egg Spring Roll/Pastry 160Gm",
+          "price": 10,
+          "family": "pastry",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "alwafa:central:d4d:99075264",
+          "name": "Sunbulah Egg Spring Roll/Pastry 160Gm",
+          "price": 10,
+          "family": "pastry",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "rice flour",
+      "engineBefore": 6,
+      "engineAfter": 6,
+      "frontendBefore": 1,
+      "frontendAfter": 1,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "nesto:central:d4d:99155691",
+          "name": "Saflout S.Horse Glutinous Rice Flour 500Gm",
+          "price": 4.99,
+          "family": "rice",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "nesto:central:d4d:99155691",
+          "name": "Saflout S.Horse Glutinous Rice Flour 500Gm",
+          "price": 4.99,
+          "family": "flour",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "huggies diapers",
+      "engineBefore": 17,
+      "engineAfter": 17,
+      "frontendBefore": 9,
+      "frontendAfter": 17,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "tamimi:central:d4d:99051375",
+          "name": "HUGGIES NEWBORN DIAPERS, SIZE 1 OR 2, 64 COUNTS",
+          "price": 61.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "farm:central:d4d:99043125",
+          "name": "HUGGIES MALIBU DIAPER JUMBO NEW BORN NO.1 OR 2 64'S",
+          "price": 71.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 3,
+          "id": "aljazera:central:d4d:99056445",
+          "name": "HUGGIES EXTRA CARE CULOTTES DIAPERS (AGES 3 - 6)",
+          "price": 72.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "othaim:central:d4d:99102129",
+          "name": "Huggies extra care Diapers Jumbo Box 4+1",
+          "price": 78.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "prime:central:d4d:99137115",
+          "name": "Huggies Jumbo Savings Box Extra Care",
+          "price": 81.25,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "tamimi:central:d4d:99051378",
+          "name": "HUGGIES EXTRA CARE DIAPERS, ASSORTED ITEMS",
+          "price": 81.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "hyperpanda:central:d4d:99120156",
+          "name": "Huggies Diapers Extra Care Jumbo Box",
+          "price": 84.99,
+          "family": null,
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99043134",
+          "name": "HUGGIES DIAPER EXTRA CARE JUMBO PACK",
+          "price": 87.99,
+          "family": null,
+          "stage": 5,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "danube:central:d4d:98687499",
+          "name": "Huggies Extra Care Diapers Jumbo Box",
+          "price": 89.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "tamimi:central:d4d:99051375",
+          "name": "HUGGIES NEWBORN DIAPERS, SIZE 1 OR 2, 64 COUNTS",
+          "price": 61.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "hyperpanda:central:d4d:99120153",
+          "name": "كلوت هجيج عناية أكبر العبوة الكبيرة هجيز",
+          "price": 69.99,
+          "family": "diaper",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "farm:central:d4d:99043125",
+          "name": "HUGGIES MALIBU DIAPER JUMBO NEW BORN NO.1 OR 2 64'S",
+          "price": 71.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "aljazera:central:d4d:99056445",
+          "name": "HUGGIES EXTRA CARE CULOTTES DIAPERS (AGES 3 - 6)",
+          "price": 72.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "hyperpanda:central:d4d:99120159",
+          "name": "حافظات للأطفال هجيج اناية أكبر هجيز",
+          "price": 74.99,
+          "family": "diaper",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "othaim:central:d4d:99102129",
+          "name": "Huggies extra care Diapers Jumbo Box 4+1",
+          "price": 78.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "danube:central:d4d:98687508",
+          "name": "Huggies Extra Care CULOTTES",
+          "price": 79.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "prime:central:d4d:99136629",
+          "name": "Huggies Extra Care Jumbo Savi 3",
+          "price": 81.25,
+          "family": "diaper",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:99137115",
+          "name": "Huggies Jumbo Savings Box Extra Care",
+          "price": 81.25,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "tamimi:central:d4d:99051378",
+          "name": "HUGGIES EXTRA CARE DIAPERS, ASSORTED ITEMS",
+          "price": 81.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "حفاضات هجيز",
+      "engineBefore": 16,
+      "engineAfter": 17,
+      "frontendBefore": 9,
+      "frontendAfter": 17,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "farm:central:d4d:99043125",
+          "name": "هجيس مال حفاض للحديث الولاده رقم 1 أو 2 عبوة الجامبو 14 هجيز",
+          "price": 71.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "aljazera:central:d4d:99056445",
+          "name": "هيجز حواجز كولوت للأطفال عمر من 3-6 سنوات هجيز",
+          "price": 72.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 3,
+          "id": "othaim:central:d4d:99102129",
+          "name": "حافظات هجيز عناية فائقة +15 #6",
+          "price": 78.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 4,
+          "id": "prime:central:d4d:99137115",
+          "name": "هيجز حفاضات بوكس عناية فائقة (30×3) هجيز",
+          "price": 81.25,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 5,
+          "id": "tamimi:central:d4d:99051378",
+          "name": "حفاضات عناية فائقة، أصناف متنوعة، حجز هجيز",
+          "price": 81.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 6,
+          "id": "danube:central:d4d:98687511",
+          "name": "حفاضات هاجيز اكسترا كير هجيز",
+          "price": 83.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 7,
+          "id": "hyperpanda:central:d4d:99120156",
+          "name": "حفاضات للأطفال حجيز علابة أكثر السندوق الجامبو هجيز",
+          "price": 84.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 8,
+          "id": "farm:central:d4d:99043134",
+          "name": "هجيس حفاضات أطفال العناية الفائقة عبوة الجامبو هجيز",
+          "price": 87.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 9,
+          "id": "danube:central:d4d:98687499",
+          "name": "حافظات هاجيز كير جامبو هجيز",
+          "price": 89.99,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "tamimi:central:d4d:99051375",
+          "name": "حفاضات المولود الجديد، مقاس ١ أو ٢، حاجيز، ٦٤ هجيز",
+          "price": 61.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "hyperpanda:central:d4d:99120153",
+          "name": "كلوت هجيج عناية أكبر العبوة الكبيرة هجيز",
+          "price": 69.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "farm:central:d4d:99043125",
+          "name": "هجيس مال حفاض للحديث الولاده رقم 1 أو 2 عبوة الجامبو 14 هجيز",
+          "price": 71.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "aljazera:central:d4d:99056445",
+          "name": "هيجز حواجز كولوت للأطفال عمر من 3-6 سنوات هجيز",
+          "price": 72.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "hyperpanda:central:d4d:99120159",
+          "name": "حافظات للأطفال هجيج اناية أكبر هجيز",
+          "price": 74.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "othaim:central:d4d:99102129",
+          "name": "حافظات هجيز عناية فائقة +15 #6",
+          "price": 78.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "danube:central:d4d:98687508",
+          "name": "هجيز كيلوت أطفال",
+          "price": 79.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "prime:central:d4d:99137115",
+          "name": "هيجز حفاضات بوكس عناية فائقة (30×3) هجيز",
+          "price": 81.25,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "prime:central:d4d:99136629",
+          "name": "هاجيز هجيز",
+          "price": 81.25,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "tamimi:central:d4d:99051378",
+          "name": "حفاضات عناية فائقة، أصناف متنوعة، حجز هجيز",
+          "price": 81.99,
+          "family": "diaper",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "parachute shampoo",
+      "engineBefore": 2,
+      "engineAfter": 2,
+      "frontendBefore": 1,
+      "frontendAfter": 2,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "othaim:central:d4d:99102003",
+          "name": "Parachute Coconut & Avocado 340ml",
+          "price": 8.99,
+          "family": "care",
+          "stage": 4,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "othaim:central:d4d:99102003",
+          "name": "Parachute Coconut & Avocado 340ml",
+          "price": 8.99,
+          "family": "care",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "almadina:central:d4d:99109911",
+          "name": "باراشوت شامبو بجوز الهند والخروع",
+          "price": 10,
+          "family": "care",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "sunsilk shampoo",
+      "engineBefore": 22,
+      "engineAfter": 22,
+      "frontendBefore": 2,
+      "frontendAfter": 14,
+      "top10Before": [
+        {
+          "rank": 1,
+          "id": "cityflower:central:d4d:98715087",
+          "name": "Sunsilk Shampoo 700Ml",
+          "price": 15,
+          "family": "care",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "tamimi:central:d4d:99051486",
+          "name": "SUNSILK SHAMPOO, ASSORTED ITEMS, 700 ML",
+          "price": 16.99,
+          "family": "care",
+          "stage": 5,
+          "band": 3
+        }
+      ],
+      "top10After": [
+        {
+          "rank": 1,
+          "id": "almadina:central:d4d:99109908",
+          "name": "شامبو لتطيب الشعر المجعد 400 مل سنسيلك",
+          "price": 10,
+          "family": "care",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "danube:central:d4d:98687409",
+          "name": "شامبو سنسليك 400 سنسيلك",
+          "price": 10.99,
+          "family": "care",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "othaim:central:d4d:99102006",
+          "name": "شامبو سانسيلك سنسيلك",
+          "price": 11.99,
+          "family": "care",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "prime:central:d4d:99136884",
+          "name": "شامبو شعر سانسيلك 700 مل سنسيلك",
+          "price": 13.95,
+          "family": "care",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "nesto:central:d4d:99081858",
+          "name": "سنسيلك شامبو 700",
+          "price": 13.99,
+          "family": "care",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "lulu:central:d4d:99105423",
+          "name": "شامبو صنسل سنسيلك",
+          "price": 13.99,
+          "family": "care",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 7,
+          "id": "farm:central:d4d:99042798",
+          "name": "سانس شامبو 400 مل / بلسم 350 سنسيلك",
+          "price": 13.99,
+          "family": "care",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 8,
+          "id": "almadina:central:d4d:99112926",
+          "name": "شامبو سنس 700 مل سنسيلك",
+          "price": 14.95,
+          "family": "care",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 9,
+          "id": "farm:central:d4d:99042828",
+          "name": "SUN SILK LEAVE ON HAIR CREAM 200ML",
+          "price": 14.99,
+          "family": "care",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 10,
+          "id": "cityflower:central:d4d:98715087",
+          "name": "Sunsilk Shampoo 700Ml",
+          "price": 15,
+          "family": "care",
+          "stage": 5,
+          "band": 3
+        }
+      ]
+    }
+  ]
+}
