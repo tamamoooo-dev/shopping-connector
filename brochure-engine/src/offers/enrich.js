@@ -187,6 +187,13 @@ export function applyEnrichment(offer, row) {
     offer.nameAr = enr.name_ar;
     offer.enriched = true;
     offer.enrichmentModel = row?.e_model ?? null;
+    // Preserve an existing brand. Otherwise expose only an exact, known
+    // observed brand through the existing field, so frontend matching sees
+    // the same evidence as the engine. Unknown strings remain unresolved.
+    if (!offer.brandSlug) {
+      const brandId = resolveBrand(row?.e_brand).brand_id;
+      if (brandId) offer.brandSlug = brandId;
+    }
   }
   // The PRICE BASIS and the size it was read beside (2026-08-02). Both are
   // additive fields on the read contract and neither can change which offers

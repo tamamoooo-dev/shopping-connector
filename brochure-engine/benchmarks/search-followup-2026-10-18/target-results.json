@@ -1,0 +1,1034 @@
+{
+  "evaluatedAt": "2026-10-18T14:15:09.142Z",
+  "baselineEngine": "e0670b5",
+  "baselineFrontend": "aa2addc",
+  "catalogCapturedAt": "2026-10-18T11:23:22.252Z",
+  "catalogRows": 12972,
+  "method": "Same captured current browseable catalogue in real SQLite, exact store SQL and engine request handler, exact frontend offer admission, deduplication and comparator. Flyer-only rankings; no inference or writes.",
+  "results": [
+    {
+      "q": "al kabeer beef hotdog",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "aljazera:central:d4d:99055599",
+      "index": 1,
+      "lang": "en"
+    },
+    {
+      "q": "هوت دوج الكبير",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "aljazera:central:d4d:99055599",
+      "index": 1,
+      "lang": "ar"
+    },
+    {
+      "q": "doux chicken strips",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 8
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 8
+      },
+      "target": "aljazera:central:d4d:99055527",
+      "index": 2,
+      "lang": "en"
+    },
+    {
+      "q": "ستربس دجاج دو",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 9
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 9
+      },
+      "target": "aljazera:central:d4d:99055527",
+      "index": 2,
+      "lang": "ar"
+    },
+    {
+      "q": "parachute shampoo",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "almadina:central:d4d:99109911",
+      "index": 3,
+      "lang": "en"
+    },
+    {
+      "q": "شامبو باراشوت",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "almadina:central:d4d:99109911",
+      "index": 3,
+      "lang": "ar"
+    },
+    {
+      "q": "daewoo juicer",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "almadina:central:d4d:99113301",
+      "index": 4,
+      "lang": "en"
+    },
+    {
+      "q": "عصارة دايو",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "almadina:central:d4d:99113301",
+      "index": 4,
+      "lang": "ar"
+    },
+    {
+      "q": "olsenmark kettle",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "alwafa:central:d4d:99076011",
+      "index": 5,
+      "lang": "en"
+    },
+    {
+      "q": "غلاية اولسنمارك",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "alwafa:central:d4d:99076011",
+      "index": 5,
+      "lang": "ar"
+    },
+    {
+      "q": "swiszone watch",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "alwafa:central:d4d:99094656",
+      "index": 6,
+      "lang": "en"
+    },
+    {
+      "q": "ساعة سويز",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "target": "alwafa:central:d4d:99094656",
+      "index": 6,
+      "lang": "ar"
+    },
+    {
+      "q": "quaker oats",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "amarket:central:d4d:99077706",
+      "index": 7,
+      "lang": "en"
+    },
+    {
+      "q": "شوفان كويكر",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "amarket:central:d4d:99077706",
+      "index": 7,
+      "lang": "ar"
+    },
+    {
+      "q": "gloria fruit cocktail",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "amarket:central:d4d:99077634",
+      "index": 8,
+      "lang": "en"
+    },
+    {
+      "q": "كوكتيل فواكه غلوريا",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "amarket:central:d4d:99077634",
+      "index": 8,
+      "lang": "ar"
+    },
+    {
+      "q": "afia olive oil",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "target": "carrefour:central:d4d:99099741",
+      "index": 9,
+      "lang": "en"
+    },
+    {
+      "q": "زيت زيتون عافية",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "target": "carrefour:central:d4d:99099741",
+      "index": 9,
+      "lang": "ar"
+    },
+    {
+      "q": "skittles",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "target": "carrefour:central:d4d:99099669",
+      "index": 10,
+      "lang": "en"
+    },
+    {
+      "q": "سكيتلز",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "target": "carrefour:central:d4d:99099669",
+      "index": 10,
+      "lang": "ar"
+    },
+    {
+      "q": "himalaya baby travel pack",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "cityflower:central:d4d:98714616",
+      "index": 11,
+      "lang": "en"
+    },
+    {
+      "q": "مجموعة سفر هيمالايا",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "cityflower:central:d4d:98714616",
+      "index": 11,
+      "lang": "ar"
+    },
+    {
+      "q": "sunsilk shampoo",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 11
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 11
+      },
+      "target": "cityflower:central:d4d:99036378",
+      "index": 12,
+      "lang": "en"
+    },
+    {
+      "q": "شامبو صانسيلك",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 11
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 11
+      },
+      "target": "cityflower:central:d4d:99036378",
+      "index": 12,
+      "lang": "ar"
+    },
+    {
+      "q": "ringo wafer",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 3
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 3
+      },
+      "target": "danube:central:d4d:98685801",
+      "index": 13,
+      "lang": "en"
+    },
+    {
+      "q": "ويفر رينجو",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 3
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 3
+      },
+      "target": "danube:central:d4d:98685801",
+      "index": 13,
+      "lang": "ar"
+    },
+    {
+      "q": "huggies diapers",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 16
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 16
+      },
+      "target": "danube:central:d4d:98687496",
+      "index": 14,
+      "lang": "en"
+    },
+    {
+      "q": "حفاضات هجيز",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 16
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 16
+      },
+      "target": "danube:central:d4d:98687496",
+      "index": 14,
+      "lang": "ar"
+    },
+    {
+      "q": "montana vegetables",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "farm:central:d4d:99042039",
+      "index": 15,
+      "lang": "en"
+    },
+    {
+      "q": "خضار مونتانا",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "farm:central:d4d:99042039",
+      "index": 15,
+      "lang": "ar"
+    },
+    {
+      "q": "seara chicken nuggets",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 7
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 7
+      },
+      "target": "farm:central:d4d:99041967",
+      "index": 16,
+      "lang": "en"
+    },
+    {
+      "q": "ناجتس دجاج سيارا",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 7
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 7
+      },
+      "target": "farm:central:d4d:99041967",
+      "index": 16,
+      "lang": "ar"
+    },
+    {
+      "q": "langnese honey",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 6
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 6
+      },
+      "target": "hyperpanda:central:d4d:99118386",
+      "index": 17,
+      "lang": "en"
+    },
+    {
+      "q": "عسل لانجنيز",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 6
+      },
+      "target": "hyperpanda:central:d4d:99118386",
+      "index": 17,
+      "lang": "ar"
+    },
+    {
+      "q": "panda hazelnut spread",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "hyperpanda:central:d4d:99120081",
+      "index": 18,
+      "lang": "en"
+    },
+    {
+      "q": "كريمة بندق بنده",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "hyperpanda:central:d4d:99120081",
+      "index": 18,
+      "lang": "ar"
+    },
+    {
+      "q": "egyptian green olives",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "lulu:central:d4d:99104826",
+      "index": 19,
+      "lang": "en"
+    },
+    {
+      "q": "زيتون أخضر مصري",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 3
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 3
+      },
+      "target": "lulu:central:d4d:99104826",
+      "index": 19,
+      "lang": "ar"
+    },
+    {
+      "q": "trands wireless mouse",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "lulu:central:d4d:98962230",
+      "index": 20,
+      "lang": "en"
+    },
+    {
+      "q": "ماوس تراندز",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "lulu:central:d4d:98962230",
+      "index": 20,
+      "lang": "ar"
+    },
+    {
+      "q": "oks steel scrubber",
+      "before": {
+        "engineFound": true,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": false,
+        "rank": null
+      },
+      "target": "marksave:central:d4d:99062379",
+      "index": 21,
+      "lang": "en"
+    },
+    {
+      "q": "ليفة اوكس ستيل",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "marksave:central:d4d:99062379",
+      "index": 21,
+      "lang": "ar"
+    },
+    {
+      "q": "chest bag",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "marksave:central:d4d:99064074",
+      "index": 22,
+      "lang": "en"
+    },
+    {
+      "q": "حقيبة صدر",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "marksave:central:d4d:99064074",
+      "index": 22,
+      "lang": "ar"
+    },
+    {
+      "q": "al waleed milk powder",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "nesto:central:d4d:99155748",
+      "index": 23,
+      "lang": "en"
+    },
+    {
+      "q": "حليب بودرة الوليد",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "nesto:central:d4d:99155748",
+      "index": 23,
+      "lang": "ar"
+    },
+    {
+      "q": "men slipper",
+      "before": {
+        "engineFound": true,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": false,
+        "rank": null
+      },
+      "target": "nesto:central:d4d:99079401",
+      "index": 24,
+      "lang": "en"
+    },
+    {
+      "q": "شباشب رجالية",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 13
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 13
+      },
+      "target": "nesto:central:d4d:99079401",
+      "index": 24,
+      "lang": "ar"
+    },
+    {
+      "q": "alsafi labneh",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "othaim:central:d4d:99101436",
+      "index": 25,
+      "lang": "en"
+    },
+    {
+      "q": "لبنة الصافي",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "othaim:central:d4d:99101436",
+      "index": 25,
+      "lang": "ar"
+    },
+    {
+      "q": "alfolla smoked turkey",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "othaim:central:d4d:99101364",
+      "index": 26,
+      "lang": "en"
+    },
+    {
+      "q": "رستو حبش الفلة",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "othaim:central:d4d:99101364",
+      "index": 26,
+      "lang": "ar"
+    },
+    {
+      "q": "bread knife",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "prime:central:d4d:98546667",
+      "index": 27,
+      "lang": "en"
+    },
+    {
+      "q": "سكين خبز",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "prime:central:d4d:98546667",
+      "index": 27,
+      "lang": "ar"
+    },
+    {
+      "q": "nadec greek yoghurt",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "prime:central:d4d:99135336",
+      "index": 28,
+      "lang": "en"
+    },
+    {
+      "q": "زبادي يوناني نادك",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "prime:central:d4d:99135336",
+      "index": 28,
+      "lang": "ar"
+    },
+    {
+      "q": "ladies pants",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 3
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 3
+      },
+      "target": "ramez:central:d4d:99146985",
+      "index": 29,
+      "lang": "en"
+    },
+    {
+      "q": "بنطلون نسائي",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 3
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 3
+      },
+      "target": "ramez:central:d4d:99146985",
+      "index": 29,
+      "lang": "ar"
+    },
+    {
+      "q": "geepas meat grinder",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "ramez:central:d4d:99146841",
+      "index": 30,
+      "lang": "en"
+    },
+    {
+      "q": "مفرمة جيباس",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "ramez:central:d4d:99146841",
+      "index": 30,
+      "lang": "ar"
+    },
+    {
+      "q": "aljameel olive oil",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 2
+      },
+      "target": "tamimi:central:d4d:99050514",
+      "index": 31,
+      "lang": "en"
+    },
+    {
+      "q": "زيت زيتون الجميل",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 8
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 8
+      },
+      "target": "tamimi:central:d4d:99050514",
+      "index": 31,
+      "lang": "ar"
+    },
+    {
+      "q": "nestle cereal",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 5
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 5
+      },
+      "target": "tamimi:central:d4d:99050442",
+      "index": 32,
+      "lang": "en"
+    },
+    {
+      "q": "حبوب إفطار نستله",
+      "before": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 5
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 5
+      },
+      "target": "tamimi:central:d4d:99050442",
+      "index": 32,
+      "lang": "ar"
+    }
+  ]
+}

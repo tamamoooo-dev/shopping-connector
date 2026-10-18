@@ -57,6 +57,8 @@ export const BRAND_RESOLUTION_STATUS = Object.freeze({
 export const LEXICON_ONLY_BRANDS = Object.freeze([
   { slug: 'arwa', en: 'Arwa', ar: 'أروى' },
   { slug: 'baskin-robbins', en: 'Baskin Robbins', ar: 'باسكن روبنز' },
+  // Observed in the brand field and verified on the TR-MU570 flyer crop.
+  { slug: 'trands', en: 'Trands', ar: 'تراندز' },
 
   // --- 2026-07-30 brand-Arabic pass -------------------------------------------
   // The Arabic Builder appends `display_ar`; a brand with no Arabic form is

@@ -1,0 +1,736 @@
+{
+  "checkedAt": "2026-10-18T14:15:45.017Z",
+  "baselineEngine": "e0670b5",
+  "baselineFrontend": "aa2addc",
+  "catalogRows": 12972,
+  "queryCount": 60,
+  "exactTargetBefore": 53,
+  "exactTargetAfter": 57,
+  "targetRegressions": [],
+  "targetImprovements": [
+    {
+      "q": "كوكتيل فواكه غلوريا",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "amarket:central:d4d:99077634",
+      "index": 8,
+      "lang": "ar"
+    },
+    {
+      "q": "عسل لانجنيز",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 6
+      },
+      "target": "hyperpanda:central:d4d:99118386",
+      "index": 17,
+      "lang": "ar"
+    },
+    {
+      "q": "كريمة بندق بنده",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "hyperpanda:central:d4d:99120081",
+      "index": 18,
+      "lang": "ar"
+    },
+    {
+      "q": "ماوس تراندز",
+      "before": {
+        "engineFound": false,
+        "frontendFound": false,
+        "rank": null
+      },
+      "after": {
+        "engineFound": true,
+        "frontendFound": true,
+        "rank": 1
+      },
+      "target": "lulu:central:d4d:98962230",
+      "index": 20,
+      "lang": "ar"
+    }
+  ],
+  "commonOfferComparisons": 2331,
+  "displayChanges": [],
+  "changes": [
+    {
+      "q": "فراوله",
+      "before": 82,
+      "after": 82,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "strawberry",
+      "before": 80,
+      "after": 80,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "زبادي فراولة",
+      "before": 5,
+      "after": 5,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "فراولة مجمدة",
+      "before": 4,
+      "after": 4,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "طماطم",
+      "before": 115,
+      "after": 115,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "tomato",
+      "before": 114,
+      "after": 114,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "معجون طماطم",
+      "before": 23,
+      "after": 23,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "ليمون",
+      "before": 94,
+      "after": 94,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "lemon",
+      "before": 88,
+      "after": 88,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "حليب",
+      "before": 115,
+      "after": 115,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "حليب فراولة",
+      "before": 10,
+      "after": 10,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "بيض",
+      "before": 23,
+      "after": 23,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "eggs",
+      "before": 19,
+      "after": 19,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "ويفر رينجو",
+      "before": 4,
+      "after": 4,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "زبادي يوناني نادك",
+      "before": 9,
+      "after": 9,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "nadec greek yoghurt",
+      "before": 9,
+      "after": 9,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "alsafi labneh",
+      "before": 7,
+      "after": 7,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "cornflakes",
+      "before": 13,
+      "after": 13,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "ماء أروى 1.5L",
+      "before": 9,
+      "after": 9,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "rice 1kg",
+      "before": 94,
+      "after": 94,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "sunflower oil",
+      "before": 54,
+      "after": 54,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "زيت زيتون عافية",
+      "before": 4,
+      "after": 4,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "حليب المراعي",
+      "before": 26,
+      "after": 26,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "حليب نادك",
+      "before": 14,
+      "after": 14,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "banana",
+      "before": 13,
+      "after": 13,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "موز",
+      "before": 13,
+      "after": 13,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "apple",
+      "before": 55,
+      "after": 55,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "تفاح",
+      "before": 57,
+      "after": 57,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "mango",
+      "before": 25,
+      "after": 25,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "مانجو",
+      "before": 28,
+      "after": 28,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "strawberry milk",
+      "before": 10,
+      "after": 10,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "strawberry waffle",
+      "before": 1,
+      "after": 1,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "وافل فراولة",
+      "before": 1,
+      "after": 1,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "جيلي فراولة",
+      "before": 1,
+      "after": 1,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "lemon squeezer",
+      "before": 1,
+      "after": 1,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "عصارة ليمون",
+      "before": 1,
+      "after": 1,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "white eggs",
+      "before": 5,
+      "after": 5,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "بيض سمان",
+      "before": 1,
+      "after": 1,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "sunflower oil 1.5L",
+      "before": 54,
+      "after": 54,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "لبنة الصافي",
+      "before": 7,
+      "after": 7,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "زيتون",
+      "before": 111,
+      "after": 111,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "olive oil",
+      "before": 104,
+      "after": 104,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "egg roll",
+      "before": 4,
+      "after": 4,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "rice flour",
+      "before": 1,
+      "after": 1,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "huggies diapers",
+      "before": 17,
+      "after": 17,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "حفاضات هجيز",
+      "before": 17,
+      "after": 17,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "parachute shampoo",
+      "before": 2,
+      "after": 2,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "sunsilk shampoo",
+      "before": 14,
+      "after": 14,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "كوكتيل فواكه غلوريا",
+      "before": 0,
+      "after": 1,
+      "lost": [],
+      "gained": [
+        {
+          "rank": 1,
+          "id": "amarket:central:d4d:99077634",
+          "name": "كوكتل فواكه في شراب خفيف 425 جرام غلوريا",
+          "price": 3.5,
+          "family": "syrup",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "كوكتيل فواكه جلوريا",
+      "before": 0,
+      "after": 1,
+      "lost": [],
+      "gained": [
+        {
+          "rank": 1,
+          "id": "amarket:central:d4d:99077634",
+          "name": "كوكتل فواكه في شراب خفيف 425 جرام غلوريا",
+          "price": 3.5,
+          "family": "syrup",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "عسل لانجنيز",
+      "before": 0,
+      "after": 6,
+      "lost": [],
+      "gained": [
+        {
+          "rank": 1,
+          "id": "amarket:central:d4d:99077610",
+          "name": "عسل النحل الطبيعي لاغنيس",
+          "price": 31.5,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "danube:central:d4d:98685006",
+          "name": "عسل الزهور البرية لينجز",
+          "price": 31.99,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "tamimi:central:d4d:99050448",
+          "name": "عسل أكاسيا بي إنزي أو الغابة السوداء، 250 جرام 500",
+          "price": 34.99,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "hyperpanda:central:d4d:99118383",
+          "name": "عسل الغابة السوداء",
+          "price": 89.99,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "danube:central:d4d:98685000",
+          "name": "عسل نحل لانجنز ٢ كيلو",
+          "price": 114.99,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "hyperpanda:central:d4d:99118386",
+          "name": "عسل نحل صافي للنحل (2 كيلو)",
+          "price": 124.99,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "عسل لنجنيز",
+      "before": 0,
+      "after": 6,
+      "lost": [],
+      "gained": [
+        {
+          "rank": 1,
+          "id": "amarket:central:d4d:99077610",
+          "name": "عسل النحل الطبيعي لاغنيس",
+          "price": 31.5,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "danube:central:d4d:98685006",
+          "name": "عسل الزهور البرية لينجز",
+          "price": 31.99,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 3,
+          "id": "tamimi:central:d4d:99050448",
+          "name": "عسل أكاسيا بي إنزي أو الغابة السوداء، 250 جرام 500",
+          "price": 34.99,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 4,
+          "id": "hyperpanda:central:d4d:99118383",
+          "name": "عسل الغابة السوداء",
+          "price": 89.99,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 5,
+          "id": "danube:central:d4d:98685000",
+          "name": "عسل نحل لانجنز ٢ كيلو",
+          "price": 114.99,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        },
+        {
+          "rank": 6,
+          "id": "hyperpanda:central:d4d:99118386",
+          "name": "عسل نحل صافي للنحل (2 كيلو)",
+          "price": 124.99,
+          "family": "honey",
+          "stage": 4,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "ماوس تراندز",
+      "before": 0,
+      "after": 2,
+      "lost": [],
+      "gained": [
+        {
+          "rank": 1,
+          "id": "lulu:central:d4d:98962230",
+          "name": "TR-MU570 Rechargeable Wireless Mouse",
+          "price": 30,
+          "family": null,
+          "stage": 4,
+          "band": 0
+        },
+        {
+          "rank": 2,
+          "id": "lulu:central:d4d:98962203",
+          "name": "TR-KB6739 Keyboard and Mouse",
+          "price": 45,
+          "family": null,
+          "stage": 4,
+          "band": 0
+        }
+      ]
+    },
+    {
+      "q": "كريمة بندق بنده",
+      "before": 1,
+      "after": 3,
+      "lost": [],
+      "gained": [
+        {
+          "rank": 1,
+          "id": "hyperpanda:central:d4d:99120081",
+          "name": "كريم الشوكولاته بالبندق بندا (350 جرام) بنده",
+          "price": 12.99,
+          "family": "spread",
+          "stage": 5,
+          "band": 3
+        },
+        {
+          "rank": 2,
+          "id": "hyperpanda:central:d4d:99118389",
+          "name": "كريم الشوكولاته بالبندق مستر شوكو (350 جرام)",
+          "price": 23.99,
+          "family": "spread",
+          "stage": 1,
+          "band": 3
+        }
+      ]
+    },
+    {
+      "q": "ساعة swiszone",
+      "before": 0,
+      "after": 3,
+      "lost": [],
+      "gained": [
+        {
+          "rank": 1,
+          "id": "alwafa:central:d4d:99094656",
+          "name": "سوار معلق من سلسلة جنت",
+          "price": 20,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 2,
+          "id": "nesto:central:d4d:99082983",
+          "name": "ساعات نسائية بسوار جلد",
+          "price": 25,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        },
+        {
+          "rank": 3,
+          "id": "alwafa:central:d4d:99075810",
+          "name": "ساعات تساوى سوار جلد",
+          "price": 25,
+          "family": null,
+          "stage": 4,
+          "band": 2
+        }
+      ]
+    },
+    {
+      "q": "ساعة سويز",
+      "before": 0,
+      "after": 0,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "hazelnut spread panda",
+      "before": 3,
+      "after": 3,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "كريمة طبخ",
+      "before": 5,
+      "after": 5,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "panda cream",
+      "before": 2,
+      "after": 2,
+      "lost": [],
+      "gained": []
+    },
+    {
+      "q": "nutella hazelnut spread",
+      "before": 2,
+      "after": 3,
+      "lost": [],
+      "gained": [
+        {
+          "rank": 3,
+          "id": "nesto:central:d4d:99088059",
+          "name": "Ferrero Nutella Choco Spread 750Gm",
+          "price": 28.99,
+          "family": "cream",
+          "stage": 1,
+          "band": 0
+        }
+      ]
+    }
+  ],
+  "hashes": {
+    "engine/src/matching.js": "66d4d25d9c2734e2730917ca9ff0253855b18d8dc35c592e4887762346132f1b",
+    "engine/src/offers/enrich.js": "abca589d9b55654c8d6b43f7bbd0ad38ff9d646f6ea063922dd8f26a01cc5df9",
+    "engine/src/lexicon/brands.js": "8e3ea0a4b126403d97b037333ad562320f122fd323ee0a06283cf6fed3f7a55e",
+    "frontend/src/match.js": "3744e0cce5b1becfb725490a36d96362dd5b6ebb6d51964bc6dad11626084021",
+    "frontend/index.html": "79bb28c8bf7625eb55383e68551e5ebebb1a6d2aabb71d729844b206ff99cee6"
+  },
+  "images": [
+    {
+      "id": "99094656",
+      "sha256": "e81d93e813a28cc4f4e2d53bf124cb44bd5c99b971a6f138cbb16b2c3b37b665"
+    },
+    {
+      "id": "99077634",
+      "sha256": "bbd8fa9f1ac1af4de91d4f9f246dcda53c7de942bd725f95526ea12b93c72b0d"
+    },
+    {
+      "id": "99118386",
+      "sha256": "c4e15760ec9784a10ac9378ad55a04dd9ea5c514f0d839482e7fb25613635a62"
+    },
+    {
+      "id": "99120081",
+      "sha256": "dc2c1818929369696406b8061ccc198f3d4391ea76fc618eeff0410927518148"
+    },
+    {
+      "id": "98962230",
+      "sha256": "f8295fa13fb4fdfcb8b181cfe31e5d7941c19ecf487ab93a0b99cad6dd8c7acd"
+    }
+  ],
+  "limitations": "Development checks, not blinded. Same captured public catalogue as the preceding release. Original 64-query target set contains four unavailable probes and a visually disproven Swiszone/سويز equivalence; the original set is kept for transparent comparison, not treated as perfect ground truth."
+}

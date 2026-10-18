@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
 import {matchStage,offerFamily,offerMatchItem,productFamily,queryTokens,bestVariantScore,canonicalMatchText} from './matching.js';
+import {applyEnrichment} from './offers/enrich.js';
+import {resolveBrand} from './lexicon/brands.js';
 import {createD1OfferStore} from './storage/offerStore.js';
 
 // Concrete failures captured from the live catalogue, with adjacent intents
@@ -73,3 +75,43 @@ const bindCounts=[],sqlBytes=[];
 const store=createD1OfferStore({prepare:sql=>{sqlBytes.push(new TextEncoder().encode(sql).length);assert.ok(sqlBytes.at(-1)<=100000,'expanded searches fit the D1 statement size budget');return {bind:(...args)=>{bindCounts.push(args.length);assert.ok(args.length<=100,'expanded searches fit the D1 parameter budget');return {all:async()=>({results:[]})};}};}});
 for(const q of ['nuggets nugget ناجتس ناجت ناغتس nuggets','nuggets wafer yoghurt ladies water slipper','wafer yoghurt ladies slipper water eggs','زبادي يوناني نادك'])await store.search({q,store:'test',region:'central',currentOn:'2026-10-18',limit:300});
 console.log(`Expanded query budgets: max ${Math.max(...bindCounts)}/100 parameters, ${Math.max(...sqlBytes)}/100000 SQL bytes.`);
+
+// Second release: visually verified names, alternate scripts and negative brands.
+for(const [q,name,brand] of [
+ ['كوكتيل فواكه غلوريا','GLORIA FRUIT COCKTAIL IN LIGHT SYRUP 425 GM','GLORIA'],
+ ['كوكتيل فواكه جلوريا','كوكتل فواكه في شراب خفيف 425 جرام غلوريا','GLORIA'],
+ ['عسل لانجنيز','Langnese Pure Bee Honey (2Kg)','Langnese'],
+ ['عسل لنجنيز','Langnese Pure Bee Honey (2Kg)','Langnese'],
+ ['ماوس تراندز','TR-MU570 Rechargeable Wireless Mouse','TRANDS'],
+ ['ساعة swiszone',"Swiszone Gent's Chain Watch",'Swiszone'],
+ ['كريمة بندق بنده','Panda Hazelnut Cocoa Spread (350g)','Panda'],
+ ['hazelnut spread panda','كريم الشوكولاته بالبندق بندا (350 جرام) بنده','Panda'],
+])assert.ok(matchStage({name,brand},q)>=3,q);
+for(const [q,name] of [
+ ['عسل لانجنيز','Al Shifa Pure Honey'],
+ ['ماوس تراندز','Logitech Wireless Mouse'],
+ ['كوكتيل فواكه غلوريا','Del Monte Fruit Cocktail'],
+ ['كريمة بندق بنده','Nutella Hazelnut Spread'],
+ ['ساعة سويز',"Swiszone Gent's Chain Watch"],
+]){
+ const hay=canonicalMatchText(name),words=new Set(hay.split(' '));
+ assert.equal(queryTokens(q).every(t=>bestVariantScore(t,hay,words)>0),false,'brand cannot be guessed: '+q);
+}
+for(const name of ['Panda Cooking Cream','Panda Dairy Cream','Panda Hazelnut Face Cream'])assert.ok(matchStage({name},'كريمة بندق بنده')<3,name);
+assert.equal(productFamily('كريمة بندق بنده'),'spread');
+assert.equal(productFamily('Panda Hazelnut Cocoa Spread'),'spread');
+assert.equal(productFamily('قشطة بنده'),'cream');
+assert.notEqual(productFamily('Hazelnut Face Cream'),'spread');
+assert.notEqual(productFamily('Whipping Cream'),'spread');
+console.log('Follow-up: observed translations and compound spread preserve wrong-brand/dairy/cosmetic controls.');
+
+const mouseRow={e_name:'TR-MU570 Rechargeable Wireless Mouse',e_name_ar:null,e_brand:'TRANDS',e_corroboration:1};
+const mouseOffer={name:null,nameAr:null,brandSlug:null};
+applyEnrichment(mouseOffer,mouseRow);
+assert.equal(mouseOffer.brandSlug,'trands');
+assert.equal(mouseOffer.productId,undefined,'an observed brand is not a canonical product identity');
+assert.equal(resolveBrand('TRANDS').brand_id,'trands');
+for(const [brand,corroboration,existing,expected] of [['invented-not-in-lexicon',1,null,null],['TRANDS',0,null,null],['TRANDS',1,'logitech','logitech']]){
+ const offer={brandSlug:existing};applyEnrichment(offer,{...mouseRow,e_brand:brand,e_corroboration:corroboration});assert.equal(offer.brandSlug,expected);
+}
+console.log('Observed brand projection: exact known brands only, servable gate, existing identity preserved.');
