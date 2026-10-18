@@ -1,0 +1,12 @@
+import {readFileSync,writeFileSync} from 'node:fs';
+import {gunzipSync} from 'node:zlib';
+import {execFileSync} from 'node:child_process';
+const dir=new URL('./',import.meta.url);
+const first=JSON.parse(gunzipSync(readFileSync(new URL('reads.json.gz',dir))));
+const additional=JSON.parse(gunzipSync(readFileSync(new URL('additional-reads.json.gz',dir))));
+const phases={development:first.filter(r=>r.index<=32&&r.method!=='image-first'),'image-first-development':first.filter(r=>r.index<=32&&r.method==='image-first'),holdout:first.filter(r=>r.index>32),'caption-line-development':additional.filter(r=>r.index<=32),confirmation:additional.filter(r=>r.index>=65)};
+for(const [phase,rows] of Object.entries(phases))writeFileSync(new URL(`reads-${phase}.jsonl`,dir),rows.map(r=>JSON.stringify(r)).join('\n')+'\n');
+for(const script of ['archive.mjs','archive-confirmation.mjs'])execFileSync(process.execPath,[new URL(script,dir).pathname.replace(/^\/(.:)/,'$1')],{stdio:'ignore'});
+execFileSync(process.execPath,[new URL('review.mjs',dir).pathname.replace(/^\/(.:)/,'$1')],{stdio:'inherit'});
+execFileSync(process.execPath,[new URL('review.mjs',dir).pathname.replace(/^\/(.:)/,'$1'),'caption-line'],{stdio:'inherit'});
+console.log('Offline replay passed: 96 distinct image hashes, 480 outputs, 544 successful 14B requests; both reports regenerated.');

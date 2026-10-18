@@ -409,6 +409,27 @@ export const PRODUCTION_EXTRACTION_BASELINE = Object.freeze({
   record: 'benchmarks/mistral-medium-production-validation-50-2026-07-25/PRODUCTION-PROMPT.md',
 });
 
+// User-requested live reading comparison, 2026-10-18: prefer the flyer caption
+// for English product identity, retaining the package as its literal fallback.
+// The other instructions, schema, image bytes, model and one-call budget stay
+// identical. On a fresh 32-crop confirmation this recovered four English
+// product probes with no loss in the scored brand or quantity observations.
+// Keep the old prompt/builder byte-frozen for the separate price-reading lane:
+// this change is for product enrichment, whose prices remain quarantined.
+export const ENRICHMENT_VISION_PROMPT = VISION_PROMPT.replace(
+  'Copy the complete English product title exactly as printed on the package.',
+  'Copy the complete English product title exactly as printed in the flyer caption.\n'
+    + 'If no English flyer caption is legible, copy the package title exactly as printed.',
+);
+export const ENRICHMENT_READING_BASELINE = Object.freeze({
+  adoptedOn: '2026-10-18',
+  model: DEFAULT_MODEL,
+  method: 'literal-flyer-caption-first-v1',
+  promptSha256: '17ec81d6fb5f56c9814643041ca7300adb9f9c14927c7a537375dd6c5799a07f',
+  requestsPerCrop: 1,
+  record: 'benchmarks/vision-reading-2026-10-18/REPORT.md',
+});
+
 // bytes -> base64 without Buffer. Current Workers provide the native
 // Uint8Array encoder, which avoids spending the Free plan's tiny CPU allowance
 // building a binary string in JavaScript for every crop. Keep the chunked
@@ -597,6 +618,12 @@ export function buildVisionRequest({ model = DEFAULT_MODEL, contentType = 'image
   return request;
 }
 
+export function buildEnrichmentVisionRequest(options) {
+  const request = buildVisionRequest(options);
+  request.messages[0].content[0].text = ENRICHMENT_VISION_PROMPT;
+  return request;
+}
+
 export function buildOcrRequest({ model = DEFAULT_OCR_MODEL, contentType = 'image/jpeg', base64 }) {
   return {
     model,
@@ -691,7 +718,7 @@ export async function postMistral(url, body, { apiKey, fetchImpl, stage, timeout
 async function observeVisionBytes(crop, { apiKey, model = DEFAULT_MODEL, fetchImpl = fetch } = {}) {
   const response = await postMistral(
     MISTRAL_URL,
-    buildVisionRequest({ model, contentType: crop.contentType, base64: crop.base64 }),
+    buildEnrichmentVisionRequest({ model, contentType: crop.contentType, base64: crop.base64 }),
     { apiKey, fetchImpl, stage: 'mistral' },
   );
   const rawReply = response.body?.choices?.[0]?.message?.content ?? null;

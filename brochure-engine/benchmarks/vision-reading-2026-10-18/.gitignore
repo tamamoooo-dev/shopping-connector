@@ -1,0 +1,8 @@
+sheet-*.jpg
+images/*-2x.png
+*.jsonl
+progress.json
+results-*.json
+review.html
+*-review.html
+DEPLOYMENT.md

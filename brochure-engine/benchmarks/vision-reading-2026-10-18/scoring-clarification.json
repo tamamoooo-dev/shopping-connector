@@ -1,0 +1,8 @@
+{
+  "recordedAt": "2026-10-18T18:04:59.570Z",
+  "note": "Development scoring clarification only, before opening held-out replies. Brand comparisons accept visible Arabic equivalents and Latin accents. Original crop close review excludes three absent-language titles from search denominator (20 Arabic, 29/30 English); selection unchanged because development candidate gain is case 19 English. Initial truth remains immutable; per-phase truth hashes remain valid.",
+  "files": {
+    "score.mjs": "7d6e0659b7f35a5f712ce13c5a5bfbd47ce094b341721fdeabb2c3c9a1a3ef7b",
+    "quantity-truth.mjs": "8bd12867a529f7eeb19c5229375d01f073aec5229d463854f81604032fae7b7b"
+  }
+}

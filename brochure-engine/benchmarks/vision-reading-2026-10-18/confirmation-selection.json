@@ -1,0 +1,29 @@
+{
+  "frozenAt": "2026-10-18T18:14:38.322Z",
+  "candidate": "caption-line",
+  "development": {
+    "baseline": {
+      "probes": 42,
+      "total": 61,
+      "brand": 25,
+      "size": 18,
+      "quantity": 19,
+      "denominators": 18
+    },
+    "candidate": {
+      "probes": 51,
+      "total": 61,
+      "brand": 26,
+      "size": 18,
+      "quantity": 19,
+      "denominators": 18
+    }
+  },
+  "decision": "Confirm a minimal caption-first English instruction on 32 fresh images, with unchanged remaining prompt, original bytes and one 14B call. Require improved literal product probe coverage without lost brand, complete quantities or practical denominators. Preserve baseline builder for price fallback; audit price fields are not eligible for commerce. Candidate prices 28/32 vs baseline30/32 are a limitation, not hidden.",
+  "hashes": {
+    "confirmation-truth.mjs": "d0ebaaac00e978a2edaad2220e851c3fd8ab3db484c99fdb47ab8be352eb29ab",
+    "confirmation-manifest.json": "637dc388c50456a05d2f30698f3ceb7e325043b70fac234d437085f157956e9b",
+    "score.mjs": "7cc9bd68c332cfc72d007143de15d37f5ad49d8a60922a4baab7c60cb7126711",
+    "run.mjs": "81e9de5b1ea5c0754c2866175c9af6c6d6c1c7c41f5053421e7e2efde4d50279"
+  }
+}

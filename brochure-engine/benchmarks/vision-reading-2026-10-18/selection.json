@@ -1,0 +1,12 @@
+{
+  "frozenAt": "2026-10-18T18:01:58.926Z",
+  "candidate": "image-first",
+  "reason": "Small development gain (43 vs 42 of 64 reference search probes), same brand/price and practical quantity counts, one extra complete size expression, same calls and almost identical tokens. Gain is weak and requires held-out confirmation. Caption loses 8 current-price readings; upscale costs 2.02x tokens and loses a combined quantity expression; staged costs 1.80x tokens and withholds one correct unit-price denominator. No production change authorized by these development results alone.",
+  "confirmation": "Test all frozen methods for transparency; only the preselected image-first method is eligible for adoption without a further fresh confirmation. Reject adoption if gain does not persist or introduces material regressions.",
+  "hashes": {
+    "truth.mjs": "e83d71aa36b281f69719c8edadf0e9787b5822ce860e0655723b5971e6f7c5db",
+    "quantity-truth.mjs": "8bd12867a529f7eeb19c5229375d01f073aec5229d463854f81604032fae7b7b",
+    "score.mjs": "72d411106605acbeba59fc65715070cec7e11281aad946d093755003cc2cfc90",
+    "run.mjs": "5a8fbb1ef34558e8c1dafb29b3fb6e0b84e9569bef2caf8b612c03eca97dbe29"
+  }
+}

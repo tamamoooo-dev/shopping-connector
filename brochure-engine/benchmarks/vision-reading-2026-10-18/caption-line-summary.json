@@ -1,0 +1,216 @@
+{
+  "recordedAt": "2026-10-18T18:20:28.701Z",
+  "freshImages": 32,
+  "totalDistinctImages": 96,
+  "successfulRequestsOverall": 544,
+  "outputsOverall": 480,
+  "development": {
+    "caption-line": {
+      "n": 32,
+      "rawSearch": 51,
+      "validatedSearch": 51,
+      "brandCorrect": 26,
+      "brandTotal": 27,
+      "sizeComplete": 18,
+      "sizeTotal": 22,
+      "quantityComplete": 19,
+      "priceCorrect": 28,
+      "calls": 32,
+      "tokens": 28301,
+      "meanMs": 1709,
+      "searchTotal": 61,
+      "englishCorrect": 30,
+      "englishTotal": 30,
+      "arabicCorrect": 21,
+      "arabicTotal": 31,
+      "priceWrong": 2,
+      "priceMissing": 2,
+      "brandWrong": 0,
+      "brandMissing": 1,
+      "unsupportedLanguageTitles": 0,
+      "validationRejected": 2,
+      "validationLostCorrectProbes": 0,
+      "denominators": {
+        "correct": 18,
+        "wrong": 0,
+        "withheld": 0,
+        "excluded": 14
+      }
+    }
+  },
+  "confirmation": {
+    "caption-line": {
+      "n": 32,
+      "rawSearch": 54,
+      "validatedSearch": 54,
+      "brandCorrect": 28,
+      "brandTotal": 29,
+      "sizeComplete": 22,
+      "sizeTotal": 26,
+      "quantityComplete": 24,
+      "priceCorrect": 28,
+      "calls": 32,
+      "tokens": 28866,
+      "meanMs": 3680,
+      "searchTotal": 63,
+      "englishCorrect": 28,
+      "englishTotal": 31,
+      "arabicCorrect": 26,
+      "arabicTotal": 32,
+      "priceWrong": 2,
+      "priceMissing": 2,
+      "brandWrong": 1,
+      "brandMissing": 0,
+      "unsupportedLanguageTitles": 0,
+      "validationRejected": 4,
+      "validationLostCorrectProbes": 0,
+      "denominators": {
+        "correct": 20,
+        "wrong": 1,
+        "withheld": 4,
+        "excluded": 7
+      },
+      "tokenRatio": 1.023
+    },
+    "baseline": {
+      "n": 32,
+      "rawSearch": 50,
+      "validatedSearch": 50,
+      "brandCorrect": 28,
+      "brandTotal": 29,
+      "sizeComplete": 22,
+      "sizeTotal": 26,
+      "quantityComplete": 24,
+      "priceCorrect": 28,
+      "calls": 32,
+      "tokens": 28209,
+      "meanMs": 3651,
+      "searchTotal": 63,
+      "englishCorrect": 24,
+      "englishTotal": 31,
+      "arabicCorrect": 26,
+      "arabicTotal": 32,
+      "priceWrong": 2,
+      "priceMissing": 2,
+      "brandWrong": 1,
+      "brandMissing": 0,
+      "unsupportedLanguageTitles": 0,
+      "validationRejected": 4,
+      "validationLostCorrectProbes": 0,
+      "denominators": {
+        "correct": 20,
+        "wrong": 1,
+        "withheld": 4,
+        "excluded": 7
+      },
+      "tokenRatio": 1
+    }
+  },
+  "paired": {
+    "baseline": {
+      "n": 64,
+      "rawSearch": 92,
+      "validatedSearch": 92,
+      "brandCorrect": 53,
+      "brandTotal": 56,
+      "sizeComplete": 40,
+      "sizeTotal": 48,
+      "quantityComplete": 43,
+      "priceCorrect": 58,
+      "calls": 64,
+      "tokens": 55790,
+      "meanMs": 3175,
+      "searchTotal": 124,
+      "englishCorrect": 46,
+      "englishTotal": 61,
+      "arabicCorrect": 46,
+      "arabicTotal": 63,
+      "priceWrong": 3,
+      "priceMissing": 3,
+      "brandWrong": 2,
+      "brandMissing": 1,
+      "unsupportedLanguageTitles": 0,
+      "validationRejected": 8,
+      "validationLostCorrectProbes": 0,
+      "denominators": {
+        "correct": 38,
+        "wrong": 1,
+        "withheld": 4,
+        "excluded": 21
+      },
+      "tokenRatio": 1
+    },
+    "caption-line": {
+      "n": 64,
+      "rawSearch": 105,
+      "validatedSearch": 105,
+      "brandCorrect": 54,
+      "brandTotal": 56,
+      "sizeComplete": 40,
+      "sizeTotal": 48,
+      "quantityComplete": 43,
+      "priceCorrect": 56,
+      "calls": 64,
+      "tokens": 57167,
+      "meanMs": 2695,
+      "searchTotal": 124,
+      "englishCorrect": 58,
+      "englishTotal": 61,
+      "arabicCorrect": 47,
+      "arabicTotal": 63,
+      "priceWrong": 4,
+      "priceMissing": 4,
+      "brandWrong": 1,
+      "brandMissing": 1,
+      "unsupportedLanguageTitles": 0,
+      "validationRejected": 6,
+      "validationLostCorrectProbes": 0,
+      "denominators": {
+        "correct": 38,
+        "wrong": 1,
+        "withheld": 4,
+        "excluded": 21
+      },
+      "tokenRatio": 1.025
+    }
+  },
+  "selection": {
+    "frozenAt": "2026-10-18T18:14:38.322Z",
+    "candidate": "caption-line",
+    "development": {
+      "baseline": {
+        "probes": 42,
+        "total": 61,
+        "brand": 25,
+        "size": 18,
+        "quantity": 19,
+        "denominators": 18
+      },
+      "candidate": {
+        "probes": 51,
+        "total": 61,
+        "brand": 26,
+        "size": 18,
+        "quantity": 19,
+        "denominators": 18
+      }
+    },
+    "decision": "Confirm a minimal caption-first English instruction on 32 fresh images, with unchanged remaining prompt, original bytes and one 14B call. Require improved literal product probe coverage without lost brand, complete quantities or practical denominators. Preserve baseline builder for price fallback; audit price fields are not eligible for commerce. Candidate prices 28/32 vs baseline30/32 are a limitation, not hidden.",
+    "hashes": {
+      "confirmation-truth.mjs": "d0ebaaac00e978a2edaad2220e851c3fd8ab3db484c99fdb47ab8be352eb29ab",
+      "confirmation-manifest.json": "637dc388c50456a05d2f30698f3ceb7e325043b70fac234d437085f157956e9b",
+      "score.mjs": "7cc9bd68c332cfc72d007143de15d37f5ad49d8a60922a4baab7c60cb7126711",
+      "run.mjs": "81e9de5b1ea5c0754c2866175c9af6c6d6c1c7c41f5053421e7e2efde4d50279"
+    }
+  },
+  "artifacts": {
+    "additional-reads.json.gz": {
+      "sha256": "6a4172d8449b95ac484be081c9e0d59763722fedd5825370e5cfd8dafbed4888",
+      "bytes": 50883
+    },
+    "additional-scored.json.gz": {
+      "sha256": "e8884261987d77102382d2b3cc1d0c5118b2a5294db6c900632108708cf49047",
+      "bytes": 32661
+    }
+  }
+}
