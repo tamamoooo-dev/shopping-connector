@@ -1,3 +1,4 @@
+import { marketDate } from '../marketDate.js';
 // ops/status.js — the Operations Console's read-only status engine.
 //
 // Pure orchestration over the engine's OWN interfaces (metadataStore,
@@ -36,7 +37,7 @@ export const CONFIDENCE_WEIGHTS = {
   subsystems: 15, // PASS share of the health grid
 };
 
-const todayISO = (now) => (now || new Date()).toISOString().slice(0, 10);
+const todayISO = (now) => marketDate(now || new Date());
 const pct = (num, den) => (den > 0 ? Math.round((num / den) * 1000) / 10 : null);
 
 // --- per-store operational snapshot ------------------------------------------

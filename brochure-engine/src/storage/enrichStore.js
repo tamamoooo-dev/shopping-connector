@@ -32,6 +32,7 @@
 // matches against, exactly as search_text is for OCR.
 
 import { normalizeText } from '../matching.js';
+import { observedNameSql } from '../observedText.js';
 import { CORROBORATION_FLOOR, servable } from '../offers/enrich.js';
 import {
   BUILDER_STATUS,
@@ -81,7 +82,7 @@ export const IDENTITY_CANDIDATE_STORAGE_VERSION = 'identity-candidate-v1';
 // All fragments assume `offers o` joined via ENRICH_JOIN.
 export const ENRICH_JOIN = 'LEFT JOIN offer_enrichments e ON e.id = o.id';
 export const SERVABLE_SQL =
-  `((e.name IS NOT NULL OR e.name_ar IS NOT NULL) AND e.corroboration >= ${CORROBORATION_FLOOR})`;
+  `(${observedNameSql('e')} AND e.corroboration >= ${CORROBORATION_FLOOR})`;
 // Canonical display names: the vision reading when servable, OCR otherwise.
 export const CANON_NAME_SQL = `(CASE WHEN ${SERVABLE_SQL} THEN e.name ELSE o.name END)`;
 
@@ -157,7 +158,14 @@ export const CANON_NAME_AR_SQL = canonicalNameArSql(false);
 // Canonical match haystack: the vision match_text when servable (legacy rows
 // not yet reindexed have match_text NULL and fall back to OCR), else OCR.
 export const CANON_HAYSTACK_SQL =
-  `(CASE WHEN ${SERVABLE_SQL} AND e.match_text IS NOT NULL THEN e.match_text ELSE o.search_text END)`;
+  `(COALESCE(o.search_text, '') || ' ' || CASE WHEN ${SERVABLE_SQL} THEN
+    COALESCE(e.match_text, '') || ' ' || LOWER(COALESCE(e.size, '')) || ' ' ||
+    LOWER(COALESCE(e.brand, '')) || ' ' ||
+    REPLACE(REPLACE(REPLACE(REPLACE(REPLACE(LOWER(CASE WHEN json_valid(e.extraction_json)
+      THEN COALESCE(json_extract(e.extraction_json, '$.attributes'), '') || ' ' ||
+        COALESCE(json_extract(e.extraction_json, '$.package_type'), '') ELSE '' END),
+      '[', ' '), ']', ' '), '"', ' '), ',', ' '), '-', ' ')
+    ELSE '' END)`;
 // The enrichment columns a search row must carry so offers/enrich.js
 // applyEnrichment() can overlay without a second query.
 export function enrichRowCols(enabled = false) {
@@ -171,7 +179,8 @@ export function enrichRowCols(enabled = false) {
     // `package_type` rides the same json_extract for the same reason, and is
     // read by the per-item price: a `set` is a package whose items cannot be
     // bought one at a time (comparableQuantity.js eachPriceFrom, gate 7).
-    "json_extract(e.extraction_json, '$.package_type') AS e_package_type";
+    "json_extract(e.extraction_json, '$.package_type') AS e_package_type, " +
+    "e.brand AS e_brand, CASE WHEN json_valid(e.extraction_json) THEN json_extract(e.extraction_json, '$.attributes') END AS e_attributes";
 }
 
 // The JS twin of those `json_extract`s, for the memory store (storage/local.js).
@@ -962,10 +971,7 @@ export function createD1EnrichStore(db) {
         // A product name in either script (business-acceptance-v5). A
         // published read settles Stage 2: it is re-read only when flagged or
         // when its crop changes (visionVerificationStore STAGE_TWO_DUE).
-        const publishNow = !!canonicalRow
-          && (canonicalRow.name != null || canonicalRow.name_ar != null)
-          && acceptance?.accepted !== false
-          && Number(canonicalRow.corroboration) >= CORROBORATION_FLOOR;
+        const publishNow = servable(canonicalRow) && acceptance?.accepted !== false;
         if (publishNow) statements.push(canonicalStatement(canonicalRow));
         const verdictStored = !!acceptance && await acceptanceVerdictsReady();
         if (verdictStored) {
@@ -1112,10 +1118,7 @@ export function createD1EnrichStore(db) {
           name_ar: candidateRow.name_ar ?? published.name_ar ?? null,
         }
         : candidateRow;
-      const passes = !!candidateRow
-        && (candidateRow.name != null || candidateRow.name_ar != null)
-        && acceptance?.accepted !== false
-        && Number(candidateRow.corroboration) >= CORROBORATION_FLOOR;
+      const passes = servable(candidateRow) && acceptance?.accepted !== false;
       // ONE READING in Stage 2 too (2026-10-09). Stage 2 now re-reads only an
       // offer with nothing published (a failed or flagged read) or a published
       // read whose crop has changed. A passing read of such an offer publishes,

@@ -1,0 +1,338 @@
+[
+  {
+    "results": [
+      {
+        "repeat": 1,
+        "variant": "combined",
+        "query": "cornflakes",
+        "candidates": 21
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 266.2918
+      },
+      "duration": 266.2918,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 52277,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "repeat": 1,
+        "variant": "materialized",
+        "query": "cornflakes",
+        "candidates": 21
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 149.8173
+      },
+      "duration": 149.8173,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 52414,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "repeat": 1,
+        "variant": "combined",
+        "query": "rice 1kg",
+        "candidates": 120
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 277.8099
+      },
+      "duration": 277.8099,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 74426,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "repeat": 1,
+        "variant": "materialized",
+        "query": "rice 1kg",
+        "candidates": 120
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 394.3482
+      },
+      "duration": 394.3482,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 59448,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "repeat": 1,
+        "variant": "combined",
+        "query": "ويفر لواكر",
+        "candidates": 13
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 231.4974
+      },
+      "duration": 231.4974,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 52321,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "repeat": 1,
+        "variant": "materialized",
+        "query": "ويفر لواكر",
+        "candidates": 13
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 172.9244
+      },
+      "duration": 172.9244,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 52382,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "repeat": 2,
+        "variant": "combined",
+        "query": "cornflakes",
+        "candidates": 21
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 177.6973
+      },
+      "duration": 177.6973,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 52277,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "repeat": 2,
+        "variant": "materialized",
+        "query": "cornflakes",
+        "candidates": 21
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 286.5529
+      },
+      "duration": 286.5529,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 52414,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "repeat": 2,
+        "variant": "combined",
+        "query": "rice 1kg",
+        "candidates": 120
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 272.6727
+      },
+      "duration": 272.6727,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 74426,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "repeat": 2,
+        "variant": "materialized",
+        "query": "rice 1kg",
+        "candidates": 120
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 184.135
+      },
+      "duration": 184.135,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 59448,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "repeat": 2,
+        "variant": "combined",
+        "query": "ويفر لواكر",
+        "candidates": 13
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 204.3087
+      },
+      "duration": 204.3087,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 52321,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "repeat": 2,
+        "variant": "materialized",
+        "query": "ويفر لواكر",
+        "candidates": 13
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 170.4961
+      },
+      "duration": 170.4961,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 52382,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]

@@ -1,3 +1,4 @@
+import { marketDate } from './marketDate.js';
 // index.js — Cloudflare Worker entry point for the Brochure Engine.
 //
 // Wires the provider registry and the storage backends into the Core. To add a
@@ -212,7 +213,7 @@ async function runRejudgeSweepTick(env, { scheduledTime = Date.now() } = {}) {
       enrichStore: context.enrichStore,
     }, {
       objectStore: context.objectStore,
-      currentOn: startedAt.toISOString().slice(0, 10),
+      currentOn: marketDate(startedAt),
       now: startedAt,
       deadlineMs: REJUDGE_SWEEP_DEADLINE_MS,
       concurrency: REJUDGE_SWEEP_CONCURRENCY,
@@ -257,7 +258,7 @@ async function runSteadyStateVision(env, { scheduledTime = Date.now() } = {}) {
   if (!(await lease.tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS }))) return;
   try {
     const te = Date.now();
-    const today = new Date().toISOString().slice(0, 10);
+    const today = marketDate();
     const candidates = await context.enrichStore.listDebris({
       currentOn: today,
       limit: CPU_SAFE_BACKGROUND_DRAIN.batchSize * CPU_SAFE_BACKGROUND_DRAIN.maxBatches,
@@ -615,7 +616,7 @@ const worker = {
           const context = buildContext(env);
           const cfg = context.priceFallback;
           if (!cfg.lanes || !context.mistralPools.ministral14.some((slot) => slot.key)) return;
-          const today = new Date().toISOString().slice(0, 10);
+          const today = marketDate();
           if (!(await context.offerStore.hasPricePending({ currentOn: today }))) return;
           const dispatch = createPriceFallbackDispatcher({ self: env.SELF, ingestSecret: env.INGEST_SECRET });
           const minute = new Date(event.scheduledTime || Date.now()).getUTCMinutes();
@@ -708,7 +709,7 @@ const worker = {
             }));
             return;
           }
-          const today = new Date().toISOString().slice(0, 10);
+          const today = marketDate();
           // Cron is a recovery watchdog; queue messages drive normal progress.
           if (!event.backgroundStage && env.BACKGROUND_DRAINS) {
             let running = false;
@@ -1003,7 +1004,7 @@ const worker = {
         (async () => {
           const context = buildContext(env);
           if (!context.ocrFallbackEnabled || !context.mistralOcrKey) return;
-          const today = new Date().toISOString().slice(0, 10);
+          const today = marketDate();
           const pending = await context.enrichStore.countPendingOcr(today).catch(() => 0);
           if (pending <= 0) return;
           const drain = await runEnrichDrain(

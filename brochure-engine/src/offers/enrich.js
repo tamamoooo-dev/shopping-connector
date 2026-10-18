@@ -1,3 +1,4 @@
+import { observedText } from '../observedText.js';
 // offers/enrich.js — VISION ENRICHMENT for debris-name offers (spike, 2026-07-18).
 //
 // ~3% of ingested offers arrive with OCR text so mangled that deriveNames
@@ -101,7 +102,7 @@ export { CORROBORATION_FLOOR };
 
 // True when a stored enrichment row's names may be shown/matched.
 export function servable(row) {
-  return !!row && (row.name != null || row.name_ar != null) &&
+  return !!row && (observedText(row.name) != null || observedText(row.name_ar) != null) &&
     Number(row.corroboration) >= CORROBORATION_FLOOR;
 }
 
@@ -176,8 +177,8 @@ export function recoveryAdmission({
 // what SQL retrieval matched via CANON_HAYSTACK_SQL), else the OCR search_text.
 export function applyEnrichment(offer, row) {
   const enr = {
-    name: row?.e_name ?? null,
-    name_ar: row?.e_name_ar ?? null,
+    name: observedText(row?.e_name),
+    name_ar: observedText(row?.e_name_ar),
     corroboration: row?.e_corroboration,
   };
   const isServable = servable(enr);
@@ -197,7 +198,10 @@ export function applyEnrichment(offer, row) {
   // the Arabic builder: the reader is pure, so the answer is recomputable from
   // columns already selected. No column, no migration.
   applyUnitPrice(offer, row, isServable);
-  if (isServable) return row.e_match_text || row.search_text || '';
+  if (isServable) return normalizeText([
+    row.search_text, row.e_match_text, row.e_size, row.e_brand,
+    row.e_package_type, row.e_attributes,
+  ].filter(Boolean).join(' '));
   return row?.search_text || '';
 }
 

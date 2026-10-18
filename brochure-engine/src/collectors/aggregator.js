@@ -1,3 +1,4 @@
+import { marketDate } from '../marketDate.js';
 // collectors/aggregator.js — the AggregatorCollector (ARCHITECTURE.md §7.2).
 //
 // Pattern D: "third-party aggregator carries every retailer as per-city
@@ -44,7 +45,7 @@ const DEFAULT_HEADERS = {
 // same-campaign duplicates (aggregators list the same flyer several times for
 // branch/language variants — same title + validity), keeping the fullest one.
 function rankCurrent(brochures) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = marketDate();
   const validNow = (b) => (b.validFrom && b.validTo && b.validFrom <= today && today <= b.validTo ? 1 : 0);
   const current = brochures.filter(
     (b) => b.pages && b.pages.length && !(b.validTo && b.validTo < today),

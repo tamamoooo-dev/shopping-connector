@@ -1,3 +1,4 @@
+import { marketDate } from '../marketDate.js';
 // registry/history.js — Price History V2 (REGISTRY-DESIGN.md §7): the
 // registry-substrate answer to "what is the best price this product has ever
 // reached?" — points = SIGHTINGS, market-wide by construction (product ids
@@ -134,7 +135,7 @@ export async function getRegistryPricesDoc(registryStore, q, { today } = {}) {
   })).filter((s) => s.owner);
   if (!sightings.length) return empty;
 
-  const on = today || new Date().toISOString().slice(0, 10);
+  const on = today || marketDate();
 
   // Variant buckets: sized products group by unit + grand total; unsized stay
   // apart — V1's exact bucketing, driven by the product row instead of the

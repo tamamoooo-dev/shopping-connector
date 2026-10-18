@@ -1,0 +1,7 @@
+{
+  "testedAt": "2026-10-18T08:02:11.111Z",
+  "samples": 96,
+  "withheld": 25,
+  "method": "Real stored observations through engine pricing, frontend product-sheet pricing and flyer-watch normalization. Checks consistency and preservation of withholding, not factual accuracy.",
+  "passed": true
+}

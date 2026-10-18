@@ -1,69 +1,28 @@
-// offers/visionModel.js — the Vision Model Selection Policy (2026-07-25).
-//
-// ⚠️ POLICY (permanent user directive). Read this before changing anything here:
-//
-//   • MEDIUM IS THE PRODUCTION BASELINE for all Vision extraction. It is the
-//     quality model and the one the FROZEN extraction baseline was validated
-//     under (benchmarks/mistral-medium-production-validation-50-2026-07-25).
-//     Canonical product data is built from Medium reads.
-//
-//   • SMALL IS A MANUAL OPERATIONAL FALLBACK, offered for when API limits or
-//     budget become a concern. It is a supported mode, not a default.
-//
-//   • NEVER SWITCH MODELS AUTOMATICALLY. No size gate, no cost router, no
-//     small-first-then-escalate. That design was measured on 2026-07-25 over 30
-//     crops and REJECTED: escalation fired 0% of the time because no validator
-//     has coverage, and the 91% cost saving bought a 16.7% defect rate. The
-//     only thing that moves this setting is an operator in the Operations
-//     Center's Developer Tool.
-//
-//   • FUTURE MODEL COMPARISONS must use identical prompts, identical samples,
-//     identical scoring and identical methodology — see the two benchmark
-//     folders above for the shape of a comparison that counts.
-//
-// Where the selection lives: the object store (KV in production, R2 where
-// bound) behind storage/objectStore.js — the same place the console keeps its
-// own small ops/ records. Deliberately NOT D1: the toggle then needs no
-// migration and no redeploy, and a read failure can fall back to Medium
-// without touching the database.
-
+// Vision policy: Ministral 14B only (2026-10-18). Legacy storage keys remain readable.
 const enc = new TextEncoder();
 
 // The selected-tier record. One key, one small JSON document.
 export const VISION_MODEL_KEY = 'ops/settings/vision-model.json';
 
-export const DEFAULT_VISION_TIER = 'medium';
+// Keep the existing stored tier key for compatibility; it now selects the sole
+// approved model. Old Medium selections and invalid records resolve to 14B.
+export const DEFAULT_VISION_TIER = 'small';
 
-// The two supported tiers. `model` is the literal string put on the wire.
+// The sole supported model. The tier key remains compatible with stored selections.
 export const VISION_MODEL_TIERS = {
-  medium: {
-    tier: 'medium',
-    label: 'Medium 3.5',
-    note: 'Recommended',
-    // RETIRED 2026-09-24 (user directive: one model, Ministral 14B). The tier
-    // key stays so stored selections and the console keep resolving, but it
-    // can no longer put a retired model on the wire.
-    model: 'ministral-14b-2512',
-    version: 'ministral-14b-2512',
-    budget: false,
-    warning: null,
-    description: 'Production baseline. Highest extraction quality.',
-  },
   small: {
     tier: 'small',
     label: 'Ministral 14B',
-    note: 'Budget',
-    // PINNED, unlike medium: the budget measurement was run against 2603
-    // specifically (benchmarks/small-first-routing-30-2026-07-25), so budget
-    // mode sends the version whose defect rate we actually know rather than
-    // letting `-latest` drift to an unmeasured build.
+    note: 'Production',
+    // PINNED, unlike medium: model comparisons must measure an immutable build,
+    // and the operator explicitly selected Ministral 3 14B as the immediate
+    // replacement while its 3B/8B/14B comparison is completed.
     model: 'ministral-14b-2512',
     version: 'ministral-14b-2512',
-    alias: 'ministral-14b-2512',
-    budget: true,
-    warning:
-      'Budget Mode enabled. Extraction quality may decrease, especially for package size and brand recognition.',
-    description: 'Manual fallback for API-limit or budget pressure. Not a production default.',
+    alias: 'ministral-14b-latest',
+    budget: false,
+    warning: null,
+    description: 'Production extraction with the approved Ministral 14B model.',
   },
 };
 
@@ -96,7 +55,7 @@ export function visionModelFor(tier) {
 // as it did before this feature existed. That is what lets the selector ship
 // ahead of the frozen extraction baseline instead of riding with it.
 //
-// `tier`/`model` still describe the tier that WOULD be selected (Medium, by the
+// `tier`/`model` still describe the tier that WOULD be selected (Ministral 14B, by the
 // fail-safe rule below) so the console has something coherent to render — they
 // are a proposal while inert, not a description of what is running. Callers must
 // branch on `armed`, never on `model` alone.
@@ -120,7 +79,7 @@ function settingFrom(tier, extra = {}) {
 
 // Read the active selection. FAIL-SAFE BY CONSTRUCTION: no store bound, key
 // absent, unreadable bytes, corrupt JSON or an unknown tier all resolve to
-// Medium, because the failure mode of guessing wrong must be "too good", never
+// Ministral 14B, because the failure mode of guessing wrong must be "too good", never
 // "silently degraded". `source` says which happened so the console can show it.
 export async function readVisionModelSetting(objectStore) {
   if (!objectStore || typeof objectStore.get !== 'function') {

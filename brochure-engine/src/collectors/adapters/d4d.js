@@ -1,3 +1,4 @@
+import { marketDate } from '../../marketDate.js';
 // collectors/adapters/d4d.js — the D4D Online adapter for the generic
 // AggregatorCollector (ARCHITECTURE.md §7.2). Replaces the retired OffersInMe
 // adapter as the project's sole aggregator (Brochure Source Migration).
@@ -54,7 +55,7 @@ const HOST = 'https://d4donline.com';
 const DEFAULT_CITY = 'riyadh'; // Central region == Riyadh for this project
 
 // today's date (UTC, YYYY-MM-DD) — the currency cutoff.
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => marketDate();
 
 // Escape a store slug for safe interpolation into a RegExp.
 function esc(s) {

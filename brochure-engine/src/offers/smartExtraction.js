@@ -1,3 +1,4 @@
+import { observedText } from '../observedText.js';
 // smartExtraction.js — source-only product observation admission and merge.
 //
 // This module deliberately stops at extraction. It has no storage, Registry,
@@ -97,12 +98,12 @@ const GENERIC_FIRST_WORD = new Set([
   'the', 'new', 'best', 'fresh', 'special', 'offer', 'assorted', 'mixed',
   'حليب', 'دجاج', 'أرز', 'ارز', 'جبنة', 'جبن', 'عرض',
 ]);
-const SIZE_PATTERN = /(?:\d+(?:[.,]\d+)?|[٠-٩۰-۹]+(?:[.,][٠-٩۰-۹]+)?)\s*(?:fl\.?\s*oz|portions?|servings?|gb|tb|gm|kg|kgs|ml|cl|ltr|litres?|liters?|g|l|oz|lb|كغم|كجم|كيلو(?:غرام)?|غرام|جرام|غم|مل|لتر|قطعة|قطع|حبة|حبات)(?:\s*[xX×*\/]\s*(?:\d+(?:[.,]\d+)?|[٠-٩۰-۹]+(?:[.,][٠-٩۰-۹]+)?)\s*(?:fl\.?\s*oz|portions?|servings?|gb|tb|gm|kg|kgs|ml|cl|ltr|litres?|liters?|g|l|oz|lb|كغم|كجم|كيلو(?:غرام)?|غرام|جرام|غم|مل|لتر|قطعة|قطع|حبة|حبات)?)?/giu;
-const SALE_SIZE_SYNTAX = /(?:\d|[٠-٩۰-۹])\s*(?:fl\.?\s*oz|portions?|servings?|gm|kg|kgs|ml|cl|ltr|litres?|liters?|g|l|oz|lb|كغم|كجم|كيلو(?:غرام)?|غرام|جرام|غم|مل|لتر|قطعة|قطع|حبة|حبات)\b/iu;
+const SIZE_PATTERN = /(?:\d+(?:[.,]\d+)?|[٠-٩۰-۹]+(?:[.,][٠-٩۰-۹]+)?)\s*(?:fl\.?\s*oz|portions?|servings?|gb|tb|gm|kg|kgs|ml|cl|ltr|litres?|liters?|g|l|oz|lb|كغم|كجم|كيلو(?:غرام)?|غرام|جرام|جم|غم|مل|لتر|قطعة|قطع|حبة|حبات)(?:\s*[xX×*\/]\s*(?:\d+(?:[.,]\d+)?|[٠-٩۰-۹]+(?:[.,][٠-٩۰-۹]+)?)\s*(?:fl\.?\s*oz|portions?|servings?|gb|tb|gm|kg|kgs|ml|cl|ltr|litres?|liters?|g|l|oz|lb|كغم|كجم|كيلو(?:غرام)?|غرام|جرام|جم|غم|مل|لتر|قطعة|قطع|حبة|حبات)?)?/giu;
+const SALE_SIZE_SYNTAX = /(?:\d|[٠-٩۰-۹])\s*(?:fl\.?\s*oz|portions?|servings?|gm|kg|kgs|ml|cl|ltr|litres?|liters?|g|l|oz|lb|كغم|كجم|كيلو(?:غرام)?|غرام|جرام|جم|غم|مل|لتر|قطعة|قطع|حبة|حبات)\b/iu;
 const PACK_WORD = '(?:packs?|pk|pcs?|pieces?|counts?|ct|portions?|servings?|rolls?|bags?|cans?|bottles?|tablets?|tabs?|capsules?|sachets?|diapers?|عبوات?|أكياس?|رولات?|لفات?|علب|قوارير|أقراص|كبسولات|حفاضات|قطعة|قطع|حبة|حبات)';
-const MEASURE_WORD = '(?:fl\\.?\\s*oz|gm|kg|kgs|ml|cl|ltr|litres?|liters?|g|l|oz|lb|كغم|كجم|كيلو(?:غرام)?|غرام|جرام|غم|مل|لتر)';
+const MEASURE_WORD = '(?:fl\\.?\\s*oz|gm|kg|kgs|ml|cl|ltr|litres?|liters?|g|l|oz|lb|كغم|كجم|كيلو(?:غرام)?|غرام|جرام|جم|غم|مل|لتر)';
 
-const present = (value) => typeof value === 'string' && value.trim().length > 0;
+const present = (value) => observedText(value) != null;
 
 function asciiDigits(value) {
   return String(value || '').replace(/[٠-٩۰-۹]/gu, (digit) => {

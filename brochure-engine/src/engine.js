@@ -1,3 +1,4 @@
+import { marketDate } from './marketDate.js';
 // engine.js — the Brochure Engine Core / framework (ARCHITECTURE.md §3, §6, §8).
 //
 // The stateful sibling of the search connector's connector.js. It knows NOTHING
@@ -461,7 +462,7 @@ export async function handleRequest(request, ctx) {
         // (multi word); famRank/score/price only order within a stage. It
         // subsumes the old name-tier key: any stage ≥1 is a name match, and
         // OCR-text-only matches (stage 0) stay ranked last as before.
-        const stage = q ? matchStage({ name: `${offer.name || ''} ${offer.nameAr || ''}` }, q) : 0;
+        const stage = q ? matchStage({ name: `${offer.name || ''} ${offer.nameAr || ''}`, size: offer.size, brand: r.e_brand }, q) : 0;
         return { offer, stage, score: relevanceScore(rel), famRank };
       })
       .filter((s) => s.score > 0);
@@ -1632,4 +1633,4 @@ export async function handleRequest(request, ctx) {
   return json({ error: 'Not found' }, 404);
 }
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => marketDate();

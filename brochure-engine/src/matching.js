@@ -53,7 +53,13 @@ export function canonicalToken(token) {
 }
 
 export function canonicalMatchText(text) {
-  return normalizeText(text)
+  let normalized = ` ${normalizeText(text)} `;
+  for (const group of SEARCH_WORDINGS) {
+    for (const alias of [...group].sort((a, b) => b.length - a.length)) {
+      normalized = normalized.split(` ${alias} `).join(` ${group[0]} `);
+    }
+  }
+  return normalized.trim()
     .split(' ')
     .filter(Boolean)
     .map(canonicalToken)
@@ -78,7 +84,14 @@ export function queryTokens(q) {
 // Small by design: it lets an Arabic query match English OCR/product text (and
 // vice versa) for the staples a shopper actually watches. Mirrors the frontend
 // match.js table — keep the two in sync when adding entries.
+const SEARCH_WORDINGS = [
+  ['cornflakes', 'corn flakes'], ['sunflower', 'sun flower'],
+  ['dishwashing', 'dish washing'], ['mouthwash', 'mouth wash'],
+  ['almond', 'almonds'], ['diaper', 'diapers'],
+  ['ويفر', 'وافر'], ['لواكر', 'لوكر'],
+];
 const SYNONYMS = [
+  ...SEARCH_WORDINGS,
   ['milk', 'حليب', 'لبن'],
   ['eggs', 'egg', 'بيض', 'بيضه'],
   ['chicken', 'دجاج', 'فراخ'],
@@ -101,7 +114,7 @@ const SYNONYMS = [
   ['shampoo', 'شامبو'],
   ['tissue', 'tissues', 'مناديل', 'محارم'],
   ['chocolate', 'شوكولاته', 'شوكولا'],
-  ['diapers', 'حفاضات', 'حفايض'],
+  ['diaper', 'diapers', 'حفاضات', 'حفايض'],
   // common brand transliterations (Saudi shoppers search brands in Arabic;
   // flyer OCR often carries only the English brand line, and vice versa)
   ['pepsi', 'بيبسي'],
@@ -206,6 +219,7 @@ const BASE_FAMILIES = {
   vinegar: ['vinegar', 'خل'],
 };
 const DERIVED_FAMILIES = {
+  creamer: ['creamer', 'whitener', 'مبيض'],
   // incl. confectionery brands that ARE the product name on shelves ("جالكسي
   // الفراولة" carries no word for chocolate) — same precedent as نسكافيه/coffee
   chocolate: ['chocolate', 'cocoa', 'شوكولاته', 'شيكولاته', 'شوكلاته', 'شكولاته', 'شوكلت', 'شوكولا', 'كاكاو', 'جالكسي', 'كيندر', 'kinder', 'اوريو', 'oreo', 'سنيكرز', 'snickers', 'تويكس', 'twix', 'كيتكات', 'kitkat'],
@@ -220,7 +234,7 @@ const DERIVED_FAMILIES = {
   sauce: ['sauce', 'ketchup', 'mayonnaise', 'paste', 'puree', 'صوص', 'صلصه', 'كاتشب', 'مايونيز', 'مسطرده', 'معجون', 'بيوريه'],
   dessert: ['dessert', 'custard', 'pudding', 'حلا', 'مهلبيه', 'كاسترد', 'بودينج'],
   // prepared dishes: an "egg curry chappati" or "egg dosa" is a meal, not eggs
-  prepared: ['curry', 'كاري', 'chappati', 'شاباتي', 'dosa', 'دوسا', 'sandwich', 'ساندويتش', 'burger', 'برجر', 'pizza', 'بيتزا', 'شاورما', 'shawarma', 'combo', 'كومبو', 'وجبه', 'meal'],
+  prepared: ['kizhi', 'eggkizhi', 'curry', 'كاري', 'chappati', 'شاباتي', 'dosa', 'دوسا', 'sandwich', 'ساندويتش', 'burger', 'برجر', 'pizza', 'بيتزا', 'شاورما', 'shawarma', 'combo', 'كومبو', 'وجبه', 'meal'],
   // produce-derived shelf products: what turns "طماطم"/"فراولة" into paste,
   // jam, syrup drinks, soda, soup, pickles — the very look-alikes that were
   // drowning fresh produce in the grid.
@@ -256,7 +270,8 @@ const DERIVED_FAMILIES = {
   // results (found live 2026-07-16), and the ambiguity is self-neutralizing —
   // a lupin query containing ترمس classifies to the SAME family as the lupin
   // products, and same-family never gates.
-  houseware: ['steamer', 'blender', 'thermos', 'flask', 'jug', 'pitcher', 'teapot', 'غلايه', 'قلايه', 'ابريق', 'اباريق', 'قربه', 'جهاز', 'اجهزه', 'ماكينه', 'مكواه', 'سخان', 'قدر', 'مقلاه', 'طنجره', 'مضخه', 'مضخات', 'ترمس'],
+  houseware: ['slicer', 'steamer', 'blender', 'thermos', 'flask', 'jug', 'pitcher', 'teapot', 'قطاعة', 'قطاعه', 'غلايه', 'قلايه', 'ابريق', 'اباريق', 'قربه', 'جهاز', 'اجهزه', 'ماكينه', 'مكواه', 'سخان', 'قدر', 'مقلاه', 'طنجره', 'مضخه', 'مضخات', 'ترمس'],
+  petfood: ['cat', 'cats', 'kitten', 'kittens', 'dog', 'dogs', 'قطط', 'كلاب'],
 };
 // Fresh fruit & vegetables — the LOWEST family tier (see the tier note above).
 // Curated to common Saudi grocery produce with unambiguous words; ambiguous
@@ -363,6 +378,9 @@ export function productFamily(name) {
       base = hit.family;
     }
   }
+  // A visible, unambiguous product line fills a gap after derived heads have
+  // had precedence. This also handles OCR's "بيض القهوة" (missing م in مبيض).
+  if (/(^| )(coffee mate|كوفي ميت)( |$)/.test(normalizeText(name))) return 'creamer';
   return base || produce;
 }
 

@@ -711,7 +711,7 @@ console.log('applyEnrichment:');
   });
   const o1 = { name: null, nameAr: null };
   check('servable: overlays names, flags, returns vision haystack',
-    applyEnrichment(o1, row()) === 'vision haystack' &&
+    applyEnrichment(o1, row()) === 'ocr haystack vision haystack' &&
     o1.name === 'Vision Name' && o1.nameAr === 'اسم' && o1.enriched === true);
   const o2 = { name: 'OCR Name', nameAr: null };
   check('below-floor: OCR kept, OCR haystack returned',

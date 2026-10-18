@@ -1,0 +1,319 @@
+{
+  "method": "32 fixed original live-image observations replayed on production-based release.",
+  "counts": {
+    "correct": 20,
+    "wrong": 2,
+    "withheld": 6,
+    "excluded": 4
+  },
+  "regressions": [],
+  "rows": [
+    {
+      "index": 1,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 29.988888888888887,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 2,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 11.782178217821782,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 3,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 100,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 4,
+      "before": "excluded",
+      "after": "excluded",
+      "actual": null
+    },
+    {
+      "index": 5,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 7.398148148148148,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 6,
+      "before": "withheld",
+      "after": "withheld",
+      "actual": null
+    },
+    {
+      "index": 7,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 32.4875,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 8,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 66.625,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 9,
+      "before": "excluded",
+      "after": "excluded",
+      "actual": null
+    },
+    {
+      "index": 10,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 26.653333333333332,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 11,
+      "before": "withheld",
+      "after": "withheld",
+      "actual": null
+    },
+    {
+      "index": 12,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 32.84285714285714,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 13,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 35.27058823529412,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 14,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 23.5,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 15,
+      "before": "wrong",
+      "after": "wrong",
+      "actual": {
+        "value": 2.3545454545454545,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 16,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 166.33333333333334,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 17,
+      "before": "wrong",
+      "after": "correct",
+      "actual": {
+        "value": 10.56857142857143,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 18,
+      "before": "excluded",
+      "after": "excluded",
+      "actual": null
+    },
+    {
+      "index": 19,
+      "before": "wrong",
+      "after": "withheld",
+      "actual": null
+    },
+    {
+      "index": 20,
+      "before": "wrong",
+      "after": "withheld",
+      "actual": null
+    },
+    {
+      "index": 21,
+      "before": "wrong",
+      "after": "withheld",
+      "actual": null
+    },
+    {
+      "index": 22,
+      "before": "wrong",
+      "after": "withheld",
+      "actual": null
+    },
+    {
+      "index": 23,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 14.653333333333334,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 24,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 29.145833333333336,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 25,
+      "before": "excluded",
+      "after": "excluded",
+      "actual": {
+        "value": 0.09223076923076923,
+        "unit": "piece",
+        "label": "SAR/Piece",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 26,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 2.25,
+        "unit": "piece",
+        "label": "SAR/Piece",
+        "source": "printed"
+      }
+    },
+    {
+      "index": 27,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 82.23529411764706,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 28,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 149.9,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 29,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 26.64,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 30,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 25,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 31,
+      "before": "correct",
+      "after": "correct",
+      "actual": {
+        "value": 8.813725490196079,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 32,
+      "before": "wrong",
+      "after": "wrong",
+      "actual": {
+        "value": 9.068627450980392,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      }
+    }
+  ]
+}

@@ -422,6 +422,11 @@ export function createMemoryOfferStore({
         // is already to hand. Feeds the price basis (applyUnitPrice).
         e_unit: readExtractionUnit(e?.extraction_json),
         e_package_type: readExtractionPackageType(e?.extraction_json),
+        e_attributes: e?.extraction_json ? (() => {
+          try { const obs = typeof e.extraction_json === 'string' ? JSON.parse(e.extraction_json) : e.extraction_json;
+            return Array.isArray(obs?.attributes) ? obs.attributes.join(' ') : null;
+          } catch { return null; }
+        })() : null,
         e_match_text: e?.match_text ?? null,
         e_corroboration: e?.corroboration ?? null,
         e_model: e?.model ?? null,

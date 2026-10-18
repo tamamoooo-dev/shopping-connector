@@ -1,3 +1,4 @@
+import { marketDate } from '../marketDate.js';
 // ops/console.js — the Operations Console: a hidden, admin-only maintenance &
 // diagnostics subsystem of the Brochure Engine, mounted at /__ops inside the
 // SAME Worker (index.js). Mobile-first: built to run the engine from a phone.
@@ -82,7 +83,7 @@ import {
 import { CONSOLE_HTML } from './ui.js';
 import { enqueueBackground } from '../backgroundContinuation.js';
 
-const todayISO = () => new Date().toISOString().slice(0, 10);
+const todayISO = () => marketDate();
 
 export const OPS_PATH = '/__ops';
 
@@ -480,7 +481,7 @@ async function runEnrichOperation(ctx, body) {
     throw new OpsError('Enrichment unavailable (MISTRAL_API_KEY not set).', 503);
   }
   const t0 = Date.now();
-  const today = new Date().toISOString().slice(0, 10);
+  const today = marketDate();
   const pending = await ctx.enrichStore.countDebris(today).catch(() => 0);
   if (pending <= 0) {
     const report = { action: 'ops:enrich', pending: 0, ok: true, nothingToDo: true, message: 'Enrichment queue is empty.', elapsedMs: Date.now() - t0 };
@@ -1392,7 +1393,7 @@ async function apiRoute(request, ctx, url, sub) {
         const t0 = Date.now();
         const errors = ctx.opsStore ? await ctx.opsStore.list({ failedOnly: true, limit: 2 }) : [];
         const recent = ctx.opsStore ? await ctx.opsStore.list({ limit: 20 }) : [];
-        const today = new Date().toISOString().slice(0, 10);
+        const today = marketDate();
         const offers = ctx.offerStore ? await ctx.offerStore.counts(today) : null;
         const history = ctx.historyStore ? await ctx.historyStore.counts() : null;
         const held = (await ctx.metadataStore.listCurrent()).length;

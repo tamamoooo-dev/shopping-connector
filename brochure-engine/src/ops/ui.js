@@ -219,11 +219,10 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
 
     <div class="card">
       <h2>Vision Model <span id="vmTag" class="tag">…</span></h2>
-      <div class="mut" style="margin-bottom:10px">Medium is the production baseline for canonical product data. Small is a manual fallback for when API limits or budget become a concern — models are never switched automatically.</div>
+      <div class="mut" style="margin-bottom:10px">Ministral 14B is the production model. Validated products use one vision read. A flagged, changed or failed reading can enter the bounded verification queue.</div>
       <div id="vmWarn" class="warnBox" style="display:none"></div>
       <div class="seg" id="vmSeg">
-        <button data-tier="medium">Medium 3.5<br><span class="segSub">Recommended</span></button>
-        <button data-tier="small">Ministral 14B<br><span class="segSub">Budget</span></button>
+        <button data-tier="small">Ministral 14B<br><span class="segSub">Production</span></button>
       </div>
       <div id="vmPanel"><span class="spin"></span></div>
     </div>
@@ -950,30 +949,13 @@ $("#vmSeg").querySelectorAll("button").forEach(function (b) {
        proposed tier is a real action — it arms the override — so it must not be
        swallowed here. */
     if (vmBusy || (vmSetting && vmSetting.armed && vmSetting.tier === tier)) return;
-    var budget = tier === "small";
-    var opt = vmOptions.filter(function (o) { return o.tier === tier; })[0];
-    /* Arming ANY tier whose model differs from what is running right now changes
-       extraction, so it is confirmed. That matters most while the selector is
-       inert and the engine default is not Medium: picking Medium there is a real
-       model change, not a return to a baseline already in force. Once the engine
-       default IS Medium, arming Medium changes nothing and asks nothing. */
-    var changesModel = !!(opt && vmActive && opt.model !== vmActive);
-    var ask = budget
-      ? confirmSheet("Enable Budget Mode",
-          "Switches extraction to Small 2603. Quality may decrease, especially for package size and brand recognition. Medium is the production baseline — use this only while API limits or budget are a concern.",
-          false)
-      : changesModel
-        ? confirmSheet("Switch to " + (opt ? opt.label : "Medium"),
-            "Extraction is running on " + vmActive + " right now. Arming this tier moves it to " + opt.model +
-            " from the next drain on, at a higher cost per crop. Nothing switches back automatically.",
-            false)
-        : Promise.resolve(true);
+    var ask = Promise.resolve(true);
     ask.then(function (ok) {
       if (!ok) return;
       vmBusy = true;
       api("vision/model", { body: { confirm: true, tier: tier } }).then(function (r2) {
         vmBusy = false;
-        toast(budget ? "Budget Mode enabled" : "Medium (production) armed");
+        toast("Ministral 14B selected");
         /* Pass the whole response, not just .setting — it carries activeModel,
            without which the panel would fall back to rendering a dash. */
         renderVisionModel(r2);

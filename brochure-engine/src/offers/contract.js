@@ -1,3 +1,4 @@
+import { observedText } from '../observedText.js';
 // offers/contract.js — the normalized Offer contract plus the PURE helpers that
 // turn a raw aggregator product record into an Offer (name derivation from the
 // flyer's OCR text, price sanity gates, search-text normalization).
@@ -233,8 +234,8 @@ export function rowToOffer(r) {
     pageIndex: Number.isInteger(r.page_index) ? r.page_index : null,
     navigationProvenance: r.navigation_provenance ?? null,
     edition: r.edition,
-    name: r.name,
-    nameAr: r.name_ar,
+    name: observedText(r.name),
+    nameAr: observedText(r.name_ar),
     price: r.price,
     oldPrice: r.old_price,
     currency: r.currency,

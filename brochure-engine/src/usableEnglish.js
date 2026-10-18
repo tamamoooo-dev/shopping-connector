@@ -24,6 +24,7 @@
 // whether the name is any GOOD belongs to stages that have more to go on.
 
 // At least this many Latin letters for a string to count as English evidence.
+import { observedText } from './observedText.js';
 export const MIN_LATIN_LETTERS = 2;
 
 // ASCII-only by intent. A Latin-1 accented letter is vanishingly rare in this
@@ -39,7 +40,6 @@ export function latinLetterCount(value) {
 // a whitespace-only string has zero letters, but so does "١٢٣", and neither is
 // a usable English name.
 export function hasUsableEnglish(value) {
-  return typeof value === 'string'
-    && value.trim().length > 0
+  return observedText(value) != null
     && latinLetterCount(value) >= MIN_LATIN_LETTERS;
 }

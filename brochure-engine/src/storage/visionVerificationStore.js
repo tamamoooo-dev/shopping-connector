@@ -4,6 +4,7 @@
 // SHA-256 identity hashes, which is enough to approve A → B → A atomically.
 
 import { normalizeText, parseSize } from '../matching.js';
+import { observedNameSql } from '../observedText.js';
 import { CORROBORATION_FLOOR } from '../offers/servingFloor.js';
 
 const DEFAULT_LEASE_MS = 180000;
@@ -26,7 +27,7 @@ const DEFAULT_LEASE_MS = 180000;
 export const STAGE_TWO_MAX_ATTEMPTS = 3;
 // Strictly boolean: a quarantined row has corroboration NULL, and NOT(NULL)
 // would silently exclude it instead of making it due.
-const PUBLISHED_SQL = `(e.id IS NOT NULL AND (e.name IS NOT NULL OR e.name_ar IS NOT NULL)
+const PUBLISHED_SQL = `(e.id IS NOT NULL AND ${observedNameSql('e')}
   AND COALESCE(e.corroboration, 0) >= ${CORROBORATION_FLOOR})`;
 // Unsettled: not served, or served from a crop the offer no longer shows.
 const STAGE_TWO_UNSETTLED_SQL = `(NOT ${PUBLISHED_SQL} OR (e.crop_url IS NOT NULL AND e.crop_url <> o.image_url))`;

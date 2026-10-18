@@ -1,3 +1,4 @@
+import { observedText } from '../observedText.js';
 // browse/api.js — the Browse read API's document builders (BROWSE-DESIGN.md
 // §7). Pure orchestration over the browse store + canonical knowledge: no SQL
 // here, no provider slugs past this point — the documents speak canonical
@@ -59,8 +60,8 @@ function cardDoc(row, today) {
     pageIndex: row.page_index,
     navigationProvenance: row.navigation_provenance ?? null,
     edition: row.edition,
-    name: row.name,
-    nameAr: row.name_ar,
+    name: observedText(row.name),
+    nameAr: observedText(row.name_ar),
     price: row.price,
     oldPrice: row.old_price,
     currency: row.currency,

@@ -1,3 +1,4 @@
+import { marketDate } from '../marketDate.js';
 // offers/ingest.js — the structured-offers ingest. Store-agnostic: which
 // offers source a store uses and how it is addressed there is provider config;
 // this module only orchestrates source -> normalize -> gate -> link -> store.
@@ -216,7 +217,7 @@ export async function ingestOffersForTarget(ctx, provider, region) {
     // Fetch the still-current stored rows once, before writing. They are part
     // of the trust assessment even when D4D omitted them from today's response,
     // and the same snapshot/decision is reused by the relinker below.
-    const currentOn = new Date().toISOString().slice(0, 10);
+    const currentOn = marketDate();
     const storedByFlyer = new Map();
     if (typeof ctx.offerStore.byFlyer === 'function') {
       for (const flyerRef of navigationByFlyer.keys()) {

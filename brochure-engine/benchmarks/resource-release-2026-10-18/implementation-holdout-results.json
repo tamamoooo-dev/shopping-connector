@@ -1,0 +1,2171 @@
+{
+  "scoredAt": "2026-10-18T08:00:16.390Z",
+  "method": "Visual references recorded from 32 new original crops before inspecting their stored model fields or scoring. Assistant annotation, no independent human adjudicator. Numeric exclusions are fixed here.",
+  "baselineCommit": "fba1144aad881d441a6f3d29bb91a4957cefc9ab",
+  "candidateCodeHashes": {
+    "src/matching.js": "e8afd29e46341a484b2804578c0c4279899e0e4a1e63d88796713f898951a064",
+    "src/lexicon/packageSize.js": "21a22b64184522bbccbb4c11bd2172d0d076ac2396ba49094c088006751c7129",
+    "src/lexicon/comparableQuantity.js": "88f07ca7888848f5057a568dd3b837bb918a79545e298a88efbe82eda52d2134",
+    "src/offers/enrich.js": "bb84cbd6ce7df7f00da6c63b8823ad98b125469242630808f26bf407fd40f137",
+    "src/storage/enrichStore.js": "e7a4b4e6ff420232ef20981b0af555daa842883b29f760ffa82bc58f76499381",
+    "src/marketDate.js": "66198cedc1b37c5ed140cc01baddb77bf32865de36e14e0f4498968f2436f824"
+  },
+  "candidateFrozenAt": "2026-10-18T07:24:24.817Z",
+  "truthSha256": "21c815282ef253a30b1cd8415264e5a164a6054f9b17a1048f364262cc147842",
+  "before": {
+    "correct": 18,
+    "wrong": 0,
+    "withheld": 0,
+    "excluded": 14
+  },
+  "after": {
+    "correct": 18,
+    "wrong": 0,
+    "withheld": 0,
+    "excluded": 14
+  },
+  "regressions": [],
+  "search": {
+    "before": 35,
+    "after": 51,
+    "total": 64
+  },
+  "rows": [
+    {
+      "index": 1,
+      "id": "aljazera:central:d4d:99055599",
+      "category": "frozen-meat",
+      "size": "400G",
+      "price": 12.5,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 31.25
+      },
+      "before": {
+        "value": 31.25,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 31.25,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 2,
+      "id": "aljazera:central:d4d:99055527",
+      "category": "fresh-chicken-poultry",
+      "size": "700G",
+      "price": 20.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 29.985714285714284
+      },
+      "before": {
+        "value": 29.985714285714284,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 29.985714285714284,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 3,
+      "id": "almadina:central:d4d:99109911",
+      "category": "hair-care",
+      "size": "340 مل",
+      "price": 10,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "l",
+        "value": 29.41176470588235
+      },
+      "before": {
+        "value": 29.41176470588235,
+        "unit": "l",
+        "label": "SAR/L"
+      },
+      "after": {
+        "value": 29.41176470588235,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 4,
+      "id": "almadina:central:d4d:99113301",
+      "category": "kitchen-appliance",
+      "size": null,
+      "price": 59,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "non-grocery appliance; no package-content denominator"
+      },
+      "before": null,
+      "after": null,
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 5,
+      "id": "alwafa:central:d4d:99076011",
+      "category": "kitchen-appliance",
+      "size": "2.2L",
+      "price": 49.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "appliance capacity 2.2L is not package contents"
+      },
+      "before": {
+        "value": 22.722727272727273,
+        "unit": "l",
+        "label": "SAR/L"
+      },
+      "after": {
+        "value": 22.722727272727273,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 6,
+      "id": "alwafa:central:d4d:99094656",
+      "category": null,
+      "size": null,
+      "price": 20,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "non-grocery watch"
+      },
+      "before": null,
+      "after": null,
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 7,
+      "id": "amarket:central:d4d:99077706",
+      "category": "cereals-bars",
+      "size": "500 GM",
+      "price": 7.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 15.98
+      },
+      "before": {
+        "value": 15.98,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 15.98,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 8,
+      "id": "amarket:central:d4d:99077634",
+      "category": null,
+      "size": "425 GM",
+      "price": 3.5,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 8.23529411764706
+      },
+      "before": {
+        "value": 8.23529411764706,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 8.23529411764706,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 9,
+      "id": "carrefour:central:d4d:99099741",
+      "category": "oil-ghee",
+      "size": "2L",
+      "price": 87.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "l",
+        "value": 43.995
+      },
+      "before": {
+        "value": 43.995,
+        "unit": "l",
+        "label": "SAR/L"
+      },
+      "after": {
+        "value": 43.995,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 10,
+      "id": "carrefour:central:d4d:99099669",
+      "category": "chocolates-candies",
+      "size": "152g",
+      "price": 7.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 52.56578947368421
+      },
+      "before": {
+        "value": 52.56578947368421,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 52.56578947368421,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 11,
+      "id": "cityflower:central:d4d:98714616",
+      "category": "baby-care",
+      "size": "100Ml",
+      "price": 29,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "multi-product travel kit; 100ml is not a clear combined-content denominator"
+      },
+      "before": {
+        "value": 290,
+        "unit": "l",
+        "label": "SAR/L"
+      },
+      "after": {
+        "value": 290,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 12,
+      "id": "cityflower:central:d4d:99036378",
+      "category": "hair-care",
+      "size": "700ml",
+      "price": 15,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "l",
+        "value": 21.42857142857143
+      },
+      "before": {
+        "value": 21.42857142857143,
+        "unit": "l",
+        "label": "SAR/L"
+      },
+      "after": {
+        "value": 21.42857142857143,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 13,
+      "id": "danube:central:d4d:98685801",
+      "category": "biscuits",
+      "size": "24x18g",
+      "price": 9.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 23.125
+      },
+      "before": {
+        "value": 23.125,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 23.125,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 14,
+      "id": "danube:central:d4d:98687496",
+      "category": "baby-diapers",
+      "size": null,
+      "price": 99.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "multiple diaper variants with different counts"
+      },
+      "before": {
+        "value": 99.99,
+        "unit": "piece",
+        "label": "SAR/Piece"
+      },
+      "after": {
+        "value": 99.99,
+        "unit": "piece",
+        "label": "SAR/Piece",
+        "source": "printed"
+      },
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 15,
+      "id": "farm:central:d4d:99042039",
+      "category": "frozen-fruits-veg",
+      "size": "2 PCS",
+      "price": 11.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "two packs chosen from variants weighing 250/400/450g"
+      },
+      "before": {
+        "value": 13.322222222222223,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 5.995,
+        "unit": "piece",
+        "label": "SAR/Piece",
+        "source": "derived"
+      },
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 16,
+      "id": "farm:central:d4d:99041967",
+      "category": "fresh-chicken-poultry",
+      "size": "750GR",
+      "price": 19.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 26.653333333333332
+      },
+      "before": {
+        "value": 26.653333333333332,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 26.653333333333332,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 17,
+      "id": "hyperpanda:central:d4d:99118386",
+      "category": "sauces-spreads",
+      "size": "2Kg",
+      "price": 124.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 62.495
+      },
+      "before": {
+        "value": 62.495,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 62.495,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 18,
+      "id": "hyperpanda:central:d4d:99120081",
+      "category": "sauces-spreads",
+      "size": "350g",
+      "price": 12.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 37.114285714285714
+      },
+      "before": {
+        "value": 37.114285714285714,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 37.114285714285714,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 19,
+      "id": "lulu:central:d4d:99104826",
+      "category": "canned-packeted",
+      "size": null,
+      "price": 17.95,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 17.95
+      },
+      "before": {
+        "value": 17.95,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 17.95,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "printed"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 20,
+      "id": "lulu:central:d4d:98962230",
+      "category": "accessories",
+      "size": null,
+      "price": 30,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "non-grocery radio device; 2.4g is wireless frequency, not product mass"
+      },
+      "before": null,
+      "after": null,
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 21,
+      "id": "marksave:central:d4d:99062379",
+      "category": "dishwasher",
+      "size": "15g",
+      "price": 5.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "six scrubbers and a 15g marking; whether mass is each or pack is not independently clear"
+      },
+      "before": {
+        "value": 66.55555555555556,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 66.55555555555556,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 22,
+      "id": "marksave:central:d4d:99064074",
+      "category": "luggage",
+      "size": null,
+      "price": 12.95,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "non-grocery bag"
+      },
+      "before": null,
+      "after": null,
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 23,
+      "id": "nesto:central:d4d:99155748",
+      "category": "powdered-condensed-milk",
+      "size": "1.8kg",
+      "price": 29.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 16.66111111111111
+      },
+      "before": {
+        "value": 16.66111111111111,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 16.66111111111111,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 24,
+      "id": "nesto:central:d4d:99079401",
+      "category": "footwear",
+      "size": null,
+      "price": 65,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "non-grocery footwear, one pair"
+      },
+      "before": null,
+      "after": null,
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 25,
+      "id": "othaim:central:d4d:99101436",
+      "category": "yogurt-labneh",
+      "size": "400 g",
+      "price": 7.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 19.974999999999998
+      },
+      "before": {
+        "value": 19.974999999999998,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 19.974999999999998,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 26,
+      "id": "othaim:central:d4d:99101364",
+      "category": "deli-speaclity-meats",
+      "size": null,
+      "price": 55.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 55.99
+      },
+      "before": {
+        "value": 55.99,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 55.99,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "printed"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 27,
+      "id": "prime:central:d4d:98546667",
+      "category": null,
+      "size": null,
+      "price": 4.5,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "non-grocery tool; 32cm is a dimension"
+      },
+      "before": {
+        "value": 4.5,
+        "unit": "piece",
+        "label": "SAR/Piece"
+      },
+      "after": {
+        "value": 4.5,
+        "unit": "piece",
+        "label": "SAR/Piece",
+        "source": "printed"
+      },
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 28,
+      "id": "prime:central:d4d:99135336",
+      "category": "yogurt-labneh",
+      "size": "160GM",
+      "price": 3.95,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "kg",
+        "value": 24.6875
+      },
+      "before": {
+        "value": 24.6875,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": {
+        "value": 24.6875,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 29,
+      "id": "ramez:central:d4d:99146985",
+      "category": "women-clothing",
+      "size": null,
+      "price": 17,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "non-grocery clothing"
+      },
+      "before": null,
+      "after": null,
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 30,
+      "id": "ramez:central:d4d:99146841",
+      "category": null,
+      "size": null,
+      "price": 128.5,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "non-grocery appliance; 2000W is electrical power"
+      },
+      "before": null,
+      "after": null,
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    },
+    {
+      "index": 31,
+      "id": "tamimi:central:d4d:99050514",
+      "category": "oil-ghee",
+      "size": "1 LITER",
+      "price": 38.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "unit": "l",
+        "value": 38.99
+      },
+      "before": {
+        "value": 38.99,
+        "unit": "l",
+        "label": "SAR/L"
+      },
+      "after": {
+        "value": 38.99,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "beforeStatus": "correct",
+      "afterStatus": "correct"
+    },
+    {
+      "index": 32,
+      "id": "tamimi:central:d4d:99050442",
+      "category": "cereals-bars",
+      "size": "625 - 645 GRAMS",
+      "price": 34.99,
+      "sourcePriceMatchesImage": true,
+      "expected": {
+        "excluded": "two cereal variants at 625g and 645g"
+      },
+      "before": {
+        "value": 54.248062015503876,
+        "unit": "kg",
+        "label": "SAR/kg"
+      },
+      "after": null,
+      "beforeStatus": "excluded",
+      "afterStatus": "excluded"
+    }
+  ],
+  "queries": [
+    {
+      "index": 1,
+      "lang": "en",
+      "q": "al kabeer beef hotdog",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 1,
+      "lang": "ar",
+      "q": "هوت دوج الكبير",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 2,
+      "lang": "en",
+      "q": "doux chicken strips",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 2,
+      "lang": "ar",
+      "q": "ستربس دجاج دو",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 3,
+      "lang": "en",
+      "q": "parachute shampoo",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 3,
+      "lang": "ar",
+      "q": "شامبو باراشوت",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 4,
+      "lang": "en",
+      "q": "daewoo juicer",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 4,
+      "lang": "ar",
+      "q": "عصارة دايو",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 5,
+      "lang": "en",
+      "q": "olsenmark kettle",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 5,
+      "lang": "ar",
+      "q": "غلاية اولسنمارك",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 6,
+      "lang": "en",
+      "q": "swiszone watch",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 6,
+      "lang": "ar",
+      "q": "ساعة سويز",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 7,
+      "lang": "en",
+      "q": "quaker oats",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 7,
+      "lang": "ar",
+      "q": "شوفان كويكر",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 8,
+      "lang": "en",
+      "q": "gloria fruit cocktail",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 8,
+      "lang": "ar",
+      "q": "كوكتيل فواكه غلوريا",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 9,
+      "lang": "en",
+      "q": "afia olive oil",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 9,
+      "lang": "ar",
+      "q": "زيت زيتون عافية",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 10,
+      "lang": "en",
+      "q": "skittles",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 10,
+      "lang": "ar",
+      "q": "سكيتلز",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 11,
+      "lang": "en",
+      "q": "himalaya baby travel pack",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 11,
+      "lang": "ar",
+      "q": "مجموعة سفر هيمالايا",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 12,
+      "lang": "en",
+      "q": "sunsilk shampoo",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 12,
+      "lang": "ar",
+      "q": "شامبو صانسيلك",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 13,
+      "lang": "en",
+      "q": "ringo wafer",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 13,
+      "lang": "ar",
+      "q": "ويفر رينجو",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 14,
+      "lang": "en",
+      "q": "huggies diapers",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 14,
+      "lang": "ar",
+      "q": "حفاضات هجيز",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 15,
+      "lang": "en",
+      "q": "montana vegetables",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 15,
+      "lang": "ar",
+      "q": "خضار مونتانا",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 16,
+      "lang": "en",
+      "q": "seara chicken nuggets",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 16,
+      "lang": "ar",
+      "q": "ناجتس دجاج سيارا",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 17,
+      "lang": "en",
+      "q": "langnese honey",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 17,
+      "lang": "ar",
+      "q": "عسل لانجنيز",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 18,
+      "lang": "en",
+      "q": "panda hazelnut spread",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 18,
+      "lang": "ar",
+      "q": "كريمة بندق بنده",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 19,
+      "lang": "en",
+      "q": "egyptian green olives",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 19,
+      "lang": "ar",
+      "q": "زيتون أخضر مصري",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 20,
+      "lang": "en",
+      "q": "trands wireless mouse",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 20,
+      "lang": "ar",
+      "q": "ماوس تراندز",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 21,
+      "lang": "en",
+      "q": "oks steel scrubber",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 21,
+      "lang": "ar",
+      "q": "ليفة اوكس ستيل",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 22,
+      "lang": "en",
+      "q": "chest bag",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 22,
+      "lang": "ar",
+      "q": "حقيبة صدر",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 23,
+      "lang": "en",
+      "q": "al waleed milk powder",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 23,
+      "lang": "ar",
+      "q": "حليب بودرة الوليد",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 24,
+      "lang": "en",
+      "q": "men slipper",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 24,
+      "lang": "ar",
+      "q": "شباشب رجالية",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 25,
+      "lang": "en",
+      "q": "alsafi labneh",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 25,
+      "lang": "ar",
+      "q": "لبنة الصافي",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 26,
+      "lang": "en",
+      "q": "alfolla smoked turkey",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 26,
+      "lang": "ar",
+      "q": "رستو حبش الفلة",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 27,
+      "lang": "en",
+      "q": "bread knife",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 27,
+      "lang": "ar",
+      "q": "سكين خبز",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 28,
+      "lang": "en",
+      "q": "nadec greek yoghurt",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 28,
+      "lang": "ar",
+      "q": "زبادي يوناني نادك",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 29,
+      "lang": "en",
+      "q": "ladies pants",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 29,
+      "lang": "ar",
+      "q": "بنطلون نسائي",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 30,
+      "lang": "en",
+      "q": "geepas meat grinder",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 30,
+      "lang": "ar",
+      "q": "مفرمة جيباس",
+      "before": false,
+      "after": false
+    },
+    {
+      "index": 31,
+      "lang": "en",
+      "q": "aljameel olive oil",
+      "before": true,
+      "after": true
+    },
+    {
+      "index": 31,
+      "lang": "ar",
+      "q": "زيت زيتون الجميل",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 32,
+      "lang": "en",
+      "q": "nestle cereal",
+      "before": false,
+      "after": true
+    },
+    {
+      "index": 32,
+      "lang": "ar",
+      "q": "حبوب إفطار نستله",
+      "before": true,
+      "after": true
+    }
+  ],
+  "realSql": {
+    "method": "Actual D1 store queries and serving overlay on a 64-row production snapshot in SQLite; not full-catalog latency.",
+    "before": 35,
+    "after": 51,
+    "total": 64,
+    "queries": [
+      {
+        "index": 1,
+        "lang": "en",
+        "q": "al kabeer beef hotdog",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 17.13010000000031
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 23.130299999998897
+        }
+      },
+      {
+        "index": 1,
+        "lang": "ar",
+        "q": "هوت دوج الكبير",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.011800000000221
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 10.948700000000827
+        }
+      },
+      {
+        "index": 2,
+        "lang": "en",
+        "q": "doux chicken strips",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 3.6604999999999563
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 18.793100000000777
+        }
+      },
+      {
+        "index": 2,
+        "lang": "ar",
+        "q": "ستربس دجاج دو",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 3.6766999999999825
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 31.807199999999284
+        }
+      },
+      {
+        "index": 3,
+        "lang": "en",
+        "q": "parachute shampoo",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 4.204500000001644
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 22.701500000001033
+        }
+      },
+      {
+        "index": 3,
+        "lang": "ar",
+        "q": "شامبو باراشوت",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 3.6538999999993393
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 16.08390000000145
+        }
+      },
+      {
+        "index": 4,
+        "lang": "en",
+        "q": "daewoo juicer",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 3.4882999999990716
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 10.74619999999959
+        }
+      },
+      {
+        "index": 4,
+        "lang": "ar",
+        "q": "عصارة دايو",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.8914000000004307
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 12.402599999999438
+        }
+      },
+      {
+        "index": 5,
+        "lang": "en",
+        "q": "olsenmark kettle",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 3.0182999999997264
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 14.538300000000163
+        }
+      },
+      {
+        "index": 5,
+        "lang": "ar",
+        "q": "غلاية اولسنمارك",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 1.6370999999999185
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 10.396099999999933
+        }
+      },
+      {
+        "index": 6,
+        "lang": "en",
+        "q": "swiszone watch",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.805900000001202
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 11.788800000000265
+        }
+      },
+      {
+        "index": 6,
+        "lang": "ar",
+        "q": "ساعة سويز",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 1.8424999999988358
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 7.095400000000154
+        }
+      },
+      {
+        "index": 7,
+        "lang": "en",
+        "q": "quaker oats",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 3.0861000000004424
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 11.54609999999957
+        }
+      },
+      {
+        "index": 7,
+        "lang": "ar",
+        "q": "شوفان كويكر",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 3.4232999999985623
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 15.788800000000265
+        }
+      },
+      {
+        "index": 8,
+        "lang": "en",
+        "q": "gloria fruit cocktail",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 4.255600000000413
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 18.68580000000111
+        }
+      },
+      {
+        "index": 8,
+        "lang": "ar",
+        "q": "كوكتيل فواكه غلوريا",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 4.5997000000006665
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 17.006400000000212
+        }
+      },
+      {
+        "index": 9,
+        "lang": "en",
+        "q": "afia olive oil",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 5.589700000000448
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 19.232500000000073
+        }
+      },
+      {
+        "index": 9,
+        "lang": "ar",
+        "q": "زيت زيتون عافية",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 6.119900000001508
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 21.1882999999998
+        }
+      },
+      {
+        "index": 10,
+        "lang": "en",
+        "q": "skittles",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.610999999998967
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 10.330599999999322
+        }
+      },
+      {
+        "index": 10,
+        "lang": "ar",
+        "q": "سكيتلز",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 3.5007000000005064
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 9.779499999998734
+        }
+      },
+      {
+        "index": 11,
+        "lang": "en",
+        "q": "himalaya baby travel pack",
+        "before": {
+          "found": true,
+          "candidates": 2,
+          "ms": 6.278700000000754
+        },
+        "after": {
+          "found": true,
+          "candidates": 2,
+          "ms": 63.379399999999805
+        }
+      },
+      {
+        "index": 11,
+        "lang": "ar",
+        "q": "مجموعة سفر هيمالايا",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 3.792199999999866
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 19.361899999999878
+        }
+      },
+      {
+        "index": 12,
+        "lang": "en",
+        "q": "sunsilk shampoo",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.986800000000585
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 13.431399999999485
+        }
+      },
+      {
+        "index": 12,
+        "lang": "ar",
+        "q": "شامبو صانسيلك",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.3176000000003114
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 14.305299999999988
+        }
+      },
+      {
+        "index": 13,
+        "lang": "en",
+        "q": "ringo wafer",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 7.626800000000003
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 18.855599999998958
+        }
+      },
+      {
+        "index": 13,
+        "lang": "ar",
+        "q": "ويفر رينجو",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 3.221799999999348
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 15.819800000001123
+        }
+      },
+      {
+        "index": 14,
+        "lang": "en",
+        "q": "huggies diapers",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.653699999998935
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 16.16649999999936
+        }
+      },
+      {
+        "index": 14,
+        "lang": "ar",
+        "q": "حفاضات هجيز",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.3774999999986903
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 25.064800000000105
+        }
+      },
+      {
+        "index": 15,
+        "lang": "en",
+        "q": "montana vegetables",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 5.0151999999998225
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 10.742600000001403
+        }
+      },
+      {
+        "index": 15,
+        "lang": "ar",
+        "q": "خضار مونتانا",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.5151000000005297
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 14.93630000000121
+        }
+      },
+      {
+        "index": 16,
+        "lang": "en",
+        "q": "seara chicken nuggets",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 4.707599999999729
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 23.1349999999984
+        }
+      },
+      {
+        "index": 16,
+        "lang": "ar",
+        "q": "ناجتس دجاج سيارا",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.727199999999357
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 14.897499999999127
+        }
+      },
+      {
+        "index": 17,
+        "lang": "en",
+        "q": "langnese honey",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.6702000000004773
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 9.427999999999884
+        }
+      },
+      {
+        "index": 17,
+        "lang": "ar",
+        "q": "عسل لانجنيز",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 1.836699999999837
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 7.303199999998469
+        }
+      },
+      {
+        "index": 18,
+        "lang": "en",
+        "q": "panda hazelnut spread",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 1.8756000000012136
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 11.305299999999988
+        }
+      },
+      {
+        "index": 18,
+        "lang": "ar",
+        "q": "كريمة بندق بنده",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.114900000000489
+        },
+        "after": {
+          "found": false,
+          "candidates": 1,
+          "ms": 15.309899999998379
+        }
+      },
+      {
+        "index": 19,
+        "lang": "en",
+        "q": "egyptian green olives",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.3588999999992666
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 11.039200000001074
+        }
+      },
+      {
+        "index": 19,
+        "lang": "ar",
+        "q": "زيتون أخضر مصري",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.888999999999214
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 15.623499999999694
+        }
+      },
+      {
+        "index": 20,
+        "lang": "en",
+        "q": "trands wireless mouse",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.419499999999971
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 10.016299999999319
+        }
+      },
+      {
+        "index": 20,
+        "lang": "ar",
+        "q": "ماوس تراندز",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 1.4500000000007276
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 6.789600000000064
+        }
+      },
+      {
+        "index": 21,
+        "lang": "en",
+        "q": "oks steel scrubber",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 3.2587000000003172
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 11.394099999999526
+        }
+      },
+      {
+        "index": 21,
+        "lang": "ar",
+        "q": "ليفة اوكس ستيل",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.9043000000001484
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 11.018700000000536
+        }
+      },
+      {
+        "index": 22,
+        "lang": "en",
+        "q": "chest bag",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 1.9067999999988388
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 8.319899999998597
+        }
+      },
+      {
+        "index": 22,
+        "lang": "ar",
+        "q": "حقيبة صدر",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.3681999999989785
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 8.69629999999961
+        }
+      },
+      {
+        "index": 23,
+        "lang": "en",
+        "q": "al waleed milk powder",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.6890000000003056
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 15.760099999999511
+        }
+      },
+      {
+        "index": 23,
+        "lang": "ar",
+        "q": "حليب بودرة الوليد",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 1.9359000000004016
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 18.80030000000079
+        }
+      },
+      {
+        "index": 24,
+        "lang": "en",
+        "q": "men slipper",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.5777000000016415
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 9.21440000000075
+        }
+      },
+      {
+        "index": 24,
+        "lang": "ar",
+        "q": "شباشب رجالية",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.11620000000039
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 9.357500000000073
+        }
+      },
+      {
+        "index": 25,
+        "lang": "en",
+        "q": "alsafi labneh",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.218800000000556
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 9.425000000001091
+        }
+      },
+      {
+        "index": 25,
+        "lang": "ar",
+        "q": "لبنة الصافي",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 1.9948000000003958
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 9.528000000000247
+        }
+      },
+      {
+        "index": 26,
+        "lang": "en",
+        "q": "alfolla smoked turkey",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.810699999999997
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 12.200200000001132
+        }
+      },
+      {
+        "index": 26,
+        "lang": "ar",
+        "q": "رستو حبش الفلة",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.0525999999990745
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 11.591099999999642
+        }
+      },
+      {
+        "index": 27,
+        "lang": "en",
+        "q": "bread knife",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 3.583599999999933
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 19.411299999999756
+        }
+      },
+      {
+        "index": 27,
+        "lang": "ar",
+        "q": "سكين خبز",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 3.980099999998856
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 15.810899999998583
+        }
+      },
+      {
+        "index": 28,
+        "lang": "en",
+        "q": "nadec greek yoghurt",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 3.8140999999995984
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 19.380600000000413
+        }
+      },
+      {
+        "index": 28,
+        "lang": "ar",
+        "q": "زبادي يوناني نادك",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.664699999999357
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 36.82710000000043
+        }
+      },
+      {
+        "index": 29,
+        "lang": "en",
+        "q": "ladies pants",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 1.9699999999993452
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 7.354299999999057
+        }
+      },
+      {
+        "index": 29,
+        "lang": "ar",
+        "q": "بنطلون نسائي",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 1.7277999999987514
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 9.808600000000297
+        }
+      },
+      {
+        "index": 30,
+        "lang": "en",
+        "q": "geepas meat grinder",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.9007999999994354
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 14.062200000000303
+        }
+      },
+      {
+        "index": 30,
+        "lang": "ar",
+        "q": "مفرمة جيباس",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 1.2111000000004424
+        },
+        "after": {
+          "found": false,
+          "candidates": 0,
+          "ms": 6.077800000000934
+        }
+      },
+      {
+        "index": 31,
+        "lang": "en",
+        "q": "aljameel olive oil",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.148400000000038
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 11.942599999998492
+        }
+      },
+      {
+        "index": 31,
+        "lang": "ar",
+        "q": "زيت زيتون الجميل",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 2.3271999999997206
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 18.63680000000022
+        }
+      },
+      {
+        "index": 32,
+        "lang": "en",
+        "q": "nestle cereal",
+        "before": {
+          "found": false,
+          "candidates": 0,
+          "ms": 1.9572000000007392
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 10.459000000000742
+        }
+      },
+      {
+        "index": 32,
+        "lang": "ar",
+        "q": "حبوب إفطار نستله",
+        "before": {
+          "found": true,
+          "candidates": 1,
+          "ms": 2.925699999999779
+        },
+        "after": {
+          "found": true,
+          "candidates": 1,
+          "ms": 13.902000000000044
+        }
+      }
+    ]
+  }
+}

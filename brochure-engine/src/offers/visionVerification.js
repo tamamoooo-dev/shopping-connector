@@ -4,6 +4,7 @@ import {
   canonicalRowFromResult,
   DEFAULT_MODEL,
   extractWithFailover,
+  servable,
 } from './enrich.js';
 import { EXTRACTION_STRATEGIES } from './smartExtraction.js';
 import { DEFAULT_IDENTITY_NORMALIZATION_MODE } from './identityBuilder.js';
@@ -21,7 +22,6 @@ import {
   visionVerificationFingerprint,
   visionVerificationFingerprintHash,
 } from '../storage/visionVerificationStore.js';
-import { CORROBORATION_FLOOR } from './servingFloor.js';
 
 // RE-JUDGE STORED EVIDENCE (2026-10-09). A rule change must not cost a new
 // model call for a crop that was already read: when the admission contract
@@ -48,9 +48,7 @@ export function rejudgeStoredAttempt(record, item) {
     structured: candidate.structured_product ?? null,
     observation: candidate.structured_product ? null : candidate.extraction_json ?? null,
   });
-  const passes = (row.name != null || row.name_ar != null)
-    && acceptance.accepted
-    && Number(row.corroboration) >= CORROBORATION_FLOOR;
+  const passes = servable(row) && acceptance.accepted;
   return passes ? { row, acceptance, validation, key: record.key || null } : null;
 }
 

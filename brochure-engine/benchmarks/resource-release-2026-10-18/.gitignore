@@ -1,0 +1,15 @@
+# Keep generated bundles, cached baseline source and exploratory tooling local.
+*
+!.gitignore
+!REPORT.md
+!score-implementation-holdout.mjs
+!implementation-holdout-truth.json
+!implementation-holdout-d1.json
+!implementation-holdout-manifest.json
+!implementation-holdout-protocol.json
+!implementation-holdout-results.json
+!diagnostic-replay.json
+!production-verification-due.json
+!live-query-cost.json
+!materialized-cost.json
+!cross-surface-results.json

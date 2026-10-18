@@ -306,7 +306,16 @@ function countWordFor(count, countUnit = DEFAULT_COUNT) {
 export function parsePackageSize({
   size = null, name = null, packCount = null, nonGrocery = false,
 } = {}) {
-  const canonical = parseSize(name || '', [size, packCount].filter(Boolean).join(' '));
+  // The explicit sale-size field outranks incidental measurements in a name
+  // (88 pcs beside a baby's 7–14kg weight). Preserve the name fallback when
+  // that field carries no parseable size.
+  const explicit = parseSize('', size || '');
+  const combined = parseSize(name || '', [size, packCount].filter(Boolean).join(' '));
+  const fieldSize = parseSize('', [size, packCount].filter(Boolean).join(' '));
+  const sameMagnitude = explicit?.unit && combined?.unit === explicit.unit && combined.each === explicit.each;
+  const canonical = explicit?.unit
+    ? (sameMagnitude && fieldSize.pack === 1 && combined.pack > 1 ? combined : fieldSize)
+    : combined;
   const context = `${name || ''} ${size || ''}`;
   const printed = readPrinted(size, name, { nonGrocery, context })
     || readPrinted(packCount, null, { nonGrocery, context });

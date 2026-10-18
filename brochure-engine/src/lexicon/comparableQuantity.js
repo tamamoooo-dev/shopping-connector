@@ -191,6 +191,37 @@ const ABSENT = Object.freeze({
 
 const positive = (value) => Number.isFinite(value) && value > 0;
 
+// Conservative arithmetic guards. Admission remains separate: an ambiguous
+// denominator must not hide an otherwise useful name and shelf price.
+function protectQuantity(quantity, { size, name, text }) {
+  const raw = String(size || '');
+  const context = `${name || ''} ${text || ''} ${raw}`;
+  let reason = null;
+  if (quantity.reference?.unit !== 'piece' && /diaper|حفاض|حفاظ|pampers/i.test(context)
+      && /\d\s*[-–]\s*\d|\d\s*(?:kg|كغ|كجم)/i.test(context)) reason = 'body_weight_risk';
+  else if (/\d\s*[-–]\s*\d|\bOR\b|\bAssorted Sizes\b/i.test(raw)) reason = 'range_or_variant';
+  else if (/tuna|تونة|تونه/i.test(context) && /oil|زيت/i.test(context)
+      && /\+|\bfree\b|مجانا|هدية|هديه/i.test(context)) reason = 'mixed_product_bundle';
+  if (!reason && raw.includes('+')) {
+    const parts = raw.split('+').map(part => parsePackageSize({ size: part.replace(/[()]/g, '') })?.canonical);
+    if (parts.every(p => p && ['g', 'ml'].includes(p.unit))
+        && parts.every(p => p.unit === parts[0].unit)) {
+      const total = parts.reduce((sum, p) => sum + p.total, 0);
+      return Object.freeze({ ...quantity,
+        reference: Object.freeze({ quantity: total / 1000, unit: parts[0].unit === 'g' ? 'kg' : 'l' }),
+        unitPriceComparable: true, heterogeneous: true,
+        source: 'explicit_same_unit_sum',
+      });
+    }
+    // Counts such as 3+1 x 120g already have an unambiguous parser reading.
+    // Only refuse unresolved additions that contain measures on BOTH sides.
+    if (parts.filter(p => p && ['g', 'ml'].includes(p.unit)).length > 1) reason = 'unresolved_additive_quantity';
+  }
+  return reason ? Object.freeze({ ...quantity, reference: null,
+    unitPriceComparable: false, source: `withheld:${reason}`,
+  }) : quantity;
+}
+
 // `packageType` and `heterogeneous` are PROVENANCE, added 2026-08-03 for the
 // per-item price. Neither is a fourth fact about the quantity: the first is
 // `resolvePackageType()`'s answer carried on every branch instead of only the
@@ -633,7 +664,7 @@ export function resolveComparableQuantity({
     // resolving on a fabricated mass.
     size, name, packCount, nonGrocery,
   });
-  return projectComparableQuantity(
+  return protectQuantity(projectComparableQuantity(
     parsedSize,
     resolvePackageType(packageType),
     {
@@ -642,7 +673,7 @@ export function resolveComparableQuantity({
         unit, size, name, text, sizeResolved: sizePresent(parsedSize),
       }),
     },
-  );
+  ), { size, name, text });
 }
 
 // The Structured Product already holds both parser outputs (`size` is
@@ -657,7 +688,7 @@ export function comparableQuantityFromStructured(structured, {
   nonGrocery = false, unit = null, text = null,
 } = {}) {
   const parsedSize = structured?.size ?? null;
-  return projectComparableQuantity(
+  return protectQuantity(projectComparableQuantity(
     parsedSize,
     structured?.package_type ?? null,
     {
@@ -670,5 +701,5 @@ export function comparableQuantityFromStructured(structured, {
         sizeResolved: sizePresent(parsedSize),
       }),
     },
-  );
+  ), { size: structured?.observed?.size, name: structured?.observed?.name_en, text });
 }

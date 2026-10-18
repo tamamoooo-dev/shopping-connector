@@ -225,7 +225,15 @@ export function effectivePurchasePrice(candidate = {}) {
 }
 
 export function quantityForOffer(candidate = {}) {
-  const base = watchQuantity(candidate.name, candidate.size, {
+  let base;
+  if (candidate.unitPriceResolved === true) {
+    const up = candidate.unitPrice;
+    const price = Number(candidate.price), value = Number(up?.value);
+    if (!REFERENCE_UNITS.includes(up?.unit) || !Number.isFinite(value) || value <= 0
+        || !Number.isFinite(price) || price <= 0) return null;
+    const total = price / value;
+    base = { unit: up.unit, each: total, pack: 1, total, src: 'engine_unit_price' };
+  } else base = watchQuantity(candidate.name, candidate.size, {
     unit: candidate.unit ?? null,
     text: [candidate.nameAr, candidate.name_ar].find((v) => typeof v === 'string' && v.trim()) ?? null,
   });

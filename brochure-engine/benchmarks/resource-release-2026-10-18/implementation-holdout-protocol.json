@@ -1,0 +1,12 @@
+{
+  "frozenAt": "2026-10-18T07:24:24.817Z",
+  "method": "Four unexpired offers per store, deterministic SQL ordering, all previous 32 image URLs excluded. Stored production outputs replayed without new inference. Visual reference facts must be recorded before scoring.",
+  "hashes": {
+    "src/matching.js": "88e88652b8443d325c65b005d248860570043349512550b62dc8a0c52bb6c75c",
+    "src/lexicon/packageSize.js": "21a22b64184522bbccbb4c11bd2172d0d076ac2396ba49094c088006751c7129",
+    "src/lexicon/comparableQuantity.js": "88f07ca7888848f5057a568dd3b837bb918a79545e298a88efbe82eda52d2134",
+    "src/offers/enrich.js": "0f399017e81731d4aeb72ac290f77e04d7d420d48165148664de818803740ceb",
+    "src/storage/enrichStore.js": "049234f55e639b16863f9df1cb7c0de1b129d4a508c46fadf82c413043a5ce2a",
+    "src/marketDate.js": "66198cedc1b37c5ed140cc01baddb77bf32865de36e14e0f4498968f2436f824"
+  }
+}

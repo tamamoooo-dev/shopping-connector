@@ -1,0 +1,262 @@
+{
+  "capturedAt": "2026-10-18T07:25:42.351Z",
+  "method": "First two of four deterministically selected offers per store. Review crops before inspecting stored extraction or scoring.",
+  "samples": [
+    {
+      "index": 1,
+      "store": "aljazera",
+      "id": "aljazera:central:d4d:99055599",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/26d759eef25b84e99dcd0300cde980b4.jpg",
+      "path": "implementation-holdout-assets/01.jpg",
+      "sha256": "25ee5c40abb165c8b57264c8687a0268a5ca32395c9c0df503be81fa8861a54d"
+    },
+    {
+      "index": 2,
+      "store": "aljazera",
+      "id": "aljazera:central:d4d:99055527",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/310ce6bc22785201627f0e8d3cf5e38d.jpg",
+      "path": "implementation-holdout-assets/02.jpg",
+      "sha256": "a4de512fef15622bd37e3ddcff8d1a76d83589edd0b1fbe679c17ae5ee490cd0"
+    },
+    {
+      "index": 3,
+      "store": "almadina",
+      "id": "almadina:central:d4d:99109911",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/3d301dd82749e6a09151a47a87c97075.jpg",
+      "path": "implementation-holdout-assets/03.jpg",
+      "sha256": "38b15219e2030bf9c37e9acbfa0506afe8981c698d4c77c2bde4894e33bf910a"
+    },
+    {
+      "index": 4,
+      "store": "almadina",
+      "id": "almadina:central:d4d:99113301",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/b790ead121cc1402c0eb2dc5d9038498.jpg",
+      "path": "implementation-holdout-assets/04.jpg",
+      "sha256": "66d2d1fff5f0f218a99fa6deacf6e5fb26b0adcad5d0e869f6719f65f597f602"
+    },
+    {
+      "index": 5,
+      "store": "alwafa",
+      "id": "alwafa:central:d4d:99076011",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/8780169b682b6540b8eeccefa2da4ee8.jpg",
+      "path": "implementation-holdout-assets/05.jpg",
+      "sha256": "a39406fbabf89fd8f702a47195671b01033ce73d9397e56627a6807f2cdeb25e"
+    },
+    {
+      "index": 6,
+      "store": "alwafa",
+      "id": "alwafa:central:d4d:99094656",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/8c8629b3b0f0f7b68ed58c9773a67e34.jpg",
+      "path": "implementation-holdout-assets/06.jpg",
+      "sha256": "e81d93e813a28cc4f4e2d53bf124cb44bd5c99b971a6f138cbb16b2c3b37b665"
+    },
+    {
+      "index": 7,
+      "store": "amarket",
+      "id": "amarket:central:d4d:99077706",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/c030a02aa89700226eb79b8d72c409dc.jpg",
+      "path": "implementation-holdout-assets/07.jpg",
+      "sha256": "1079fd65189bb56d9d09dd0e38b416964a2b17ee812106b0754c5e1616f7f085"
+    },
+    {
+      "index": 8,
+      "store": "amarket",
+      "id": "amarket:central:d4d:99077634",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/03aa55a61a8557c4455ea8c4b5bdc95a.jpg",
+      "path": "implementation-holdout-assets/08.jpg",
+      "sha256": "bbd8fa9f1ac1af4de91d4f9f246dcda53c7de942bd725f95526ea12b93c72b0d"
+    },
+    {
+      "index": 9,
+      "store": "carrefour",
+      "id": "carrefour:central:d4d:99099741",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/68e139c19b8ef30d8658966b7bad8db3.jpg",
+      "path": "implementation-holdout-assets/09.jpg",
+      "sha256": "b3290f8850a65d2d46cee2fad714fbb98b8d13b563df657a12aa384001071d68"
+    },
+    {
+      "index": 10,
+      "store": "carrefour",
+      "id": "carrefour:central:d4d:99099669",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/51a57e9aaa68a0f49fcc096a61414653.jpg",
+      "path": "implementation-holdout-assets/10.jpg",
+      "sha256": "f82b9ef1aef7080338d65c946871da635133b2e585d7453ab4c5a65a8a4b23a6"
+    },
+    {
+      "index": 11,
+      "store": "cityflower",
+      "id": "cityflower:central:d4d:98714616",
+      "image": "https://cdn.d4donline.com/u/a/26/10/7/3ec5723e9a7a9caa0c22bd2a36c9b895.jpg",
+      "path": "implementation-holdout-assets/11.jpg",
+      "sha256": "fc1915f794718808ab35c640ab1fb339e8187aeae4846025e0059190f8da0fb2"
+    },
+    {
+      "index": 12,
+      "store": "cityflower",
+      "id": "cityflower:central:d4d:99036378",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/436755c750d0ecf80bcf859e1957b082.jpg",
+      "path": "implementation-holdout-assets/12.jpg",
+      "sha256": "23acba3815056deb6fa8fcdc35b2e0ab3bd0b71e164037ab3238d7948947dfb5"
+    },
+    {
+      "index": 13,
+      "store": "danube",
+      "id": "danube:central:d4d:98685801",
+      "image": "https://cdn.d4donline.com/u/a/26/10/7/e89c9c56695fc5678aed62efe09e99d3.jpg",
+      "path": "implementation-holdout-assets/13.jpg",
+      "sha256": "4d9f0c87107fe0072bfa59d320d5c1d38e7c778d1654e66f1bd5679590a172db"
+    },
+    {
+      "index": 14,
+      "store": "danube",
+      "id": "danube:central:d4d:98687496",
+      "image": "https://cdn.d4donline.com/u/i/26/10/07/ba5f909d21d75579c0ca7f07a21ad951.jpg",
+      "path": "implementation-holdout-assets/14.jpg",
+      "sha256": "d0367b78f92657db1b721704cf052ad72d6f245bc0f647f3906d9a1fd2177bef"
+    },
+    {
+      "index": 15,
+      "store": "farm",
+      "id": "farm:central:d4d:99042039",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/22a1ddf8a5305c86748b800049cda204.jpg",
+      "path": "implementation-holdout-assets/15.jpg",
+      "sha256": "421474b480dc79af0d895d8b9eef41c8d7077f91b4cd7775aa135c89f5bed6ba"
+    },
+    {
+      "index": 16,
+      "store": "farm",
+      "id": "farm:central:d4d:99041967",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/1e9e6dbc79b408f8ef94374c0c2699e4.jpg",
+      "path": "implementation-holdout-assets/16.jpg",
+      "sha256": "a65e326231efec5a5beff5768a8e3986b0aec936a3325063d30004a284dec3fe"
+    },
+    {
+      "index": 17,
+      "store": "hyperpanda",
+      "id": "hyperpanda:central:d4d:99118386",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/4f51f01544651d318a2e1e479e8aa92d.jpg",
+      "path": "implementation-holdout-assets/17.jpg",
+      "sha256": "c4e15760ec9784a10ac9378ad55a04dd9ea5c514f0d839482e7fb25613635a62"
+    },
+    {
+      "index": 18,
+      "store": "hyperpanda",
+      "id": "hyperpanda:central:d4d:99120081",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/eb796747a694aa1cb003f6acea22c907.jpg",
+      "path": "implementation-holdout-assets/18.jpg",
+      "sha256": "dc2c1818929369696406b8061ccc198f3d4391ea76fc618eeff0410927518148"
+    },
+    {
+      "index": 19,
+      "store": "lulu",
+      "id": "lulu:central:d4d:99104826",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/a42c8747427bb9802a510c3200f65d3b.jpg",
+      "path": "implementation-holdout-assets/19.jpg",
+      "sha256": "98d882bf5eb16c0e9e699b12b125b6108f922b0b21dc22fc20d9a91f58f4396e"
+    },
+    {
+      "index": 20,
+      "store": "lulu",
+      "id": "lulu:central:d4d:98962230",
+      "image": "https://cdn.d4donline.com/u/a/26/10/10/b08583d0d503d738efaea14f9ca5682f.jpg",
+      "path": "implementation-holdout-assets/20.jpg",
+      "sha256": "f8295fa13fb4fdfcb8b181cfe31e5d7941c19ecf487ab93a0b99cad6dd8c7acd"
+    },
+    {
+      "index": 21,
+      "store": "marksave",
+      "id": "marksave:central:d4d:99062379",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/4404b1b833cd16b6232ab666cd4f3523.jpg",
+      "path": "implementation-holdout-assets/21.jpg",
+      "sha256": "3ed0f91c9542ef466ac7c6d19f06712da983272ebd1109b7cb0523689e4573c1"
+    },
+    {
+      "index": 22,
+      "store": "marksave",
+      "id": "marksave:central:d4d:99064074",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/829b24e5a143a5a6b23e4e08b391c6e4.jpg",
+      "path": "implementation-holdout-assets/22.jpg",
+      "sha256": "4dc07fb94a7900c4cad98977684740b52d0ff7b94a67da60da01f0cca61b303c"
+    },
+    {
+      "index": 23,
+      "store": "nesto",
+      "id": "nesto:central:d4d:99155748",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/ef2c416280bde822dabdeaa8b906c367.jpg",
+      "path": "implementation-holdout-assets/23.jpg",
+      "sha256": "f2c812072a89b77c667ee5dc63cccb6547bd553879a43d6f5218404a5ffef896"
+    },
+    {
+      "index": 24,
+      "store": "nesto",
+      "id": "nesto:central:d4d:99079401",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/da6992f4aeeeba3090483ede15cfd9c3.jpg",
+      "path": "implementation-holdout-assets/24.jpg",
+      "sha256": "9d1659cbfba2277562afbeb6b2ffe7c2c93dbc745d21648c921f4b74ba2865f2"
+    },
+    {
+      "index": 25,
+      "store": "othaim",
+      "id": "othaim:central:d4d:99101436",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/02850672b7e16582517ca10d3d9a85bc.jpg",
+      "path": "implementation-holdout-assets/25.jpg",
+      "sha256": "2ce3889e5a3dc23ce9e74b50211c4561f00f79d53cd7173db2c47bde08cc5eba"
+    },
+    {
+      "index": 26,
+      "store": "othaim",
+      "id": "othaim:central:d4d:99101364",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/395b8415d45fb678d3744f2255211071.jpg",
+      "path": "implementation-holdout-assets/26.jpg",
+      "sha256": "1ab8179793c885f307b7a596c2a102d1a683f0f1204ce58fe724ed4858539f4b"
+    },
+    {
+      "index": 27,
+      "store": "prime",
+      "id": "prime:central:d4d:98546667",
+      "image": "https://cdn.d4donline.com/u/a/26/10/5/0be6933959d638e5c6916147d640252a.jpg",
+      "path": "implementation-holdout-assets/27.jpg",
+      "sha256": "e986c33c25ae849947384938d14735699890029ae5440edff9e5c775c924990b"
+    },
+    {
+      "index": 28,
+      "store": "prime",
+      "id": "prime:central:d4d:99135336",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/1745883ad9e0c607881aa2d3243d118b.jpg",
+      "path": "implementation-holdout-assets/28.jpg",
+      "sha256": "7633f0b6a06466396b69c0c0ce1042c0a47a6ff03c3ac0e35152731c4f9716e3"
+    },
+    {
+      "index": 29,
+      "store": "ramez",
+      "id": "ramez:central:d4d:99146985",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/364773b4b7be55c11313de8f7940368f.jpg",
+      "path": "implementation-holdout-assets/29.jpg",
+      "sha256": "69ef306b47529e4bf74d558d4ba4111581b7b3f9fe9bad1943614da7083e67f1"
+    },
+    {
+      "index": 30,
+      "store": "ramez",
+      "id": "ramez:central:d4d:99146841",
+      "image": "https://cdn.d4donline.com/u/a/26/10/14/335461a085d81db680d3b400692155b4.jpg",
+      "path": "implementation-holdout-assets/30.jpg",
+      "sha256": "a4f53b95ebafb0645e655113df9074702ac2a27518fa92fd1413e31ec82a5c14"
+    },
+    {
+      "index": 31,
+      "store": "tamimi",
+      "id": "tamimi:central:d4d:99050514",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/e5042af08c1a0b158e668b98fa64d3fe.jpg",
+      "path": "implementation-holdout-assets/31.jpg",
+      "sha256": "4dde8b9b31419d03ebbe3ce9b4a14fc8e420d44f16c41b5509c9fe5bbfc66e31"
+    },
+    {
+      "index": 32,
+      "store": "tamimi",
+      "id": "tamimi:central:d4d:99050442",
+      "image": "https://cdn.d4donline.com/u/a/26/10/13/998236ea0af810e41efd00a291690bb4.jpg",
+      "path": "implementation-holdout-assets/32.jpg",
+      "sha256": "7d53d592e847c71cef30f09023c5a1f9bb11d285db90bbb0f45b643fc9aeb965"
+    }
+  ]
+}

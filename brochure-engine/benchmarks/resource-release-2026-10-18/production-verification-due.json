@@ -1,0 +1,36 @@
+[
+  {
+    "results": [
+      {
+        "status": "queued",
+        "current_queue_rows": 13275,
+        "due_under_deployed_policy": 0,
+        "at_or_above_read_cap": 159
+      },
+      {
+        "status": "verified",
+        "current_queue_rows": 410,
+        "due_under_deployed_policy": 0,
+        "at_or_above_read_cap": 40
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 414.6179
+      },
+      "duration": 414.6179,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 54590,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]

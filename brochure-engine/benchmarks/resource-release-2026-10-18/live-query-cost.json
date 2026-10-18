@@ -1,0 +1,164 @@
+[
+  {
+    "results": [
+      {
+        "variant": "before",
+        "query": "cornflakes",
+        "prefilter_candidates": 0
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 606.4875
+      },
+      "duration": 606.4875,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 26510,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "variant": "after",
+        "query": "cornflakes",
+        "prefilter_candidates": 21
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 199.7523
+      },
+      "duration": 199.7523,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 52277,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "variant": "before",
+        "query": "rice 1kg",
+        "prefilter_candidates": 120
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 69.4256
+      },
+      "duration": 69.4256,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 27379,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "variant": "after",
+        "query": "rice 1kg",
+        "prefilter_candidates": 120
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 301.0934
+      },
+      "duration": 301.0934,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 74426,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "variant": "before",
+        "query": "ويفر لواكر",
+        "prefilter_candidates": 0
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 56.755
+      },
+      "duration": 56.755,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 26510,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  },
+  {
+    "results": [
+      {
+        "variant": "after",
+        "query": "ويفر لواكر",
+        "prefilter_candidates": 13
+      }
+    ],
+    "success": true,
+    "meta": {
+      "served_by": "v3-prod",
+      "served_by_region": "EEUR",
+      "served_by_colo": "FRA",
+      "served_by_primary": true,
+      "timings": {
+        "sql_duration_ms": 214.6531
+      },
+      "duration": 214.6531,
+      "changes": 0,
+      "last_row_id": 0,
+      "changed_db": false,
+      "size_after": 477384704,
+      "rows_read": 52321,
+      "rows_written": 0,
+      "total_attempts": 1
+    }
+  }
+]

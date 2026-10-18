@@ -1,3 +1,4 @@
+import { marketDate } from '../marketDate.js';
 // Resumable D4D image collection for every D4D-backed provider.
 //
 // One HOP advances one brochure by at most BATCH_PAGES; on Workers Paid one
@@ -268,7 +269,7 @@ export async function collectD4dBatch(
   });
   const requiredRefs = new Set(
     ctx.offerStore?.requiredFlyerRefs
-      ? await ctx.offerStore.requiredFlyerRefs(store, region, new Date().toISOString().slice(0, 10))
+      ? await ctx.offerStore.requiredFlyerRefs(store, region, marketDate())
       : [],
   );
   sortRefs(refs, requiredRefs);

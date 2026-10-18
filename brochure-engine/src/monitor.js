@@ -1,3 +1,4 @@
+import { marketDate } from './marketDate.js';
 // monitor.js — Price Monitoring (the Keepa-inspired Personal Alerts feature).
 //
 // A WATCH is a target price on something the user wants to buy. It is anchored
@@ -1350,6 +1351,8 @@ function offerAsListing(offer, row = {}) {
     currency: offer.currency || 'SAR',
     link: offer.link || null,
     image: offer.imageUrl || null,
+    unitPrice: offer.unitPrice ?? null,
+    unitPriceResolved: Object.hasOwn(offer, 'unitPrice'),
   };
 }
 
@@ -1405,7 +1408,7 @@ async function sweepFlyers(ctx, query, notes) {
   try {
     const rows = await ctx.offerStore.search({
       q: query,
-      currentOn: new Date().toISOString().slice(0, 10),
+      currentOn: marketDate(),
       limit: CANDIDATE_SEARCH_LIMIT,
     });
     const out = [];
@@ -1600,7 +1603,7 @@ export async function evaluateWatch(ctx, watch, notes = [], {
   if (anchor.kind === 'product' && ctx.registryStore?.bestCurrentForProduct) {
     try {
       const best = await ctx.registryStore.bestCurrentForProduct(
-        product.id, new Date().toISOString().slice(0, 10),
+        product.id, marketDate(),
       );
       if (best) {
         observations.push({

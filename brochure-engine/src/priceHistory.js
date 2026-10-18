@@ -1,3 +1,4 @@
+import { marketDate } from './marketDate.js';
 // priceHistory.js — CATALOG-WIDE Price History (Pillar 3), redesigned
 // 2026-07-04. Price History is a trust feature: it answers "what is the best
 // price this product has ever reached?" — for EVERY comparable product, with
@@ -257,7 +258,7 @@ export async function getQueryPricesDoc(historyStore, q, { today } = {}) {
 
   const identById = new Map(kept.map((r) => [r.id, r]));
   const points = await historyStore.pointsForIdentities([...identById.keys()]);
-  const on = today || new Date().toISOString().slice(0, 10);
+  const on = today || marketDate();
 
   // Variant buckets: sized identities group by unit+total; unsized stay apart.
   const buckets = new Map();
