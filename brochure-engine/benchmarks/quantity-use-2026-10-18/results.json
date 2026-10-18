@@ -1,0 +1,1437 @@
+{
+  "testedAt": "2026-10-18T20:06:57.122Z",
+  "catalogRows": 12972,
+  "sqlMs": 282.9693,
+  "sqlJsIdentical": 12972,
+  "reviewedImages": 88,
+  "changedRows": 33,
+  "zeroInferenceRequests": true,
+  "unchangedCommerceAndNames": 12972,
+  "goldBefore": 0,
+  "goldAfter": 33,
+  "goldTotal": 33,
+  "changes": [
+    {
+      "index": 1,
+      "id": "prime:central:d4d:99145170",
+      "count": "3 PCS",
+      "sizeBefore": "185ML",
+      "sizeAfter": "3 x 185 ml",
+      "before": {
+        "value": 14.864864864864865,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "after": {
+        "value": 4.954954954954954,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 0.9166666666666666,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 2,
+      "id": "danube:central:d4d:98685783",
+      "count": "4 PCS",
+      "sizeBefore": "32g",
+      "sizeAfter": "4 x 32 g",
+      "before": {
+        "value": 93.4375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 23.359375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 0.7475,
+        "pack": 4
+      },
+      "score": "correct"
+    },
+    {
+      "index": 4,
+      "id": "prime:central:d4d:99136149",
+      "count": "5 PCS",
+      "sizeBefore": "1 KG",
+      "sizeAfter": "5 x 1 kg",
+      "before": {
+        "value": 3.99,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 0.798,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 0.798,
+        "pack": 5
+      },
+      "score": "correct"
+    },
+    {
+      "index": 5,
+      "id": "prime:central:d4d:99135591",
+      "count": "5 PCS",
+      "sizeBefore": "170GM",
+      "sizeAfter": "5 x 170 g",
+      "before": {
+        "value": 29.11764705882353,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 5.8235294117647065,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 0.99,
+        "pack": 5
+      },
+      "score": "correct"
+    },
+    {
+      "index": 6,
+      "id": "danube:central:d4d:98685762",
+      "count": "4 PCS",
+      "sizeBefore": "40g",
+      "sizeAfter": "4 x 40 g",
+      "before": {
+        "value": 124.75,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 31.1875,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 1.2475,
+        "pack": 4
+      },
+      "score": "correct"
+    },
+    {
+      "index": 12,
+      "id": "danube:central:d4d:98685516",
+      "count": "5 PCS",
+      "sizeBefore": "26.5g",
+      "sizeAfter": "5 x 26.5 g",
+      "before": {
+        "value": 226.03773584905662,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 45.20754716981132,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 1.1980000000000002,
+        "pack": 5
+      },
+      "score": "correct"
+    },
+    {
+      "index": 13,
+      "id": "danube:central:d4d:98685027",
+      "count": "4 PCS",
+      "sizeBefore": "1kg",
+      "sizeAfter": "4 x 1 kg",
+      "before": {
+        "value": 5.99,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 1.4975,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 1.4975,
+        "pack": 4
+      },
+      "score": "correct"
+    },
+    {
+      "index": 14,
+      "id": "danube:central:d4d:98686521",
+      "count": "3 PCS",
+      "sizeBefore": "120g",
+      "sizeAfter": "3 x 120 g",
+      "before": {
+        "value": 49.91666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 16.63888888888889,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 1.9966666666666666,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 16,
+      "id": "danube:central:d4d:98685453",
+      "count": "4 PCS",
+      "sizeBefore": "22.5g",
+      "sizeAfter": "4 x 22.5 g",
+      "before": {
+        "value": 310.6666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 77.66666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 1.7475,
+        "pack": 4
+      },
+      "score": "correct"
+    },
+    {
+      "index": 17,
+      "id": "danube:central:d4d:98685603",
+      "count": "3 PCS",
+      "sizeBefore": "32g",
+      "sizeAfter": "3 x 32 g",
+      "before": {
+        "value": 234.375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 78.125,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 2.5,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 18,
+      "id": "danube:central:d4d:98685585",
+      "count": "3 PCS",
+      "sizeBefore": "32g",
+      "sizeAfter": "3 x 32 g",
+      "before": {
+        "value": 234.375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 78.125,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 2.5,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 24,
+      "id": "danube:central:d4d:98685579",
+      "count": "4 PCS",
+      "sizeBefore": "80g",
+      "sizeAfter": "4 x 80 g",
+      "before": {
+        "value": 99.875,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 24.96875,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 1.9975,
+        "pack": 4
+      },
+      "score": "correct"
+    },
+    {
+      "index": 27,
+      "id": "aljazera:central:d4d:99055977",
+      "count": "3 PCS",
+      "sizeBefore": "36G",
+      "sizeAfter": "3 x 36 g",
+      "before": {
+        "value": 236.11111111111114,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 78.70370370370371,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 2.8333333333333335,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 28,
+      "id": "danube:central:d4d:98685825",
+      "count": "3 PCS",
+      "sizeBefore": "100g",
+      "sizeAfter": "3 x 100 g",
+      "before": {
+        "value": 89.89999999999999,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 29.96666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 2.9966666666666666,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 29,
+      "id": "danube:central:d4d:98685393",
+      "count": "3 PCS",
+      "sizeBefore": "155g",
+      "sizeAfter": "3 x 155 g",
+      "before": {
+        "value": 58,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 19.333333333333332,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 2.9966666666666666,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 31,
+      "id": "danube:central:d4d:98684235",
+      "count": "2 PCS",
+      "sizeBefore": "340 GM",
+      "sizeAfter": "2 x 340 g",
+      "before": {
+        "value": 26.441176470588236,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 13.220588235294118,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 4.495,
+        "pack": 2
+      },
+      "score": "correct"
+    },
+    {
+      "index": 32,
+      "id": "danube:central:d4d:98683923",
+      "count": "3 PCS",
+      "sizeBefore": "450g",
+      "sizeAfter": "3 x 450 g",
+      "before": {
+        "value": 19.977777777777778,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 6.659259259259259,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 2.9966666666666666,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 36,
+      "id": "aljazera:central:d4d:99055830",
+      "count": "3 PCS",
+      "sizeBefore": "170G",
+      "sizeAfter": "3 x 170 g",
+      "before": {
+        "value": 57.35294117647059,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 19.11764705882353,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 3.25,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 37,
+      "id": "prime:central:d4d:99135360",
+      "count": "2 PCS",
+      "sizeBefore": "155GM",
+      "sizeAfter": "2 x 155 g",
+      "before": {
+        "value": 64.19354838709677,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 32.096774193548384,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 4.975,
+        "pack": 2
+      },
+      "score": "correct"
+    },
+    {
+      "index": 41,
+      "id": "danube:central:d4d:98684403",
+      "count": "3 PCS",
+      "sizeBefore": "90g",
+      "sizeAfter": "3 x 90 g",
+      "before": {
+        "value": 111,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 37,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 3.3300000000000005,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 42,
+      "id": "danube:central:d4d:98683920",
+      "count": "3 PCS",
+      "sizeBefore": "400g",
+      "sizeAfter": "3 x 400 g",
+      "before": {
+        "value": 24.974999999999998,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 8.325000000000001,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 3.33,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 44,
+      "id": "danube:central:d4d:98686785",
+      "count": "3 PCS",
+      "sizeBefore": "400g",
+      "sizeAfter": "3 x 400 g",
+      "before": {
+        "value": 24.974999999999998,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 8.325000000000001,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 3.33,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 48,
+      "id": "aljazera:central:d4d:99055959",
+      "count": "3 PCS",
+      "sizeBefore": "30.6G",
+      "sizeAfter": "3 x 30.6 g",
+      "before": {
+        "value": 326.4705882352941,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 108.8235294117647,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 3.33,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 52,
+      "id": "nesto:central:d4d:99088257",
+      "count": "3 PCS",
+      "sizeBefore": "340gm",
+      "sizeAfter": "3 x 340 g",
+      "before": {
+        "value": 29.382352941176467,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 9.794117647058824,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 3.3300000000000005,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 56,
+      "id": "prime:central:d4d:99135579",
+      "count": "4 PCS",
+      "sizeBefore": "170 GM",
+      "sizeAfter": "4 x 170 g",
+      "before": {
+        "value": 58.764705882352935,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 14.691176470588234,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 2.4975,
+        "pack": 4
+      },
+      "score": "correct"
+    },
+    {
+      "index": 58,
+      "id": "aljazera:central:d4d:99055404",
+      "count": "2 PCS",
+      "sizeBefore": "120G",
+      "sizeAfter": "2 x 120 g",
+      "before": {
+        "value": 83.33333333333334,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 41.66666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 5,
+        "pack": 2
+      },
+      "score": "correct"
+    },
+    {
+      "index": 63,
+      "id": "aljazera:central:d4d:99055950",
+      "count": "3 PCS",
+      "sizeBefore": "35G",
+      "sizeAfter": "3 x 35 g",
+      "before": {
+        "value": 299.99999999999994,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 100,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 3.4999999999999996,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 64,
+      "id": "prime:central:d4d:99135459",
+      "count": "5 PCS",
+      "sizeBefore": "170GM",
+      "sizeAfter": "5 x 170 g",
+      "before": {
+        "value": 64.41176470588235,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 12.88235294117647,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 2.1899999999999995,
+        "pack": 5
+      },
+      "score": "correct"
+    },
+    {
+      "index": 69,
+      "id": "aljazera:central:d4d:99056379",
+      "count": "2 PCS",
+      "sizeBefore": "500ML",
+      "sizeAfter": "2 x 500 ml",
+      "before": {
+        "value": 21.98,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "after": {
+        "value": 10.99,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 5.495,
+        "pack": 2
+      },
+      "score": "correct"
+    },
+    {
+      "index": 71,
+      "id": "danube:central:d4d:98686524",
+      "count": "3 PCS",
+      "sizeBefore": "150g",
+      "sizeAfter": "3 x 150 g",
+      "before": {
+        "value": 79.93333333333334,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 26.644444444444446,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 3.9966666666666666,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 72,
+      "id": "danube:central:d4d:98685438",
+      "count": "3 PCS",
+      "sizeBefore": "30.5g",
+      "sizeAfter": "3 x 30.5 g",
+      "before": {
+        "value": 393.11475409836066,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 131.03825136612022,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 3.9966666666666666,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 74,
+      "id": "danube:central:d4d:98688498",
+      "count": "3 PCS",
+      "sizeBefore": "85gm",
+      "sizeAfter": "3 x 85 g",
+      "before": {
+        "value": 141.05882352941177,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 47.01960784313726,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 3.996666666666667,
+        "pack": 3
+      },
+      "score": "correct"
+    },
+    {
+      "index": 79,
+      "id": "danube:central:d4d:98683779",
+      "count": "3 PCS",
+      "sizeBefore": "450g",
+      "sizeAfter": "3 x 450 g",
+      "before": {
+        "value": 31.08888888888889,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "after": {
+        "value": 10.362962962962962,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachBefore": null,
+      "eachAfter": {
+        "value": 4.663333333333333,
+        "pack": 3
+      },
+      "score": "correct"
+    }
+  ],
+  "gold": [
+    {
+      "index": 1,
+      "id": "prime:central:d4d:99145170",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 14.864864864864865,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 4.954954954954954,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 2,
+      "id": "danube:central:d4d:98685783",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 93.4375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 23.359375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 4,
+      "id": "prime:central:d4d:99136149",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 3.99,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 0.798,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 5,
+      "id": "prime:central:d4d:99135591",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 29.11764705882353,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 5.8235294117647065,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 6,
+      "id": "danube:central:d4d:98685762",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 124.75,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 31.1875,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 12,
+      "id": "danube:central:d4d:98685516",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 226.03773584905662,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 45.20754716981132,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 13,
+      "id": "danube:central:d4d:98685027",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 5.99,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 1.4975,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 14,
+      "id": "danube:central:d4d:98686521",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 49.91666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 16.63888888888889,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 16,
+      "id": "danube:central:d4d:98685453",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 310.6666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 77.66666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 17,
+      "id": "danube:central:d4d:98685603",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 234.375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 78.125,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 18,
+      "id": "danube:central:d4d:98685585",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 234.375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 78.125,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 24,
+      "id": "danube:central:d4d:98685579",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 99.875,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 24.96875,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 27,
+      "id": "aljazera:central:d4d:99055977",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 236.11111111111114,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 78.70370370370371,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 28,
+      "id": "danube:central:d4d:98685825",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 89.89999999999999,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 29.96666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 29,
+      "id": "danube:central:d4d:98685393",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 58,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 19.333333333333332,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 31,
+      "id": "danube:central:d4d:98684235",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 26.441176470588236,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 13.220588235294118,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 32,
+      "id": "danube:central:d4d:98683923",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 19.977777777777778,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 6.659259259259259,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 36,
+      "id": "aljazera:central:d4d:99055830",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 57.35294117647059,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 19.11764705882353,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 37,
+      "id": "prime:central:d4d:99135360",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 64.19354838709677,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 32.096774193548384,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 41,
+      "id": "danube:central:d4d:98684403",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 111,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 37,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 42,
+      "id": "danube:central:d4d:98683920",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 24.974999999999998,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 8.325000000000001,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 44,
+      "id": "danube:central:d4d:98686785",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 24.974999999999998,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 8.325000000000001,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 48,
+      "id": "aljazera:central:d4d:99055959",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 326.4705882352941,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 108.8235294117647,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 52,
+      "id": "nesto:central:d4d:99088257",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 29.382352941176467,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 9.794117647058824,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 56,
+      "id": "prime:central:d4d:99135579",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 58.764705882352935,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 14.691176470588234,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 58,
+      "id": "aljazera:central:d4d:99055404",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 83.33333333333334,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 41.66666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 63,
+      "id": "aljazera:central:d4d:99055950",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 299.99999999999994,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 100,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 64,
+      "id": "prime:central:d4d:99135459",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 64.41176470588235,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 12.88235294117647,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 69,
+      "id": "aljazera:central:d4d:99056379",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 21.98,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 10.99,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 71,
+      "id": "danube:central:d4d:98686524",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 79.93333333333334,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 26.644444444444446,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 72,
+      "id": "danube:central:d4d:98685438",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 393.11475409836066,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 131.03825136612022,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 74,
+      "id": "danube:central:d4d:98688498",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 141.05882352941177,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 47.01960784313726,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    },
+    {
+      "index": 79,
+      "id": "danube:central:d4d:98683779",
+      "before": "wrong",
+      "after": "correct",
+      "beforeValue": {
+        "value": 31.08888888888889,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "afterValue": {
+        "value": 10.362962962962962,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      }
+    }
+  ],
+  "truthSha256": "34b4bcffe057249af4c70e6ac90a9e49d45b8c8744b895ecb8f5ccd8ad276426"
+}

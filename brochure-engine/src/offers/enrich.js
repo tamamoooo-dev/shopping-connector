@@ -60,6 +60,7 @@ import {
 } from './identityBuilder.js';
 import { resolveBrand } from '../lexicon/brands.js';
 import { isNonGrocery } from '../lexicon/productClass.js';
+import { parsePackageSize } from '../lexicon/packageSize.js';
 import {
   COMPARABLE_QUANTITY_EVIDENCE,
   eachPriceFrom,
@@ -232,7 +233,7 @@ export function applyUnitPrice(offer, row, isServable = true) {
   // how the gate and the pricer came to disagree about a "40's" tissue pack.
   // Asking the same question in the same place makes that class of drift
   // unrepresentable.
-  const quantity = resolveComparableQuantity({
+  const inputs = {
     size,
     name,
     unit,
@@ -240,9 +241,28 @@ export function applyUnitPrice(offer, row, isServable = true) {
     // and nothing else does.
     text: [offer?.nameAr, row?.search_text].filter(Boolean).join(' ') || null,
     nonGrocery: isNonGrocery(offer?.category ?? row?.category ?? null),
-  });
+  };
+  let quantity = resolveComparableQuantity(inputs);
+  let countedSize = null;
+  // Only fill the omitted count on an otherwise resolved single measure.
+  // Preserve printed bases, ambiguity refusals, existing multipacks and all
+  // unservable/non-grocery observations. The store supplies only a count
+  // independently corroborated by the retailer's explicit sale badge.
+  const packCount = isServable ? row?.e_pack_count : null;
+  const alternativeSize = /[0-9٠-٩۰-۹]\s*[/–-]\s*[0-9٠-٩۰-۹]/u.test(`${size || ''} ${name || ''}`);
+  if (!inputs.nonGrocery && packCount && quantity.reference
+      && quantity.evidence === COMPARABLE_QUANTITY_EVIDENCE.MEASURE
+      && quantity.pack === 1 && !quantity.heterogeneous && !alternativeSize) {
+    const counted = resolveComparableQuantity({ ...inputs, packCount });
+    if (counted.reference && counted.evidence === quantity.evidence
+        && counted.quantity === quantity.quantity && counted.unit === quantity.unit
+        && counted.pack === Number.parseInt(packCount, 10) && !counted.heterogeneous) {
+      quantity = counted;
+      countedSize = parsePackageSize({ size, name, packCount })?.display_en ?? null;
+    }
+  }
 
-  offer.size = size;
+  offer.size = countedSize || size;
   offer.sellingMode = quantity.sellingMode;
   offer.priceBasis = quantity.evidence === COMPARABLE_QUANTITY_EVIDENCE.PRICE_BASIS
     ? {

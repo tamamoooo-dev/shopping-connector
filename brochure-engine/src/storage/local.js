@@ -12,7 +12,7 @@ import { queryTokens, offerRelevance, relevanceScore, rowToOffer } from '../offe
 import { expandToken } from '../matching.js';
 import { applyEnrichment, servable } from '../offers/enrich.js';
 import { hasUsableCommercePrice } from '../offers/commerceScore.js';
-import { readExtractionPackageType, readExtractionUnit, visionMatchText } from './enrichStore.js';
+import { readExtractionPackageType, readExtractionUnit, readExtractionPackCount, visionMatchText } from './enrichStore.js';
 import {
   BUILDER_SCORE_VERSION,
   buildArabicShadow,
@@ -421,6 +421,7 @@ export function createMemoryOfferStore({
         // The D1 twin extracts this with json_extract; here the parsed object
         // is already to hand. Feeds the price basis (applyUnitPrice).
         e_unit: readExtractionUnit(e?.extraction_json),
+        e_pack_count: readExtractionPackCount(e?.extraction_json, r.search_text),
         e_package_type: readExtractionPackageType(e?.extraction_json),
         e_attributes: e?.extraction_json ? (() => {
           try { const obs = typeof e.extraction_json === 'string' ? JSON.parse(e.extraction_json) : e.extraction_json;

@@ -1,0 +1,15 @@
+{
+  "method":"Assistant visual annotations from all 88 original candidate crops; no independent human adjudicator. Only unambiguous sale totals below are scored for adoption; others remain documented controls. 3% relative tolerance preserves the prior audit convention; the Skittles/M&M reading has a 0.1g discrepancy per tube.",
+  "references":[
+    [1,"l",0.555],[2,"kg",0.128],[4,"kg",5],[5,"kg",0.85],[6,"kg",0.16],
+    [12,"kg",0.1325],[13,"kg",4],[14,"kg",0.36],[16,"kg",0.09],[17,"kg",0.096],
+    [18,"kg",0.096],[24,"kg",0.32],[27,"kg",0.108],[28,"kg",0.3],[29,"kg",0.465],
+    [31,"kg",0.68],[32,"kg",1.35],[36,"kg",0.51],[37,"kg",0.31],[41,"kg",0.27],
+    [42,"kg",1.2],[44,"kg",1.2],[48,"kg",0.0918],[52,"kg",1.02],[56,"kg",0.68],
+    [58,"kg",0.24],[63,"kg",0.105],[64,"kg",0.85],[69,"l",1],[71,"kg",0.45],
+    [72,"kg",0.0918],[74,"kg",0.255],[79,"kg",1.35]
+  ],
+  "rangeControls":[57,59,60,61,62,68,86],
+  "internalCountControl":{"index":83,"unit":"kg","reference":0.55,"reason":"six burgers INSIDE one 550g box; never six boxes"},
+  "ambiguousKitControl":{"index":87,"reason":"4-piece perfume set; 100ml alone is not clear combined contents"}
+}

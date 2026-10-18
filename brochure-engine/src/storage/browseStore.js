@@ -16,6 +16,7 @@
 import {
   FROZEN_MARK_TERMS, PROCESSED_MARK_TERMS, FRESH_GUARD_TERMS,
 } from '../browse/mapping.js';
+import { corroboratedPackCountSql } from '../offers/observedPackCount.js';
 import {
   ENRICH_JOIN, CANON_NAME_SQL, SERVABLE_SQL, canonicalNameArSql,
 } from './enrichStore.js';
@@ -85,6 +86,7 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
     -- template literal, where one would end the string.
     ${SERVABLE_SQL} AS servable, e.model AS e_model, e.size AS e_size,
     json_extract(e.extraction_json, '$.unit') AS e_unit,
+    ${corroboratedPackCountSql()} AS e_pack_count,
     json_extract(e.extraction_json, '$.package_type') AS e_package_type`;
   const markNames = `(ifnull(${CANON_NAME_SQL},'') || ' ' || ifnull(${canonicalNameAr},''))`;
   const likeAny = (terms) => terms.map((t) => `${markNames} LIKE '%${t}%'`).join(' OR ');

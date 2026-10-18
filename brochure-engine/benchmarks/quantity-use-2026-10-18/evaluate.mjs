@@ -1,0 +1,35 @@
+import {readFileSync,writeFileSync,mkdirSync} from 'node:fs';
+import {gunzipSync} from 'node:zlib';
+import {createHash} from 'node:crypto';
+import {DatabaseSync} from 'node:sqlite';
+import assert from 'node:assert/strict';
+import {applyEnrichment} from '../../src/offers/enrich.js';
+import {corroboratedPackCount,corroboratedPackCountSql} from '../../src/offers/observedPackCount.js';
+const dir=new URL('./',import.meta.url);
+const read=n=>JSON.parse(readFileSync(new URL(n,dir),'utf8'));
+const catalog=JSON.parse(gunzipSync(readFileSync(new URL('../search-quality-2026-10-18/catalog.json.gz',dir)))).results;
+const counts=new Map(JSON.parse(gunzipSync(readFileSync(new URL('counts.json.gz',dir)))).map(r=>[r.id,r.quantity]));
+const cases=read('review-cases.json'),truth=read('truth.json');
+const sqlite=new DatabaseSync(':memory:');sqlite.exec('CREATE TABLE offers(id TEXT, search_text TEXT); CREATE TABLE enrichments(id TEXT, extraction_json TEXT);');
+const insertO=sqlite.prepare('INSERT INTO offers VALUES(?,?)'),insertE=sqlite.prepare('INSERT INTO enrichments VALUES(?,?)');
+sqlite.exec('BEGIN');for(const r of catalog){insertO.run(r.id,r.search_text);insertE.run(r.id,JSON.stringify({quantity:counts.get(r.id)??null}));}sqlite.exec('COMMIT');
+const started=performance.now();
+const sqlRows=sqlite.prepare(`SELECT o.id, ${corroboratedPackCountSql()} AS pack FROM offers o LEFT JOIN enrichments e ON e.id=o.id`).all();
+const sqlMs=performance.now()-started,projected=new Map(sqlRows.map(r=>[r.id,r.pack]));
+const changes=[],gold=[];
+for(const r of catalog){
+ const count=corroboratedPackCount(counts.get(r.id),r.search_text);assert.equal(projected.get(r.id),count,r.id);
+ const original={name:r.name,nameAr:r.name_ar,price:r.price,category:r.category};
+ const before=structuredClone(original),after=structuredClone(original);
+ const beforeHay=applyEnrichment(before,r),afterHay=applyEnrichment(after,{...r,e_pack_count:count});
+ assert.equal(beforeHay,afterHay);assert.equal(before.price,after.price);assert.equal(before.name,after.name);assert.equal(before.nameAr,after.nameAr);
+ const c=cases.find(x=>x.id===r.id),reference=c&&truth.references.find(t=>t[0]===c.reviewIndex);
+ const score=o=>!reference?'unscored':!o.unitPrice?'withheld':o.unitPrice.unit===reference[1]&&Math.abs(o.unitPrice.value-r.price/reference[2])/(r.price/reference[2])<.03?'correct':'wrong';
+ if(reference)gold.push({index:c.reviewIndex,id:r.id,before:score(before),after:score(after),beforeValue:before.unitPrice,afterValue:after.unitPrice});
+ if(before.size!==after.size||JSON.stringify(before.unitPrice)!==JSON.stringify(after.unitPrice)||JSON.stringify(before.eachPrice)!==JSON.stringify(after.eachPrice))changes.push({index:c?.reviewIndex,id:r.id,count,sizeBefore:before.size,sizeAfter:after.size,before:before.unitPrice,after:after.unitPrice,eachBefore:before.eachPrice,eachAfter:after.eachPrice,score:score(after)});
+}
+const unreviewed=changes.filter(c=>c.index==null);assert.equal(unreviewed.length,0,'Every changed row must be covered by original-image review');
+assert.ok(changes.every(c=>c.score==='correct'),'Every changed arithmetic result must pass its image reference');
+assert.ok(gold.every(r=>r.after==='correct'),'All targeted references corrected');
+const result={testedAt:new Date().toISOString(),catalogRows:catalog.length,sqlMs,sqlJsIdentical:sqlRows.length,reviewedImages:cases.length,changedRows:changes.length,zeroInferenceRequests:true,unchangedCommerceAndNames:catalog.length,goldBefore:gold.filter(r=>r.before==='correct').length,goldAfter:gold.filter(r=>r.after==='correct').length,goldTotal:gold.length,changes,gold,truthSha256:createHash('sha256').update(readFileSync(new URL('truth.json',dir))).digest('hex')};
+writeFileSync(new URL('results.json',dir),JSON.stringify(result,null,2));console.log(JSON.stringify({...result,changes:undefined,gold:undefined},null,2));

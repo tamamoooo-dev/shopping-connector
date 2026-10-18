@@ -32,6 +32,7 @@
 // matches against, exactly as search_text is for OCR.
 
 import { normalizeText } from '../matching.js';
+import { corroboratedPackCount, corroboratedPackCountSql } from '../offers/observedPackCount.js';
 import { observedNameSql } from '../observedText.js';
 import { CORROBORATION_FLOOR, servable } from '../offers/enrich.js';
 import {
@@ -176,6 +177,7 @@ export function enrichRowCols(enabled = false) {
     // extraction_json because it was preserved before anything consumed it;
     // json_extract is cheaper than a migration and keeps the column verbatim.
     "e.size AS e_size, json_extract(e.extraction_json, '$.unit') AS e_unit, " +
+    `${corroboratedPackCountSql()} AS e_pack_count, ` +
     // `package_type` rides the same json_extract for the same reason, and is
     // read by the per-item price: a `set` is a package whose items cannot be
     // bought one at a time (comparableQuantity.js eachPriceFrom, gate 7).
@@ -205,6 +207,10 @@ export function readExtractionUnit(extractionJson) {
 
 export function readExtractionPackageType(extractionJson) {
   return readExtractionField(extractionJson, 'package_type');
+}
+
+export function readExtractionPackCount(extractionJson, searchText) {
+  return corroboratedPackCount(readExtractionField(extractionJson, 'quantity'), searchText);
 }
 
 export const ENRICH_ROW_COLS = enrichRowCols(false);

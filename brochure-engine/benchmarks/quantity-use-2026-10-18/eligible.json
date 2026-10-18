@@ -1,0 +1,3522 @@
+[
+  {
+    "index": 8,
+    "id": "prime:central:d4d:99145170",
+    "name": "WAW SPARKLING SODA COLA/ORANGE/CITRUS 185ML",
+    "nameAr": "مشروب غازي كولا/برتقال/حمضيات 185 مل",
+    "size": "185ML",
+    "count": "3 PCS",
+    "price": 2.75,
+    "category": "soft-drinks",
+    "text": "sparks اصناف محدده specific items soon wain a waw cola wa citrus 919 orange 3 00 2 75 3 حبه 3 pcs واو مشروب غازي كولا برتقال حمضيات 185 مل waw sparkling soda cola orange citrus 185ml prime supermarket اسواق النخبه soft drinks مشروبات غازيه ശ തളപ ന യങ ങൾ سافٹ ڈرنكس ক মল প ন য alkolsüz i çecekler soft drinks ம ன ப னங கள sodas स फ ट ड र क श तल प य पद र थ soft drinks",
+    "before": {
+      "value": 14.864864864864865,
+      "unit": "l",
+      "label": "SAR/L",
+      "source": "derived"
+    },
+    "after": {
+      "value": 4.954954954954954,
+      "unit": "l",
+      "label": "SAR/L"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 185,
+      "unit": "ml",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.555,
+        "unit": "l"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/691d3f3dca950d06990065b6ba82eb6a.jpg"
+  },
+  {
+    "index": 9,
+    "id": "danube:central:d4d:98685783",
+    "name": "Sunbites Bread Bites 32g",
+    "nameAr": "شطيرة خبز صن بايتس 32غ",
+    "size": "32g",
+    "count": "4 PCS",
+    "price": 2.99,
+    "category": "bread-buns",
+    "text": "حبات 4 pcs 2 99 4 00 sunbites صن بايتس bread bites cheese wers جينه واعشاب شرايح خبز من بايتس 432 sunbites bread bites 32g 10266815 10266825 danube الدانوب bread buns",
+    "before": {
+      "value": 93.4375,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 23.359375,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 32,
+      "unit": "g",
+      "pack": 4,
+      "reference": {
+        "quantity": 0.128,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/f8d04b0a3d2a6c9ee780824cc5e35d9b.jpg"
+  },
+  {
+    "index": 10,
+    "id": "prime:central:d4d:99136770",
+    "name": null,
+    "nameAr": "تاييت مسحوق غسيل ملابس تايد",
+    "size": "110GM",
+    "count": "3PCS",
+    "price": 3.5,
+    "category": "laundry",
+    "text": "guaranteess 110 guaranteed tide whiteness tide 110 aranteed tide whiteness tide 110 مسحوق مركز old size 3pcs x 110gm 3 50 5 88 3pcs x 260gm 7 50 12 45 تايت مسحوق غسيل ملابس tide hs washing powder prime supermarket اسواق النخبه laundry الغسيل ല ൺട ര لانڈري লন ড র çamaşır paglalaba சலவ lavage ल न ड र ल ग ध न laundry",
+    "before": {
+      "value": 31.818181818181817,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 10.606060606060606,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 110,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.33,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/418254c9ebbf484b35c818a2dd6885c3.jpg"
+  },
+  {
+    "index": 14,
+    "id": "prime:central:d4d:99136149",
+    "name": "QOOT & ROOT SUPERIOR FLOUR FOR ALL PURPOSES 1 KG",
+    "nameAr": "دقيق قوت روت سوبرير لجميع الأغراض ١ كيلو",
+    "size": "1 KG",
+    "count": "5 PCS",
+    "price": 3.99,
+    "category": "flour-baking",
+    "text": "فيعه افضل لكل يوم قيمه افضل لكل يوم قيمه افضل لكل يوم قيمه افضل لكل يوم قيمه الامل لكل يوم قوت فوت قوت الدروت روت الدروت qoot root qoot roo qoot root دقيق فاخر دقيق فاخر دقيق فاخر superior flour لجميع الاستخدامات for all purposes superior flour superior flour لجميع الاستخدامات لجميع الاستخدامات for all purposes for all purposes 11 25 الوزن الصافي net weight 1xe ه حبه 3 99 5pcs عالي دقيق قوت وروت سوبريور لجميع الاغراض 1 كيلو qoot root superior flour for all purposes 1 kg prime supermarket اسواق النخبه flour baking",
+    "before": {
+      "value": 3.99,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 0.798,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 1,
+      "unit": "kg",
+      "pack": 5,
+      "reference": {
+        "quantity": 5,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/0649b1cb5b29670601e9fa3f38e57c8d.jpg"
+  },
+  {
+    "index": 19,
+    "id": "prime:central:d4d:99135591",
+    "name": "LENA EVAPORATED MILK ANALOGUE 170GM",
+    "nameAr": "لينا حليب مبخر مماثل 170 جرام",
+    "size": "170GM",
+    "count": "5 PCS",
+    "price": 4.95,
+    "category": "powdered-condensed-milk",
+    "text": "lena evaporated milk analogue lena parates bpde evaporated milk analogue apa paratab stellates ingen السلام مهر معلم وملحنين ات ملا بكر دوله lena evaporated milk pann pdm lena evaporated milk lena evaporated milk pat ingredie analogue vitamin bapene pastab stellate ingiden analogue wank السلام مهر معلم وملحنين بالن با يكم مجموعه podwod والالام تمر معلم ومتجانس كن ا لد ينظم بمعضل 10 50 ه حبه 4 95 5pcs علي لينا حليب مبخر مماثل ۱۷۰ جرام lena evaporated milk analogue 170gm prime supermarket اسواق النخبه powdered condensed milk",
+    "before": {
+      "value": 29.11764705882353,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 5.8235294117647065,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 170,
+      "unit": "g",
+      "pack": 5,
+      "reference": {
+        "quantity": 0.85,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/b7b6bf830ad433b59211ee1df9e2aced.jpg"
+  },
+  {
+    "index": 20,
+    "id": "danube:central:d4d:98685762",
+    "name": "Luppo Choco Cake 40g",
+    "nameAr": "كيك شوكولا لوبو",
+    "size": "40g",
+    "count": "4 PCS",
+    "price": 4.99,
+    "category": "cakes-pastry",
+    "text": "4 99 7 00 luppo chaca caramel uppe choco anemy momurs كيك شوكولاته لوبو 40 غ luppo choco cake 40g حبات 4 pcs 11056335 9098005 danube الدانوب cakes pastry",
+    "before": {
+      "value": 124.75,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 31.1875,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 40,
+      "unit": "g",
+      "pack": 4,
+      "reference": {
+        "quantity": 0.16,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/51dca398df420611c8f4c056a8c84996.jpg"
+  },
+  {
+    "index": 23,
+    "id": "hyperpanda:central:d4d:99119499",
+    "name": null,
+    "nameAr": "شوكولاتة جالكسي فلوتس إصبعين (2) جرام",
+    "size": "22.5g",
+    "count": "3 PCS",
+    "price": 4.99,
+    "category": "chocolates-candies",
+    "text": "snickers flutes mars 3 pcs متنوع assorted 4 99 علي شوكولاته جالكسي فلوتس اصبعين 22 5 جرام galaxy flutes chcoclate 2 s 22 5g hyper panda هايبر بنده chocolates candies",
+    "before": {
+      "value": 221.7777777777778,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 73.92592592592592,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 22.5,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.0675,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/d6b3ec7c2aabd8aeadc67baca73c69c4.jpg"
+  },
+  {
+    "index": 25,
+    "id": "hyperpanda:central:d4d:99117852",
+    "name": "Herfy Soft Cookies (30g)",
+    "nameAr": "كوكيز طرية هرفي (30 جرام)",
+    "size": "30g",
+    "count": "2 PCS",
+    "price": 4.99,
+    "category": "biscuits",
+    "text": "درسي 10t coo or مرضي soft cookies كوكيز طريه هرفي 30 جرام herfy soft cookies 30g 2 pc4 4 99 hyper panda هايبر بنده biscuits بسكويت ബ സ ക കറ റ بسكٹس ব স ক ট bisküvi mga biskwit ப ஸ கட biscuits ब स क ट ब स क ट biscuits",
+    "before": {
+      "value": 166.33333333333334,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 83.16666666666667,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 30,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.06,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/1ac77bcfed79d3c812dbbda0bc8ca8f2.jpg"
+  },
+  {
+    "index": 31,
+    "id": "alwafa:central:d4d:99096159",
+    "name": "Breadberries White Bread 300gm",
+    "nameAr": "خبز أبيض البانتوت الأبيض",
+    "size": "300gm",
+    "count": "2 PC",
+    "price": 5,
+    "category": "bread-buns",
+    "text": "7 99 5 2 pc خبز ابيض بالتوت البري 30 جرام breadberries white bread 300gm hyper al wafa هايبر الوفاء bread buns",
+    "before": {
+      "value": 16.666666666666668,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 8.333333333333334,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 300,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.6,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/70adc2f3b2b42f292aa69cd7d3ddd631.jpg"
+  },
+  {
+    "index": 33,
+    "id": "alwafa:central:d4d:99074943",
+    "name": "Breadberries White Bread 300gm",
+    "nameAr": "خبز أبيض البانتو الأبيض",
+    "size": "300gm",
+    "count": "2 PC",
+    "price": 5,
+    "category": "bread-buns",
+    "text": "2 pc 7 99 5 خبز ابيض بالتوت البري 30 جرام breadberries white bread 300gm hyper al wafa هايبر الوفاء bread buns",
+    "before": {
+      "value": 16.666666666666668,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 8.333333333333334,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 300,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.6,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/6882ad0173c64559d93e33e87cafe982.jpg"
+  },
+  {
+    "index": 44,
+    "id": "danube:central:d4d:98685558",
+    "name": "Ozmo Fun Choco Lollipop 23g",
+    "nameAr": "لولي بوب شوكولا أوزمو",
+    "size": "23g",
+    "count": "2 PCS",
+    "price": 5.99,
+    "category": null,
+    "text": "5 99 8 00 czad fun fun لولي بوب شوكولا اوزمو ۲۳ غ ozmo fun choco lollipop 23g حبتان 2 pcs 9178195 danube الدانوب",
+    "before": {
+      "value": 260.4347826086957,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 130.21739130434784,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 23,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.046,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/e3c503c0b2c25eecc490862b9a8e9601.jpg"
+  },
+  {
+    "index": 45,
+    "id": "danube:central:d4d:98685516",
+    "name": "Storck Mamba 26.5g",
+    "nameAr": "مامبا 26.5 جم",
+    "size": "26.5g",
+    "count": "5 PCS",
+    "price": 5.99,
+    "category": null,
+    "text": "5 99 7 50 storch storch mamba mamba storck com storck storck mamba storck ستورك مامبا 426 5 storck mamba 26 5g حبات 5 pcs 61315 danube الدانوب",
+    "before": {
+      "value": 226.03773584905662,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 45.20754716981132,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 26.5,
+      "unit": "g",
+      "pack": 5,
+      "reference": {
+        "quantity": 0.1325,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/4454056db49a55e8e47b008dec45d863.jpg"
+  },
+  {
+    "index": 47,
+    "id": "danube:central:d4d:98685027",
+    "name": "Qoot & Root QOOT AND ROOT SUPERIOR FLOUR FOR ALL PURPOSES 1kg",
+    "nameAr": "طحين فاخر قوت اند روت 1 كيلو",
+    "size": "1kg",
+    "count": "4 PCS",
+    "price": 5.99,
+    "category": "flour-baking",
+    "text": "5 99 9 00 99 9 قوت رون قوت الدروت قوت الدروت قوت روت qoot root دقيق فاخر superior flour الجميع الاستخدامات for all purposes qoot root دقيق فاخر superior flour qoot root دقيق فاخر superior flour الون انساني لجميع الاستخدامات 1 for all purposes الوزن الصافي لجميع الاستخدامات for all purposes طحين فاخر قوت اند روت 1 كيلو qoot root flour 1kg 1 حبات 4 pcs 10423775 danube الدانوب flour baking",
+    "before": {
+      "value": 5.99,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 1.4975,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 1,
+      "unit": "kg",
+      "pack": 4,
+      "reference": {
+        "quantity": 4,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/3f148232659b2cf0b76e1af55d66c090.jpg"
+  },
+  {
+    "index": 49,
+    "id": "danube:central:d4d:98686521",
+    "name": "Activia Yoghurt 120g",
+    "nameAr": "زبادي طازج أكتيفيا",
+    "size": "120g",
+    "count": "3 PCS",
+    "price": 5.99,
+    "category": "yogurt-labneh",
+    "text": "danube الدانوب 5 99 750 عالم activia حبات 3 pcs natural probiotics activia مدعيات قويه تاليه اكتيفيا اكتيفيا مد عمات حيويه طبقه activa اكتيفيا اكتيفيا بال محمول عاده زبادي طازج اكتيفيا 120غ activa youghurt 120g 10259275 10259285 yogurt labneh",
+    "before": {
+      "value": 49.91666666666667,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 16.63888888888889,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 120,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.36,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/07/ffae2efbc7fe71f6e29976b94160d147.jpg"
+  },
+  {
+    "index": 60,
+    "id": "danube:central:d4d:98685537",
+    "name": "Lago Plaisir Chocolate Milk Chocolate 38g NEW LOOK\nLago Plaisir Chocolate Fondant Dark Chocolate 38g NEW LOOK",
+    "nameAr": "وافر باليسار بوكير ٣٨",
+    "size": "38g",
+    "count": "2 PCS",
+    "price": 6.99,
+    "category": null,
+    "text": "6 99 9 00 lago plaisir chocolate cioccolato allatte milk chocolate ماله lago plaisir chocolate cioccolato fondente dark chocolate ويفر باليسار بوكر 438 lago plaisir wafer 38g new look حبتان 2 pcs new look ggenmesta presetunne po 38g 1 3oz po 38g 1 3oz appetito dipresentacione 10479605 danube الدانوب",
+    "before": {
+      "value": 183.94736842105263,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 91.97368421052632,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 38,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.076,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/07bbd46fa2be09287e54089774172d5b.jpg"
+  },
+  {
+    "index": 61,
+    "id": "danube:central:d4d:98685453",
+    "name": "NEW SNICKERS Wafer Rolls 22.5g",
+    "nameAr": "وافر رول تويكس / جالكسي / باونتي فلوتيس سنيكرز",
+    "size": "22.5g",
+    "count": "4 PCS",
+    "price": 6.99,
+    "category": null,
+    "text": "حبات 4 pcs 6 99 10 00 new new bounty snickers axy tutes new 2x 2x wafors snickers wafer rolls ويفر رول تويكس جالكسي باونتي فلوتس 422 5 galaxy flutes twix bounty wafer roll 22 5g 10403685 90375 danube الدانوب",
+    "before": {
+      "value": 310.6666666666667,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 77.66666666666667,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 22.5,
+      "unit": "g",
+      "pack": 4,
+      "reference": {
+        "quantity": 0.09,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/9aaad4a144f2808cb174efa60ca1ce1e.jpg"
+  },
+  {
+    "index": 75,
+    "id": "danube:central:d4d:98685603",
+    "name": null,
+    "nameAr": "شوكولا فليك كادبوري",
+    "size": "32g",
+    "count": "3 PCS",
+    "price": 7.5,
+    "category": "chocolates-candies",
+    "text": "7 50 11 85 cadbury flake dipped flake dipped cadbury cadbury flake dipped carbay flake dipped cadbury flake dipped cadbury flake dipped شوكولاته فليك كادبوري 32 غ cadbury flake chocolate 32g حبات 3 pcs 10457845 danube الدانوب chocolates candies",
+    "before": {
+      "value": 234.375,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 78.125,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 32,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.096,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/90ef6893dc799604b5426bd6bc5946c6.jpg"
+  },
+  {
+    "index": 76,
+    "id": "danube:central:d4d:98685585",
+    "name": "Cadbury Dairy Milk Chocolate 32g",
+    "nameAr": "شوكولا ديري ميلك كادبوري ٣٢غ",
+    "size": "32g",
+    "count": "3 PCS",
+    "price": 7.5,
+    "category": "chocolates-candies",
+    "text": "7 50 11 95 حبات 3 pcs cadbury dairy milk cadbury new shape dairy milk 195 new shape 195 chocolate len شوكولاته ديري ميلك كادبوري 432 cadbury dairy milk 32g 10513595 danube الدانوب chocolates candies",
+    "before": {
+      "value": 234.375,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 78.125,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 32,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.096,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/0efc7a6f5eb2bc78fb9f43613b0f147f.jpg"
+  },
+  {
+    "index": 82,
+    "id": "danube:central:d4d:98685927",
+    "name": null,
+    "nameAr": "شيس ليز 90",
+    "size": "90g",
+    "count": "2 PCS",
+    "price": 7.99,
+    "category": "snacks",
+    "text": "7 99 11 00 محكمه قعيه قرمشه مناره intense flavor perfect crunch intense flavor perfect crunc lay s ju نكهه قويه قرمشه مثاليه نكهه قويه مرمسه مثاليقا intense flavor perfect crunch 1 بكاتشب الطماطم حبتان 2 pcs lay s ju tomato ketchup بالجبنه الفرنسيه french cheese شيبس ليز 90 غ lays chips 90g lay s ju بالفلفل الحار chili potato chips 10305065 10305075 danube الدانوب snacks وجبات خفيفه ലഘ ഭക ഷണ سنيكس স ন য ক স atıştırmalıklar mga meryenda ச ற ற ண ட snacks स न क ख ज snacks",
+    "before": {
+      "value": 88.77777777777779,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 44.38888888888889,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 90,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.18,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/b1421a038ea38a626b80f9088b448b46.jpg"
+  },
+  {
+    "index": 83,
+    "id": "danube:central:d4d:98685924",
+    "name": "Raja Potato Crunchies Assorted 120g",
+    "nameAr": "بطاطس مقرمشة متنوعة راجا ١٢٠",
+    "size": "120g",
+    "count": "2 PCS",
+    "price": 7.99,
+    "category": null,
+    "text": "7 99 13 00 هي لنا دار راجا مني النا دار ga الجاد عرنا vaja طبيعتنا قرمشه ما تلعلها الا عقدنا 2030 100 حبتان 2 pcs الجاد aja beeks3 crundres ketchup سعودي الصنع بطاطس مقرمشه متنوع راجا 4120 raja potato crunchies assorted 120g 10430315 10430325 danube الدانوب",
+    "before": {
+      "value": 66.58333333333334,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 33.29166666666667,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 120,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.24,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/bf72edb1901897ce1dbc6f03a45c4529.jpg"
+  },
+  {
+    "index": 85,
+    "id": "danube:central:d4d:98685909",
+    "name": "Fairco Potato Stix 40g",
+    "nameAr": "عيدان البطاطس فيركو",
+    "size": "40g",
+    "count": "2 PCS",
+    "price": 7.99,
+    "category": "snacks",
+    "text": "7 99 9 00 علي hotstix fairco fairco رجيه حقيقه لذيذه عيدان البطاطس المملحه عيدان البطاطا لفل حار عيدان البطاطا عيدان البطاطس فيركو 440 fairco potato stix 40g حبتان 2 pcs 10260755 10260765 danube الدانوب snacks وجبات خفيفه ലഘ ഭക ഷണ سنيكس স ন য ক স atıştırmalıklar mga meryenda ச ற ற ண ட snacks स न क ख ज snacks",
+    "before": {
+      "value": 199.75,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 99.875,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 40,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.08,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/7d6e59455eb0b853746a73d6043d64e2.jpg"
+  },
+  {
+    "index": 86,
+    "id": "danube:central:d4d:98685618",
+    "name": null,
+    "nameAr": "حلاوة كوبيكو بنكهة القهوة",
+    "size": "140g",
+    "count": "2 PCS",
+    "price": 7.99,
+    "category": "chocolates-candies",
+    "text": "7 99 11 90 strong rich coffee candy strong bich coffee candy kopiko ako 150 ge حلاوه كوبيكو بنكهه القهوه 140 غ kopiko coffee candy 140g حبتان 2 pcs 942455 danube الدانوب chocolates candies",
+    "before": {
+      "value": 57.07142857142857,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 28.535714285714285,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 140,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.28,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/1995d036f3aa9e634a70e83d4569e59e.jpg"
+  },
+  {
+    "index": 87,
+    "id": "danube:central:d4d:98685621",
+    "name": null,
+    "nameAr": "شوكولا جوديفا",
+    "size": "35gm",
+    "count": "2 PCS",
+    "price": 7.99,
+    "category": "chocolates-candies",
+    "text": "7 99 9 95 godiva belgium 1926 mousse cappuccino hile chocolate bar godiva bel 1926 creamy capames chocolate gar godiva belium 1926 creamy chocolate bar godiva belgium 1926 double chocolate bar godiva belgian 1926 hango and peach dark chocolate bar شوكولاته جوديفا 435 godiva chocolte bar 35gm حبتان 2 pcs 10252185 danube الدانوب chocolates candies",
+    "before": {
+      "value": 228.28571428571428,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 114.14285714285714,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 35,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.07,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/8904683aada34d85253e37526e996f23.jpg"
+  },
+  {
+    "index": 88,
+    "id": "danube:central:d4d:98685579",
+    "name": "Bebeto Gumy Candy 80g",
+    "nameAr": "حلاوة بيبيتو",
+    "size": "80g",
+    "count": "4 PCS",
+    "price": 7.99,
+    "category": "chocolates-candies",
+    "text": "7 99 13 00 حبات 4 pcs bebeto ocean park gummy canoy bebeto ice cream gunny candy bebeto sour worms gunny candy حلاوه بيبيتو 480 bebeto gumy candy 80g juice 10521945 danube الدانوب chocolates candies",
+    "before": {
+      "value": 99.875,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 24.96875,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 80,
+      "unit": "g",
+      "pack": 4,
+      "reference": {
+        "quantity": 0.32,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/aee1b9c86fbf86806ad3f96b47e2f665.jpg"
+  },
+  {
+    "index": 89,
+    "id": "danube:central:d4d:98685525",
+    "name": "KitKat CHUNKY 40g",
+    "nameAr": "شوكولايت كيت كات كيتكات",
+    "size": "40g",
+    "count": "2 PCS",
+    "price": 7.99,
+    "category": "chocolates-candies",
+    "text": "7 99 9 90 40g kitkat nesus chunky nestle chunky caramel chunky lotus شوكولاته كيت كات 440 nestle kitkat chunky 40g حبتان 2 pcs 10290535 danube الدانوب chocolates candies",
+    "before": {
+      "value": 199.75,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 99.875,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 40,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.08,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/68068a1e0e07ec70c651d231ba404b5a.jpg"
+  },
+  {
+    "index": 91,
+    "id": "danube:central:d4d:98686770",
+    "name": "Saudi Beef Minced 400g",
+    "nameAr": "مفروم بقر السعودية",
+    "size": "400g",
+    "count": "2 PCS",
+    "price": 7.99,
+    "category": "frozen-meat",
+    "text": "danube الدانوب 7 99 11 98 روم بق beef mince beef mince beef mince beef mince مفروم بقر السعوديه 4400 saudi beef minced 400g حبتان 2 pcs 527135 frozen meat لحوم مجمده ഫ ര സൺ മ സ منجمد گوشت হ ম য ত ম স donmuş et frozen na karne உற ந த இற ச ச viande congelée फ र ज़ न म स जम क म स frozen meat",
+    "before": {
+      "value": 19.974999999999998,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 9.987499999999999,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 400,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.8,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/07/e64da2791d57aeaf069654019bd6e253.jpg"
+  },
+  {
+    "index": 105,
+    "id": "aljazera:central:d4d:99055977",
+    "name": "GALAXY CHOCOTES CRISPY 36G",
+    "nameAr": "شوكولاته جالكسي كريسي (36غم)",
+    "size": "36G",
+    "count": "3 PCS",
+    "price": 8.5,
+    "category": "chocolates-candies",
+    "text": "galaxy حبات crispy 3 pcs talaxy crispy 830 calaxy 8 50 crispy شوكولاته جالكسي كريسبي 36 غم galaxy chocotes crispy 36g aljazera shopping center اسواق الجزيره chocolates candies",
+    "before": {
+      "value": 236.11111111111114,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 78.70370370370371,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 36,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.108,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/bed9ca3ce5b49dc28dab2817b45567e9.jpg"
+  },
+  {
+    "index": 108,
+    "id": "danube:central:d4d:98685825",
+    "name": "Cuetara Krit Round Crackers 100g",
+    "nameAr": "كويتارا كريت مقرمشات دائرية",
+    "size": "100g",
+    "count": "3 PCS",
+    "price": 8.99,
+    "category": null,
+    "text": "8 99 12 00 cuetara krit round crackers كويتارا كريت مقرمشات دايريه 100 غ cuetara krit round crackers 100g حبات 3 pcs 10521525 danube الدانوب",
+    "before": {
+      "value": 89.89999999999999,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 29.96666666666667,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 100,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.3,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/867c41bbd0b4558663492e42833bdd81.jpg"
+  },
+  {
+    "index": 110,
+    "id": "danube:central:d4d:98685393",
+    "name": "Hala Pure Cream 155g",
+    "nameAr": "شيبة قشطه دلي قولدن 100",
+    "size": "155g",
+    "count": "3 PCS",
+    "price": 8.99,
+    "category": "cheese-creame",
+    "text": "8 99 1197 حبات 3 pcs valita valita ita lala m hala cream شبيه قشطه حلي قولدن 155 غ hala pure cream 155g 5769635 danube الدانوب cheese creame",
+    "before": {
+      "value": 58,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 19.333333333333332,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 155,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.465,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/9fd144b8c8fae5bdcfb5bb02d0b4ead8.jpg"
+  },
+  {
+    "index": 113,
+    "id": "danube:central:d4d:98684400",
+    "name": "Libbys Tomato Peeled / Chopped 400g",
+    "nameAr": "طماطم مقشرة / مقطعة ليبيز",
+    "size": "400g",
+    "count": "2 PCS",
+    "price": 8.99,
+    "category": null,
+    "text": "منذ عام 1869 8 99 علي 13 00 علي حبتان 2 pcs منذ عام 1869 ليييز عاليه الجوده طماطم مقطعه ليبيز عاليه الجوده طماطم كامله مقشره luned palab لبروميل 10521025 10521035 طماطم مقشره مقطعه ليبيز 4400 libbys tomato peeled chopped 400g danube الدانوب",
+    "before": {
+      "value": 22.474999999999998,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 11.237499999999999,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 400,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.8,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/96a41189dbb8988361adfee243e7a69a.jpg"
+  },
+  {
+    "index": 114,
+    "id": "danube:central:d4d:98684235",
+    "name": "FRESHEY Whole Kernel Corn No Sugar, No Salt 340 GM",
+    "nameAr": "ذره حب شهل الفتح خالي سكر والملح",
+    "size": "340 GM",
+    "count": "2pcs",
+    "price": 8.99,
+    "category": "canned-packeted",
+    "text": "8 99 13 50 حبه 2pcs freshly whole kernel corn no sugar no salt 10438985 29 50 ذره حب سهل الفتح خالي سكر والملح whole kernel corn no sugar salt 340 gm 9038335 danube الدانوب canned packeted",
+    "before": {
+      "value": 26.441176470588236,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 13.220588235294118,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.68,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/324e711160f0daf5c288d07211d173e5.jpg"
+  },
+  {
+    "index": 115,
+    "id": "danube:central:d4d:98683923",
+    "name": "Green Farms Pasta Assorted 450g",
+    "nameAr": "مكرونة جرين فارمز",
+    "size": "450g",
+    "count": "3 PCS",
+    "price": 8.99,
+    "category": "pasta-noodles",
+    "text": "8 99 حبات 3 pcs 14 97 green farms green farms green farms green farms يريه مقطعه vermicelli ه ذهبيه رفيعه fase golden cart green farms مكرونه طويله كلا سيك classic long pasta penne اسباغيتي spaghetti مكرونه اكو elbow 4500 مكرونه جرين فارمز 4450 سن enne مكرونه با pasto 4500 t 10534895 10534905 green farms pasta assorted 450g danube الدانوب pasta noodles",
+    "before": {
+      "value": 19.977777777777778,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 6.659259259259259,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 450,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.35,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/bc625fe6d500e04abf9ca2b420fe220a.jpg"
+  },
+  {
+    "index": 117,
+    "id": "danube:central:d4d:98686512",
+    "name": null,
+    "nameAr": "زبادي يوناني نادك",
+    "size": "160g",
+    "count": "2 PCS",
+    "price": 8.99,
+    "category": "yogurt-labneh",
+    "text": "danube الدانوب10405825 10405835 حبتان 2 pcs زبادي يوناني ع زبادي يوناني ابادين يوناني بدون مدار مخالف dec 8 99 ابادي نادل يوناني nadec زبادي يوناي نادك 160غ nadec greek yoghurt 160g 11 00 علي ว ง nadec yogurt labneh",
+    "before": {
+      "value": 56.1875,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 28.09375,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 160,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.32,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/07/0830db496659b71984534b6acb361547.jpg"
+  },
+  {
+    "index": 119,
+    "id": "danube:central:d4d:98684256",
+    "name": "PEEP PENNE RIGATE 400GM",
+    "nameAr": "مكرونة البيو المكرونة بيتي ريجيتا",
+    "size": "400GM",
+    "count": "3pcs",
+    "price": 8.99,
+    "category": "pasta-noodles",
+    "text": "danube الدانوب3pcs peep penne rigate مكرونه ني ريحاني peep elbow مكرونه البو peep spaghetti سباغيتي diauni ricate large 8 99 13 50 epp كرونه اسبقتي مكرونه دتانلي ريقيت مكرونه البو مكرونه بيتي ريقيت penne rigate 400gm 10474945 peep elbow 400gm 10475115 ditalini rigate l 400gm 10475135 spaghetti 400gm 10475125 pasta noodles",
+    "before": {
+      "value": 22.474999999999998,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 7.491666666666667,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 400,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.2,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/07/4923ea3e03e5802be6aff080914ccbaf.jpg"
+  },
+  {
+    "index": 140,
+    "id": "aljazera:central:d4d:99056073",
+    "name": "KITCO MEXITA TORTILLA CHIPS 180G ASSORTED",
+    "nameAr": "كتكو مكسيتا رقائق تورتييا مشتوة (180 غم)",
+    "size": "180G",
+    "count": "2 PCS",
+    "price": 9.5,
+    "category": "snacks",
+    "text": "2 حيه 2 pcs 9 50 kircel mexita hot chile lime fortilla chips kitco mexita sweet chilli 10tblk chips pepper kirch mexita sweet sour kico mexita nacho cheese e كتكو مكسيتا رقايق تورتيلا متنوعه ۱۸۰ غم kitco mexita tortilla chips 180g assorted aljazera shopping center اسواق الجزيره snacks وجبات خفيفه ലഘ ഭക ഷണ سنيكس স ন য ক স atıştırmalıklar mga meryenda ச ற ற ண ட snacks स न क ख ज snacks",
+    "before": {
+      "value": 52.77777777777778,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 26.38888888888889,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 180,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.36,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/a19640099840ea381a15cb1cff3a4aee.jpg"
+  },
+  {
+    "index": 141,
+    "id": "aljazera:central:d4d:99055830",
+    "name": "NADEC ANALOGUE CREAM VEGETABLE OIL FAT 170G",
+    "nameAr": "ناديك شيب القشطة بالزيت النباتي 170 غم نادك",
+    "size": "170G",
+    "count": "3 PCS",
+    "price": 9.75,
+    "category": "cheese-creame",
+    "text": "log cream used with ปวง nadec slogue cream ۳ حبات 3 pcs 9 75 القشطه المقبل علي الدي ww ۱۷۰ حرام cl with ปวง nadec ปวง nadec نادك شبيه القشطه بالزيت النباتي ۱۷۰ غم nadec analogue cream vegetable oil fat 170g aljazera shopping center اسواق الجزيره cheese creame",
+    "before": {
+      "value": 57.35294117647059,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 19.11764705882353,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 170,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.51,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/2aca4a955e3d6972176b274a42c71546.jpg"
+  },
+  {
+    "index": 142,
+    "id": "prime:central:d4d:99135360",
+    "name": "CRACKLES POTATO CHIPS 155GM",
+    "nameAr": "كراكلز رقائق بطاطس 100 جرام",
+    "size": "155GM",
+    "count": "2 PCS",
+    "price": 9.95,
+    "category": "snacks",
+    "text": "كرا كلم اصناف محدده specific items جديد ها new كراكان cackles كراكلز crackles رقايق بطاطس potato chips 3 nad گر اكلز جديد new crackle ب بطاطس potato chips كراكلز الجديد crackles رقايق بطاطس potato chips من مدل by nadec ناتشب ketchu علي من ندل 2 حبه 15 00 9 95 2 pcs كراكلز رقايق بطاطس 155 جرام crackles potato chips 155gm prime supermarket اسواق النخبه snacks وجبات خفيفه ലഘ ഭക ഷണ سنيكس স ন য ক স atıştırmalıklar mga meryenda ச ற ற ண ட snacks स न क ख ज snacks",
+    "before": {
+      "value": 64.19354838709677,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 32.096774193548384,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 155,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.31,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/5a272020c3944a5ab3c684f86d94bb19.jpg"
+  },
+  {
+    "index": 143,
+    "id": "danube:central:d4d:98686515",
+    "name": null,
+    "nameAr": "حليب بروتين 320 مل ندى",
+    "size": "320 ml",
+    "count": "2 PCS",
+    "price": 9.99,
+    "category": "milk-laban",
+    "text": "9 99 1190 علي ندي ندي حبتان 2 pcs ندي ندي ندي nada nada nada naba napa napa prote prote protein rote protein lotein alphonso mange flavored mick chocolate milk vanilla milk dates milk strawberry milk plain milk 30 30 30 30 30 30 0 0 fat rood sugar fat bat 0 0 0 0 0 0 0 0 0 0 abou fat eat added fat adgeo sugn ندي حليب بروتين ۳۲۰ مل nada protein milk 320ml 10285335 10285345 danube الدانوب milk laban",
+    "before": {
+      "value": 31.21875,
+      "unit": "l",
+      "label": "SAR/L",
+      "source": "derived"
+    },
+    "after": {
+      "value": 15.609375,
+      "unit": "l",
+      "label": "SAR/L"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 320,
+      "unit": "ml",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.64,
+        "unit": "l"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/90cb6ec24f2db0e856799febfc171525.jpg"
+  },
+  {
+    "index": 146,
+    "id": "danube:central:d4d:98685423",
+    "name": "Galaxy Fusions Blonde Chocolate with Sea Salt 35g",
+    "nameAr": "شوكولا بلوند بلح فيودن جالاكسي 35غ جالكسي",
+    "size": "35g",
+    "count": "2 PCS",
+    "price": 9.99,
+    "category": "chocolates-candies",
+    "text": "9 99 共 13 00 galaxy fusions blonde chocolate with sea salt galaxy blonde chocolate with sea salt fusions 35g الكميه 33 197 شوكولاته بلوند بملح فيوجن جالاكسي 35 غ كيلو كالحري 97 حبتان 2 pcs 10477125 10477125 galaxy fusions sea salt blonde chocolate bar 35g danube الدانوب chocolates candies",
+    "before": {
+      "value": 285.4285714285714,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 142.7142857142857,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 35,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.07,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/85995d8efa657c6af76bc8f82adccca6.jpg"
+  },
+  {
+    "index": 148,
+    "id": "danube:central:d4d:98684547",
+    "name": "Saudia Hot Sauce 473ml",
+    "nameAr": "شطة حارة السعودية 473 مل",
+    "size": "473ml",
+    "count": "2 PCS",
+    "price": 9.99,
+    "category": "sauces-spreads",
+    "text": "9 99 15 00 السعوديه السعوديه saudia طه saudia شطه hot sauce hot sauce شطه حاره السوديه 473 مل saudia hot sauce 473ml حبتان 2 pcs 10485195 danube الدانوب sauces spreads",
+    "before": {
+      "value": 21.120507399577168,
+      "unit": "l",
+      "label": "SAR/L",
+      "source": "derived"
+    },
+    "after": {
+      "value": 10.560253699788584,
+      "unit": "l",
+      "label": "SAR/L"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 473,
+      "unit": "ml",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.946,
+        "unit": "l"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/fad80216c1fc2126d8da99075c6743d4.jpg"
+  },
+  {
+    "index": 149,
+    "id": "danube:central:d4d:98684403",
+    "name": "Freshco Light Meat Tuna Brine Water/Sandwich 90g",
+    "nameAr": "لحم تونة فاتح في الماء/ساندوتش فرشكو",
+    "size": "90g",
+    "count": "3 PCS",
+    "price": 9.99,
+    "category": "canned-packeted",
+    "text": "9 99 1485 علي n t weat freshco tuna ight weat freshco tuna حبات 3 pcs tun savich freshco tuna لحم تونه فاتح في الغاء لحم تونه فاتح في الماء ساندوتش فرشكو 90 غ freshco light meat tuna brine water sandwich 90g 10519275 10519285 11060585 danube الدانوب canned packeted",
+    "before": {
+      "value": 111,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 37,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 90,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.27,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/8809ba02f185708f48d206e6a7afa4f7.jpg"
+  },
+  {
+    "index": 151,
+    "id": "danube:central:d4d:98683920",
+    "name": "Marretti Pasta 400g",
+    "nameAr": "مكرونة ماريتي",
+    "size": "400g",
+    "count": "3 PCS",
+    "price": 9.99,
+    "category": "pasta-noodles",
+    "text": "9 99 حبات 3 pcs 16 50 علي 100 مكرونه الجراني 10096 pipe rigate 400 400 الساعتي spaghen 100 مكرونه ماريتي 400 غ 400 marretti pasta 400g elbow 400 10530545 10530555 danube الدانوب pasta noodles",
+    "before": {
+      "value": 24.974999999999998,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 8.325000000000001,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 400,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.2,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/9badc5493109cc4bd3642fb768f14451.jpg"
+  },
+  {
+    "index": 152,
+    "id": "danube:central:d4d:98683935",
+    "name": "Afia Red Lintils 400g",
+    "nameAr": "عدس أحمر عافيه 400ج",
+    "size": "400g",
+    "count": "2 PCS",
+    "price": 9.99,
+    "category": "pulses-beans-grains",
+    "text": "9 99 15 90 حبتان 2 pcs عافي بقوليات jses عدس احمر red lentil اعد اكتشافي خبرات الطبعه عافيه بقوليات pulses عدس احمر red lentil اعد اكسلان ركبات الصنعه عدس احمر عافيه 4400 afia red lintils 400g 10384155 danube الدانوب pulses beans grains",
+    "before": {
+      "value": 24.974999999999998,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 12.487499999999999,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 400,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.8,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/688d02c0ba09177edf8cfe6e9680ce09.jpg"
+  },
+  {
+    "index": 153,
+    "id": "danube:central:d4d:98686785",
+    "name": "Dari / Montana Molokia 400g",
+    "nameAr": "ملوخية مونتانا / داري",
+    "size": "400g",
+    "count": "3 PCS",
+    "price": 9.99,
+    "category": "frozen-fruits-veg",
+    "text": "danube الدانوب 9 99 19 50 علي حبات 3 pcs مونتانا ملوخيه montana ya داري dari ملوخيه molokhia ملوخيه مونتانا داري 4400 dari montana molokia 400g 10249145 528015 frozen fruits veg",
+    "before": {
+      "value": 24.974999999999998,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 8.325000000000001,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 400,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.2,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/07/be4fc6950022bfa75017e16da32fe97a.jpg"
+  },
+  {
+    "index": 154,
+    "id": "danube:central:d4d:98686758",
+    "name": "Dari Plain Paratha 400g",
+    "nameAr": "باراتا سادة دارى",
+    "size": "400g",
+    "count": "2 PCS",
+    "price": 9.99,
+    "category": "other-frozen-food",
+    "text": "danube الدانوب 9 99 15 00 داري dari باراتا ساده plain paratha باراتا ساده داري 400غ dari plain paratha 400g حبتان 2 pcs بارانا سياده plain paratha حلال 10385935 other frozen food اطعمه مجمده اخري ഫ ര സൺ ഫ ഡ منجمد خوراك হ ম য ত খ দ য donmuş yiyecekler frozen na pagkain உற ந த உணவ nourriture congelée फ र ज़ न फ़ ड जम क ख न other frozen food",
+    "before": {
+      "value": 24.974999999999998,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 12.487499999999999,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 400,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.8,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/07/5299ec2af39c87279cd9002839eeec31.jpg"
+  },
+  {
+    "index": 155,
+    "id": "danube:central:d4d:98686671",
+    "name": "Montana Okra Extra 400g",
+    "nameAr": "بلدي مونтана فاصوليا خضراء اكسترا مونتانا",
+    "size": "400g",
+    "count": "2 PCS",
+    "price": 9.99,
+    "category": "frozen-fruits-veg",
+    "text": "danube الدانوب 9 99 23 90 باميه اكسترا مونتانا montana حبتان 2 pcs باسيه اكسترا مونتانا montana باميه اكسترا مونتانا 4400 montana okra extra 400g b frozen fruits veg",
+    "before": {
+      "value": 24.974999999999998,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 12.487499999999999,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 400,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.8,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/07/e4b968c5f2c6731cf75f74ab3e1e0b2d.jpg"
+  },
+  {
+    "index": 156,
+    "id": "danube:central:d4d:98686680",
+    "name": "Dari Chicken Franks 340g",
+    "nameAr": "دجاج داري",
+    "size": "340g",
+    "count": "2 PCS",
+    "price": 9.99,
+    "category": "fresh-chicken-poultry",
+    "text": "danube الدانوب 9 99 13 98 داري darl داري نقايق دجاج chicham franks نقانق دجاج داري 4340 www dari chicken franks 340g حبتان 2 pcs بالجبنه chicken franks chees 10213315 10213325 fresh chicken poultry دجاج ودواجن طازجه ഫ രഷ ച ക കൻ പ ൾട ര تازہ چكن اور مرغي ফ র শ চ ক ন ও প ল ট র taze tavuk kümes sariwang manok poultry ப த ய க ழ க ழ வளர ப ப poulet volaille frais त ज च कन और प ल ट र त ज क ख र र क ख र प लन fresh chicken poultry",
+    "before": {
+      "value": 29.382352941176467,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 14.691176470588234,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.68,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/07/40d0b72a62017230afcb136375c0fa38.jpg"
+  },
+  {
+    "index": 189,
+    "id": "aljazera:central:d4d:99055959",
+    "name": "SKITTLES CANDY WILD BERRY 30.6G",
+    "nameAr": "حلو سكتلز بنكهة التوت البري (30.6) غم",
+    "size": "30.6G",
+    "count": "3 PCS",
+    "price": 9.99,
+    "category": "chocolates-candies",
+    "text": "3 حبات 3 pcs 9 99 skittles berry سكسلز skittles berry تشكيلر skittles berry حلوي سكيتلز بنكهه التوت البري 30 6 غم skittles candy wild berry 30 6g aljazera shopping center اسواق الجزيره chocolates candies",
+    "before": {
+      "value": 326.4705882352941,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 108.8235294117647,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 30.6,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.0918,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/b1a632c19312302723d930e100814930.jpg"
+  },
+  {
+    "index": 192,
+    "id": "lulu:central:d4d:99103977",
+    "name": null,
+    "nameAr": "مكرونة لولو كورني",
+    "size": "400g",
+    "count": "3 Pcs",
+    "price": 9.99,
+    "category": "pasta-noodles",
+    "text": "lulu lulu lulu عبوه ترويجيه promo pack 100 pur duru 100 pure durum semolina كورني corni معكرونه pasta لولو مكرونه 400 جرام ۳ متنوعه lulu macroni pasta 400g x 3 pcs 14 85 9 99 lulu hypermarket لولو هايبرماركت pasta noodles",
+    "before": {
+      "value": 24.974999999999998,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 8.325000000000001,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 400,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.2,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/8a3d64cc9eb79de5b0bd4e6618049040.jpg"
+  },
+  {
+    "index": 206,
+    "id": "hyperpanda:central:d4d:99118155",
+    "name": null,
+    "nameAr": "خضروات داري (400 جرام)",
+    "size": "400g",
+    "count": "2 PC",
+    "price": 9.99,
+    "category": "frozen-fruits-veg",
+    "text": "محمد frozen داري داري 2 pc خضار مشكيه mereď vegetables 9 99 خضروات داري 4۰۰ جرام dari vegetables 400g hyper panda هايبر بنده frozen fruits veg",
+    "before": {
+      "value": 24.974999999999998,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 12.487499999999999,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 400,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.8,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/866fba77276b22dc76695f54c3b4acfa.jpg"
+  },
+  {
+    "index": 212,
+    "id": "nesto:central:d4d:99088551",
+    "name": "Godrej Selfie shampoo hair colour natural black 1",
+    "nameAr": "شامبو جودريج لصبغ الشعر الأسود 18 مل",
+    "size": "18 ml",
+    "count": "2 PCS",
+    "price": 9.99,
+    "category": "hair-care",
+    "text": "natural black 1 gory selfie shampoo hair colour صبغه شامبو للشعر no ammonia natural black 1 enriched with aloe vera 16 99 9 99 now شامبو جودريج اكسبيرت لصبغ الشعر الاسود ۱۸ مل godrej expert h color shampoo black 18ml buy 2 pcs nesto نستو hair care العنايه بالشعر ഹ യർ ക യർ بالوں كي ديكھ بھال চ ল র যত ন saç bakımı pangangalaga sa buhok ம ட பர மர ப ப soin des cheveux ह यर क यर कप लक ह रच ह hair care",
+    "before": {
+      "value": 555,
+      "unit": "l",
+      "label": "SAR/L",
+      "source": "derived"
+    },
+    "after": {
+      "value": 277.5,
+      "unit": "l",
+      "label": "SAR/L"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 18,
+      "unit": "ml",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.036,
+        "unit": "l"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/750168b6dab9320e51f48863f2a9c459.jpg"
+  },
+  {
+    "index": 213,
+    "id": "nesto:central:d4d:99088257",
+    "name": "Seara Prmium Chicken Frnks Smoked 340gm",
+    "nameAr": "سيارا بريميوم نقانق دجاج مدخن 340 جرام",
+    "size": "340gm",
+    "count": "3 PC",
+    "price": 9.99,
+    "category": "fresh-chicken-poultry",
+    "text": "seara حلال سيارا نقانق دجاج chicken franks 22000 n pro مصدر للبروتين sear source of protein 10340 pe 07 20062 seara سيارا نقانق دجاج 3 pc حبه خلال halal سيارا نقانق دجاج مصدر للبروتين chicken franks source of protein pro 20 10340 pe chicken franks مصدر للبروتين source of protein pro 20 10340 17 97 9 99 now سيارا بريميوم نقانق دجاج مدخن 34 جرام seara prmium chicken frnks smoked 340gm nesto نستو fresh chicken poultry دجاج ودواجن طازجه ഫ രഷ ച ക കൻ പ ൾട ര تازہ چكن اور مرغي ফ র শ চ ক ন ও প ল ট র taze tavuk kümes sariwang manok poultry ப த ய க ழ க ழ வளர ப ப poulet volaille frais त ज च कन और प ल ट र ",
+    "before": {
+      "value": 29.382352941176467,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 9.794117647058824,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.02,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/114bdfa8bd276d606431161bf0ac99f5.jpg"
+  },
+  {
+    "index": 218,
+    "id": "hyperpanda:central:d4d:99118284",
+    "name": "Seara Minced Chicken / Beef (350g)",
+    "nameAr": "مفروم دجاج / بقرى (30-) سيارا",
+    "size": "350g",
+    "count": "2 PC",
+    "price": 9.99,
+    "category": null,
+    "text": "محمد frozen or 2 pc4 23 55 مفروم دجاج بقري 900 سيارا 350 جرام 99 seara minced chicken beef 350g hyper panda هايبر بنده",
+    "before": {
+      "value": 28.542857142857144,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 14.271428571428572,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 350,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.7,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/6da6e990989b73c49de28356f45add15.jpg"
+  },
+  {
+    "index": 221,
+    "id": "hyperpanda:central:d4d:99119343",
+    "name": null,
+    "nameAr": "بطاطس كراكلر (100 جرام)",
+    "size": "155g",
+    "count": "2 PC",
+    "price": 9.99,
+    "category": "snacks",
+    "text": "كراكلز cracklos كراكلز 2 pc an crackles 090 رقايق بطاطس كراكلز 100 جرام crackles potato chips 155g 9 90 عالم hyper panda هايبر بنده snacks وجبات خفيفه ലഘ ഭക ഷണ سنيكس স ন য ক স atıştırmalıklar mga meryenda ச ற ற ண ட snacks स न क ख ज snacks",
+    "before": {
+      "value": 64.45161290322581,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 32.225806451612904,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 155,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.31,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/b21eb191d49d75d98a33be9b5b037886.jpg"
+  },
+  {
+    "index": 226,
+    "id": "nesto:central:d4d:99155919",
+    "name": "Seara Premium Chicken Franks Smoked 340gm",
+    "nameAr": null,
+    "size": "340gm",
+    "count": "3 PC",
+    "price": 9.99,
+    "category": "fresh-chicken-poultry",
+    "text": "sear seara seara 3 pc 17 97 9 99 now سيارا يريميوم نقانق دجاج مدخن 34 حرام seara prmium chicken fmkes smoled 340gm nesto نستو fresh chicken poultry دجاج ودواجن طازجه ഫ രഷ ച ക കൻ പ ൾട ര تازہ چكن اور مرغي ফ র শ চ ক ন ও প ল ট র taze tavuk kümes sariwang manok poultry ப த ய க ழ க ழ வளர ப ப poulet volaille frais त ज च कन और प ल ट र त ज क ख र र क ख र प लन fresh chicken poultry",
+    "before": {
+      "value": 29.382352941176467,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 9.794117647058824,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.02,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/874b3f4418e0b1cbd882889ba07e12c4.jpg"
+  },
+  {
+    "index": 228,
+    "id": "prime:central:d4d:99135579",
+    "name": "RAINBOW EVAPORATED MILK ORIGINAL 170 GM",
+    "nameAr": "حليب مركز أسلي جرام ١٧٠ راينبو",
+    "size": "170 GM",
+    "count": "4 PCS",
+    "price": 9.99,
+    "category": "powdered-condensed-milk",
+    "text": "rainbow quality milk rainbow quality milk portified original new rainbow quality milk rainbow quality milk portified original 13 80 4 حبه 9 99 4pcs عالي ابوقوس حليب سايل مركز اصلي 170 جرام rainbow evaporated milk original 170 gm prime supermarket اسواق النخبه powdered condensed milk",
+    "before": {
+      "value": 58.764705882352935,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 14.691176470588234,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 170,
+      "unit": "g",
+      "pack": 4,
+      "reference": {
+        "quantity": 0.68,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/9cfd0228449c6fc639e1d7a5063d31e4.jpg"
+  },
+  {
+    "index": 230,
+    "id": "nesto:central:d4d:99082413",
+    "name": "Royal Chicken Franks 300/340gm",
+    "nameAr": "نفق الدجاج رويال ٣٠٠/٣٤٠ جرام",
+    "size": "300/340gm",
+    "count": "3 PC",
+    "price": 10,
+    "category": "fresh-chicken-poultry",
+    "text": "اج نفايق الدجاج chicken franks 38 00 واوج ويال نفايق الدجاج chicken franks mb 3 pc wow اويال π 17 97 10 now نقانق دجاج رويال 34 30 جرام royal chicken franks 300 340gm nesto نستو fresh chicken poultry دجاج ودواجن طازجه ഫ രഷ ച ക കൻ പ ൾട ര تازہ چكن اور مرغي ফ র শ চ ক ন ও প ল ট র taze tavuk kümes sariwang manok poultry ப த ய க ழ க ழ வளர ப ப poulet volaille frais त ज च कन और प ल ट र त ज क ख र र क ख र प लन fresh chicken poultry",
+    "before": {
+      "value": 29.41176470588235,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 9.803921568627452,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.02,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/0275f714cd4fe1f0550f28eb45cb6d6d.jpg"
+  },
+  {
+    "index": 232,
+    "id": "aljazera:central:d4d:99055404",
+    "name": "ALMARAI CREAM CHEESE BLUE JAR 120G",
+    "nameAr": "المراعي جبنة طعم كريمي",
+    "size": "120G",
+    "count": "2 PCS",
+    "price": 10,
+    "category": "cheese-creame",
+    "text": "2 حبه 2 pcs المراعي narai المراعيه almarai طعم كريمي creamy taste طعم ك amy ste 10 0 المراعي جبنه طعم كريمي 120 غم almarai cream cheese blue jar 120g lach almo aljazera shopping center اسواق الجزيره cheese creame",
+    "before": {
+      "value": 83.33333333333334,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 41.66666666666667,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 120,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.24,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/e98daccdc4bdd8beb53b52f6449b35af.jpg"
+  },
+  {
+    "index": 236,
+    "id": "nesto:central:d4d:99090606",
+    "name": "Royal Chicken Franks 300/340gm",
+    "nameAr": "نقالق الدجاج رويال",
+    "size": "300/340gm",
+    "count": "3 PC",
+    "price": 10,
+    "category": "fresh-chicken-poultry",
+    "text": "اج نفايق الدجاج chicken franks 88 00 88 3 pc حبه واوي ويال نفايق الدجاج chicken franks wow اوتال 17 97 10 now نقانق دجاج رويال 34 30 جرام royal chicken franks 300 340gm nesto نستو fresh chicken poultry دجاج ودواجن طازجه ഫ രഷ ച ക കൻ പ ൾട ര تازہ چكن اور مرغي ফ র শ চ ক ন ও প ল ট র taze tavuk kümes sariwang manok poultry ப த ய க ழ க ழ வளர ப ப poulet volaille frais त ज च कन और प ल ट र त ज क ख र र क ख र प लन fresh chicken poultry",
+    "before": {
+      "value": 29.41176470588235,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 9.803921568627452,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.02,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/302d38036c4a9201871aebbf998fef98.jpg"
+  },
+  {
+    "index": 237,
+    "id": "nesto:central:d4d:99088308",
+    "name": null,
+    "nameAr": "نفق الدجاج",
+    "size": "300/340gm",
+    "count": "3 PC",
+    "price": 10,
+    "category": "fresh-chicken-poultry",
+    "text": "اج 3 pc حبه نفايق الدجاج chicken franks واوي ويال نفايق الدجاج chicken franks wow اويال 17 97 10 now نقانق دجاج رويال 34 30 جرام royal chicken franks 300 340gm nesto نستو fresh chicken poultry دجاج ودواجن طازجه ഫ രഷ ച ക കൻ പ ൾട ര تازہ چكن اور مرغي ফ র শ চ ক ন ও প ল ট র taze tavuk kümes sariwang manok poultry ப த ய க ழ க ழ வளர ப ப poulet volaille frais त ज च कन और प ल ट र त ज क ख र र क ख र प लन fresh chicken poultry",
+    "before": {
+      "value": 29.41176470588235,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 9.803921568627452,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.02,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/17072ac7eed6b96b29481a86e6deca4c.jpg"
+  },
+  {
+    "index": 238,
+    "id": "nesto:central:d4d:99078840",
+    "name": "Royal Chicken Franks 300/340gm",
+    "nameAr": "نقالق الدجاج رويال",
+    "size": "300/340gm",
+    "count": "3 PC",
+    "price": 10,
+    "category": "fresh-chicken-poultry",
+    "text": "اج نفايق الدجاج chicken franks 88 00 88 3 pc حبه واوي ويال نفايق الدجاج chicken franks wow اوتال 17 97 10 now نقانق دجاج رويال 34 30 جرام royal chicken franks 300 340gm nesto نستو fresh chicken poultry دجاج ودواجن طازجه ഫ രഷ ച ക കൻ പ ൾട ര تازہ چكن اور مرغي ফ র শ চ ক ন ও প ল ট র taze tavuk kümes sariwang manok poultry ப த ய க ழ க ழ வளர ப ப poulet volaille frais त ज च कन और प ल ट र त ज क ख र र क ख र प लन fresh chicken poultry",
+    "before": {
+      "value": 29.41176470588235,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 9.803921568627452,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.02,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/302d38036c4a9201871aebbf998fef98.jpg"
+  },
+  {
+    "index": 239,
+    "id": "nesto:central:d4d:99155970",
+    "name": "Royal Chicken Franks 300/340gm",
+    "nameAr": "لطائف الدجاج رويال",
+    "size": "300/340gm",
+    "count": "3 pc",
+    "price": 10,
+    "category": "fresh-chicken-poultry",
+    "text": "ال 919 wow لفايق الدجاج رباج لفايق الدجاج 3 pc اوتال a 17 97 10 نقانق دجاج رويال 30 30 جرام royal chicken franks 300 340gm nesto نستو fresh chicken poultry دجاج ودواجن طازجه ഫ രഷ ച ക കൻ പ ൾട ര تازہ چكن اور مرغي ফ র শ চ ক ন ও প ল ট র taze tavuk kümes sariwang manok poultry ப த ய க ழ க ழ வளர ப ப poulet volaille frais त ज च कन और प ल ट र त ज क ख र र क ख र प लन fresh chicken poultry",
+    "before": {
+      "value": 29.41176470588235,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 9.803921568627452,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.02,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/57568282b885dfe020021c8e2415e9d4.jpg"
+  },
+  {
+    "index": 244,
+    "id": "aljazera:central:d4d:99055950",
+    "name": "GODIVA BELGIUM 1926 SELECTED 35G",
+    "nameAr": "جوديفا شوكولا بلجيكية مختارة (30 غم)",
+    "size": "35G",
+    "count": "3 PCS",
+    "price": 10.5,
+    "category": "chocolates-candies",
+    "text": "godiva belgium 1926 creamy capamel chocolate car حبات 3 pcs godiva 10 50 belgium 1926 creamy chocolate bar diva 1926 aramel ate bar جوديفا شوكولاته بلجيكيه مختاره 35 غم godiva belgium 1926 selected 35g aljazera shopping center اسواق الجزيره chocolates candies",
+    "before": {
+      "value": 299.99999999999994,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 100,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 35,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.105,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/9e1d98e95d1a3a369dc8e92e73a7dc58.jpg"
+  },
+  {
+    "index": 246,
+    "id": "prime:central:d4d:99135459",
+    "name": "PUCK EVAPORATED MILK ANALOGUE 170GM",
+    "nameAr": "بوك شييه حليب مبخر ١٧٠ جرام",
+    "size": "170GM",
+    "count": "5 PCS",
+    "price": 10.95,
+    "category": "powdered-condensed-milk",
+    "text": "puck puck بوك evaporated milk حليب evaporated milk puck puck evaporated milk جلس evaporated puck milk evaporated milk حليب من مركز بوك 17 50 حليب مركز 10 95 ه حبه 5 pcs علي بوك شبيه حليب مبخر ۱۷۰ جرام puck evaporated milk analogue 170gm prime supermarket اسواق النخبه powdered condensed milk",
+    "before": {
+      "value": 64.41176470588235,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 12.88235294117647,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 170,
+      "unit": "g",
+      "pack": 5,
+      "reference": {
+        "quantity": 0.85,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/6a9603a0ddb3b104d923906a78a08995.jpg"
+  },
+  {
+    "index": 249,
+    "id": "danube:central:d4d:98684892",
+    "name": "Goody Stuffed Green / Black / Whole Olives 240g",
+    "nameAr": "زيتون أخصار شرائح / أسود / كامل قودي",
+    "size": "240g",
+    "count": "2 PCS",
+    "price": 10.99,
+    "category": "canned-packeted",
+    "text": "10 99 17 98 goody black olives who goody reen olives socod ريتون اخضر زيتون اسود goody black olives حبتان 2 pcs goody staffed green olives goody green oliva جرد اخضر زيتون اخضر شرايح اسود شرايح كامل قودي 240 غ goody stuffed green black whole olives 240g 10334395 10334405 danube الدانوب canned packeted",
+    "before": {
+      "value": 45.79166666666667,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 22.895833333333336,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 240,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.48,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/bc567439581e11874020a09a7c555a89.jpg"
+  },
+  {
+    "index": 250,
+    "id": "danube:central:d4d:98684091",
+    "name": "Goody Original Golden Corn Whole Kernels 340g",
+    "nameAr": "ذرة ذهبية كولا غودي قودي",
+    "size": "340g",
+    "count": "2 PCS",
+    "price": 10.99,
+    "category": "canned-packeted",
+    "text": "10 99 15 98 حبتان 2 pcs goody original golden corn whole kernels goody original olden corn whole kernels ذره ذهبيه كامله قودي 4340 goody whole kernel corn 340g 968085 danube الدانوب canned packeted",
+    "before": {
+      "value": 32.3235294117647,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 16.16176470588235,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.68,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/48c01a50f2af9e49dd8af4b992e65d21.jpg"
+  },
+  {
+    "index": 251,
+    "id": "danube:central:d4d:98683776",
+    "name": "Pezzullo Capperoni 500g",
+    "nameAr": "مكرونة بيزولو",
+    "size": "500g",
+    "count": "2 PCS",
+    "price": 10.99,
+    "category": "pasta-noodles",
+    "text": "10 99 共 1400 حبتان 2 pcs 500 ge pezzullo ovodinapoli pezzullo canneroni orodinapoli canneroni pasta e arma 500 ge مكرونه بيزلو 4500 pezzullo pasta 500g 1224905 1224925 danube الدانوب pasta noodles",
+    "before": {
+      "value": 21.98,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 10.99,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 500,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 1,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/1e3cb750ac4dd9351c00e596817639e5.jpg"
+  },
+  {
+    "index": 261,
+    "id": "hyperpanda:central:d4d:99119520",
+    "name": "KitKat CHUNKY (40/42g)",
+    "nameAr": "شوكولاته كيت كات (40/42ج) كيتكات",
+    "size": "40/42g",
+    "count": "3 pcs",
+    "price": 10.99,
+    "category": "chocolates-candies",
+    "text": "kitkat chunky chunky chunky kitkat chimaly شوكولاته كيت كات 42 40 جم 3 pcs 17 37 10 99 kitkat chunky 40 42g hyper panda هايبر بنده chocolates candies",
+    "before": {
+      "value": 261.66666666666663,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 87.22222222222223,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 42,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.126,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/c649e1c61c69d8491c26490321438fd2.jpg"
+  },
+  {
+    "index": 262,
+    "id": "aljazera:central:d4d:99056379",
+    "name": "ECO HOME HANDWASH ASSORTED 500ML",
+    "nameAr": "إيكوهوم صابون سائل للأيدي متوع ۰ - ۰ مل",
+    "size": "500ML",
+    "count": "2 PCS",
+    "price": 10.99,
+    "category": "bath-body",
+    "text": "aljazera shopping center اسواق الجزيره2 حبه 2 pcs 10 99 ايكو قوم يكوسوم eco tr ايكو فوم 2300 eco home 500 ايكوهوم صابون سايل للايدي متنوع 500 مل eco home handwash assorted 500ml bath body",
+    "before": {
+      "value": 21.98,
+      "unit": "l",
+      "label": "SAR/L",
+      "source": "derived"
+    },
+    "after": {
+      "value": 10.99,
+      "unit": "l",
+      "label": "SAR/L"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 500,
+      "unit": "ml",
+      "pack": 2,
+      "reference": {
+        "quantity": 1,
+        "unit": "l"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/13/815ec9e7b4562a39cf01914184c2b6ee.jpg"
+  },
+  {
+    "index": 263,
+    "id": "hyperpanda:central:d4d:99118131",
+    "name": "Dari Chicken Franks With Cheese (340g)",
+    "nameAr": "دجاج بالجبنة (340 جرام) داري",
+    "size": "340g",
+    "count": "2 PC",
+    "price": 10.99,
+    "category": "fresh-chicken-poultry",
+    "text": "محمد frozen محمد or الارت 2 pc 12 00 نقانق دجاج بالجبنه 99 10 علي داري 340 جرام dari chicken franks with cheese 340g hyper panda هايبر بنده fresh chicken poultry دجاج ودواجن طازجه ഫ രഷ ച ക കൻ പ ൾട ര تازہ چكن اور مرغي ফ র শ চ ক ন ও প ল ট র taze tavuk kümes sariwang manok poultry ப த ய க ழ க ழ வளர ப ப poulet volaille frais त ज च कन और प ल ट र त ज क ख र र क ख र प लन fresh chicken poultry",
+    "before": {
+      "value": 32.3235294117647,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 16.16176470588235,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.68,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/4c210560b4240dbe92f40c4fcb004ac5.jpg"
+  },
+  {
+    "index": 268,
+    "id": "danube:central:d4d:98686524",
+    "name": "Activa Peach & Cereal Greek Yoghurt 150g Activa Cereal & Oats Greek Yoghurt 150g",
+    "nameAr": "أكتيفيا يوجورت يوناني مع مشروب حليب 150",
+    "size": "150g",
+    "count": "3 PCS",
+    "price": 11.99,
+    "category": "yogurt-labneh",
+    "text": "e 11 99 18 75 مليارات البروبايوتك المفيده اكتيفيا احافظ علي راحه الجهاز العمي يوناني الجنوب والدور حبات 3 pcs billions of probiotics activia provides digestive comfort greek cereal coll fiber زبادي يوناني اكتيفيا 150 غ activa peach cereal greek youghurt 150g activa cereal oats greek youghurt 150g 10410685 10410695 danube الدانوب yogurt labneh",
+    "before": {
+      "value": 79.93333333333334,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 26.644444444444446,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 150,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.45,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/e5d302dd067a4664f8df5acf26b3d0f4.jpg"
+  },
+  {
+    "index": 269,
+    "id": "danube:central:d4d:98685438",
+    "name": "M&M's Chocolate / Skittles Fruits Tube 30.5g",
+    "nameAr": "شوكولا إم أند جى / حلوى سكيتليس 30.5 غرام",
+    "size": "30.5g",
+    "count": "3 PCS",
+    "price": 11.99,
+    "category": "chocolates-candies",
+    "text": "11 99 16 50 حبات 3 pcs skittles berry skittles క షయ య skittles uru شوكولاته ام اند امز حلوي فواكه سكيتلز 30 6 غ m m s chocolate skittles fruits tube 30 6g 2320040001 नण 10503335 danube الدانوب chocolates candies",
+    "before": {
+      "value": 393.11475409836066,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 131.03825136612022,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 30.5,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.0915,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/a561023d17230e6fdaefc27478953e99.jpg"
+  },
+  {
+    "index": 270,
+    "id": "danube:central:d4d:98684115",
+    "name": "Premium Solid Tuna White Meat Sunflower Oil 185g",
+    "nameAr": "تونة لحم خفيف متماكسة / ماء ومלח الخير 180",
+    "size": "185g",
+    "count": "2 PCS",
+    "price": 11.99,
+    "category": "canned-packeted",
+    "text": "11 99 حبتان 2 pcs 1998 علي الخير alkhair premium solid tuna white meat الخير alkhair premium solid tuna light meat sunflower oil تونه لحم خفيف متماسكه ماء وملح الخير 185 غ al khair light meat salt water tuna 185g 10268235 10455435 danube الدانوب canned packeted",
+    "before": {
+      "value": 64.8108108108108,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 32.4054054054054,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 185,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.37,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/06e509267ea2870ab1e2e1b73f114209.jpg"
+  },
+  {
+    "index": 271,
+    "id": "danube:central:d4d:98688498",
+    "name": null,
+    "nameAr": "بورينا فليكس غداء قطط 85جرام",
+    "size": "85gm",
+    "count": "3 PCS",
+    "price": 11.99,
+    "category": "pets",
+    "text": "danube الدانوب 11 99 16 50 felix felix good as it good as it felix good as it looks favourites selection jelly 3x salon t بورنا فلكس غداء قطط 85جرام purina felix 85gm حبات 3 pcs 12 10471475 10471485 10471495 pets الحيوانات الاليفه പ റ റ കൾ پالتو جانور প ষ প র ণ evcil hayvan mga alagang hayop ச ல லப ப ர ண கள animaux de compagnie प लत ज नवर घरप ल व जन वर pets",
+    "before": {
+      "value": 141.05882352941177,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 47.01960784313726,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 85,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.255,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/07/f6e5b0f7c4769229d98f0a199163eadb.jpg"
+  },
+  {
+    "index": 277,
+    "id": "hyperpanda:central:d4d:99119850",
+    "name": "California Garden Tuna Chunk In Vegetable Oil (170g)",
+    "nameAr": "لحم تونا مقطع حاتة في زيت نباتي حدائق كاليفورنيا جرام",
+    "size": "170g",
+    "count": "2 PC",
+    "price": 11.99,
+    "category": "canned-packeted",
+    "text": "2 pc 43 حدايق كاليفورنيا تونا قطع فاتحه حدايق كالبس رنيا تونا قطع فاتحه 15 50 لحم تونا قطع فاتحه في زيت 11 90 علي نباتي حدايق كاليفورنيا 170 جرام california garden tuna chunk in vegetable oil 170g hyper panda هايبر بنده canned packeted",
+    "before": {
+      "value": 70.52941176470588,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 35.26470588235294,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 170,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.34,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/7426a03a44eee62649653e0b9fa45d49.jpg"
+  },
+  {
+    "index": 280,
+    "id": "danube:central:d4d:98684109",
+    "name": "Aloha Mushrooms 357g",
+    "nameAr": "فطر الألواح",
+    "size": "357g",
+    "count": "2 PCS",
+    "price": 12.99,
+    "category": "canned-packeted",
+    "text": "12 99 19 98 حبتان 2 pcs ها مقطع شرايح الوها فطر كامل الوها قطع فطر الوها 357 غ aloha mushrooms 357g 60299665 60299675 danube الدانوب canned packeted",
+    "before": {
+      "value": 36.386554621848745,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 18.193277310924373,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 357,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.714,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/b97bdb715637f351a032dad398bb03b1.jpg"
+  },
+  {
+    "index": 281,
+    "id": "danube:central:d4d:98684127",
+    "name": "Green Giant Niblets Sweet Corn 340g",
+    "nameAr": "ذرة حلوة العملاق الأخضر",
+    "size": "340g",
+    "count": "2 PCS",
+    "price": 12.99,
+    "category": null,
+    "text": "12 99 19 00 340 green giant niblets sweet corn reen iant niblets sweet corn ذره حلوه العملاق الاخضر 340 غ green giant niblet sweet corn 340g حبتان 2 pcs 13065 2057475 danube الدانوب",
+    "before": {
+      "value": 38.205882352941174,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 19.102941176470587,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 340,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.68,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/70be845e4bd900dc8285e53c9f43d00e.jpg"
+  },
+  {
+    "index": 292,
+    "id": "hyperpanda:central:d4d:99120021",
+    "name": "Cutey Cat Food White Meat Tuna In Gravy (85g)",
+    "nameAr": "طعام قطط لحم التونة البيضاء بالمرقة كيوتي (85 جرام)",
+    "size": "85g",
+    "count": "3 pcs",
+    "price": 12.99,
+    "category": "pets",
+    "text": "3 pcs كيوني عيوني لحم التونه البيضاء التوله البيضاء 16 50 12 99 e ري طعام قطط لحم التونه البيضاء بالمرقه كيوتي ۸۵ جرام cutey cat food white meat tuna in gravy 85g hyper panda هايبر بنده pets الحيوانات الاليفه പ റ റ കൾ پالتو جانور প ষ প র ণ evcil hayvan mga alagang hayop ச ல லப ப ர ண கள animaux de compagnie प लत ज नवर घरप ल व जन वर pets",
+    "before": {
+      "value": 152.8235294117647,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 50.94117647058823,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 85,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 0.255,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/6873eea0dc28aee64ffa0eb893045631.jpg"
+  },
+  {
+    "index": 303,
+    "id": "danube:central:d4d:98683779",
+    "name": null,
+    "nameAr": "مكرونة غودي 450ج قودي",
+    "size": "450g",
+    "count": "3 PCS",
+    "price": 13.99,
+    "category": "pasta-noodles",
+    "text": "13 99 20 97 4501 goody sedani مكرونه الغيب ddy silli مكرونه spaghetti goody goody original ditalini rigati مكرونه خواتم مخطط enne rigate مكرونه اقلام مخطط goody اسباكتي original frl goody elbow مكرونه اكواع goody conchiglie مكرونه اسبان حبات 3 pcs مكرونه قودي 4450 goody pasta 450g ody riginal ne lisce مكرونه القدام 10375445 10375455 danube الدانوب pasta noodles",
+    "before": {
+      "value": 31.08888888888889,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 10.362962962962962,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 450,
+      "unit": "g",
+      "pack": 3,
+      "reference": {
+        "quantity": 1.35,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/e2a816640cd494b8ab47636199db94f5.jpg"
+  },
+  {
+    "index": 304,
+    "id": "danube:central:d4d:98688507",
+    "name": "Fancy Feast TUNA FEAST IN GRAVY GRILLED 85g",
+    "nameAr": "فينس فيست طعام القطط 85جرام",
+    "size": "85g",
+    "count": "2 PCS",
+    "price": 13.99,
+    "category": "pets",
+    "text": "danube الدانوب 13 99 17 00 85g fancy feast 85g tuna feast in gravy grilled فيونس فيست طعام القطط 85جرام fancy feast cat food 85gm حبتان 2 pcs 10464235 10464245 pets الحيوانات الاليفه പ റ റ കൾ پالتو جانور প ষ প র ণ evcil hayvan mga alagang hayop ச ல லப ப ர ண கள animaux de compagnie प लत ज नवर घरप ल व जन वर pets",
+    "before": {
+      "value": 164.58823529411762,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 82.29411764705881,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 85,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.17,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/07/5f8611fd0d46207f0bb654f7a1b6dcb7.jpg"
+  },
+  {
+    "index": 318,
+    "id": "aljazera:central:d4d:99055704",
+    "name": null,
+    "nameAr": "بيبسي / سفن أب / ميرندا / ماونتن ديو منوعة (٢ لتر)",
+    "size": "2L",
+    "count": "2 PCS",
+    "price": 14,
+    "category": "soft-drinks",
+    "text": "mirinda orange 2 حيه 2 pcs 14 00 بيبسي سفن اب ميرندا ماونتن ديو منوعه لتر pepsi 7up mirinda mountain dew regular assorted 2l aljazera shopping center اسواق الجزيره soft drinks مشروبات غازيه ശ തളപ ന യങ ങൾ سافٹ ڈرنكس ক মল প ন য alkolsüz i çecekler soft drinks ம ன ப னங கள sodas स फ ट ड र क श तल प य पद र थ soft drinks",
+    "before": {
+      "value": 7,
+      "unit": "l",
+      "label": "SAR/L",
+      "source": "derived"
+    },
+    "after": {
+      "value": 3.5,
+      "unit": "l",
+      "label": "SAR/L"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 2,
+      "unit": "l",
+      "pack": 2,
+      "reference": {
+        "quantity": 4,
+        "unit": "l"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/13/2448eaf0c0143d468e71c67ef3d7f4a7.jpg"
+  },
+  {
+    "index": 319,
+    "id": "danube:central:d4d:98684097",
+    "name": "Botan Light Meat Tuna 185g",
+    "nameAr": "لحم تونة خفيفة بوتان",
+    "size": "185g",
+    "count": "2 PCS",
+    "price": 14.5,
+    "category": "canned-packeted",
+    "text": "14 50 19 00 حبتان 2 pcs fancy botan light meat tuna brand solid pack botan sandwich tuna brand soft tuna 60157945 60259845 لحم تونه خفيفه بوتان 185 غ botan light meat tuna 185g danube الدانوب canned packeted",
+    "before": {
+      "value": 78.37837837837839,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 39.18918918918919,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 185,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.37,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/8237527ebd9064009132eebeec8ba97c.jpg"
+  },
+  {
+    "index": 344,
+    "id": "danube:central:d4d:98686620",
+    "name": "Herfy Chicken Chili Jumbo Burger 550g",
+    "nameAr": "برجر دجاج هرفي شيلي جامبو",
+    "size": "550g",
+    "count": "6 PCS",
+    "price": 15.99,
+    "category": "fresh-chicken-poultry",
+    "text": "danube الدانوب 15 99 21 99 عرفي رج تشيلي الدجاج بالمقسماط chili breaded chicken burger 0 0 0 high in protein 12 قطعه 6 pcs netw جمبو حار برجر دجاج هرفي 550غ herfy chicken chili jumbo burger 550g 10371025 fresh chicken poultry دجاج ودواجن طازجه ഫ രഷ ച ക കൻ പ ൾട ര تازہ چكن اور مرغي ফ র শ চ ক ন ও প ল ট র taze tavuk kümes sariwang manok poultry ப த ய க ழ க ழ வளர ப ப poulet volaille frais त ज च कन और प ल ट र त ज क ख र र क ख र प लन fresh chicken poultry",
+    "before": {
+      "value": 29.07272727272727,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 4.845454545454546,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 550,
+      "unit": "g",
+      "pack": 6,
+      "reference": {
+        "quantity": 3.3,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/i/26/10/07/6df5339885f8fca11ef1f4029b7add61.jpg"
+  },
+  {
+    "index": 346,
+    "id": "hyperpanda:central:d4d:99119313",
+    "name": "Lorenz Crunchips Xcut (85g)",
+    "nameAr": "شيبس لورنز (80 جرام)",
+    "size": "85g",
+    "count": "2 PCS",
+    "price": 15.99,
+    "category": "snacks",
+    "text": "lorenz crunchips xcut 12 crunchips xcut 2 pc4 شيبس لورينز ۸۵ جرام lorenz chips 85g 22 00 15 99 hyper panda هايبر بنده snacks وجبات خفيفه ലഘ ഭക ഷണ سنيكس স ন য ক স atıştırmalıklar mga meryenda ச ற ற ண ட snacks स न क ख ज snacks",
+    "before": {
+      "value": 188.1176470588235,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 94.05882352941175,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 85,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.17,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/9395e36c0068e70ea81ce0c609ace610.jpg"
+  },
+  {
+    "index": 366,
+    "id": "hyperpanda:central:d4d:99119316",
+    "name": null,
+    "nameAr": "شيبس بابريكا لورينز (100 جرام)",
+    "size": "100g",
+    "count": "2 PC",
+    "price": 18.99,
+    "category": "snacks",
+    "text": "2 pc naturals lorenz naturals شيبس بابريكا لورينز ۱۰۰ جرام lorenz chips paprika 100g 2200 18 99 hyper panda هايبر بنده snacks وجبات خفيفه ലഘ ഭക ഷണ سنيكس স ন য ক স atıştırmalıklar mga meryenda ச ற ற ண ட snacks स न क ख ज snacks",
+    "before": {
+      "value": 189.89999999999998,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 94.94999999999999,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 100,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.2,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/0bfc518a16c34e60c90fa8d7f5bdf54e.jpg"
+  },
+  {
+    "index": 376,
+    "id": "hyperpanda:central:d4d:99117321",
+    "name": "HARIBO Happy Cola",
+    "nameAr": "حلوى هاريبو حلي (150/160ج)",
+    "size": "150/160g",
+    "count": "2 PC",
+    "price": 19.99,
+    "category": "chocolates-candies",
+    "text": "1 party s ribo 2 pc 4j haribo happy cola او حول الاميال الفرسان 20 ميل mi حلوي هاريبو جلي 160 150 جرام haribo jelly 150 160g متنوع assorted 7 99 27 98 19 99 hyper panda هايبر بنده chocolates candies",
+    "before": {
+      "value": 124.93749999999999,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 62.46874999999999,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 160,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.32,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/163d5275a9e6c76bb36aa7304152fd3e.jpg"
+  },
+  {
+    "index": 385,
+    "id": "cityflower:central:d4d:98714895",
+    "name": null,
+    "nameAr": "بوم 100 مل 4 قطع",
+    "size": "100ml",
+    "count": "4Pcs",
+    "price": 22,
+    "category": "fragrance",
+    "text": "pt 22 00 assorted عطر 4 قطع 100 مل perfume 4pcs 100ml city flower ستي فلاور fragrance عطور ഫ ര ഗ രൻസ خوشبو স ব স parfüm pabango நற மணம parfums ख श ब स गन ध fragrance",
+    "before": {
+      "value": 220,
+      "unit": "l",
+      "label": "SAR/L",
+      "source": "derived"
+    },
+    "after": {
+      "value": 55,
+      "unit": "l",
+      "label": "SAR/L"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 100,
+      "unit": "ml",
+      "pack": 4,
+      "reference": {
+        "quantity": 0.4,
+        "unit": "l"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/7/8194664ea9383956568d1a454bea2e8b.jpg"
+  },
+  {
+    "index": 409,
+    "id": "hyperpanda:central:d4d:99117960",
+    "name": "Puck Cream Cheese Squares (432g)",
+    "nameAr": "جبنة بالقشطة مربعات بوك (432غ)",
+    "size": "432g",
+    "count": "2 PCs",
+    "price": 31.99,
+    "category": "cheese-creame",
+    "text": "24 and 2 pc ald puck جبنه بالقشطه مربعات جبنه بالقشطه مربعات 3199 بوك 432 جرام puck cream cheese squares 432g hyper panda هايبر بنده cheese creame",
+    "before": {
+      "value": 74.05092592592592,
+      "unit": "kg",
+      "label": "SAR/kg",
+      "source": "derived"
+    },
+    "after": {
+      "value": 37.02546296296296,
+      "unit": "kg",
+      "label": "SAR/kg"
+    },
+    "quantity": {
+      "status": "RESOLVED",
+      "evidence": "measure",
+      "quantity": 432,
+      "unit": "g",
+      "pack": 2,
+      "reference": {
+        "quantity": 0.864,
+        "unit": "kg"
+      },
+      "sellingMode": "discrete",
+      "packageType": null,
+      "heterogeneous": false,
+      "unitPriceComparable": true,
+      "source": "size_field",
+      "version": "comparable-quantity-v4"
+    },
+    "image": "https://cdn.d4donline.com/u/a/26/10/14/7e1e0a2c87f528701ada126e11213cfe.jpg"
+  }
+]

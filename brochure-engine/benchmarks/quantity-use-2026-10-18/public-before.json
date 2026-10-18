@@ -1,0 +1,699 @@
+{
+  "checkedAt": "2026-10-18T20:05:43.108Z",
+  "phase": "before",
+  "rows": [
+    {
+      "id": "aljazera:central:d4d:99055404",
+      "q": "ALMARAI CREAM",
+      "found": true,
+      "price": 10,
+      "size": "120G",
+      "unitPrice": {
+        "value": 83.33333333333334,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 41.66666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "2 x 120 g"
+    },
+    {
+      "id": "aljazera:central:d4d:99055830",
+      "q": "NADEC ANALOGUE",
+      "found": true,
+      "price": 9.75,
+      "size": "170G",
+      "unitPrice": {
+        "value": 57.35294117647059,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 19.11764705882353,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 170 g"
+    },
+    {
+      "id": "aljazera:central:d4d:99055950",
+      "q": "GODIVA BELGIUM",
+      "found": true,
+      "price": 10.5,
+      "size": "35G",
+      "unitPrice": {
+        "value": 299.99999999999994,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 100,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 35 g"
+    },
+    {
+      "id": "aljazera:central:d4d:99055959",
+      "q": "SKITTLES CANDY",
+      "found": true,
+      "price": 9.99,
+      "size": "30.6G",
+      "unitPrice": {
+        "value": 326.4705882352941,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 108.8235294117647,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 30.6 g"
+    },
+    {
+      "id": "aljazera:central:d4d:99055977",
+      "q": "GALAXY CHOCOTES",
+      "found": true,
+      "price": 8.5,
+      "size": "36G",
+      "unitPrice": {
+        "value": 236.11111111111114,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 78.70370370370371,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 36 g"
+    },
+    {
+      "id": "aljazera:central:d4d:99056379",
+      "q": "ECO HOME",
+      "found": true,
+      "price": 10.99,
+      "size": "500ML",
+      "unitPrice": {
+        "value": 21.98,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 10.99,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "expectedSize": "2 x 500 ml"
+    },
+    {
+      "id": "danube:central:d4d:98683779",
+      "q": "مكرونة غودي",
+      "found": true,
+      "price": 13.99,
+      "size": "450g",
+      "unitPrice": {
+        "value": 31.08888888888889,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 10.362962962962962,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 450 g"
+    },
+    {
+      "id": "danube:central:d4d:98683920",
+      "q": "Marretti Pasta",
+      "found": true,
+      "price": 9.99,
+      "size": "400g",
+      "unitPrice": {
+        "value": 24.974999999999998,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 8.325000000000001,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 400 g"
+    },
+    {
+      "id": "danube:central:d4d:98683923",
+      "q": "Green Farms",
+      "found": true,
+      "price": 8.99,
+      "size": "450g",
+      "unitPrice": {
+        "value": 19.977777777777778,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 6.659259259259259,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 450 g"
+    },
+    {
+      "id": "danube:central:d4d:98684235",
+      "q": "FRESHEY Whole",
+      "found": true,
+      "price": 8.99,
+      "size": "340 GM",
+      "unitPrice": {
+        "value": 26.441176470588236,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 13.220588235294118,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "2 x 340 g"
+    },
+    {
+      "id": "danube:central:d4d:98684403",
+      "q": "Freshco Light",
+      "found": true,
+      "price": 9.99,
+      "size": "90g",
+      "unitPrice": {
+        "value": 111,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 37,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 90 g"
+    },
+    {
+      "id": "danube:central:d4d:98685027",
+      "q": "Qoot &",
+      "found": true,
+      "price": 5.99,
+      "size": "1kg",
+      "unitPrice": {
+        "value": 5.99,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 1.4975,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "4 x 1 kg"
+    },
+    {
+      "id": "danube:central:d4d:98685393",
+      "q": "Hala Pure",
+      "found": true,
+      "price": 8.99,
+      "size": "155g",
+      "unitPrice": {
+        "value": 58,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 19.333333333333332,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 155 g"
+    },
+    {
+      "id": "danube:central:d4d:98685438",
+      "q": "M&M's Chocolate",
+      "found": true,
+      "price": 11.99,
+      "size": "30.5g",
+      "unitPrice": {
+        "value": 393.11475409836066,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 131.03825136612022,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 30.5 g"
+    },
+    {
+      "id": "danube:central:d4d:98685453",
+      "q": "NEW SNICKERS",
+      "found": true,
+      "price": 6.99,
+      "size": "22.5g",
+      "unitPrice": {
+        "value": 310.6666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 77.66666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "4 x 22.5 g"
+    },
+    {
+      "id": "danube:central:d4d:98685516",
+      "q": "Storck Mamba",
+      "found": true,
+      "price": 5.99,
+      "size": "26.5g",
+      "unitPrice": {
+        "value": 226.03773584905662,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 45.20754716981132,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "5 x 26.5 g"
+    },
+    {
+      "id": "danube:central:d4d:98685579",
+      "q": "Bebeto Gumy",
+      "found": true,
+      "price": 7.99,
+      "size": "80g",
+      "unitPrice": {
+        "value": 99.875,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 24.96875,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "4 x 80 g"
+    },
+    {
+      "id": "danube:central:d4d:98685585",
+      "q": "Cadbury Dairy",
+      "found": true,
+      "price": 7.5,
+      "size": "32g",
+      "unitPrice": {
+        "value": 234.375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 78.125,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 32 g"
+    },
+    {
+      "id": "danube:central:d4d:98685603",
+      "q": "شوكولا فليك",
+      "found": true,
+      "price": 7.5,
+      "size": "32g",
+      "unitPrice": {
+        "value": 234.375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 78.125,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 32 g"
+    },
+    {
+      "id": "danube:central:d4d:98685762",
+      "q": "Luppo Choco",
+      "found": true,
+      "price": 4.99,
+      "size": "40g",
+      "unitPrice": {
+        "value": 124.75,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 31.1875,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "4 x 40 g"
+    },
+    {
+      "id": "danube:central:d4d:98685783",
+      "q": "Sunbites Bread",
+      "found": true,
+      "price": 2.99,
+      "size": "32g",
+      "unitPrice": {
+        "value": 93.4375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 23.359375,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "4 x 32 g"
+    },
+    {
+      "id": "danube:central:d4d:98685825",
+      "q": "Cuetara Krit",
+      "found": true,
+      "price": 8.99,
+      "size": "100g",
+      "unitPrice": {
+        "value": 89.89999999999999,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 29.96666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 100 g"
+    },
+    {
+      "id": "danube:central:d4d:98686521",
+      "q": "Activia Yoghurt",
+      "found": true,
+      "price": 5.99,
+      "size": "120g",
+      "unitPrice": {
+        "value": 49.91666666666667,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 16.63888888888889,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 120 g"
+    },
+    {
+      "id": "danube:central:d4d:98686524",
+      "q": "Activa Peach",
+      "found": true,
+      "price": 11.99,
+      "size": "150g",
+      "unitPrice": {
+        "value": 79.93333333333334,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 26.644444444444446,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 150 g"
+    },
+    {
+      "id": "danube:central:d4d:98686785",
+      "q": "Dari /",
+      "found": true,
+      "price": 9.99,
+      "size": "400g",
+      "unitPrice": {
+        "value": 24.974999999999998,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 8.325000000000001,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 400 g"
+    },
+    {
+      "id": "danube:central:d4d:98688498",
+      "q": "بورينا فليكس",
+      "found": true,
+      "price": 11.99,
+      "size": "85gm",
+      "unitPrice": {
+        "value": 141.05882352941177,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 47.01960784313726,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 85 g"
+    },
+    {
+      "id": "nesto:central:d4d:99088257",
+      "q": "Seara Prmium",
+      "found": true,
+      "price": 9.99,
+      "size": "340gm",
+      "unitPrice": {
+        "value": 29.382352941176467,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 9.794117647058824,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 340 g"
+    },
+    {
+      "id": "prime:central:d4d:99135360",
+      "q": "CRACKLES POTATO",
+      "found": true,
+      "price": 9.95,
+      "size": "155GM",
+      "unitPrice": {
+        "value": 64.19354838709677,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 32.096774193548384,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "2 x 155 g"
+    },
+    {
+      "id": "prime:central:d4d:99135459",
+      "q": "PUCK EVAPORATED",
+      "found": true,
+      "price": 10.95,
+      "size": "170GM",
+      "unitPrice": {
+        "value": 64.41176470588235,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 12.88235294117647,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "5 x 170 g"
+    },
+    {
+      "id": "prime:central:d4d:99135579",
+      "q": "RAINBOW EVAPORATED",
+      "found": true,
+      "price": 9.99,
+      "size": "170 GM",
+      "unitPrice": {
+        "value": 58.764705882352935,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 14.691176470588234,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "4 x 170 g"
+    },
+    {
+      "id": "prime:central:d4d:99135591",
+      "q": "LENA EVAPORATED",
+      "found": true,
+      "price": 4.95,
+      "size": "170GM",
+      "unitPrice": {
+        "value": 29.11764705882353,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 5.8235294117647065,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "5 x 170 g"
+    },
+    {
+      "id": "prime:central:d4d:99136149",
+      "q": "QOOT &",
+      "found": true,
+      "price": 3.99,
+      "size": "1 KG",
+      "unitPrice": {
+        "value": 3.99,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 0.798,
+        "unit": "kg",
+        "label": "SAR/kg",
+        "source": "derived"
+      },
+      "expectedSize": "5 x 1 kg"
+    },
+    {
+      "id": "prime:central:d4d:99145170",
+      "q": "WAW SPARKLING",
+      "found": true,
+      "price": 2.75,
+      "size": "185ML",
+      "unitPrice": {
+        "value": 14.864864864864865,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "eachPrice": null,
+      "expected": {
+        "value": 4.954954954954954,
+        "unit": "l",
+        "label": "SAR/L",
+        "source": "derived"
+      },
+      "expectedSize": "3 x 185 ml"
+    }
+  ]
+}

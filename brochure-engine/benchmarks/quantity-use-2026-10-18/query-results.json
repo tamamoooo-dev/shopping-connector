@@ -1,0 +1,2431 @@
+{
+  "queries": 71,
+  "admissionChanges": 0,
+  "headlineChanges": [],
+  "results": [
+    {
+      "q": "فراوله",
+      "before": {
+        "id": "lulu:central:d4d:99104667",
+        "up": {
+          "value": 8.5,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 8.5
+      },
+      "after": {
+        "id": "lulu:central:d4d:99104667",
+        "up": {
+          "value": 8.5,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 8.5
+      },
+      "offers": 91
+    },
+    {
+      "q": "strawberry",
+      "before": {
+        "id": "lulu:central:d4d:99104667",
+        "up": {
+          "value": 8.5,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 8.5
+      },
+      "after": {
+        "id": "lulu:central:d4d:99104667",
+        "up": {
+          "value": 8.5,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 8.5
+      },
+      "offers": 91
+    },
+    {
+      "q": "زبادي فراولة",
+      "before": {
+        "id": "hyperpanda:central:d4d:99117894",
+        "up": {
+          "value": 20.3125,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 160,
+          "pack": 3,
+          "total": 480,
+          "src": "measure"
+        },
+        "price": 9.75
+      },
+      "after": {
+        "id": "hyperpanda:central:d4d:99117894",
+        "up": {
+          "value": 20.3125,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 160,
+          "pack": 3,
+          "total": 480,
+          "src": "measure"
+        },
+        "price": 9.75
+      },
+      "offers": 5
+    },
+    {
+      "q": "فراولة مجمدة",
+      "before": {
+        "id": "ramez:central:d4d:99145989",
+        "up": {
+          "value": 7.95,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 7.95
+      },
+      "after": {
+        "id": "ramez:central:d4d:99145989",
+        "up": {
+          "value": 7.95,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 7.95
+      },
+      "offers": 6
+    },
+    {
+      "q": "طماطم",
+      "before": {
+        "id": "amarket:central:d4d:99076842",
+        "up": {
+          "value": 2.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 2.99
+      },
+      "after": {
+        "id": "amarket:central:d4d:99076842",
+        "up": {
+          "value": 2.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 2.99
+      },
+      "offers": 120
+    },
+    {
+      "q": "tomato",
+      "before": {
+        "id": "amarket:central:d4d:99076842",
+        "up": {
+          "value": 2.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 2.99
+      },
+      "after": {
+        "id": "amarket:central:d4d:99076842",
+        "up": {
+          "value": 2.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 2.99
+      },
+      "offers": 120
+    },
+    {
+      "q": "معجون طماطم",
+      "before": {
+        "id": "almadina:central:d4d:99109728",
+        "up": {
+          "value": 4.065040650406504,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 410,
+          "pack": 3,
+          "total": 1230,
+          "src": "measure"
+        },
+        "price": 5
+      },
+      "after": {
+        "id": "almadina:central:d4d:99109728",
+        "up": {
+          "value": 4.065040650406504,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 410,
+          "pack": 3,
+          "total": 1230,
+          "src": "measure"
+        },
+        "price": 5
+      },
+      "offers": 26
+    },
+    {
+      "q": "ليمون",
+      "before": {
+        "id": "nesto:central:d4d:99155544",
+        "up": {
+          "value": 4.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 4.99
+      },
+      "after": {
+        "id": "nesto:central:d4d:99155544",
+        "up": {
+          "value": 4.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 4.99
+      },
+      "offers": 106
+    },
+    {
+      "q": "lemon",
+      "before": {
+        "id": "nesto:central:d4d:99155544",
+        "up": {
+          "value": 4.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 4.99
+      },
+      "after": {
+        "id": "nesto:central:d4d:99155544",
+        "up": {
+          "value": 4.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 4.99
+      },
+      "offers": 106
+    },
+    {
+      "q": "حليب",
+      "before": {
+        "id": "othaim:central:d4d:99101451",
+        "up": {
+          "value": 4.375,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1000,
+          "pack": 4,
+          "total": 4000,
+          "src": "measure"
+        },
+        "price": 17.5
+      },
+      "after": {
+        "id": "othaim:central:d4d:99101451",
+        "up": {
+          "value": 4.375,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1000,
+          "pack": 4,
+          "total": 4000,
+          "src": "measure"
+        },
+        "price": 17.5
+      },
+      "offers": 120
+    },
+    {
+      "q": "حليب فراولة",
+      "before": {
+        "id": "ramez:central:d4d:99146169",
+        "up": {
+          "value": 5.541666666666666,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 200,
+          "pack": 18,
+          "total": 3600,
+          "src": "measure"
+        },
+        "price": 19.95
+      },
+      "after": {
+        "id": "ramez:central:d4d:99146169",
+        "up": {
+          "value": 5.541666666666666,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 200,
+          "pack": 18,
+          "total": 3600,
+          "src": "measure"
+        },
+        "price": 19.95
+      },
+      "offers": 10
+    },
+    {
+      "q": "بيض",
+      "before": {
+        "id": "marksave:central:d4d:99061971",
+        "up": null,
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 10,
+          "total": 10,
+          "src": "count-weak"
+        },
+        "price": 7.5
+      },
+      "after": {
+        "id": "marksave:central:d4d:99061971",
+        "up": null,
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 10,
+          "total": 10,
+          "src": "count-weak"
+        },
+        "price": 7.5
+      },
+      "offers": 26
+    },
+    {
+      "q": "eggs",
+      "before": {
+        "id": "marksave:central:d4d:99061971",
+        "up": null,
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 10,
+          "total": 10,
+          "src": "count-weak"
+        },
+        "price": 7.5
+      },
+      "after": {
+        "id": "marksave:central:d4d:99061971",
+        "up": null,
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 10,
+          "total": 10,
+          "src": "count-weak"
+        },
+        "price": 7.5
+      },
+      "offers": 26
+    },
+    {
+      "q": "ويفر رينجو",
+      "before": {
+        "id": "danube:central:d4d:98685801",
+        "up": {
+          "value": 23.125,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 18,
+          "pack": 24,
+          "total": 432,
+          "src": "measure"
+        },
+        "price": 9.99
+      },
+      "after": {
+        "id": "danube:central:d4d:98685801",
+        "up": {
+          "value": 23.125,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 18,
+          "pack": 24,
+          "total": 432,
+          "src": "measure"
+        },
+        "price": 9.99
+      },
+      "offers": 4
+    },
+    {
+      "q": "زبادي يوناني نادك",
+      "before": {
+        "id": "tamimi:central:d4d:99050040",
+        "up": {
+          "value": 18.6875,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 160,
+          "pack": 1,
+          "total": 160,
+          "src": "measure"
+        },
+        "price": 2.99
+      },
+      "after": {
+        "id": "tamimi:central:d4d:99050040",
+        "up": {
+          "value": 18.6875,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 160,
+          "pack": 1,
+          "total": 160,
+          "src": "measure"
+        },
+        "price": 2.99
+      },
+      "offers": 12
+    },
+    {
+      "q": "nadec greek yoghurt",
+      "before": {
+        "id": "tamimi:central:d4d:99050040",
+        "up": {
+          "value": 18.6875,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 160,
+          "pack": 1,
+          "total": 160,
+          "src": "measure"
+        },
+        "price": 2.99
+      },
+      "after": {
+        "id": "tamimi:central:d4d:99050040",
+        "up": {
+          "value": 18.6875,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 160,
+          "pack": 1,
+          "total": 160,
+          "src": "measure"
+        },
+        "price": 2.99
+      },
+      "offers": 12
+    },
+    {
+      "q": "alsafi labneh",
+      "before": {
+        "id": "othaim:central:d4d:99101436",
+        "up": {
+          "value": 19.974999999999998,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 400,
+          "pack": 1,
+          "total": 400,
+          "src": "measure"
+        },
+        "price": 7.99
+      },
+      "after": {
+        "id": "othaim:central:d4d:99101436",
+        "up": {
+          "value": 19.974999999999998,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 400,
+          "pack": 1,
+          "total": 400,
+          "src": "measure"
+        },
+        "price": 7.99
+      },
+      "offers": 9
+    },
+    {
+      "q": "cornflakes",
+      "before": {
+        "id": "danube:central:d4d:98685288",
+        "up": {
+          "value": 43.96,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 250,
+          "pack": 1,
+          "total": 250,
+          "src": "measure"
+        },
+        "price": 10.99
+      },
+      "after": {
+        "id": "danube:central:d4d:98685288",
+        "up": {
+          "value": 43.96,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 250,
+          "pack": 1,
+          "total": 250,
+          "src": "measure"
+        },
+        "price": 10.99
+      },
+      "offers": 14
+    },
+    {
+      "q": "ماء أروى 1.5L",
+      "before": {
+        "id": "othaim:central:d4d:99101925",
+        "up": null,
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 14.99
+      },
+      "after": {
+        "id": "othaim:central:d4d:99101925",
+        "up": null,
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 14.99
+      },
+      "offers": 9
+    },
+    {
+      "q": "rice 1kg",
+      "before": {
+        "id": "cityflower:central:d4d:99035814",
+        "up": {
+          "value": 5.95,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 5.95
+      },
+      "after": {
+        "id": "cityflower:central:d4d:99035814",
+        "up": {
+          "value": 5.95,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 5.95
+      },
+      "offers": 120
+    },
+    {
+      "q": "sunflower oil",
+      "before": {
+        "id": "prime:central:d4d:99137094",
+        "up": {
+          "value": 9,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1500,
+          "pack": 1,
+          "total": 1500,
+          "src": "measure"
+        },
+        "price": 13.5
+      },
+      "after": {
+        "id": "prime:central:d4d:99137094",
+        "up": {
+          "value": 9,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1500,
+          "pack": 1,
+          "total": 1500,
+          "src": "measure"
+        },
+        "price": 13.5
+      },
+      "offers": 66
+    },
+    {
+      "q": "زيت زيتون عافية",
+      "before": {
+        "id": "hyperpanda:central:d4d:99119637",
+        "up": {
+          "value": 56.995,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 2000,
+          "pack": 1,
+          "total": 2000,
+          "src": "measure"
+        },
+        "price": 113.99
+      },
+      "after": {
+        "id": "hyperpanda:central:d4d:99119637",
+        "up": {
+          "value": 56.995,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 2000,
+          "pack": 1,
+          "total": 2000,
+          "src": "measure"
+        },
+        "price": 113.99
+      },
+      "offers": 4
+    },
+    {
+      "q": "حليب المراعي",
+      "before": {
+        "id": "hyperpanda:central:d4d:99117867",
+        "up": {
+          "value": 5.4991666666666665,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1000,
+          "pack": 12,
+          "total": 12000,
+          "src": "measure"
+        },
+        "price": 65.99
+      },
+      "after": {
+        "id": "hyperpanda:central:d4d:99117867",
+        "up": {
+          "value": 5.4991666666666665,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1000,
+          "pack": 12,
+          "total": 12000,
+          "src": "measure"
+        },
+        "price": 65.99
+      },
+      "offers": 30
+    },
+    {
+      "q": "حليب نادك",
+      "before": {
+        "id": "prime:central:d4d:99137034",
+        "up": {
+          "value": 4.1658333333333335,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1000,
+          "pack": 12,
+          "total": 12000,
+          "src": "measure"
+        },
+        "price": 49.99
+      },
+      "after": {
+        "id": "prime:central:d4d:99137034",
+        "up": {
+          "value": 4.1658333333333335,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1000,
+          "pack": 12,
+          "total": 12000,
+          "src": "measure"
+        },
+        "price": 49.99
+      },
+      "offers": 14
+    },
+    {
+      "q": "banana",
+      "before": {
+        "id": "aljazera:central:d4d:99055125",
+        "up": {
+          "value": 4.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 4.99
+      },
+      "after": {
+        "id": "aljazera:central:d4d:99055125",
+        "up": {
+          "value": 4.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 4.99
+      },
+      "offers": 13
+    },
+    {
+      "q": "موز",
+      "before": {
+        "id": "aljazera:central:d4d:99055125",
+        "up": {
+          "value": 4.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 4.99
+      },
+      "after": {
+        "id": "aljazera:central:d4d:99055125",
+        "up": {
+          "value": 4.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 4.99
+      },
+      "offers": 13
+    },
+    {
+      "q": "apple",
+      "before": {
+        "id": "nesto:central:d4d:99155538",
+        "up": {
+          "value": 5.99,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 5.99
+      },
+      "after": {
+        "id": "nesto:central:d4d:99155538",
+        "up": {
+          "value": 5.99,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 5.99
+      },
+      "offers": 62
+    },
+    {
+      "q": "تفاح",
+      "before": {
+        "id": "nesto:central:d4d:99155538",
+        "up": {
+          "value": 5.99,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 5.99
+      },
+      "after": {
+        "id": "nesto:central:d4d:99155538",
+        "up": {
+          "value": 5.99,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 5.99
+      },
+      "offers": 62
+    },
+    {
+      "q": "mango",
+      "before": {
+        "id": "othaim:central:d4d:99101166",
+        "up": {
+          "value": 5.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 5.99
+      },
+      "after": {
+        "id": "othaim:central:d4d:99101166",
+        "up": {
+          "value": 5.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 5.99
+      },
+      "offers": 29
+    },
+    {
+      "q": "مانجو",
+      "before": {
+        "id": "othaim:central:d4d:99101166",
+        "up": {
+          "value": 5.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 5.99
+      },
+      "after": {
+        "id": "othaim:central:d4d:99101166",
+        "up": {
+          "value": 5.99,
+          "unit": "kg",
+          "source": "printed"
+        },
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 5.99
+      },
+      "offers": 29
+    },
+    {
+      "q": "strawberry milk",
+      "before": {
+        "id": "ramez:central:d4d:99146169",
+        "up": {
+          "value": 5.541666666666666,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 200,
+          "pack": 18,
+          "total": 3600,
+          "src": "measure"
+        },
+        "price": 19.95
+      },
+      "after": {
+        "id": "ramez:central:d4d:99146169",
+        "up": {
+          "value": 5.541666666666666,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 200,
+          "pack": 18,
+          "total": 3600,
+          "src": "measure"
+        },
+        "price": 19.95
+      },
+      "offers": 10
+    },
+    {
+      "q": "strawberry waffle",
+      "before": {
+        "id": "danube:central:d4d:98685306",
+        "up": {
+          "value": 50,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 50,
+          "pack": 1,
+          "total": 50,
+          "src": "measure"
+        },
+        "price": 2.5
+      },
+      "after": {
+        "id": "danube:central:d4d:98685306",
+        "up": {
+          "value": 50,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 50,
+          "pack": 1,
+          "total": 50,
+          "src": "measure"
+        },
+        "price": 2.5
+      },
+      "offers": 1
+    },
+    {
+      "q": "وافل فراولة",
+      "before": {
+        "id": "danube:central:d4d:98685306",
+        "up": {
+          "value": 50,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 50,
+          "pack": 1,
+          "total": 50,
+          "src": "measure"
+        },
+        "price": 2.5
+      },
+      "after": {
+        "id": "danube:central:d4d:98685306",
+        "up": {
+          "value": 50,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 50,
+          "pack": 1,
+          "total": 50,
+          "src": "measure"
+        },
+        "price": 2.5
+      },
+      "offers": 1
+    },
+    {
+      "q": "جيلي فراولة",
+      "before": {
+        "id": "prime:central:d4d:99137055",
+        "up": {
+          "value": 4.6875,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 80,
+          "pack": 6,
+          "total": 480,
+          "src": "measure"
+        },
+        "price": 2.25
+      },
+      "after": {
+        "id": "prime:central:d4d:99137055",
+        "up": {
+          "value": 4.6875,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 80,
+          "pack": 6,
+          "total": 480,
+          "src": "measure"
+        },
+        "price": 2.25
+      },
+      "offers": 1
+    },
+    {
+      "q": "lemon squeezer",
+      "before": {
+        "id": "alwafa:central:d4d:99075639",
+        "up": null,
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 5
+      },
+      "after": {
+        "id": "alwafa:central:d4d:99075639",
+        "up": null,
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 5
+      },
+      "offers": 1
+    },
+    {
+      "q": "عصارة ليمون",
+      "before": {
+        "id": "alwafa:central:d4d:99075639",
+        "up": null,
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 5
+      },
+      "after": {
+        "id": "alwafa:central:d4d:99075639",
+        "up": null,
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 5
+      },
+      "offers": 1
+    },
+    {
+      "q": "white eggs",
+      "before": {
+        "id": "nesto:central:d4d:99155952",
+        "up": null,
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 30,
+          "total": 30,
+          "src": "count-weak"
+        },
+        "price": 12.99
+      },
+      "after": {
+        "id": "nesto:central:d4d:99155952",
+        "up": null,
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 30,
+          "total": 30,
+          "src": "count-weak"
+        },
+        "price": 12.99
+      },
+      "offers": 6
+    },
+    {
+      "q": "بيض سمان",
+      "before": {
+        "id": "marksave:central:d4d:99061992",
+        "up": null,
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 18,
+          "total": 18,
+          "src": "count-weak"
+        },
+        "price": 10.95
+      },
+      "after": {
+        "id": "marksave:central:d4d:99061992",
+        "up": null,
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 18,
+          "total": 18,
+          "src": "count-weak"
+        },
+        "price": 10.95
+      },
+      "offers": 1
+    },
+    {
+      "q": "sunflower oil 1.5L",
+      "before": {
+        "id": "prime:central:d4d:99137094",
+        "up": {
+          "value": 9,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1500,
+          "pack": 1,
+          "total": 1500,
+          "src": "measure"
+        },
+        "price": 13.5
+      },
+      "after": {
+        "id": "prime:central:d4d:99137094",
+        "up": {
+          "value": 9,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1500,
+          "pack": 1,
+          "total": 1500,
+          "src": "measure"
+        },
+        "price": 13.5
+      },
+      "offers": 66
+    },
+    {
+      "q": "لبنة الصافي",
+      "before": {
+        "id": "othaim:central:d4d:99101436",
+        "up": {
+          "value": 19.974999999999998,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 400,
+          "pack": 1,
+          "total": 400,
+          "src": "measure"
+        },
+        "price": 7.99
+      },
+      "after": {
+        "id": "othaim:central:d4d:99101436",
+        "up": {
+          "value": 19.974999999999998,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 400,
+          "pack": 1,
+          "total": 400,
+          "src": "measure"
+        },
+        "price": 7.99
+      },
+      "offers": 9
+    },
+    {
+      "q": "زيتون",
+      "before": {
+        "id": "tamimi:central:d4d:99049206",
+        "up": {
+          "value": 16,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 100,
+          "pack": 1,
+          "total": 100,
+          "src": "measure"
+        },
+        "price": 1.6
+      },
+      "after": {
+        "id": "tamimi:central:d4d:99049206",
+        "up": {
+          "value": 16,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 100,
+          "pack": 1,
+          "total": 100,
+          "src": "measure"
+        },
+        "price": 1.6
+      },
+      "offers": 120
+    },
+    {
+      "q": "olive oil",
+      "before": {
+        "id": "marksave:central:d4d:99063699",
+        "up": {
+          "value": 11.190000000000001,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 5000,
+          "pack": 1,
+          "total": 5000,
+          "src": "measure"
+        },
+        "price": 55.95
+      },
+      "after": {
+        "id": "marksave:central:d4d:99063699",
+        "up": {
+          "value": 11.190000000000001,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 5000,
+          "pack": 1,
+          "total": 5000,
+          "src": "measure"
+        },
+        "price": 55.95
+      },
+      "offers": 118
+    },
+    {
+      "q": "egg roll",
+      "before": {
+        "id": "nesto:central:d4d:99082332",
+        "up": {
+          "value": 24.9375,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 160,
+          "pack": 1,
+          "total": 160,
+          "src": "measure"
+        },
+        "price": 3.99
+      },
+      "after": {
+        "id": "nesto:central:d4d:99082332",
+        "up": {
+          "value": 24.9375,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 160,
+          "pack": 1,
+          "total": 160,
+          "src": "measure"
+        },
+        "price": 3.99
+      },
+      "offers": 8
+    },
+    {
+      "q": "rice flour",
+      "before": {
+        "id": "nesto:central:d4d:99155691",
+        "up": {
+          "value": 9.98,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 500,
+          "pack": 1,
+          "total": 500,
+          "src": "measure"
+        },
+        "price": 4.99
+      },
+      "after": {
+        "id": "nesto:central:d4d:99155691",
+        "up": {
+          "value": 9.98,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 500,
+          "pack": 1,
+          "total": 500,
+          "src": "measure"
+        },
+        "price": 4.99
+      },
+      "offers": 1
+    },
+    {
+      "q": "huggies diapers",
+      "before": {
+        "id": "othaim:central:d4d:99102129",
+        "up": {
+          "value": 15.797999999999998,
+          "unit": "pc",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 5,
+          "total": 5,
+          "src": "count"
+        },
+        "price": 78.99
+      },
+      "after": {
+        "id": "othaim:central:d4d:99102129",
+        "up": {
+          "value": 15.797999999999998,
+          "unit": "pc",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 5,
+          "total": 5,
+          "src": "count"
+        },
+        "price": 78.99
+      },
+      "offers": 17
+    },
+    {
+      "q": "حفاضات هجيز",
+      "before": {
+        "id": "othaim:central:d4d:99102129",
+        "up": {
+          "value": 15.797999999999998,
+          "unit": "pc",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 5,
+          "total": 5,
+          "src": "count"
+        },
+        "price": 78.99
+      },
+      "after": {
+        "id": "othaim:central:d4d:99102129",
+        "up": {
+          "value": 15.797999999999998,
+          "unit": "pc",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 5,
+          "total": 5,
+          "src": "count"
+        },
+        "price": 78.99
+      },
+      "offers": 17
+    },
+    {
+      "q": "parachute shampoo",
+      "before": {
+        "id": "othaim:central:d4d:99102003",
+        "up": {
+          "value": 26.441176470588236,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 340,
+          "pack": 1,
+          "total": 340,
+          "src": "measure"
+        },
+        "price": 8.99
+      },
+      "after": {
+        "id": "othaim:central:d4d:99102003",
+        "up": {
+          "value": 26.441176470588236,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 340,
+          "pack": 1,
+          "total": 340,
+          "src": "measure"
+        },
+        "price": 8.99
+      },
+      "offers": 2
+    },
+    {
+      "q": "sunsilk shampoo",
+      "before": {
+        "id": "prime:central:d4d:99136884",
+        "up": {
+          "value": 19.928571428571427,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 700,
+          "pack": 1,
+          "total": 700,
+          "src": "measure"
+        },
+        "price": 13.95
+      },
+      "after": {
+        "id": "prime:central:d4d:99136884",
+        "up": {
+          "value": 19.928571428571427,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 700,
+          "pack": 1,
+          "total": 700,
+          "src": "measure"
+        },
+        "price": 13.95
+      },
+      "offers": 20
+    },
+    {
+      "q": "كوكتيل فواكه غلوريا",
+      "before": {
+        "id": "amarket:central:d4d:99077634",
+        "up": {
+          "value": 8.23529411764706,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 425,
+          "pack": 1,
+          "total": 425,
+          "src": "measure"
+        },
+        "price": 3.5
+      },
+      "after": {
+        "id": "amarket:central:d4d:99077634",
+        "up": {
+          "value": 8.23529411764706,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 425,
+          "pack": 1,
+          "total": 425,
+          "src": "measure"
+        },
+        "price": 3.5
+      },
+      "offers": 1
+    },
+    {
+      "q": "كوكتيل فواكه جلوريا",
+      "before": {
+        "id": "amarket:central:d4d:99077634",
+        "up": {
+          "value": 8.23529411764706,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 425,
+          "pack": 1,
+          "total": 425,
+          "src": "measure"
+        },
+        "price": 3.5
+      },
+      "after": {
+        "id": "amarket:central:d4d:99077634",
+        "up": {
+          "value": 8.23529411764706,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 425,
+          "pack": 1,
+          "total": 425,
+          "src": "measure"
+        },
+        "price": 3.5
+      },
+      "offers": 1
+    },
+    {
+      "q": "عسل لانجنيز",
+      "before": {
+        "id": "amarket:central:d4d:99077610",
+        "up": {
+          "value": 63,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 500,
+          "pack": 1,
+          "total": 500,
+          "src": "measure"
+        },
+        "price": 31.5
+      },
+      "after": {
+        "id": "amarket:central:d4d:99077610",
+        "up": {
+          "value": 63,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 500,
+          "pack": 1,
+          "total": 500,
+          "src": "measure"
+        },
+        "price": 31.5
+      },
+      "offers": 6
+    },
+    {
+      "q": "عسل لنجنيز",
+      "before": {
+        "id": "amarket:central:d4d:99077610",
+        "up": {
+          "value": 63,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 500,
+          "pack": 1,
+          "total": 500,
+          "src": "measure"
+        },
+        "price": 31.5
+      },
+      "after": {
+        "id": "amarket:central:d4d:99077610",
+        "up": {
+          "value": 63,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 500,
+          "pack": 1,
+          "total": 500,
+          "src": "measure"
+        },
+        "price": 31.5
+      },
+      "offers": 6
+    },
+    {
+      "q": "ماوس تراندز",
+      "before": {
+        "id": "lulu:central:d4d:98962230",
+        "up": null,
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 30
+      },
+      "after": {
+        "id": "lulu:central:d4d:98962230",
+        "up": null,
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 30
+      },
+      "offers": 2
+    },
+    {
+      "q": "كريمة بندق بنده",
+      "before": {
+        "id": "hyperpanda:central:d4d:99120081",
+        "up": {
+          "value": 37.114285714285714,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 350,
+          "pack": 1,
+          "total": 350,
+          "src": "measure"
+        },
+        "price": 12.99
+      },
+      "after": {
+        "id": "hyperpanda:central:d4d:99120081",
+        "up": {
+          "value": 37.114285714285714,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 350,
+          "pack": 1,
+          "total": 350,
+          "src": "measure"
+        },
+        "price": 12.99
+      },
+      "offers": 3
+    },
+    {
+      "q": "ساعة swiszone",
+      "before": {
+        "id": "nesto:central:d4d:99082983",
+        "up": {
+          "value": 25,
+          "unit": "pc",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 1,
+          "total": 1,
+          "src": "count"
+        },
+        "price": 25
+      },
+      "after": {
+        "id": "nesto:central:d4d:99082983",
+        "up": {
+          "value": 25,
+          "unit": "pc",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 1,
+          "total": 1,
+          "src": "count"
+        },
+        "price": 25
+      },
+      "offers": 4
+    },
+    {
+      "q": "ساعة سويز",
+      "before": null,
+      "after": null,
+      "offers": 0
+    },
+    {
+      "q": "hazelnut spread panda",
+      "before": {
+        "id": "hyperpanda:central:d4d:99120081",
+        "up": {
+          "value": 37.114285714285714,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 350,
+          "pack": 1,
+          "total": 350,
+          "src": "measure"
+        },
+        "price": 12.99
+      },
+      "after": {
+        "id": "hyperpanda:central:d4d:99120081",
+        "up": {
+          "value": 37.114285714285714,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 350,
+          "pack": 1,
+          "total": 350,
+          "src": "measure"
+        },
+        "price": 12.99
+      },
+      "offers": 3
+    },
+    {
+      "q": "كريمة طبخ",
+      "before": {
+        "id": "marksave:central:d4d:99061974",
+        "up": {
+          "value": 15.95,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 15.95
+      },
+      "after": {
+        "id": "marksave:central:d4d:99061974",
+        "up": {
+          "value": 15.95,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1000,
+          "pack": 1,
+          "total": 1000,
+          "src": "measure"
+        },
+        "price": 15.95
+      },
+      "offers": 5
+    },
+    {
+      "q": "panda cream",
+      "before": {
+        "id": "hyperpanda:central:d4d:99120057",
+        "up": {
+          "value": 58.764705882352935,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 170,
+          "pack": 1,
+          "total": 170,
+          "src": "measure"
+        },
+        "price": 9.99
+      },
+      "after": {
+        "id": "hyperpanda:central:d4d:99120057",
+        "up": {
+          "value": 58.764705882352935,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 170,
+          "pack": 1,
+          "total": 170,
+          "src": "measure"
+        },
+        "price": 9.99
+      },
+      "offers": 2
+    },
+    {
+      "q": "nutella hazelnut spread",
+      "before": {
+        "id": "hyperpanda:central:d4d:99118362",
+        "up": {
+          "value": 39.986666666666665,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 750,
+          "pack": 1,
+          "total": 750,
+          "src": "measure"
+        },
+        "price": 29.99
+      },
+      "after": {
+        "id": "hyperpanda:central:d4d:99118362",
+        "up": {
+          "value": 39.986666666666665,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 750,
+          "pack": 1,
+          "total": 750,
+          "src": "measure"
+        },
+        "price": 29.99
+      },
+      "offers": 3
+    },
+    {
+      "q": "al suman coffee",
+      "before": {
+        "id": "prime:central:d4d:99136479",
+        "up": {
+          "value": 116.66666666666667,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 30,
+          "pack": 1,
+          "total": 30,
+          "src": "measure"
+        },
+        "price": 3.5
+      },
+      "after": {
+        "id": "prime:central:d4d:99136479",
+        "up": {
+          "value": 116.66666666666667,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 30,
+          "pack": 1,
+          "total": 30,
+          "src": "measure"
+        },
+        "price": 3.5
+      },
+      "offers": 11
+    },
+    {
+      "q": "قهوة الصمان",
+      "before": null,
+      "after": null,
+      "offers": 0
+    },
+    {
+      "q": "alisa olives",
+      "before": {
+        "id": "tamimi:central:d4d:99050778",
+        "up": {
+          "value": 39.98,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 500,
+          "pack": 1,
+          "total": 500,
+          "src": "measure"
+        },
+        "price": 19.99
+      },
+      "after": {
+        "id": "tamimi:central:d4d:99050778",
+        "up": {
+          "value": 39.98,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 500,
+          "pack": 1,
+          "total": 500,
+          "src": "measure"
+        },
+        "price": 19.99
+      },
+      "offers": 5
+    },
+    {
+      "q": "زيتون اليسا",
+      "before": {
+        "id": "tamimi:central:d4d:99050778",
+        "up": {
+          "value": 39.98,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 500,
+          "pack": 1,
+          "total": 500,
+          "src": "measure"
+        },
+        "price": 19.99
+      },
+      "after": {
+        "id": "tamimi:central:d4d:99050778",
+        "up": {
+          "value": 39.98,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 500,
+          "pack": 1,
+          "total": 500,
+          "src": "measure"
+        },
+        "price": 19.99
+      },
+      "offers": 5
+    },
+    {
+      "q": "tiffany nutty bites",
+      "before": {
+        "id": "alwafa:central:d4d:99096267",
+        "up": {
+          "value": 17.36111111111111,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 72,
+          "pack": 8,
+          "total": 576,
+          "src": "measure"
+        },
+        "price": 10
+      },
+      "after": {
+        "id": "alwafa:central:d4d:99096267",
+        "up": {
+          "value": 17.36111111111111,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 72,
+          "pack": 8,
+          "total": 576,
+          "src": "measure"
+        },
+        "price": 10
+      },
+      "offers": 6
+    },
+    {
+      "q": "saloumi cotton buds",
+      "before": {
+        "id": "prime:central:d4d:98547288",
+        "up": {
+          "value": 0.005,
+          "unit": "pc",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 500,
+          "total": 500,
+          "src": "count"
+        },
+        "price": 2.5
+      },
+      "after": {
+        "id": "prime:central:d4d:98547288",
+        "up": {
+          "value": 0.005,
+          "unit": "pc",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 500,
+          "total": 500,
+          "src": "count"
+        },
+        "price": 2.5
+      },
+      "offers": 2
+    },
+    {
+      "q": "deto clean dishwash",
+      "before": {
+        "id": "prime:central:d4d:99160407",
+        "up": {
+          "value": 3.8333333333333335,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1500,
+          "pack": 1,
+          "total": 1500,
+          "src": "measure"
+        },
+        "price": 5.75
+      },
+      "after": {
+        "id": "prime:central:d4d:99160407",
+        "up": {
+          "value": 3.8333333333333335,
+          "unit": "L",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "ml",
+          "each": 1500,
+          "pack": 1,
+          "total": 1500,
+          "src": "measure"
+        },
+        "price": 5.75
+      },
+      "offers": 2
+    },
+    {
+      "q": "salima turkey",
+      "before": {
+        "id": "prime:central:d4d:99137232",
+        "up": {
+          "value": 12.437499999999998,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 800,
+          "pack": 1,
+          "total": 800,
+          "src": "measure"
+        },
+        "price": 9.95
+      },
+      "after": {
+        "id": "prime:central:d4d:99137232",
+        "up": {
+          "value": 12.437499999999998,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 800,
+          "pack": 1,
+          "total": 800,
+          "src": "measure"
+        },
+        "price": 9.95
+      },
+      "offers": 2
+    },
+    {
+      "q": "مجموعة سكاكين التقشير",
+      "before": {
+        "id": "prime:central:d4d:98546676",
+        "up": {
+          "value": 0.6666666666666666,
+          "unit": "pc",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 3,
+          "total": 3,
+          "src": "count"
+        },
+        "price": 2
+      },
+      "after": {
+        "id": "prime:central:d4d:98546676",
+        "up": {
+          "value": 0.6666666666666666,
+          "unit": "pc",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "pcs",
+          "each": 1,
+          "pack": 3,
+          "total": 3,
+          "src": "count"
+        },
+        "price": 2
+      },
+      "offers": 3
+    },
+    {
+      "q": "oks steel scrubber",
+      "before": {
+        "id": "marksave:central:d4d:99063894",
+        "up": {
+          "value": 66.55555555555556,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 15,
+          "pack": 6,
+          "total": 90,
+          "src": "measure"
+        },
+        "price": 5.99
+      },
+      "after": {
+        "id": "marksave:central:d4d:99063894",
+        "up": {
+          "value": 66.55555555555556,
+          "unit": "kg",
+          "source": "derived"
+        },
+        "size": {
+          "unit": "g",
+          "each": 15,
+          "pack": 6,
+          "total": 90,
+          "src": "measure"
+        },
+        "price": 5.99
+      },
+      "offers": 2
+    },
+    {
+      "q": "men slipper",
+      "before": {
+        "id": "cityflower:central:d4d:98715342",
+        "up": null,
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 10
+      },
+      "after": {
+        "id": "cityflower:central:d4d:98715342",
+        "up": null,
+        "size": {
+          "unit": null,
+          "each": null,
+          "pack": 1,
+          "total": null,
+          "src": null
+        },
+        "price": 10
+      },
+      "offers": 15
+    }
+  ]
+}
