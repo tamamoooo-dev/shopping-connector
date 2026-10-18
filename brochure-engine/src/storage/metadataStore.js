@@ -16,6 +16,8 @@
 // The `ux_checksum` unique index (schema.sql) enforces dedupe at the DB layer;
 // `existsByChecksum` is the cheap pre-check so we never even store bytes twice.
 
+import { PROCESSING_JOINS_SQL, SETTLED_OFFER_SQL } from './brochureProcessing.js';
+
 export function createD1MetadataStore(db) {
   return {
     async existsByChecksum(checksum) {
@@ -123,14 +125,43 @@ export function createD1MetadataStore(db) {
     async listPrunable(cutoffISO, limit = 12) {
       const { results } = await db
         .prepare(
-          `SELECT * FROM brochures
-            WHERE is_current = 0 AND pruned_at IS NULL
-              AND valid_to IS NOT NULL AND valid_to < ?
-            ORDER BY valid_to ASC LIMIT ?`,
+          `SELECT b.* FROM brochures b
+            WHERE b.is_current = 0 AND b.pruned_at IS NULL
+              AND b.valid_to IS NOT NULL AND b.valid_to < ?
+              AND b.source_type = 'images'
+              AND EXISTS (SELECT 1 FROM offers o WHERE o.brochure_id = b.id)
+              AND NOT EXISTS (
+                SELECT 1 FROM offers o ${PROCESSING_JOINS_SQL}
+                WHERE o.brochure_id = b.id AND NOT ${SETTLED_OFFER_SQL})
+            ORDER BY b.valid_to ASC LIMIT ?`,
         )
         .bind(cutoffISO, limit)
         .all();
       return results || [];
+    },
+
+    async getProcessingSnapshot(row) {
+      const flyerRef = /\/(\d+)\/[a-z0-9-]+(?:\?.*)?$/i.exec(row.source_url || '')?.[1];
+      if (!flyerRef) return null;
+      const [offers, pending] = await Promise.all([
+        db.prepare(`SELECT o.*, e.name AS extracted_name, e.name_ar AS extracted_name_ar,
+          e.brand AS extracted_brand, e.size AS extracted_size,
+          e.extraction_json, e.identity_candidate, e.mint_verdict,
+          e.enriched_at, e.crop_url AS extracted_crop_url, e.corroboration,
+          v.version AS acceptance_version, v.accepted, v.missing, v.mandatory,
+          q.status AS verification_status, q.initial_outcome, q.verified_at,
+          q.attempts AS verification_attempts,
+          s.product_id, s.match_band, s.week AS history_week,
+          ${SETTLED_OFFER_SQL} AS processing_complete
+          FROM offers o ${PROCESSING_JOINS_SQL}
+          WHERE o.brochure_id = ? ORDER BY o.id LIMIT 5001`)
+          .bind(row.id).all(),
+        db.prepare(`SELECT * FROM price_pending
+          WHERE store = ? AND region = ? AND flyer_ref = ? ORDER BY id LIMIT 5001`)
+          .bind(row.store, row.region, flyerRef).all(),
+      ]);
+      if (offers.results.length > 5000 || pending.results.length > 5000) return null;
+      return { offers: offers.results, pending: pending.results };
     },
 
     async markPruned(id) {

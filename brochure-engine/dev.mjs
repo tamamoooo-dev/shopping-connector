@@ -561,9 +561,8 @@ async function selftestOffers() {
 }
 
 // Retention — OFFLINE + deterministic: metadata is forever, bytes are a rolling
-// window. Seeds an old superseded image brochure with stored bytes, prunes,
-// and proves: bytes gone, row kept + marked, current brochures untouched,
-// re-prune is a no-op, expired offers rows dropped.
+// window. Without positive processing evidence, even an old superseded
+// brochure retains its images. The D1 integration tests cover verified deletion.
 async function selftestRetention() {
   console.log('=== Retention (bytes window, metadata forever) ===');
   const objects = new Map();
@@ -605,19 +604,17 @@ async function selftestRetention() {
   const ctx = { metadataStore, objectStore, offerStore };
   const r1 = await pruneStoredBytes(ctx, { keepDays: 28 });
   console.log('prune run1:', JSON.stringify({ pruned: r1.pruned, deletes: r1.deletes, offersPruned: r1.offersPruned }));
-  // 3 deletes: page00.webp + meta.json + hotspots.json (the tap-geometry
-  // snapshot rides every images edition since snapshot-at-ingest).
-  if (r1.pruned !== 1 || r1.deletes !== 3) fail(`expected 1 row / 3 deletes, got ${r1.pruned}/${r1.deletes}`);
-  if (objects.has(`${oldBase}/page00.webp`) || objects.has(`${oldBase}/meta.json`)) fail('old bytes not deleted');
+  if (r1.pruned !== 0 || r1.deletes !== 0 || r1.skipped !== 1) fail('unproven brochure must retain images');
+  if (!objects.has(`${oldBase}/page00.webp`) || !objects.has(`${oldBase}/meta.json`)) fail('unproven bytes were deleted');
   if (!objects.has(`${curBase}/page00.webp`)) fail('current bytes were deleted');
   const rows = await metadataStore.getHistory('s', 'central');
   const oldRow = rows.find((r) => r.id === 's:central:2026-W01');
   if (!oldRow) fail('pruned ROW was deleted (metadata must be forever)');
-  if (!oldRow.pruned_at) fail('pruned row not marked');
+  if (oldRow.pruned_at) fail('unproven brochure marked pruned');
   if (r1.offersPruned !== 1) fail('expired offers row not pruned');
   const r2 = await pruneStoredBytes(ctx, { keepDays: 28 });
   if (r2.pruned !== 0 || r2.deletes !== 0) fail('re-prune was not a no-op');
-  console.log('✅ Retention verified: bytes pruned, metadata kept+marked, current untouched, idempotent.\n');
+  console.log('✅ Retention verified: incomplete images retained, metadata kept, current untouched.\n');
 }
 
 // LIVE offers leg (part of `selftest`): pull real structured offers for one

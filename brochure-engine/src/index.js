@@ -701,6 +701,9 @@ const worker = {
           if (!event.backgroundStage && isD1RetentionTick(scheduledAt)) {
             const pruneReport = await pruneStoredBytes(context);
             console.log('brochure-engine daily D1 retention', JSON.stringify({
+              brochures: pruneReport.pruned,
+              brochureFiles: pruneReport.deletes,
+              brochuresHeld: pruneReport.skipped,
               ops: pruneReport.ops?.deleted || 0,
               offers: pruneReport.offersPruned || 0,
               sidecars: pruneReport.offerSidecarsPruned || 0,

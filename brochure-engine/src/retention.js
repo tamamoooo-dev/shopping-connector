@@ -1,22 +1,12 @@
 // retention.js — storage retention (a production-stability feature).
 //
-// WHY: the engine keeps every brochure EDITION forever in D1 (tiny rows — the
-// Price History backbone), but the edition's BYTES (page images / PDFs) live
-// in KV, whose Free-plan budget is 1 GB total and 1,000 deletes/day. With ~19
-// stores ingesting weekly, unpruned bytes would exhaust the namespace within
-// weeks. So: METADATA IS FOREVER, BYTES ARE A ROLLING WINDOW.
-//
-// Policy: a brochure that is (a) no longer current AND (b) expired more than
-// `keepDays` ago has its object bytes deleted (pages, meta.json, original.pdf)
-// and its row marked `pruned_at`. The row itself — store, edition, validity,
-// checksum, source URL — is never deleted, so history/dedup/price anchoring
-// are untouched. The frontend only renders bytes for current + most-recently-
-// expired flyers, which stay well inside the window. Offer/search rows use a
-// separate 14-day hot window; durable attempt evidence is archived in R2.
-//
-// Budgets: deletes are capped per run (KV Free allows 1,000/day; the cron runs
-// at most twice a week) and rows are processed oldest-first, so a backlog
-// drains across fires without ever tripping the daily cap. Store-agnostic.
+// Images become disposable seven days after expiry, only for noncurrent,
+// fully processed editions. Missing offers never count as completion.
+// Save and hash-verify a structured snapshot before deleting page bytes.
+// Brochure metadata, price history and Vision evidence remain durable.
+// The daily 03:00 UTC owner bounds deletes; incomplete editions keep images.
+
+import { processingComplete } from './storage/brochureProcessing.js';
 
 const encoder = new TextEncoder();
 
@@ -62,11 +52,11 @@ async function archiveOldOps(ctx, cutoffISO, limit) {
 }
 
 export async function pruneStoredBytes(ctx, {
-  keepDays = 28,
+  keepDays = 7,
   offerKeepDays = 14,
   opsKeepDays = 7,
-  maxDeletes = 250,
-  maxRows = 12,
+  maxDeletes = 750,
+  maxRows = 40,
   maxOpsRows = 3000,
   maxEvidenceRows = 5000,
   maxOfferRows = 5000,
@@ -86,32 +76,63 @@ export async function pruneStoredBytes(ctx, {
 
   for (const row of rows) {
     try {
-      // A link brochure never wrote bytes — just mark it pruned.
-      if (row.source_type !== 'link') {
+      if (row.is_current || !row.valid_to || row.valid_to >= cutoff
+          || !metadataStore.getProcessingSnapshot || !objectStore.put) {
+        report.skipped += 1;
+        continue;
+      }
+      {
         const base = `brochures/${row.storage_key}`;
         const meta = await objectStore.get(`${base}/meta.json`);
-        const keys = [];
-        if (meta) {
-          try {
-            const doc = JSON.parse(new TextDecoder().decode(meta.bytes));
-            for (const p of doc.pages || []) if (p.imageUrl) keys.push(p.imageUrl);
-          } catch {
-            /* unreadable meta — still delete the known fixed keys below */
-          }
-          keys.push(`${base}/meta.json`);
-          // Image sets store their tap-geometry snapshot next to the pages.
-          if (row.source_type === 'images') keys.push(`${base}/hotspots.json`);
+        const hotspotObject = await objectStore.get(`${base}/hotspots.json`);
+        if (!meta || !hotspotObject) {
+          report.skipped += 1;
+          continue;
         }
-        if (row.source_type === 'pdf') keys.push(`${base}/original.pdf`);
+        const doc = JSON.parse(new TextDecoder().decode(meta.bytes));
+        const hotspots = JSON.parse(new TextDecoder().decode(hotspotObject.bytes));
+        const snapshot = await metadataStore.getProcessingSnapshot(row);
+        if (!processingComplete(row, doc, hotspots, snapshot)) {
+          report.skipped += 1;
+          continue;
+        }
+        // Keep the small publication/geometry manifests as structured data.
+        // They also make a failed or partial image deletion safe to retry.
+        const keys = [...new Set(doc.pages.map(p => p.imageUrl))];
+        if (keys.some(key => !key.startsWith(`${base}/`)
+            || !/^page\d+\.(?:webp|jpg|jpeg|png|img)$/.test(key.slice(base.length + 1)))) {
+          throw new Error('unsafe brochure asset path');
+        }
         if (keys.length > budget) {
           report.skipped += 1; // out of delete budget this run — next fire drains it
           continue;
         }
+        const archiveBytes = encoder.encode(JSON.stringify({
+          version: 1, policy: 'processed-expired-7-days',
+          archived_at: new Date().toISOString(), brochure: row,
+          meta: doc, hotspots, ...snapshot,
+          attempt_evidence_prefix: 'vision-verification/attempts/',
+        }));
+        const hash = await sha256Hex(archiveBytes);
+        const archiveKey = `brochure-data/${encodeURIComponent(row.id)}/${hash}.json`;
+        await objectStore.put(archiveKey, archiveBytes, { contentType: 'application/json' });
+        const archived = await objectStore.get(archiveKey);
+        if (!archived || await sha256Hex(archived.bytes) !== hash) {
+          throw new Error('brochure data archive verification failed');
+        }
+        if (metadataStore.getById) {
+          const live = await metadataStore.getById(row.id);
+          if (!live || live.is_current || live.pruned_at || live.checksum !== row.checksum
+              || live.storage_key !== row.storage_key || !live.valid_to || live.valid_to >= cutoff) {
+            report.skipped += 1;
+            continue;
+          }
+        }
         for (const key of keys) {
+          budget -= 1;
           await objectStore.delete(key);
           report.deletes += 1;
         }
-        budget -= keys.length;
       }
       await metadataStore.markPruned(row.id);
       report.pruned += 1;

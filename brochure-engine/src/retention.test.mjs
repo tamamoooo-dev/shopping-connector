@@ -47,6 +47,7 @@ const report = await pruneStoredBytes(ctx, {
 });
 
 assert.equal(report.offersPruned, 7);
+assert.deepEqual(calls.find((entry) => entry[0] === 'brochures'), ['brochures', '2026-08-06']);
 assert.equal(report.offerSidecarsPruned, 6);
 assert.equal(report.evidenceCompacted, 5);
 assert.equal(report.ops.archived, 1);
