@@ -42,7 +42,7 @@ The expanded query does more D1 work: approximately 52–74k rows read versus 26
 
 Twelve additional production SELECTs compared computing the combined text once through a materialized CTE. Results were identical, but timing was inconsistent: one rice run slowed from 278ms to 394ms, another improved from 273ms to 184ms. That variant was not adopted. No schema, index, embedding service, new queue or additional inference is introduced.
 
-All remote audit SELECTs reported zero rows written. Production application code has not been changed by this validation.
+All remote audit SELECTs reported zero rows written. Audit validation made no production data or schema changes.
 
 ## Validation and release
 
@@ -63,3 +63,9 @@ node src/matcherParity.test.mjs
 The replay reconstructs its baseline from the pinned production commit and uses captured product data, without a credential or live model call. Original crops and extended experimental files remain available in the local audit artifacts.
 
 Deployment must follow `deploy.mjs` and the companion frontend HANDOFF section 9: production engine releases require a clean, pushed main commit; the frontend main push publishes Pages. The tested engine and frontend changes must be released together so the frontend preserves withheld values. Publishing needs approval for the main-branch updates and live release, and any additional Cloudflare Worker authorization the existing read-oriented OAuth login lacks.
+
+## Publication and live checks
+
+The user approved publication. Engine `87ebe3e` and frontend `54b7abd` were pushed to main; both GitHub CI runs passed and Pages publication succeeded. Cloudflare deployed `87ebe3e` as version `09281311-fcd9-4a29-86a5-d348ae362df5`. Live health, brochure, English/Arabic search and Browse requests returned HTTP 200; published HTML and all three changed frontend modules matched the source. The cornflakes and Arabic Loacker checks returned 20 (requested limit) and 13 offers respectively. These are smoke checks, not relevance scores.
+
+Inspection of those live responses found an additional explicit alternative: `farm:central:d4d:99041451`, size `110GR / 125GR`, was incorrectly priced at 109 SAR/kg using only 110g. A follow-up guard uses the existing package parser on slash-separated measures and withholds arithmetic when the alternatives differ. Equivalent measures (`1kg / 1000g`), package annotations (`500g / pack`) and per-kg bases remain supported. This newly found case is outside the original diagnostic/holdout counts above.

@@ -202,6 +202,13 @@ function protectQuantity(quantity, { size, name, text }) {
   else if (/\d\s*[-–]\s*\d|\bOR\b|\bAssorted Sizes\b/i.test(raw)) reason = 'range_or_variant';
   else if (/tuna|تونة|تونه/i.test(context) && /oil|زيت/i.test(context)
       && /\+|\bfree\b|مجانا|هدية|هديه/i.test(context)) reason = 'mixed_product_bundle';
+  if (!reason && raw.includes('/')) {
+    const measures = raw.split('/').map(part => parsePackageSize({ size: part })?.canonical)
+      .filter(p => p && ['g', 'ml'].includes(p.unit));
+    if (measures.length > 1 && measures.some(p => p.unit !== measures[0].unit || p.total !== measures[0].total)) {
+      reason = 'range_or_variant';
+    }
+  }
   if (!reason && raw.includes('+')) {
     const parts = raw.split('+').map(part => parsePackageSize({ size: part.replace(/[()]/g, '') })?.canonical);
     if (parts.every(p => p && ['g', 'ml'].includes(p.unit))

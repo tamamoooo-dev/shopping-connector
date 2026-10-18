@@ -43,6 +43,12 @@ assert.equal(price('Noor Sunflower Oil', '2 x 1.5L + 500ml', 36.99).value, 36.99
 assert.equal(price('Baby Life Diapers', '7-14 kg', 48.99), null);
 assert.equal(price('Whole Salmon', '2-3 kg', 54.99), null);
 assert.equal(price('Cereal', '375g OR 700g', 15.99), null);
+// Captured from the live farm:central:d4d:99041451 response after deployment.
+assert.equal(price('LOACKER QUADRATINI WAFFER 110GR / 125GR', '110GR / 125GR', 11.99), null);
+assert.equal(price('Wafer', '100g/125g', 10), null);
+assert.equal(price('Rice', '1kg / 1000g', 10).value, 10);
+assert.equal(price('Rice', '500g / pack', 10).value, 20);
+assert.equal(price('Loose Rice /Kg', null, 10).value, 10);
 assert.equal(price('Soap', '3+1 x 120g', 13.99).value, 13.99 / .48);
 assert.equal(price('Dettol Soap (3 + 1x 120g)', '120g', 13.99).value, 13.99 / .48);
 assert.equal(price('Lulu Corn Flakes 375g 2s', '375g', 10.99).value, 10.99 / .75);
