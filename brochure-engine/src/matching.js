@@ -937,7 +937,7 @@ const UNIT_TO_BASE = [
 // "٣*٤٥٠ غرام" falls through and the size number can be mistaken for the pack
 // multiplier (450 × 450 g).
 const UNITS = 'l|lt|ltr|liter|litre|litres|لتر|ليتر'
-  + '|ml|ملي|ميلي|مليلتر'
+  + '|ml|مل|ملي|ميلي|مليلتر'
   + '|kg|kgs|kilo|kilos|كجم|كيلو|كغ|كيلوجرام'
   + '|g|gm|gr|grm|gram|grams|جم|جرام|غرام|غ';
 // Packaging count words: a number followed by one of these IS the unit count of
