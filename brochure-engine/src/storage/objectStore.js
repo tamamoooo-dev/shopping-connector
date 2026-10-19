@@ -15,17 +15,19 @@
 // index.js by which binding exists.
 
 // --- R2 (preferred: unlimited object size, cheap egress) ---------------------
+import { putStoredBytes, readStoredBytes } from './r2Compression.js';
+
 export function createR2ObjectStore(bucket) {
   return {
     async put(key, bytes, { contentType } = {}) {
-      await bucket.put(key, bytes, {
+      await putStoredBytes(bucket, key, bytes, {
         httpMetadata: contentType ? { contentType } : undefined,
       });
     },
     async get(key) {
       const obj = await bucket.get(key);
       if (!obj) return null;
-      const bytes = new Uint8Array(await obj.arrayBuffer());
+      const bytes = await readStoredBytes(obj);
       return { bytes, contentType: obj.httpMetadata?.contentType || 'application/octet-stream' };
     },
     async delete(key) {

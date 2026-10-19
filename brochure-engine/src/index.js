@@ -421,6 +421,7 @@ function buildContext(env) {
     db: env.DB || null,
     registry,
     objectStore,
+    storageBucket: env.BROCHURES,
     metadataStore,
     collectionStore,
     pipeline,

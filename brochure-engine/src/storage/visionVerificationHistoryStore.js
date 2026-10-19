@@ -1,6 +1,7 @@
 // Full Vision Verification attempt evidence lives in R2. D1 keeps only the
 // compact hashes required to make the matching decision atomically.
 
+import { putStoredBytes, readStoredJson } from './r2Compression.js';
 const enc = new TextEncoder();
 
 function safeSegment(value) {
@@ -57,7 +58,7 @@ export function createR2VisionVerificationHistoryStore(bucket) {
         attempted_at: attempt?.attemptedAt ?? new Date().toISOString(),
       });
       const bytes = enc.encode(body);
-      const stored = await bucket.put(key, bytes, {
+      const stored = await putStoredBytes(bucket, key, bytes, {
         httpMetadata: { contentType: 'application/json; charset=utf-8' },
         customMetadata: {
           recordType: 'vision-verification-attempt',
@@ -87,7 +88,7 @@ export function createR2VisionVerificationHistoryStore(bucket) {
         const object = await bucket.get(key);
         if (!object) continue;
         try {
-          records.push({ key, ...JSON.parse(await object.text()) });
+          records.push({ key, ...await readStoredJson(object) });
         } catch {
           /* skip a damaged record */
         }

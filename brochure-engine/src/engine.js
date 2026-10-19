@@ -32,6 +32,7 @@ import { applyReviewAction } from './registry/review.js';
 import { getRegistryPricesDoc } from './registry/history.js';
 import { queryFamily, offerFamily, offerMatchItem, productType, freshProduceIntent, isProcessedProduce, producePresence, matchStage } from './matching.js';
 import { pruneStoredBytes } from './retention.js';
+import { compressStoredObjects } from './storage/r2Compression.js';
 import {
   anchorWatch,
   buildWatch,
@@ -1628,6 +1629,18 @@ export async function handleRequest(request, ctx) {
       return json({ error: 'Forbidden' }, 403);
     }
     return json(await pruneStoredBytes(ctx));
+  }
+
+  if (path === '/compress-storage' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    const body = await request.json().catch(() => null);
+    if (!ctx.storageBucket || !Array.isArray(body?.keys) || body.keys.length > 200) {
+      return json({ error: 'Expected at most 200 archive keys' }, 400);
+    }
+    try { return json(await compressStoredObjects(ctx.storageBucket, body.keys)); }
+    catch (error) { return json({ error: error.message }, 400); }
   }
 
   return json({ error: 'Not found' }, 404);

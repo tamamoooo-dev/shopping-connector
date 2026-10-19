@@ -22,6 +22,7 @@ import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync, createWriteStream } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { gunzipSync } from 'node:zlib';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const args = process.argv.slice(2);
@@ -61,7 +62,9 @@ for (const table of manifest.tables) {
   for (let part = 0; part < table.parts; part += 1) {
     const name = `${String(part).padStart(5, '0')}.jsonl`;
     const file = fetchObject(`${prefix}/${table.name}/${name}`, join(outDir, table.name, name));
-    for (const line of readFileSync(file, 'utf8').split('\n')) {
+    const stored = readFileSync(file);
+    const text = (stored[0] === 0x1f && stored[1] === 0x8b ? gunzipSync(stored) : stored).toString('utf8');
+    for (const line of text.split('\n')) {
       if (!line) continue;
       const { __rowid, ...row } = JSON.parse(line);
       const cols = Object.keys(row);

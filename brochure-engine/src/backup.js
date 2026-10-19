@@ -19,6 +19,7 @@
 // days, Time Travel stays the tool; this covers losing the database or
 // needing something older.
 
+import { putStoredBytes } from './storage/r2Compression.js';
 export const BACKUP_PREFIX = 'backups/d1/';
 export const BACKUP_KEEP = 8;
 const ACTIVE_KEY = `${BACKUP_PREFIX}active.json`;
@@ -80,7 +81,7 @@ export async function runBackupStep(db, bucket, { now = new Date(), maxParts = 1
       const rows = results || [];
       if (rows.length) {
         const body = rows.map((row) => JSON.stringify(row)).join('\n') + '\n';
-        await bucket.put(`${BACKUP_PREFIX}${active.id}/${table.name}/${String(table.parts).padStart(5, '0')}.jsonl`, body);
+        await putStoredBytes(bucket, `${BACKUP_PREFIX}${active.id}/${table.name}/${String(table.parts).padStart(5, '0')}.jsonl`, body);
         table.cursor = rows[rows.length - 1].__rowid;
         table.rows += rows.length;
         table.parts += 1;

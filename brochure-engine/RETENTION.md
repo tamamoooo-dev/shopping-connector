@@ -21,3 +21,18 @@ Failed archive verification stops deletion. A page deletion failure leaves
 the row unpruned and the manifests intact for retry. Current brochures and
 editions in the seven-day review window are preserved. A run processes at most
 40 candidate editions and 750 image keys; offer/history retention is unchanged.
+
+## Text archive encoding
+
+Vision evidence, dated backup parts and audit archives use gzip when it saves
+space. Object keys and decoded content are unchanged. Readers support both
+legacy plain data and gzip, including the backup restoration script. New
+immutable text writes above 2 KiB are compressed automatically (up to 16 MiB
+per object); page images and operational state are excluded.
+
+The authenticated `/compress-storage` maintenance route accepts up to 200
+archive keys per request, with at most 4 MiB per object and four concurrent
+objects. It checks the original ETag before replacement and
+verifies decoded SHA-256 after storage. Failed verification restores the
+original if it has not changed concurrently. Larger archives are compressed
+separately with streaming tools and verified against their original digest.
