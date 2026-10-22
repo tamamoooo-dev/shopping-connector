@@ -1,3 +1,4 @@
+import { saleObservationSql, readSaleObservation } from '../offers/saleObservation.js';
 // storage/enrichStore.js — the vision-enrichment side-car store behind a
 // narrow interface, backed by D1 (the same database as the offers rows the
 // enrichments describe — see offers/enrich.js for the discipline).
@@ -177,7 +178,7 @@ export function enrichRowCols(enabled = false) {
     // extraction_json because it was preserved before anything consumed it;
     // json_extract is cheaper than a migration and keeps the column verbatim.
     "e.size AS e_size, json_extract(e.extraction_json, '$.unit') AS e_unit, " +
-    `${corroboratedPackCountSql()} AS e_pack_count, ` +
+    `${corroboratedPackCountSql()} AS e_pack_count, ${saleObservationSql()} AS e_sale, ` +
     // `package_type` rides the same json_extract for the same reason, and is
     // read by the per-item price: a `set` is a package whose items cannot be
     // bought one at a time (comparableQuantity.js eachPriceFrom, gate 7).
@@ -209,6 +210,8 @@ export function readExtractionPackageType(extractionJson) {
   return readExtractionField(extractionJson, 'package_type');
 }
 
+export { readSaleObservation };
+
 export function readExtractionPackCount(extractionJson, searchText) {
   return corroboratedPackCount(readExtractionField(extractionJson, 'quantity'), searchText);
 }
@@ -220,8 +223,13 @@ const SCOPE_WHERE = {
   all: '',
 };
 
-export function visionMatchText({ name, name_ar, brand }) {
-  const t = normalizeText([name, name_ar, brand].filter(Boolean).join(' '));
+export function visionMatchText({ name, name_ar, brand, extraction_json }) {
+  let display = null;
+  try {
+    const record = typeof extraction_json === 'string' ? JSON.parse(extraction_json) : extraction_json;
+    if (record?._arabic_builder?.caption_version === 'arabic-caption-v1') display = record._arabic_builder.display_arabic;
+  } catch { /* A missing optional display caption cannot block persistence. */ }
+  const t = normalizeText([name, name_ar, brand, display].filter(Boolean).join(' '));
   return t || null;
 }
 
@@ -387,7 +395,7 @@ export function createD1EnrichStore(db) {
     async listDebris({ currentOn, limit = 15, scope = 'all' } = {}) {
       const { results } = await db
         .prepare(
-          `SELECT o.id, o.image_url, o.name, o.name_ar, o.price, o.currency, o.category
+          `SELECT o.id, o.image_url, o.name, o.name_ar, o.price, o.currency, o.category, o.search_text
              FROM offers o
              LEFT JOIN offer_enrichments e ON e.id = o.id
              LEFT JOIN offer_extraction_attempts v
@@ -415,7 +423,7 @@ export function createD1EnrichStore(db) {
       const placeholders = selected.map(() => '?').join(',');
       const { results } = await db
         .prepare(
-          `SELECT o.id, o.image_url, o.name, o.name_ar, o.price, o.currency, o.category
+          `SELECT o.id, o.image_url, o.name, o.name_ar, o.price, o.currency, o.category, o.search_text
              FROM offers o
              LEFT JOIN offer_enrichments e ON e.id = o.id
              LEFT JOIN offer_extraction_attempts v
@@ -488,7 +496,7 @@ export function createD1EnrichStore(db) {
       if (!selected.length) return [];
       const { results } = await db
         .prepare(
-          `SELECT id, image_url, name, name_ar, price, currency, category FROM offers
+          `SELECT id, image_url, name, name_ar, price, currency, category, search_text FROM offers
             WHERE id IN (${selected.map(() => '?').join(',')})
               AND image_url IS NOT NULL AND valid_to >= ?
             ORDER BY detected_at DESC`,
@@ -1515,6 +1523,7 @@ export function createD1EnrichStore(db) {
                     '_r2_evidence', 'vision-verification/attempts',
                     'unit', ${field('$.unit')},
                     'package_type', ${field('$.package_type')},
+                    '_sale', json(${field('$._sale')}),
                     '_arabic_builder', json_object(
                       'status', ${field('$._arabic_builder.status')},
                       'built_arabic', ${field('$._arabic_builder.built_arabic')},

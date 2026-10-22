@@ -73,6 +73,10 @@ function cardDoc(row, today) {
     dept: aisle ? aisle.dept : null,
     badges: offerBadges(row, today),
     eachPrice: priced.eachPrice,
+    size: priced.size,
+    saleQuantity: priced.saleQuantity,
+    quantityReviewRequired: priced.quantityReviewRequired,
+    packageContents: priced.packageContents,
     enriched: row.servable === 1,
     enrichmentModel: row.servable === 1 ? row.e_model || null : null,
   };

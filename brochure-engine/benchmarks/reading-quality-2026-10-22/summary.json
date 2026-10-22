@@ -1,0 +1,79 @@
+{
+  "createdAt": "2026-10-22T14:25:10.492Z",
+  "model": "ministral-14b-2512",
+  "requestsPerNewOffer": 1,
+  "promptSha256": "9a07db2363cd94489460ecb6a2664a9b42a25dc9ee2cde2e8ead1b1650851215",
+  "records": 1131,
+  "panda": 1003,
+  "otherStores": 16,
+  "otherSamples": 128,
+  "stores": [
+    "hyperpanda",
+    "aljazera",
+    "almadina",
+    "alwafa",
+    "amarket",
+    "carrefour",
+    "cityflower",
+    "danube",
+    "farm",
+    "lulu",
+    "makkah",
+    "marksave",
+    "nesto",
+    "othaim",
+    "prime",
+    "ramez",
+    "tamimi"
+  ],
+  "manual": {
+    "all": {
+      "visuallyReviewed": 157,
+      "arabicProbes": {
+        "before": 165,
+        "after": 197,
+        "total": 251
+      },
+      "referenceChecks": 91,
+      "baseline": {
+        "correct": 38,
+        "wrong": 53
+      },
+      "candidate": {
+        "correct": 79,
+        "withheld": 12
+      }
+    },
+    "final-holdout": {
+      "visuallyReviewed": 32,
+      "arabicProbes": {
+        "before": 30,
+        "after": 37,
+        "total": 48
+      },
+      "referenceChecks": 19,
+      "baseline": {
+        "correct": 8,
+        "wrong": 11
+      },
+      "candidate": {
+        "correct": 17,
+        "withheld": 2
+      }
+    }
+  },
+  "quantityReview": 142,
+  "acceptedName": 1130,
+  "rejectedMethods": {
+    "zoom": "24 crops, Arabic probes 27/44 before and after: no gain; not adopted",
+    "arabicOnly": "Focused Arabic-only prompt did not resolve recognition errors; not adopted",
+    "fullArabicBuilder": "Complete-builder trial lost four search probes on reviewed titles; not adopted"
+  },
+  "limitations": [
+    "Assistant visual audit; no independent human adjudicator.",
+    "Purposeful edge-case selection, not a random population accuracy estimate.",
+    "Keyword probes measure recoverable search words, not exact whole-title transcription accuracy.",
+    "Unresolved quantity/price associations withhold unit arithmetic and show an image-review label."
+  ],
+  "backupStorage": "local-only"
+}

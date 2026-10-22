@@ -1,3 +1,4 @@
+import { readSaleObservation } from '../offers/saleObservation.js';
 // storage/local.js — zero-dependency local implementations of the storage
 // interfaces, used ONLY by dev.mjs to run the full pipeline end-to-end without
 // provisioning any cloud resources. They implement the exact same interfaces as
@@ -411,7 +412,8 @@ export function createMemoryOfferStore({
       return {
         ...r,
         e_name: e?.name ?? null,
-        e_name_ar: selectedArabic.nameAr,
+        e_name_ar: builtArabicNamesEnabled && readArabicBuilderShadow(e?.extraction_json)?.caption_version === 'arabic-caption-v1'
+          ? readArabicBuilderShadow(e?.extraction_json).display_arabic : selectedArabic.nameAr,
         // The D1 search projects the enrichment's brand and size too, and
         // consumers read them (monitor.js offerAsListing turns a flyer row
         // into a listing for the shared extractor). Omitting them here made
@@ -422,6 +424,7 @@ export function createMemoryOfferStore({
         // is already to hand. Feeds the price basis (applyUnitPrice).
         e_unit: readExtractionUnit(e?.extraction_json),
         e_pack_count: readExtractionPackCount(e?.extraction_json, r.search_text),
+        e_sale: readSaleObservation(e?.extraction_json, r.price),
         e_package_type: readExtractionPackageType(e?.extraction_json),
         e_attributes: e?.extraction_json ? (() => {
           try { const obs = typeof e.extraction_json === 'string' ? JSON.parse(e.extraction_json) : e.extraction_json;

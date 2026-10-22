@@ -1,0 +1,15 @@
+import assert from 'node:assert/strict';
+import { repairArabicCaption, retailerArabicCaption, selectArabicCaption } from './arabicCaptionRepair.js';
+const repair=(nameAr,nameEn,retailerText,brand=null)=>repairArabicCaption({nameAr,nameEn,retailerText,brand});
+assert.equal(repair('رقائق بطاطش','Potato Chips','رقائق بطاطس'),'رقائق بطاطس');
+assert.equal(repair('حلوى جلي حامضة','Jelly Sour Bites','حلوى حامضة'),'حلوى جلي حامضة','No independent source, no rewrite');
+assert.equal(repair('حلوى جلي حامضة','Chocolate Bar','حلوى جيلي حامضة'),'حلوى جلي حامضة','No exact English concept, no rewrite');
+assert.equal(repair('حليب كامل الدسم','Milk Full Fat','حليب قليل الدسم'),'حليب كامل الدسم','Known words remain protected');
+assert.equal(repair('حلوى براندغريب ٢ × ٥٠ جم','Jelly Sour Bites','حلوى جيلي حامضة'),'حلوى براندغريب ٢ × ٥٠ جم');
+assert.equal(repair(null,'Jelly','جيلي'),null);
+assert.equal(retailerArabicCaption('Garameesh Rusk','save 3 51 شابوره قراميش اصليه 375 جرام garameesh rusk 375g biscuits'),'شابوره قراميش اصليه');
+assert.equal(selectArabicCaption({nameAr:'شاورما قراميش أصلية',nameEn:'Garameesh Rusk',retailerText:'save 3 51 شابوره قراميش اصليه 375 جرام garameesh rusk 375g biscuits'}).source,'retailer_caption');
+assert.equal(selectArabicCaption({nameAr:'فول مدمس',nameEn:'Foul Medammes',retailerText:'قول حدايق مدمس 450 جرام foul medammes 450g'}),null,'A corrupted retailer noun must not replace a corroborated observed noun');
+assert.equal(retailerArabicCaption('Sunbulah Noodles Chicken Flavour','نكهه الدجاج chicken flavour sunbulah noodles 70g sunbulah noodles'),null,'An interior package phrase cannot anchor a product caption');
+assert.equal(retailerArabicCaption('Nadec Cheese','نادك جبن nadec cheese 200g نادك جبن nadec cheese 200g'),null,'Repeated title anchors are ambiguous');
+console.log('Arabic captions: independent text + exact English corroboration, unknown-word-only repair and preservation guards passed.');

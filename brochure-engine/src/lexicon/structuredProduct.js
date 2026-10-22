@@ -133,7 +133,11 @@ export function buildStructuredProduct(observation = {}) {
   const nonGrocery = observation.non_grocery ?? observation.nonGrocery ?? false;
 
   const brand = resolveBrand(brandObserved);
-  const size = parsePackageSize({ size: sizeObserved, name: nameEn, packCount, nonGrocery });
+  // A price-associated package reading already separated internal contents
+  // from the external deal. Incidental slice counts in the title must not
+  // multiply its net weight again in the registry/Arabic shadow either.
+  const size = parsePackageSize({ size: sizeObserved,
+    name: observation.size_authoritative === true ? null : nameEn, packCount, nonGrocery });
   const packageType = resolvePackageType(packageTypeObserved);
 
   const usableEnglish = hasUsableEnglish(nameEn);

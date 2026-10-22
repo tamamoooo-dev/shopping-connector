@@ -1,4 +1,6 @@
 import { observedText } from '../observedText.js';
+import { selectSaleObservation, readSaleObservation } from './saleObservation.js';
+import { selectArabicCaption } from '../lexicon/arabicCaptionRepair.js';
 // offers/enrich.js — VISION ENRICHMENT for debris-name offers (spike, 2026-07-18).
 //
 // ~3% of ingested offers arrive with OCR text so mangled that deriveNames
@@ -233,9 +235,10 @@ export function applyUnitPrice(offer, row, isServable = true) {
   // how the gate and the pricer came to disagree about a "40's" tissue pack.
   // Asking the same question in the same place makes that class of drift
   // unrepresentable.
+  const sale = isServable ? readSaleObservation(row?.e_sale, offer.price) : null;
   const inputs = {
     size,
-    name,
+    name: sale && size ? null : name,
     unit,
     // The retailer's own bilingual text, where 899 live offers state the basis
     // and nothing else does.
@@ -248,7 +251,7 @@ export function applyUnitPrice(offer, row, isServable = true) {
   // Preserve printed bases, ambiguity refusals, existing multipacks and all
   // unservable/non-grocery observations. The store supplies only a count
   // independently corroborated by the retailer's explicit sale badge.
-  const packCount = isServable ? row?.e_pack_count : null;
+  const packCount = isServable && !sale ? row?.e_pack_count : null;
   const alternativeSize = /[0-9٠-٩۰-۹]\s*[/–-]\s*[0-9٠-٩۰-۹]/u.test(`${size || ''} ${name || ''}`);
   if (!inputs.nonGrocery && packCount && quantity.reference
       && quantity.evidence === COMPARABLE_QUANTITY_EVIDENCE.MEASURE
@@ -263,7 +266,37 @@ export function applyUnitPrice(offer, row, isServable = true) {
   }
 
   offer.size = countedSize || size;
+  offer.saleQuantity = null;
+  offer.quantityReviewRequired = false;
+  if (sale) {
+    if (sale.status !== 'matched') {
+      quantity = { ...quantity, reference: null };
+      offer.size = null;
+      offer.quantityReviewRequired = true;
+    } else if (sale.count > 1) {
+      offer.saleQuantity = { count: sale.count, packageSize: size,
+        packagePrice: offer.price / sale.count, evidence: sale.text };
+      offer.size = size ? `${sale.count} × (${size})` : `${sale.count} PCS`;
+      // A deal multiplier scales the whole already-parsed package, including
+      // an internal multipack. A printed per-kg price remains a separate basis.
+      if (quantity.reference && quantity.evidence !== COMPARABLE_QUANTITY_EVIDENCE.PRICE_BASIS) {
+        quantity = { ...quantity, pack: quantity.pack * sale.count,
+          reference: { ...quantity.reference, quantity: quantity.reference.quantity * sale.count } };
+      } else {
+        quantity = { ...quantity, reference: null };
+      }
+    }
+  }
   offer.sellingMode = quantity.sellingMode;
+  if (sale) {
+    const ref = quantity.reference;
+    const factor = ref && ['kg', 'l'].includes(ref.unit) ? 1000 : 1;
+    offer.packageContents = ref && quantity.evidence !== COMPARABLE_QUANTITY_EVIDENCE.PRICE_BASIS ? {
+      unit: ref.unit === 'kg' ? 'g' : ref.unit === 'l' ? 'ml' : 'pcs',
+      total: ref.quantity * factor, each: ref.quantity * factor / quantity.pack,
+      pack: quantity.pack, src: quantity.evidence,
+    } : null;
+  }
   offer.priceBasis = quantity.evidence === COMPARABLE_QUANTITY_EVIDENCE.PRICE_BASIS
     ? {
       unit: quantity.unit,
@@ -429,25 +462,18 @@ export const PRODUCTION_EXTRACTION_BASELINE = Object.freeze({
   record: 'benchmarks/mistral-medium-production-validation-50-2026-07-25/PRODUCTION-PROMPT.md',
 });
 
-// User-requested live reading comparison, 2026-10-18: prefer the flyer caption
-// for English product identity, retaining the package as its literal fallback.
-// The other instructions, schema, image bytes, model and one-call budget stay
-// identical. On a fresh 32-crop confirmation this recovered four English
-// product probes with no loss in the scored brand or quantity observations.
-// Keep the old prompt/builder byte-frozen for the separate price-reading lane:
-// this change is for product enrichment, whose prices remain quarantined.
-export const ENRICHMENT_VISION_PROMPT = VISION_PROMPT.replace(
-  'Copy the complete English product title exactly as printed on the package.',
-  'Copy the complete English product title exactly as printed in the flyer caption.\n'
-    + 'If no English flyer caption is legible, copy the package title exactly as printed.',
-);
+// User-authorized system reading revision, 2026-10-22. The product lane now
+// records bilingual captions and separately priced external deal quantities.
+// The independent price-extraction baseline above remains byte-for-byte frozen.
+export { ENRICHMENT_VISION_PROMPT } from './enrichmentPrompt.js';
+import { ENRICHMENT_VISION_PROMPT } from './enrichmentPrompt.js';
 export const ENRICHMENT_READING_BASELINE = Object.freeze({
-  adoptedOn: '2026-10-18',
+  adoptedOn: '2026-10-22',
   model: DEFAULT_MODEL,
-  method: 'literal-flyer-caption-first-v1',
-  promptSha256: '17ec81d6fb5f56c9814643041ca7300adb9f9c14927c7a537375dd6c5799a07f',
+  method: 'bilingual-caption-sale-options-v1',
+  promptSha256: '9a07db2363cd94489460ecb6a2664a9b42a25dc9ee2cde2e8ead1b1650851215',
   requestsPerCrop: 1,
-  record: 'benchmarks/vision-reading-2026-10-18/REPORT.md',
+  record: 'benchmarks/reading-quality-2026-10-22/REPORT.md',
 });
 
 // bytes -> base64 without Buffer. Current Workers provide the native
@@ -599,7 +625,7 @@ export function preservedObservation(output) {
   if (!output || typeof output !== 'object' || Array.isArray(output)) return null;
   const kept = {};
   for (const [key, value] of Object.entries(output)) {
-    if (QUARANTINED_OBSERVATION_FIELDS.includes(key)) continue;
+    if (QUARANTINED_OBSERVATION_FIELDS.includes(key) || key === 'sale_options') continue;
     if (value == null || value === '') continue;
     if (Array.isArray(value) && value.length === 0) continue;
     kept[key] = value;
@@ -735,14 +761,14 @@ export async function postMistral(url, body, { apiKey, fetchImpl, stage, timeout
   };
 }
 
-async function observeVisionBytes(crop, { apiKey, model = DEFAULT_MODEL, fetchImpl = fetch } = {}) {
+async function observeVisionBytes(crop, { apiKey, model = DEFAULT_MODEL, fetchImpl = fetch, offer = {} } = {}) {
   const response = await postMistral(
     MISTRAL_URL,
     buildEnrichmentVisionRequest({ model, contentType: crop.contentType, base64: crop.base64 }),
     { apiKey, fetchImpl, stage: 'mistral' },
   );
   const rawReply = response.body?.choices?.[0]?.message?.content ?? null;
-  return visionObservationFromReply(rawReply, { model, cropUrl: crop.cropUrl, rateLimit: response.rateLimit });
+  return selectSaleObservation(visionObservationFromReply(rawReply, { model, cropUrl: crop.cropUrl, rateLimit: response.rateLimit }), offer);
 }
 
 // A model reply -> the Vision observation runSmartExtraction consumes. Split out
@@ -825,12 +851,13 @@ function identityFromExtraction(result, mode, extracted = result.extraction) {
 // expose.
 export function productKnowledge(extracted, observation, commerceContext = {}) {
   extracted = canonicalExtraction(extracted);
-  return buildArabicShadow({
+  const knowledge = buildArabicShadow({
     name_en: extracted.productName,
     name_ar: extracted.arabicName,
     brand: extracted.brand,
     size: extracted.size,
-    pack_count: extracted.packCount,
+    pack_count: observation?._sale ? null : extracted.packCount,
+    size_authoritative: observation?._sale?.status === 'matched' && !!extracted.size,
     // Expanded JSON fields (§44) that until now nothing read.
     package_type: observation?.package_type ?? null,
     attributes: observation?.attributes ?? null,
@@ -846,6 +873,16 @@ export function productKnowledge(extracted, observation, commerceContext = {}) {
     // name only.
     non_grocery: isNonGrocery(commerceContext?.category),
   });
+  if (observation?._sale) {
+    const caption = selectArabicCaption({ nameAr: extracted.arabicName,
+      nameEn: extracted.productName, brand: extracted.brand,
+      retailerText: commerceContext.search_text ?? commerceContext.searchText,
+      retailerCategory: commerceContext.category });
+    if (caption) knowledge.arabicBuilder = { ...knowledge.arabicBuilder,
+      display_arabic: caption.name, display_source: caption.source,
+      caption_version: caption.version, caption_evidence: caption.caption };
+  }
+  return knowledge;
 }
 
 export function canonicalRowFromResult(offerId, crop, result, {
@@ -950,7 +987,7 @@ export async function observeOfferCrop(
 ) {
   if (!apiKey) throw new Error('observeOfferCrop: apiKey is required');
   const crop = await fetchOfferCrop(offer, { fetchImpl, onCrop });
-  return crop ? observeVisionBytes(crop, { apiKey, model, fetchImpl }) : null;
+  return crop ? observeVisionBytes(crop, { apiKey, model, fetchImpl, offer }) : null;
 }
 
 // Read one offer's crop and return an Enrichment record, or null when the
@@ -974,7 +1011,7 @@ export async function enrichOffer(
   if (!crop) return null;
   const result = await runSmartExtraction({
     strategy,
-    runVision: () => observeVisionBytes(crop, { apiKey, model, fetchImpl }),
+    runVision: () => observeVisionBytes(crop, { apiKey, model, fetchImpl, offer }),
     runOcr: () => observeOcrBytes(crop, { apiKey, model: ocrModel, fetchImpl }),
   });
   const extracted = canonicalExtraction(result.extraction);
@@ -1103,10 +1140,10 @@ export async function extractWithFailover(
   const result = await runSmartExtraction({
     strategy,
     runVision: observation
-      ? async () => ({ ...observation, cropUrl: crop.cropUrl })
+      ? async () => selectSaleObservation({ ...observation, cropUrl: crop.cropUrl }, offer)
       : () => withFailover(
         keyChain,
-        (apiKey) => observeVisionBytes(crop, { apiKey, model, fetchImpl }),
+        (apiKey) => observeVisionBytes(crop, { apiKey, model, fetchImpl, offer }),
         failover,
       ),
     runOcr: () => withFailover(
@@ -1263,7 +1300,7 @@ export async function drainEnrichment(
     for (const d of debris) {
       try {
         const observed = await extractWithFailover(
-          { id: d.id, name: null, nameAr: null, imageUrl: d.image_url },
+          { id: d.id, name: null, nameAr: null, imageUrl: d.image_url, price: d.price, searchText: d.search_text },
           {
             keyChain: chain,
             model,
@@ -1420,6 +1457,7 @@ export async function drainEnrichment(
           nameAr: null,
           imageUrl: d.image_url,
           price: d.price,
+          searchText: d.search_text,
           currency: d.currency,
         },
         {
@@ -1531,7 +1569,7 @@ export async function drainOcrEnrichment(
   for (const d of pending) {
     try {
       const observed = await extractWithFailover(
-        { id: d.id, name: null, nameAr: null, imageUrl: d.image_url },
+        { id: d.id, name: null, nameAr: null, imageUrl: d.image_url, price: d.price, searchText: d.search_text },
         {
           keyChain: chain,
           ocrModel,

@@ -1,3 +1,4 @@
+import { saleObservationSql } from '../offers/saleObservation.js';
 // storage/browseStore.js — the Browse read layer behind a narrow interface,
 // backed by D1 (the same database as offers/price history — Browse is a VIEW
 // over the existing substrate, it owns no tables of its own).
@@ -87,6 +88,7 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
     ${SERVABLE_SQL} AS servable, e.model AS e_model, e.size AS e_size,
     json_extract(e.extraction_json, '$.unit') AS e_unit,
     ${corroboratedPackCountSql()} AS e_pack_count,
+    ${saleObservationSql()} AS e_sale,
     json_extract(e.extraction_json, '$.package_type') AS e_package_type`;
   const markNames = `(ifnull(${CANON_NAME_SQL},'') || ' ' || ifnull(${canonicalNameAr},''))`;
   const likeAny = (terms) => terms.map((t) => `${markNames} LIKE '%${t}%'`).join(' OR ');

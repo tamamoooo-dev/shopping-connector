@@ -297,6 +297,8 @@ export async function drainVisionVerification(
           name: null,
           nameAr: null,
           imageUrl: item.imageUrl,
+            price: item.price,
+            searchText: item.searchText,
         },
         {
           keyChain: chain,

@@ -80,7 +80,7 @@ export default defineProcessor({
     const prior = item.attemptsBySource.vision;
     const retryModel = prior.model;
     const observed = await extractWithFailover(
-      { id: item.offerId, name: null, nameAr: null, imageUrl: item.offer.image_url },
+      { id: item.offerId, name: null, nameAr: null, imageUrl: item.offer.image_url, price: item.offer.price, searchText: item.offer.search_text },
       {
         keyChain,
         model: retryModel,
