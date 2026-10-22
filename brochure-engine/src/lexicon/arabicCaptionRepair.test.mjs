@@ -12,4 +12,5 @@ assert.equal(selectArabicCaption({nameAr:'شاورما قراميش أصلية',
 assert.equal(selectArabicCaption({nameAr:'فول مدمس',nameEn:'Foul Medammes',retailerText:'قول حدايق مدمس 450 جرام foul medammes 450g'}),null,'A corrupted retailer noun must not replace a corroborated observed noun');
 assert.equal(retailerArabicCaption('Sunbulah Noodles Chicken Flavour','نكهه الدجاج chicken flavour sunbulah noodles 70g sunbulah noodles'),null,'An interior package phrase cannot anchor a product caption');
 assert.equal(retailerArabicCaption('Nadec Cheese','نادك جبن nadec cheese 200g نادك جبن nadec cheese 200g'),null,'Repeated title anchors are ambiguous');
+assert.equal(retailerArabicCaption('Rice Cakes','كيك الأرز price cakes 100g'),null,'A title cannot anchor inside another English word');
 console.log('Arabic captions: independent text + exact English corroboration, unknown-word-only repair and preservation guards passed.');

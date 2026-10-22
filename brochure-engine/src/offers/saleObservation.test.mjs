@@ -13,6 +13,8 @@ assert.equal(selected.parsedObject.quantity, null);
 const stored = preservedObservation(selected.parsedObject);
 assert.equal(stored.sale_options, undefined, 'Raw model prices remain in evidence only');
 assert.equal(stored._sale.price, 49.99, 'Only the authoritative offer price is retained');
+assert.equal(stored._sale.original.package_size,'10x1000g','The unselected original model size remains auditable');
+assert.equal(stored._sale.original.quantity,'10','The original count is preserved independently of the admitted package count');
 assert.equal(readSaleObservation(stored, 154.99).status, 'stale', 'Stale evidence cannot price another offer');
 assert.equal(selectSaleObservation(observation(choices), { price: 44.99 }).parsedObject._sale.status, 'unmatched');
 assert.equal(selectSaleObservation(observation([...choices, option(49.99, '800g', 3, '3 PCS')]), { price: 49.99 }).parsedObject._sale.status, 'unmatched');

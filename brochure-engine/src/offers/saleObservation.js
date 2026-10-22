@@ -38,6 +38,11 @@ export function selectSaleObservation(observation, offer = {}) {
     count: validCount ? count : null,
     text: validCount ? option.sale_count_text : null,
     package_size: status === 'matched' && typeof option?.package_size === 'string' ? option.package_size : null,
+    original: {
+      name_en: output.name_en ?? null, name_ar: output.name_ar ?? null,
+      package_size: output.package_size ?? output.size ?? null,
+      quantity: output.quantity ?? output.pack_count ?? null,
+    },
   };
   const parsedObject = { ...output, _sale: sale };
   // Sizes have their own validated field. A second, mistranscribed numeric

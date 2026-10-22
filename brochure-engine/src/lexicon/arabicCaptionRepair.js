@@ -75,7 +75,10 @@ export function retailerArabicCaption(english, text) {
     const term = en.slice(0,length).join(' ');
     if (term.length < 8) continue;
     const found = source.indexOf(term);
-    if (found >= 0 && source.indexOf(term,found+1) < 0) { at=found;break; }
+    const boundary = found >= 0
+      && !/[a-z0-9]/u.test(source[found-1] || '')
+      && !/[a-z0-9]/u.test(source[found+term.length] || '');
+    if (boundary && source.indexOf(term,found+1) < 0) { at=found;break; }
   }
   if (at < 0) return null;
   const match = /([\p{Script=Arabic}\p{N}\s.,/×+()\-]|\bx\b)+$/u.exec(source.slice(0,at));

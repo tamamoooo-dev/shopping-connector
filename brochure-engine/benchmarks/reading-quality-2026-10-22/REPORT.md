@@ -33,3 +33,7 @@ Engine unit suite: 99 files. Frontend unit suite: 18 files. Mobile-browser check
 Full source snapshots, raw reads, candidate rows, annotated image sheets and the verified pre-publication enrichment backup are retained locally under panda-reading-audit-2026-10-22. No full database backup was uploaded to R2. The code can be rolled back through the existing Worker deployment mechanism; the local backup retains prior rows for all selected ids.
 
 Prompt SHA-256: 9a07db2363cd94489460ecb6a2664a9b42a25dc9ee2cde2e8ead1b1650851215.
+
+## Final coverage check
+
+The live viewer contained 29 additional Panda records after the paired audit was frozen: 24 unpriced/unavailable rows and five newly priced rows. All 29 additional images were read with the same candidate model/prompt and their raw outputs retained locally. This brings coverage to 1,032 Panda viewer images plus 128 other-retailer samples (1,160 reads in the adopted-method coverage set). They do not change the frozen 91-reference/157-image measurements above. Unavailable prices were not guessed or overwritten.
