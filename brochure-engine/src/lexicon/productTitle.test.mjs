@@ -243,3 +243,31 @@ assert.equal(title({nameEn:'Dove Roll-On Cucumber & Green Tea 50ml',brand:'Dove'
   assert.equal(withoutBrand('هاتف A200',[]),'هاتف A200');
 }
 assert.equal(title({nameEn:'Sadia Broasted Chicken Classic Fillets',brand:'Sadia'}).name.startsWith('دجاج'),true,'A general detail may reveal a final head');
+
+// Brands that are ordinary words (2026-10-23 rebuild dry run): a name word
+// such as Freshly, XL, Fine or TM is the company only when it starts the name
+// and the Arabic reading spells that company, or it is the store's own label.
+{
+  const brandOf = t => t.brand.ar;
+  assert.equal(brandOf(title({nameEn:'FRESHLY BLACK BEANS, 425 GRAMS',nameAr:'لوبيا سوداء، فرشلي، ٤٢٥ جرام'})),'فرشلي');
+  assert.equal(title({nameEn:'FRESHLY W. PEELED TOMATO 400G',nameAr:'طماطم مقشورة'}).brand.en,null,'A translated reading is no evidence');
+  assert.equal(brandOf(title({nameEn:'XL Potato Chips Assorted 120g',nameAr:'شيس بطاطس متوع أكس إل ١٢٠ غ'})),'إكس إل');
+  assert.equal(title({nameEn:'ALJOOD QUICK FLAMMABLE GOLDEN XL',nameAr:'فحم سريع الاشتعال الجود ذهبي إكس إل',brand:'ALJOOD'}).brand.en,'ALJOOD',
+    'XL after the product is a size');
+  assert.equal(brandOf(title({nameEn:'FINE FACIAL CLASSIC TISSUES 5X70 SHEETS',nameAr:'مناديل فاين الكلاسيكية للوجه',brand:'FAINE'})),'فاين');
+  assert.equal(title({nameEn:'Golden Raisins 500gm',nameAr:'زبيب ذهبي'}).brand.en,null);
+  assert.equal(title({nameEn:'Crispy Chicken Roll',nameAr:'رول دجاج مقرمش'}).brand.en,null);
+  // Tamimi's own label: a misread typed field, a learned misreading, a note.
+  assert.equal(brandOf(title({nameEn:'TM WATER, 6 X 1.5 LITERS',nameAr:'ماء أسواق التميمي 1.0 × 6 لتر',brand:'tomimi monets'})),'أسواق التميمي');
+  assert.equal(brandOf(title({nameEn:'TM ANTIBACTERIAL DISINFECTANT, 3 LITERS',nameAr:'مطهر مضاد للبكتيريا',brand:'مطهر Themari',store:'tamimi'})),'أسواق التميمي');
+  assert.equal(title({nameEn:'TM ANTIBACTERIAL DISINFECTANT, 3 LITERS',nameAr:'مطهر مضاد للبكتيريا',store:'nesto'}).brand.en,null,'TM is Tamimi only on Tamimi');
+  assert.equal(brandOf(title({nameEn:'TM TENDER CHICKEN BREAST, 1 KILO',brand:"TM (Tamin's Markets)"})),'أسواق التميمي');
+  // Pipeline: the offer id names the store.
+  const tm=productKnowledge({productName:'TM OLIVE OIL, 250 ML',arabicName:null,brand:'TM (tomini markets)'},{},{id:'tamimi:central:d4d:1'});
+  assert.equal(tm.arabicBuilder.product_title.brand.ar,'أسواق التميمي');
+  // A typed brand that is half of a product phrase is neither stripped nor kept.
+  const chick=title({nameEn:'FRESHLY CHICK PEAS, 580 GRAMS',nameAr:'حسم حب، فرشلي، 0.5 كجم',brand:'Chick'});
+  assert.equal(chick.name,'حمص حب');assert.equal(brandOf(chick),'فرشلي');
+  const bare=title({nameEn:'Chick Peas 580g',brand:'Chick'});
+  assert.equal(bare.name,'حمص حب');assert.equal(bare.brand.en,null);
+}

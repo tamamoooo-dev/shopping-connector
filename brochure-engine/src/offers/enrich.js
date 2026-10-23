@@ -903,7 +903,8 @@ export function productKnowledge(extracted, observation, commerceContext = {}) {
     non_grocery: isNonGrocery(commerceContext?.category),
   });
   const title = dictionaryProductTitle({ nameEn: extracted.productName,
-    nameAr: extracted.arabicName, brand: extracted.brand, size: extracted.size });
+    nameAr: extracted.arabicName, brand: extracted.brand, size: extracted.size,
+    store: commerceContext?.store || String(commerceContext?.id || '').split(':')[0] || null });
   title.classification=classifyArchivedProduct({id:commerceContext?.id,name:extracted.productName,nameAr:extracted.arabicName,brand:extracted.brand,category:commerceContext?.category});
   knowledge.classification=title.classification;
   title.sizeReading=sizeReading;

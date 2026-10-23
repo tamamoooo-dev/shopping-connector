@@ -30,6 +30,39 @@ for (const entry of englishAliases) {
   const aliases=aliasesByBrand.get(entry.brand.id) || [];aliases.push(entry.phrase);aliasesByBrand.set(entry.brand.id,aliases);
 }
 for (const brand of BRAND_LEXICON) arabicAliasesByBrand.set(brand.id, brand.aliases.filter(a => /\p{Script=Arabic}/u.test(a)));
+// An ordinary word (Freshly, XL, Fine, TM) stays out of the name scan, but it
+// names its company when the Arabic reading spells that company too: «فرشلي»
+// beside "Freshly" is a name, «طازج» would be the word. A learned misreading
+// of the brand («أسواق التعميمي») counts as its spelling.
+const corroboratedBrands=new Map();
+for (const entry of englishAliases) {
+  const compact=entry.phrase.replace(/\s+/gu,'');
+  if (entry.brand.typedOnly || scanSafe(entry) || compactBrands.has(compact)) continue;
+  if (!corroboratedBrands.has(compact)) corroboratedBrands.set(compact,[]);
+  corroboratedBrands.get(compact).push(entry);
+}
+// A store's own label printed first on its own flyer: TM on a Tamimi offer is
+// Tamimi Markets even when the Arabic reading is missing.
+const STORE_LABELS = { tamimi: ['archive-tamimimarkets'], lulu: ['archive-lulu'], farm: ['archive-farm'] };
+function arabicSpellsBrand(nameAr, brandId) {
+  const text=` ${normalizeText(nameAr)} `;
+  if ((arabicAliasesByBrand.get(brandId) || []).some(a => normalizeText(a) && text.includes(` ${normalizeText(a)} `))) return true;
+  const variants=new Set(READING_BRAND_VARIANTS[brandId] || []), words=text.trim().split(' ');
+  if (!variants.size) return false;
+  for (let i=0;i<words.length;i++) for (let width=1;width<=Math.min(3,words.length-i);width++) {
+    if (variants.has(readingKey(words.slice(i,i+width).join(' ')).replace(READING_CLITIC,''))) return true;
+  }
+  return false;
+}
+// A word of a product phrase printed in the name is not a brand: an extractor
+// that reads "Chick" as the brand of Freshly Chick Peas took half of chick peas.
+const inProductPhrase = (text, brand) => {
+  const value = norm(text), words = norm(brand);
+  if (!words || !value) return false;
+  const category = resolveCategory(value)?.matched_phrase;
+  return [category, ...TITLE_TERMS.map(t => t[0])].some(phrase => phrase && phrase !== words
+    && includesPhrase(phrase, words) && includesPhrase(value, phrase));
+};
 const packingDetails = [['in vegetable oil', 'بزيت نباتي'], ['in sunflower oil', 'بزيت دوار الشمس'],
   ['in olive oil', 'بزيت الزيتون'], ['in syrup', 'في شراب سكري']];
 const dateOrigins = [
@@ -60,14 +93,22 @@ export const isProductAttribute = value => {
 // kept; a name only refines it to a longer line of the same company printed
 // there (Uno -> Uno Plus, Sanita -> Sanita Club). A name word fills the brand
 // only when the field is empty or unknown, and must start the clause when
-// `leading` is set (retail names print the brand first).
-export function titleBrand(nameEn, observedBrand, { leading = false } = {}) {
+// `leading` is set (retail names print the brand first). An ordinary-word
+// brand must both start the name and be spelled by the Arabic reading
+// `nameAr` or be the `store`'s own label: later in the name it is a size or
+// adjective (Charcoal Golden XL). A typed field with a note in parentheses
+// ("TM (Tamin's Markets)") resolves by either part.
+export function titleBrand(nameEn, observedBrand, { leading = false, nameAr = null, store = null } = {}) {
   const tokens=norm(nameEn).split(' '), matches=[];
-  const observed=resolveBrand(observedBrand);
+  let observed=resolveBrand(observedBrand);
+  const noted=String(observedBrand || '').match(/^\s*([^()]+?)\s*\(([^()]+)\)\s*$/u);
+  if (!observed.brand_id && noted) observed=[resolveBrand(noted[1]), resolveBrand(noted[2])].find(b=>b.brand_id) || observed;
+  const own=STORE_LABELS[store] || [];
   const department=AISLE_BY_ID.get(resolveCategory(nameEn)?.aisle)?.dept;
   for (let start=0;start<(leading?1:tokens.length);start++) for (let width=1;width<=Math.min(5,tokens.length-start);width++) {
     const key=tokens.slice(start,start+width).join('');
-    const entry=compactBrands.get(key);
+    const entry=compactBrands.get(key)
+      || (start===0 ? (corroboratedBrands.get(key) || []).find(e=>own.includes(e.brand.id) || (nameAr && arabicSpellsBrand(nameAr,e.brand.id))) : null);
     const allowed=entry && brandDepartments.get(entry.brand.id);
     if (entry && (entry.brand.id===observed.brand_id || !department || !allowed || allowed.includes(department))) matches.push({entry,key,length:key.length});
   }
@@ -176,7 +217,8 @@ function productClause(text, brand, observedBrand) {
   let value = norm(text.split(',')[0].replace(/\([^)]*\)/g, ' ').replace(/\b0\s*%\s*(?=sugar\b)/giu, 'zero '));
   const rawBrand = norm(observedBrand), brandNoun = resolveCategory(rawBrand);
   const productDetail = [...TITLE_TERMS, ...TITLE_DETAILS, ...TITLE_VARIANTS.flatMap(g=>g.terms)]
-    .some(([phrase])=>includesPhrase(rawBrand,phrase)) || dateOrigins.some(g=>g.en.some(p=>includesPhrase(rawBrand,p)));
+    .some(([phrase])=>includesPhrase(rawBrand,phrase)) || dateOrigins.some(g=>g.en.some(p=>includesPhrase(rawBrand,p)))
+    || inProductPhrase(value, rawBrand);
   // Unverified brand fields sometimes contain a product variety or origin.
   // Such evidence must remain in the product clause, never be stripped as a company.
   const safeBrand = productDetail && !brand.brand_id ? '' : brandNoun ? rawBrand.split(' ').slice(0, brandNoun.span[0]).join(' ') : rawBrand;
@@ -303,23 +345,23 @@ function distributeSharedHead(clauses, brandWords) {
 
 // Names contain only dictionary product terms and supported distinguishing
 // details. Raw OCR is retained as evidence, never copied over a known term.
-export function dictionaryProductTitle({ nameEn, nameAr, brand: observedBrand, size } = {}) {
-  const brand = titleBrand(nameEn, observedBrand), titles = [], unknown = [], evidence = [];
+export function dictionaryProductTitle({ nameEn, nameAr, brand: observedBrand, size, store = null } = {}) {
+  const brand = titleBrand(nameEn, observedBrand, { nameAr, store }), titles = [], unknown = [], evidence = [];
   const brands=new Map();
   const rememberBrand=b=>{
     const en=b.display_en || b.canonical_brand;
-    if(!b.brand_id && isProductAttribute(en))return;
+    if(!b.brand_id && (isProductAttribute(en) || inProductPhrase(nameEn, en)))return;
     if (en) brands.set(b.brand_id || en,{id:b.brand_id,en,ar:b.display_ar});
   };
   // "Juice (1.3L) Excluding Orange/Mango" names what the offer is NOT.
   const offered = String(nameEn ?? '').split(/\s+(?:excluding|except|excl\.?)\s+/iu)[0];
-  const brandWords = [brand.display_en, observedBrand].filter(Boolean).flatMap(b => norm(b).split(' ')).filter(Boolean);
+  const brandWords = [brand.display_en, inProductPhrase(nameEn, observedBrand) ? null : observedBrand].filter(Boolean).flatMap(b => norm(b).split(' ')).filter(Boolean);
   const clauses = distributeSharedHead(offered.split(/\s*\/\s*|\s+or\s+/i).filter(Boolean), brandWords);
   let previousCategory = null, previousProduct = null;
   for (const raw of clauses) {
     // A brand printed at the start of a clause names that clause's company
     // (multi-brand offers), unless the typed field is a longer line of it.
-    const explicitBrand=titleBrand(raw,null,{leading:true});
+    const explicitBrand=titleBrand(raw,null,{leading:true,nameAr,store});
     const fieldIsLonger=explicitBrand.brand_id && brand.brand_id && explicitBrand.brand_id!==brand.brand_id
       && (aliasesByBrand.get(brand.brand_id)||[]).some(a=>a.replace(/\s+/gu,'').startsWith(norm(explicitBrand.display_en).replace(/\s+/gu,'')));
     const clauseBrand=explicitBrand.brand_id&&!fieldIsLonger?explicitBrand:brand;

@@ -66,6 +66,7 @@ export function rebuildRow(row, { identityNormalizationMode = 'strict' } = {}) {
   const knowledge = productKnowledge(extracted, observation, {
     price: row.price ?? null,
     currency: row.currency ?? null,
+    store: String(row.id ?? '').split(':')[0] || null,
   });
   const identity = buildIdentityCandidate(
     { ...extracted, confidence: row.confidence ?? null },
