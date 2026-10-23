@@ -229,10 +229,23 @@ function feminineDetails(categoryAr, details) {
 function trailingBrandRemoved(name, brands) {
   if (!name) return null;
   let text = String(name).trim();
-  for (const b of brands) for (const v of [b.ar, b.en]) {
+  // A brand list appended as one ("تونة هناء / بليمز") leaves as one.
+  const joined = brands.length > 1 ? [brands.map(b => b.ar || b.en).join(' / ')] : [];
+  for (const v of [...joined, ...brands.flatMap(b => [b.ar, b.en])]) {
     if (v && text !== v && arabicKey(text).endsWith(' ' + arabicKey(v))) text = text.slice(0, text.length - v.length).trim();
   }
   return text || String(name).trim();
+}
+
+// A one-word name says too little on its own (مياه), so the user's rule adds
+// the dictionary brand to it (مياه أكوافينا); longer names keep the brand in
+// its own field. Only an Arabic brand is added: Latin never enters the name.
+function oneWordWithBrand(name, brands = []) {
+  if (!name) return name;
+  const text = String(name).trim();
+  if (/\s/u.test(text) || !brands.length || !brands.every(b => b?.ar)) return text;
+  if (brands.some(b => arabicKey(b.ar) === arabicKey(text))) return text;
+  return `${text} ${brands.map(b => b.ar).join(' / ')}`;
 }
 
 // Products that are sold in flavours: the only heads a flavour clause borrows.
@@ -446,7 +459,7 @@ export function dictionaryProductTitle({ nameEn, nameAr, brand: observedBrand, s
   const repaired = dictionaryName ? { name: null, corrections: [] } : correctedReading(withoutBrand(visionName, brandList, typedBrand), nameEn);
   const fallbackName = repaired.name;
   const source = dictionaryName ? 'dictionary' : fallbackName ? 'vision_fallback' : 'missing';
-  const name = dictionaryName || fallbackName;
+  const name = oneWordWithBrand(dictionaryName || fallbackName, brandList);
   // Unknown OCR spellings are evidence for this observation, not global fuzzy
   // aliases: a typo must never become a product identity on its own. A word
   // correction needs both the learned misreading and this offer's English.
@@ -467,11 +480,14 @@ export function applyProductTitle(offer, row) {
   try {
     const title = typeof row?.e_product_title === 'string' ? JSON.parse(row.e_product_title) : row?.e_product_title;
     if (title?.version !== PRODUCT_TITLE_VERSION) return;
-    // Earlier v1 rows appended the brand to a one-word name; the brand has
-    // its own field, so a stored name is shown without it.
-    const stored = title.name || offer.nameAr || null;
-    offer.nameAr = title.source === 'vision_fallback' ? correctedReading(withoutBrand(stored, title.brands || []) || stored, offer.name).name
-      : trailingBrandRemoved(stored, title.brands || []);
+    // A stored name is read as the product alone, then shown by today's rule:
+    // the brand only beside a one-word name. Earlier v1 rows also appended it
+    // to brief multi-word heads; that brand leaves.
+    const stored = title.name || offer.nameAr || null, brands = title.brands || [];
+    const product = title.source === 'vision_fallback'
+      ? correctedReading(withoutBrand(trailingBrandRemoved(stored, brands), brands) || stored, offer.name).name
+      : trailingBrandRemoved(stored, brands);
+    offer.nameAr = oneWordWithBrand(product, brands);
     offer.nameSource = title.source || (title.name ? 'dictionary' : offer.nameAr ? 'vision_fallback' : 'missing');
     if (title.classification?.version === 'archive-classification-v1') offer.classification=title.classification;
     offer.productTitleVersion = title.version;

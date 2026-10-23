@@ -10,7 +10,7 @@ assert.equal(nadec.brand.ar,'نادك');
 assert.match(nadec.name,/زبادي يوناني/);assert.match(nadec.name,/قليل الدسم/);
 assert.doesNotMatch(nadec.name,/نادك|ناديك|160|جم|ريال/);
 const rusk = title({nameEn:'Garameesh Rusk (375g)',nameAr:'شافوره قراميش',brand:'Garameesh'});
-assert.equal(rusk.name,'شابورة');assert.equal(rusk.brand.ar,'قراميش');
+assert.equal(rusk.name,'شابورة قراميش');assert.equal(rusk.brand.ar,'قراميش');
 assert.equal(rusk.corrections[0].observed,'شافوره قراميش');
 assert.deepEqual(rusk.unknown,[]);
 assert.equal(title({nameEn:'Yaumi Whole Wheat Toast (600g)',brand:'Yaumi'}).name,'خبز توست بر');
@@ -24,12 +24,12 @@ const unknown=title({nameEn:'UnknownBrand Zorblax',nameAr:'شافوره',brand:'
 assert.equal(unknown.name,'شافوره');assert.equal(unknown.reviewRequired,true,'Vision fallback remains marked for dictionary review');
 
 // A real pipeline candidate stores the title separately from raw observations;
-// the serving overlay adopts it and keeps its brand outside the Arabic name.
+// the serving overlay adopts it; a one-word name carries its dictionary brand.
 const knowledge=productKnowledge({productName:'Nadec Milk',arabicName:'حليب ناديك',brand:'Nadec',size:'1L'},{});
-assert.equal(knowledge.arabicBuilder.product_title.name,'حليب');
+assert.equal(knowledge.arabicBuilder.product_title.name,'حليب نادك');
 const metadata=knowledge.arabicBuilder.product_title;
 const offer={price:8};applyEnrichment(offer,{e_name:'Nadec Milk',e_name_ar:'حليب ناديك',e_corroboration:1,e_product_title:JSON.stringify(metadata),e_size:'1L'});
-assert.equal(offer.nameAr,'حليب');assert.equal(offer.brandNameAr,'نادك');assert.equal(offer.price,8);
+assert.equal(offer.nameAr,'حليب نادك');assert.equal(offer.brandNameAr,'نادك');assert.equal(offer.price,8);
 const browse=await getBrowseOffersDoc({browseStore:{list:async()=>[{id:'test:milk',source:'d4d',
   name:'Nadec Milk',name_ar:'حليب ناديك',price:8,currency:'SAR',servable:1,e_size:'1L',e_product_title:JSON.stringify(metadata)}]}},{},'2026-10-23');
 assert.equal(browse.offers[0].nameAr,offer.nameAr);assert.equal(browse.offers[0].brandNameAr,'نادك');
@@ -94,7 +94,7 @@ assert.equal(unknown.dictionaryName,null);
 assert.equal(unknown.corrections.length,0,'A Vision fallback is not a dictionary correction');
 assert.equal(title({nameEn:'UnknownBrand Zorblax',nameAr:'اسم فيجن محفوظ',brand:'UnknownBrand'}).name,'اسم فيجن محفوظ');
 assert.equal(title({nameEn:'UnknownBrand Zorblax',nameAr:'English only'}).name,null);
-assert.equal(title({nameEn:'Rabea Tea',brand:'Rabea'}).name,'شاي');
+assert.equal(title({nameEn:'Rabea Tea',brand:'Rabea'}).name,'شاي ربيع');
 assert.equal(title({nameEn:'Tea'}).name,'شاي');
 assert.equal(rusk.source,'dictionary');
 assert.equal(title({nameEn:'Unknown',nameAr:'ربيع',brand:'Rabea'}).name,null,'A brand alone is not a product name');
@@ -126,21 +126,22 @@ assert.equal(title({nameEn:'Chips'}).name,'شيبس','Do not invent potato when 
 assert.equal(title({nameEn:'Sea Shrimps',nameAr:'روبيان بحر'}).reviewRequired,false);
 assert.equal(title({nameEn:'Dates Maamoul'}).reviewRequired,false);
 
-// The Arabic name is product + type + detail. Brand, size and price are
-// separate fields, also for one-word names and Vision fallback names.
+// The Arabic name is product + type + detail; brand, size and price are
+// separate fields. A one-word name alone says too little (شيبس), so it
+// carries the Arabic dictionary brand, also for Vision fallback names.
 for (const input of [
   {nameEn:'Al Batal Chips',brand:'Al Batal'},
   {nameEn:'Unknown',nameAr:'شيبس البطل',brand:'Al Batal'}
 ]) {
-  const result=title(input);assert.equal(result.name,'شيبس');assert.equal(result.brand.ar,'البطل');
+  const result=title(input);assert.equal(result.name,'شيبس البطل');assert.equal(result.brand.ar,'البطل');
   const served={};applyProductTitle(served,{e_product_title:result});
-  assert.equal(served.nameAr,'شيبس','Serving keeps the brand in its own field');assert.equal(served.brandNameAr,'البطل');
+  assert.equal(served.nameAr,'شيبس البطل','Serving adds the brand once, never twice');assert.equal(served.brandNameAr,'البطل');
 }
-// Rows stored before this rule carry the brand appended to a one-word name.
+// Rows stored by e173026 already carry the brand beside a one-word name.
 const storedBefore={version:'dictionary-title-v1',name:'شاي ربيع',source:'dictionary',brand:{id:'rabea',en:'Rabea',ar:'ربيع'},
   brands:[{id:'rabea',en:'Rabea',ar:'ربيع'}]};
 const servedBefore={};applyProductTitle(servedBefore,{e_product_title:storedBefore});
-assert.equal(servedBefore.nameAr,'شاي');assert.equal(servedBefore.brandNameAr,'ربيع');
+assert.equal(servedBefore.nameAr,'شاي ربيع');assert.equal(servedBefore.brandNameAr,'ربيع');
 const fallbackBefore={...storedBefore,name:'الصندوق الشهري بامبي',source:'vision_fallback',brand:{id:'bambi',en:'Bambi',ar:'بامبي'},
   brands:[{id:'bambi',en:'Bambi',ar:'بامبي'}]};
 const servedFallback={};applyProductTitle(servedFallback,{e_product_title:fallbackBefore});
@@ -159,7 +160,7 @@ for (const [nameEn,brand,arabic] of [
   ['Cadbury Dairy Milk Pistachio','Cadbury','شوكولاتة بالحليب فستق'], ['Galaxy Milk Chocolate','Galaxy','شوكولاتة بالحليب'],
   ['Almarai Pizza Cheese','Almarai','جبن بيتزا'], ['Nadec Cheese Slices Burger','Nadec','شرائح جبن للبرجر'],
   ['Al Khair Turkish Coffee Dark Roast','Al Khair','قهوة تركية تحميص داكن'],
-  ['Nadec Juice (1.3L) Excluding Orange/Mango/Apple Flavour','Nadec','عصير'],
+  ['Nadec Juice (1.3L) Excluding Orange/Mango/Apple Flavour','Nadec','عصير نادك'],
 ]) assert.equal(title({nameEn,brand}).name,arabic,nameEn);
 
 // An ordinary word is not a company: Golden Kiwi is not Golden Chicken, and a
@@ -183,7 +184,7 @@ assert.equal(title({nameEn:'Nadec Milk Full Fat Long Life 1 Ltr*4pcs',brand:'Nad
   assert.equal(correctedReading('شايوره بالزيده', 'Toast').name, 'شايوره بالزيده', 'No English evidence, no change');
   const fallback = title({nameEn:'Nadec Zqx Wqv', nameAr:'ناديك زقس', brand:'Nadec'});
   assert.equal(fallback.source, 'vision_fallback');
-  assert.equal(fallback.name, 'زقس', 'A misread spelling of the own brand leaves the name');
+  assert.equal(fallback.name, 'زقس نادك', 'The misread spelling leaves; the dictionary spelling is added to one word');
   const text = visionMatchText({ name: 'Nadec Rusk', name_ar: 'ناديك شابورة', brand: 'Nadec',
     extraction_json: { _arabic_builder: { title_version: 'dictionary-title-v1', display_arabic: 'شابورة',
       product_title: title({nameEn:'Nadec Rusk', nameAr:'ناديك شافوره', brand:'Nadec'}) } } });
@@ -203,3 +204,17 @@ assert.equal(title({nameEn:'Rice Basmati India'}).name,'أرز بسمتي هند
 assert.equal(title({nameEn:'Guava Egypt'}).name,'جوافة مصرية');
 assert.equal(title({nameEn:'Local Sukkary Rotab'}).name.includes('محلي'),true,'An unresolved food head keeps its origin');
 assert.equal(title({nameEn:'HOMEWAY 8 Pcs Granite Coated Cooking Set'}).name.includes('مغطى'),false,'Coated cookware is not coated food');
+
+// One-word names carry the Arabic dictionary brand; longer names and brands
+// without an Arabic name do not (no Latin inside the Arabic name).
+assert.equal(title({nameEn:'Aquafina Water',brand:'Aquafina'}).name,'مياه أكوافينا');
+assert.equal(title({nameEn:'Nadec Milk Full Fat Long Life 1 Ltr*4pcs',brand:'Nadec'}).name.includes('نادك'),false);
+{
+  const multi=title({nameEn:'Hanaa / Plyms Tuna (95g / 80g)',brand:'Hanaa / Plyms'});
+  const served={};applyProductTitle(served,{e_product_title:multi});
+  assert.equal(served.nameAr,multi.name,'A brand list appended as one is read back once');
+  const brief={version:'dictionary-title-v1',name:'شاي أخضر ربيع',source:'dictionary',brand:{id:'rabea',en:'Rabea',ar:'ربيع'},
+    brands:[{id:'rabea',en:'Rabea',ar:'ربيع'}]};
+  const servedBrief={};applyProductTitle(servedBrief,{e_product_title:brief});
+  assert.equal(servedBrief.nameAr,'شاي أخضر','A brand e173026 appended to a longer name leaves');
+}
