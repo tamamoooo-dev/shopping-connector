@@ -97,12 +97,11 @@ export const isProductAttribute = value => {
 // brand must both start the name and be spelled by the Arabic reading
 // `nameAr` or be the `store`'s own label: later in the name it is a size or
 // adjective (Charcoal Golden XL). A typed field with a note in parentheses
-// ("TM (Tamin's Markets)") resolves by either part.
+// ("TM (Tamin's Markets)") resolves by either part when the name names no
+// brand of its own.
 export function titleBrand(nameEn, observedBrand, { leading = false, nameAr = null, store = null } = {}) {
   const tokens=norm(nameEn).split(' '), matches=[];
-  let observed=resolveBrand(observedBrand);
-  const noted=String(observedBrand || '').match(/^\s*([^()]+?)\s*\(([^()]+)\)\s*$/u);
-  if (!observed.brand_id && noted) observed=[resolveBrand(noted[1]), resolveBrand(noted[2])].find(b=>b.brand_id) || observed;
+  const observed=resolveBrand(observedBrand);
   const own=STORE_LABELS[store] || [];
   const department=AISLE_BY_ID.get(resolveCategory(nameEn)?.aisle)?.dept;
   for (let start=0;start<(leading?1:tokens.length);start++) for (let width=1;width<=Math.min(5,tokens.length-start);width++) {
@@ -118,7 +117,9 @@ export function titleBrand(nameEn, observedBrand, { leading = false, nameAr = nu
     const line=matches.find(m=>m.entry.brand.id!==observed.brand_id && own.some(a=>m.key.startsWith(a)));
     return line ? resolveBrand(line.entry.brand.display_en) : observed;
   }
-  return resolveBrand(matches[0]?.entry.brand.display_en || observedBrand);
+  if (matches.length) return resolveBrand(matches[0].entry.brand.display_en);
+  const noted=String(observedBrand || '').match(/^\s*([^()]+?)\s*\(([^()]+)\)\s*$/u);
+  return (noted && [resolveBrand(noted[1]), resolveBrand(noted[2])].find(b=>b.brand_id)) || resolveBrand(observedBrand);
 }
 
 // Historical readings (scripts/build-reading-knowledge.mjs): misread Arabic

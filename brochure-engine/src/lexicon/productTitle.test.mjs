@@ -262,6 +262,8 @@ assert.equal(title({nameEn:'Sadia Broasted Chicken Classic Fillets',brand:'Sadia
   assert.equal(brandOf(title({nameEn:'TM ANTIBACTERIAL DISINFECTANT, 3 LITERS',nameAr:'مطهر مضاد للبكتيريا',brand:'مطهر Themari',store:'tamimi'})),'أسواق التميمي');
   assert.equal(title({nameEn:'TM ANTIBACTERIAL DISINFECTANT, 3 LITERS',nameAr:'مطهر مضاد للبكتيريا',store:'nesto'}).brand.en,null,'TM is Tamimi only on Tamimi');
   assert.equal(brandOf(title({nameEn:'TM TENDER CHICKEN BREAST, 1 KILO',brand:"TM (Tamin's Markets)"})),'أسواق التميمي');
+  assert.equal(brandOf(title({nameEn:'Lahith French Fries 2.5Kg',nameAr:'لاهيث بطاطس مقليه',brand:'Lahithا (Lāhita)'})),'لهيث',
+    'A note in the typed field never outranks the brand printed in the name');
   // Pipeline: the offer id names the store.
   const tm=productKnowledge({productName:'TM OLIVE OIL, 250 ML',arabicName:null,brand:'TM (tomini markets)'},{},{id:'tamimi:central:d4d:1'});
   assert.equal(tm.arabicBuilder.product_title.brand.ar,'أسواق التميمي');
