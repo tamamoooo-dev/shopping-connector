@@ -9,7 +9,9 @@ const original=BRAND_LEXICON.filter(b=>!b.id.startsWith('archive-'));
 const key=s=>normalizeBrandKey(s)?.replaceAll(' ','');
 const byKey=new Map(original.flatMap(b=>b.aliases.map(a=>[key(a),b])));
 const added=[],aliases={},collisions=[];
-const typedOnly=new Set(['belgian','minis','star','city','original','extra','apple','farm','flow','noor','clear','fa','hayat','arrow','junior','novel','bibi','fem','relax','smile','tara','eva','basics','universal','oscar','royalprince','golden','royalford','hmd','hp','lg','ski','dac','omo','rex','sunny']);
+const typedOnly=new Set(['belgian','minis','star','city','original','extra','apple','farm','flow','noor','clear','fa','hayat','arrow','junior','novel','bibi','fem','relax','smile','tara','eva','basics','universal','oscar','royalprince','golden','royalford','hmd','hp','lg','ski','dac','omo','rex','sunny',
+  // 2026-10-23 reading-knowledge seeds that are ordinary English words.
+  'paradise','harvest','solo','fiji','amigo','caprice','verde','classico','wellness','rico','orlando','clown','cardinal']);
 for(const [en,ar,...variants] of seeds){
   const existing=byKey.get(key(en))||byKey.get(key(ar));
   const id=existing?.id||'archive-'+key(en).replace(/[^a-z0-9]/g,'');

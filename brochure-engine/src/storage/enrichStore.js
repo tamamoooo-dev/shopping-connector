@@ -225,12 +225,18 @@ const SCOPE_WHERE = {
 };
 
 export function visionMatchText({ name, name_ar, brand, extraction_json }) {
-  let display = null;
+  let display = null, titleBrands = [];
   try {
     const record = typeof extraction_json === 'string' ? JSON.parse(extraction_json) : extraction_json;
     if (record?._arabic_builder?.caption_version === 'arabic-caption-v1' || record?._arabic_builder?.title_version === 'dictionary-title-v1') display = record._arabic_builder.display_arabic;
+    // A dictionary title shows the brand in its own field, never in the
+    // name: the dictionary spellings (نادك, not the reading's ناديك) must
+    // still be searchable.
+    if (record?._arabic_builder?.title_version === 'dictionary-title-v1') {
+      titleBrands = (record._arabic_builder.product_title?.brands || []).flatMap((b) => [b.ar, b.en]);
+    }
   } catch { /* A missing optional display caption cannot block persistence. */ }
-  const t = normalizeText([name, name_ar, brand, display].filter(Boolean).join(' '));
+  const t = normalizeText([...new Set([name, name_ar, brand, display, ...titleBrands].filter(Boolean))].join(' '));
   return t || null;
 }
 

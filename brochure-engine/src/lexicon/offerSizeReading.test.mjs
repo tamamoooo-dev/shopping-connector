@@ -56,4 +56,11 @@ const arabicBasisReading=read({size:'800/1400g',nameEn:'Sea Bass',nameAr:'قار
 assert(arabicBasisReading.priceBasisText);
 arabicFish.sizeReading=arabicBasisReading;applyUnitPrice(arabicFish,{e_size:'800/1400g'});
 assert.equal(arabicFish.unitPrice?.value,19.99);
+// Several sizes in the English name at one price are one assorted offer, even
+// when the size field kept only one; a "+" bundle and a merged OCR number are not.
+const listed=read({size:'900ml',nameEn:'Head & Shoulders Shampoo (1L) / (900ml)'});
+assert.equal(listed.assorted,true);
+assert.equal(listed.displayAr,'1 لتر أو 900 مل');
+assert.equal(read({size:'6’s',nameEn:'Sponge Scourer (6’s + 3’s) / Steel Scourer (5Pcs)'}).assorted,false);
+assert.equal(read({size:'180g',nameEn:"M&M's Chocolate (150170/180g)"}).assorted,false);
 console.log('Bilingual size fallback, assortments, shared multipacks, bonus packs, equivalent units and printed-price basis passed.');

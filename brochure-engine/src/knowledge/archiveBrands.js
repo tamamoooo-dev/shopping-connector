@@ -2453,7 +2453,7 @@ export const ARCHIVE_BRANDS = [
   {
     "slug": "archive-bahar",
     "en": "Bahar",
-    "ar": "بحر",
+    "ar": "بهار",
     "archive": true,
     "typedOnly": false
   },
@@ -4528,6 +4528,1154 @@ export const ARCHIVE_BRANDS = [
     "ar": "بلجين",
     "archive": true,
     "typedOnly": true
+  },
+  {
+    "slug": "archive-med",
+    "en": "Med",
+    "ar": "مد",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-hills",
+    "en": "Hills",
+    "ar": "هيلز",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-energizer",
+    "en": "Energizer",
+    "ar": "إنرجايزر",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-oraimo",
+    "en": "Oraimo",
+    "ar": "أورايمو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-itel",
+    "en": "itel",
+    "ar": "آيتل",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-goldenring",
+    "en": "Golden Ring",
+    "ar": "جولدن رينغ",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-elvive",
+    "en": "Elvive",
+    "ar": "إلفيف",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-wella",
+    "en": "Wella",
+    "ar": "ويلا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-justformen",
+    "en": "Just For Men",
+    "ar": "جاست فور مين",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-davidbeckham",
+    "en": "David Beckham",
+    "ar": "ديفيد بيكهام",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-nautica",
+    "en": "Nautica",
+    "ar": "نوتيكا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-cleanclear",
+    "en": "Clean & Clear",
+    "ar": "كلين أند كلير",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-redoxon",
+    "en": "Redoxon",
+    "ar": "ريدوكسون",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-aloedent",
+    "en": "AloeDent",
+    "ar": "ألودنت",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-imperialleather",
+    "en": "Imperial Leather",
+    "ar": "إمبريال ليذر",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-pyari",
+    "en": "Pyari",
+    "ar": "بياري",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-sunrosa",
+    "en": "Sunrosa",
+    "ar": "صنروزا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-evasenses",
+    "en": "Eva Senses",
+    "ar": "إيفا سينسز",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-ladyspeedstick",
+    "en": "Lady Speed Stick",
+    "ar": "ليدي سبيد ستيك",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-ominobianco",
+    "en": "Omino Bianco",
+    "ar": "أومينو بيانكو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-windex",
+    "en": "Windex",
+    "ar": "ويندكس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-baygon",
+    "en": "Baygon",
+    "ar": "بايجون",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-billybeez",
+    "en": "Billy Beez",
+    "ar": "بيلي بيز",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-xbox",
+    "en": "Xbox",
+    "ar": "إكس بوكس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-brandsforless",
+    "en": "Brands For Less",
+    "ar": "براندز فور لس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-razer",
+    "en": "Razer",
+    "ar": "ريزر",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-almosafer",
+    "en": "Al Mosafer",
+    "ar": "المسافر",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-mintra",
+    "en": "Mintra",
+    "ar": "منترا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-ambest",
+    "en": "Ambest",
+    "ar": "أمبست",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-excalibur",
+    "en": "Excalibur",
+    "ar": "إكسكاليبر",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-alhelal",
+    "en": "Al Helal",
+    "ar": "الهلال",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-alsharqiya",
+    "en": "Al Sharqiya",
+    "ar": "الشرقية",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-saifplus",
+    "en": "Saif Plus",
+    "ar": "سيف بلس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-shaha",
+    "en": "Shaha",
+    "ar": "شاها",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-emdico",
+    "en": "Emdico",
+    "ar": "إمديكو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-ugreen",
+    "en": "UGreen",
+    "ar": "يوجرين",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-britishchef",
+    "en": "British Chef",
+    "ar": "بريتش شيف",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-kawan",
+    "en": "Kawan",
+    "ar": "كاوان",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-awafy",
+    "en": "Awafy",
+    "ar": "أوافي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-rasikh",
+    "en": "Rasikh",
+    "ar": "راسخ",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-whipy",
+    "en": "Whipy",
+    "ar": "ويبي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-marretti",
+    "en": "Marretti",
+    "ar": "ماريتي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-tastee",
+    "en": "Tastee",
+    "ar": "تاستي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-saudigardens",
+    "en": "Saudi Gardens",
+    "ar": "حدائق السعودية",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-albakri",
+    "en": "Al Bakri",
+    "ar": "البكري",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-bunalun",
+    "en": "Bunalun",
+    "ar": "بونالون",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-balim",
+    "en": "Balim",
+    "ar": "باليم",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-foodex",
+    "en": "Foodex",
+    "ar": "فودكس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-naimi",
+    "en": "Naimi",
+    "ar": "نعيمي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-lago",
+    "en": "Lago",
+    "ar": "لاجو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-paradise",
+    "en": "Paradise",
+    "ar": "باراديس",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-sorini",
+    "en": "Sorini",
+    "ar": "سوريني",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-evian",
+    "en": "Evian",
+    "ar": "إيفيان",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-pomi",
+    "en": "Pomi",
+    "ar": "بومي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-acorsa",
+    "en": "Acorsa",
+    "ar": "أكورسا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-capilano",
+    "en": "Capilano",
+    "ar": "كابيلانو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-hanai",
+    "en": "Hanai",
+    "ar": "هناي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-harvest",
+    "en": "Harvest",
+    "ar": "هارفست",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-nahool",
+    "en": "Nahool",
+    "ar": "نحول",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-hiba",
+    "en": "Hiba",
+    "ar": "هيبا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-makati",
+    "en": "Makati",
+    "ar": "مكاتي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-toya",
+    "en": "Toya",
+    "ar": "تويا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-solo",
+    "en": "Solo",
+    "ar": "سولو",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-abubint",
+    "en": "Abu Bint",
+    "ar": "أبو بنت",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-shimal",
+    "en": "Shimal",
+    "ar": "شمال",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-dania",
+    "en": "Dania",
+    "ar": "دانيا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-rinata",
+    "en": "Rinata",
+    "ar": "ريناتا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-fourati",
+    "en": "Fourati",
+    "ar": "فوراتي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-fiji",
+    "en": "Fiji",
+    "ar": "فيجي",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-noora",
+    "en": "Noora",
+    "ar": "نورا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-danisa",
+    "en": "Danisa",
+    "ar": "دانيسا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-toliven",
+    "en": "Toliven",
+    "ar": "توليفن",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-lahitha",
+    "en": "Lahitha",
+    "ar": "لاهيتا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-dava",
+    "en": "Dava",
+    "ar": "دافا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-christis",
+    "en": "Christis",
+    "ar": "كريستيس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-heineken",
+    "en": "Heineken",
+    "ar": "هاينكن",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-barni",
+    "en": "Barni",
+    "ar": "بارني",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-holsten",
+    "en": "Holsten",
+    "ar": "هولستن",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-cuetara",
+    "en": "Cuetara",
+    "ar": "كويتارا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-amigo",
+    "en": "Amigo",
+    "ar": "أميجو",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-acquapanna",
+    "en": "Acqua Panna",
+    "ar": "أكوا بانا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-riceup",
+    "en": "Rice Up",
+    "ar": "رايس أب",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-abusunbulatain",
+    "en": "Abu Sunbulatain",
+    "ar": "أبو سنبلتين",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-sabahoo",
+    "en": "Sabahoo",
+    "ar": "صباحو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-caprice",
+    "en": "Caprice",
+    "ar": "كابريس",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-gatorade",
+    "en": "Gatorade",
+    "ar": "جاتوريد",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-selalaljazera",
+    "en": "Selal Aljazera",
+    "ar": "سلال الجزيرة",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-tazatreat",
+    "en": "Taza Treat",
+    "ar": "تازة تريت",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-nilky",
+    "en": "Nilky",
+    "ar": "نيلكي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-orbitat",
+    "en": "Orbitat",
+    "ar": "أوربيتات",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-jebtoon",
+    "en": "Jebtoon",
+    "ar": "جبتون",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-faborita",
+    "en": "Faborita",
+    "ar": "فابوريتا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-vitabella",
+    "en": "Vitabella",
+    "ar": "فيتابيلا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-kras",
+    "en": "Kras",
+    "ar": "كراس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-emessa",
+    "en": "Emessa",
+    "ar": "إميسا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-abaan",
+    "en": "Abaan",
+    "ar": "أبان",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-zahrati",
+    "en": "Zahrati",
+    "ar": "زهراتي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-doriva",
+    "en": "Doriva",
+    "ar": "دوريفا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-maille",
+    "en": "Maille",
+    "ar": "مايل",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-volvic",
+    "en": "Volvic",
+    "ar": "فولفيك",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-ozmo",
+    "en": "Ozmo",
+    "ar": "أوزمو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-gofrik",
+    "en": "Gofrik",
+    "ar": "غوفريك",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-artiach",
+    "en": "Artiach",
+    "ar": "أرتياش",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-wello",
+    "en": "Wello",
+    "ar": "ويلو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-souroti",
+    "en": "Souroti",
+    "ar": "سوروتي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-florbu",
+    "en": "Florbu",
+    "ar": "فلوربو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-omela",
+    "en": "Omela",
+    "ar": "أوميلا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-verde",
+    "en": "Verde",
+    "ar": "فيردي",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-ovomaltine",
+    "en": "Ovomaltine",
+    "ar": "أوفومالتين",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-maxwellhouse",
+    "en": "Maxwell House",
+    "ar": "ماكسويل هاوس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-franui",
+    "en": "Franui",
+    "ar": "فرانوي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-londondairy",
+    "en": "London Dairy",
+    "ar": "لندن ديري",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-kottaram",
+    "en": "Kottaram",
+    "ar": "كوتارام",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-cocomas",
+    "en": "Coco Mas",
+    "ar": "كوكو ماس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-kudu",
+    "en": "Kudu",
+    "ar": "كودو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-urussa",
+    "en": "Urussa",
+    "ar": "أوروسا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-vilvi",
+    "en": "Vilvi",
+    "ar": "فلفي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-thaicoco",
+    "en": "Thai Coco",
+    "ar": "تاي كوكو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-bobmoos",
+    "en": "Bobmoos",
+    "ar": "بوبموس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-classico",
+    "en": "Classico",
+    "ar": "كلاسيكو",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-wellness",
+    "en": "Wellness",
+    "ar": "ويلنس",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-munchking",
+    "en": "Munch King",
+    "ar": "مانش كينج",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-basatentabuk",
+    "en": "Basaten Tabuk",
+    "ar": "بساتين تبوك",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-fitflex",
+    "en": "Fit & Flex",
+    "ar": "فت فلكس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-bluediamond",
+    "en": "Blue Diamond",
+    "ar": "بلو دايموند",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-pran",
+    "en": "Pran",
+    "ar": "بران",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-sovia",
+    "en": "Sovia",
+    "ar": "سوفيا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-fleek",
+    "en": "Fleek",
+    "ar": "فليك",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-doobi",
+    "en": "Doobi",
+    "ar": "دوبي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-konafetto",
+    "en": "Konafetto",
+    "ar": "كونافيتو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-rico",
+    "en": "Rico",
+    "ar": "ريكو",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-maltesers",
+    "en": "Maltesers",
+    "ar": "مالتيزرز",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-siblou",
+    "en": "Siblou",
+    "ar": "سيبلو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-baya",
+    "en": "Baya",
+    "ar": "بايا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-kikkoman",
+    "en": "Kikkoman",
+    "ar": "كيكومان",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-sedaap",
+    "en": "Sedaap",
+    "ar": "سيداب",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-botan",
+    "en": "Botan",
+    "ar": "بوتان",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-orlando",
+    "en": "Orlando",
+    "ar": "أورلاندو",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-mamba",
+    "en": "Mamba",
+    "ar": "مامبا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-luppo",
+    "en": "Luppo",
+    "ar": "لوبو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-jacklinks",
+    "en": "Jack Link's",
+    "ar": "جاك لينكس",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-clown",
+    "en": "Clown",
+    "ar": "كلاون",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-sahaten",
+    "en": "Sahaten",
+    "ar": "صحتين",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-fulmer",
+    "en": "Fulmer",
+    "ar": "فولمر",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-nyssa",
+    "en": "Nyssa",
+    "ar": "نيسا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-cardinal",
+    "en": "Cardinal",
+    "ar": "كاردينال",
+    "archive": true,
+    "typedOnly": true
+  },
+  {
+    "slug": "archive-cofique",
+    "en": "Cofique",
+    "ar": "كوفيك",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-kallo",
+    "en": "Kallo",
+    "ar": "كالو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-maruja",
+    "en": "Maruja",
+    "ar": "ماروجا",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-lazeez",
+    "en": "Lazeez",
+    "ar": "لازيز",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-looneytunes",
+    "en": "Looney Tunes",
+    "ar": "لوني تونز",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-bramili",
+    "en": "Bramili",
+    "ar": "براملي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-berryland",
+    "en": "Berry Land",
+    "ar": "بيري لاند",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-katchello",
+    "en": "Katchello",
+    "ar": "كاتشيلو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-betello",
+    "en": "Betello",
+    "ar": "بتلو",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-colliers",
+    "en": "Colliers",
+    "ar": "كوليرز",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-grandiosi",
+    "en": "Grandiosi",
+    "ar": "غرانديوسي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-tregar",
+    "en": "Tregar",
+    "ar": "تريغار",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-morningdelight",
+    "en": "Morning Delight",
+    "ar": "مورنينج ديلايت",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-lucerne",
+    "en": "Lucerne",
+    "ar": "لوسيرن",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-josephheler",
+    "en": "Joseph Heler",
+    "ar": "جوزيف هيلر",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-kingsley",
+    "en": "Kingsley",
+    "ar": "كينغسلي",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-bluedragon",
+    "en": "Blue Dragon",
+    "ar": "بلو دراغون",
+    "archive": true,
+    "typedOnly": false
+  },
+  {
+    "slug": "archive-teksut",
+    "en": "Teksut",
+    "ar": "تيكسوت",
+    "archive": true,
+    "typedOnly": false
   }
 ];
 export const ARCHIVE_BRAND_ALIASES = {
@@ -5022,6 +6170,8 @@ export const ARCHIVE_BRAND_ALIASES = {
   ],
   "crystal": [
     "Crystel",
+    "كريستال",
+    "Cristal",
     "كريستال"
   ],
   "archive-salim": [
@@ -5367,7 +6517,10 @@ export const ARCHIVE_BRAND_ALIASES = {
   ],
   "archive-marietta": [
     "Marietta",
-    "ماريتا"
+    "ماريتا",
+    "Marietta",
+    "ماريتا",
+    "Marieta"
   ],
   "archive-algharbi": [
     "Al Gharbi",
@@ -5470,8 +6623,7 @@ export const ARCHIVE_BRAND_ALIASES = {
   ],
   "archive-goldenchicken": [
     "Golden Chicken",
-    "الفروج الذهبي",
-    "Golden"
+    "الفروج الذهبي"
   ],
   "archive-bonux": [
     "Bonux",
@@ -5999,6 +7151,7 @@ export const ARCHIVE_BRAND_ALIASES = {
   ],
   "archive-bahar": [
     "Bahar",
+    "بهار",
     "بحر"
   ],
   "archive-alicafe": [
@@ -6800,7 +7953,11 @@ export const ARCHIVE_BRAND_ALIASES = {
   ],
   "archive-castania": [
     "Castania",
-    "كاستنيا"
+    "كاستنيا",
+    "Castania",
+    "كاستنيا",
+    "Castina",
+    "كاستانيا"
   ],
   "archive-bornwinner": [
     "Born Winner",
@@ -7083,7 +8240,10 @@ export const ARCHIVE_BRAND_ALIASES = {
   ],
   "archive-wadifatma": [
     "Wadi Fatma",
-    "وادي فاطمة"
+    "وادي فاطمة",
+    "Wadi Fatma",
+    "وادي فاطمة",
+    "Wadi Fatima"
   ],
   "archive-zoi": [
     "Zoi",
@@ -7275,5 +8435,686 @@ export const ARCHIVE_BRAND_ALIASES = {
     "Belgian",
     "بلجين",
     "The Belgian"
+  ],
+  "archive-med": [
+    "Med",
+    "مد"
+  ],
+  "archive-hills": [
+    "Hills",
+    "هيلز",
+    "Hills Collection",
+    "هيلس"
+  ],
+  "archive-energizer": [
+    "Energizer",
+    "إنرجايزر",
+    "أنرجايزر"
+  ],
+  "archive-oraimo": [
+    "Oraimo",
+    "أورايمو"
+  ],
+  "archive-itel": [
+    "itel",
+    "آيتل",
+    "آيتيل",
+    "إيتيل"
+  ],
+  "archive-goldenring": [
+    "Golden Ring",
+    "جولدن رينغ",
+    "جولدن رنج"
+  ],
+  "archive-elvive": [
+    "Elvive",
+    "إلفيف"
+  ],
+  "archive-wella": [
+    "Wella",
+    "ويلا"
+  ],
+  "archive-justformen": [
+    "Just For Men",
+    "جاست فور مين"
+  ],
+  "archive-davidbeckham": [
+    "David Beckham",
+    "ديفيد بيكهام"
+  ],
+  "archive-nautica": [
+    "Nautica",
+    "نوتيكا"
+  ],
+  "archive-cleanclear": [
+    "Clean & Clear",
+    "كلين أند كلير",
+    "Clean and Clear"
+  ],
+  "archive-redoxon": [
+    "Redoxon",
+    "ريدوكسون"
+  ],
+  "archive-aloedent": [
+    "AloeDent",
+    "ألودنت",
+    "Aloe Dent"
+  ],
+  "archive-imperialleather": [
+    "Imperial Leather",
+    "إمبريال ليذر",
+    "امبيريال ليدر"
+  ],
+  "archive-pyari": [
+    "Pyari",
+    "بياري"
+  ],
+  "archive-sunrosa": [
+    "Sunrosa",
+    "صنروزا"
+  ],
+  "archive-evasenses": [
+    "Eva Senses",
+    "إيفا سينسز",
+    "إيفا سينسيس"
+  ],
+  "archive-ladyspeedstick": [
+    "Lady Speed Stick",
+    "ليدي سبيد ستيك"
+  ],
+  "archive-ominobianco": [
+    "Omino Bianco",
+    "أومينو بيانكو",
+    "Omino"
+  ],
+  "archive-windex": [
+    "Windex",
+    "ويندكس"
+  ],
+  "archive-baygon": [
+    "Baygon",
+    "بايجون",
+    "بيجون"
+  ],
+  "archive-billybeez": [
+    "Billy Beez",
+    "بيلي بيز"
+  ],
+  "archive-xbox": [
+    "Xbox",
+    "إكس بوكس",
+    "Microsoft Xbox",
+    "أكس بوكس"
+  ],
+  "archive-brandsforless": [
+    "Brands For Less",
+    "براندز فور لس"
+  ],
+  "archive-razer": [
+    "Razer",
+    "ريزر"
+  ],
+  "archive-almosafer": [
+    "Al Mosafer",
+    "المسافر"
+  ],
+  "archive-mintra": [
+    "Mintra",
+    "منترا"
+  ],
+  "archive-ambest": [
+    "Ambest",
+    "أمبست"
+  ],
+  "archive-excalibur": [
+    "Excalibur",
+    "إكسكاليبر"
+  ],
+  "archive-alhelal": [
+    "Al Helal",
+    "الهلال"
+  ],
+  "archive-alsharqiya": [
+    "Al Sharqiya",
+    "الشرقية",
+    "Al-Sharqiya"
+  ],
+  "archive-saifplus": [
+    "Saif Plus",
+    "سيف بلس"
+  ],
+  "archive-shaha": [
+    "Shaha",
+    "شاها"
+  ],
+  "archive-emdico": [
+    "Emdico",
+    "إمديكو"
+  ],
+  "archive-ugreen": [
+    "UGreen",
+    "يوجرين",
+    "يو جرين"
+  ],
+  "archive-britishchef": [
+    "British Chef",
+    "بريتش شيف"
+  ],
+  "archive-kawan": [
+    "Kawan",
+    "كاوان",
+    "كاون"
+  ],
+  "archive-awafy": [
+    "Awafy",
+    "أوافي"
+  ],
+  "archive-rasikh": [
+    "Rasikh",
+    "راسخ"
+  ],
+  "archive-whipy": [
+    "Whipy",
+    "ويبي"
+  ],
+  "archive-marretti": [
+    "Marretti",
+    "ماريتي"
+  ],
+  "archive-tastee": [
+    "Tastee",
+    "تاستي"
+  ],
+  "archive-saudigardens": [
+    "Saudi Gardens",
+    "حدائق السعودية"
+  ],
+  "archive-albakri": [
+    "Al Bakri",
+    "البكري",
+    "Albakri"
+  ],
+  "archive-bunalun": [
+    "Bunalun",
+    "بونالون",
+    "Bunalun Organic"
+  ],
+  "archive-balim": [
+    "Balim",
+    "باليم"
+  ],
+  "archive-foodex": [
+    "Foodex",
+    "فودكس"
+  ],
+  "archive-naimi": [
+    "Naimi",
+    "نعيمي"
+  ],
+  "archive-lago": [
+    "Lago",
+    "لاجو"
+  ],
+  "archive-paradise": [
+    "Paradise",
+    "باراديس"
+  ],
+  "archive-sorini": [
+    "Sorini",
+    "سوريني"
+  ],
+  "archive-evian": [
+    "Evian",
+    "إيفيان"
+  ],
+  "archive-pomi": [
+    "Pomi",
+    "بومي"
+  ],
+  "archive-acorsa": [
+    "Acorsa",
+    "أكورسا"
+  ],
+  "archive-capilano": [
+    "Capilano",
+    "كابيلانو"
+  ],
+  "archive-hanai": [
+    "Hanai",
+    "هناي"
+  ],
+  "archive-harvest": [
+    "Harvest",
+    "هارفست"
+  ],
+  "archive-nahool": [
+    "Nahool",
+    "نحول"
+  ],
+  "archive-hiba": [
+    "Hiba",
+    "هيبا"
+  ],
+  "archive-makati": [
+    "Makati",
+    "مكاتي"
+  ],
+  "archive-toya": [
+    "Toya",
+    "تويا"
+  ],
+  "archive-solo": [
+    "Solo",
+    "سولو"
+  ],
+  "archive-abubint": [
+    "Abu Bint",
+    "أبو بنت"
+  ],
+  "archive-shimal": [
+    "Shimal",
+    "شمال"
+  ],
+  "archive-dania": [
+    "Dania",
+    "دانيا",
+    "Danya"
+  ],
+  "archive-rinata": [
+    "Rinata",
+    "ريناتا"
+  ],
+  "archive-fourati": [
+    "Fourati",
+    "فوراتي"
+  ],
+  "archive-fiji": [
+    "Fiji",
+    "فيجي"
+  ],
+  "archive-noora": [
+    "Noora",
+    "نورا"
+  ],
+  "archive-danisa": [
+    "Danisa",
+    "دانيسا"
+  ],
+  "archive-toliven": [
+    "Toliven",
+    "توليفن"
+  ],
+  "archive-lahitha": [
+    "Lahitha",
+    "لاهيتا",
+    "Lahita"
+  ],
+  "archive-dava": [
+    "Dava",
+    "دافا"
+  ],
+  "archive-christis": [
+    "Christis",
+    "كريستيس"
+  ],
+  "archive-heineken": [
+    "Heineken",
+    "هاينكن"
+  ],
+  "archive-barni": [
+    "Barni",
+    "بارني"
+  ],
+  "archive-holsten": [
+    "Holsten",
+    "هولستن"
+  ],
+  "archive-cuetara": [
+    "Cuetara",
+    "كويتارا",
+    "Cuetara Krit"
+  ],
+  "archive-amigo": [
+    "Amigo",
+    "أميجو"
+  ],
+  "archive-acquapanna": [
+    "Acqua Panna",
+    "أكوا بانا"
+  ],
+  "archive-riceup": [
+    "Rice Up",
+    "رايس أب",
+    "رائس أب"
+  ],
+  "archive-abusunbulatain": [
+    "Abu Sunbulatain",
+    "أبو سنبلتين",
+    "Abu Sumbulatein"
+  ],
+  "archive-sabahoo": [
+    "Sabahoo",
+    "صباحو"
+  ],
+  "archive-caprice": [
+    "Caprice",
+    "كابريس"
+  ],
+  "archive-gatorade": [
+    "Gatorade",
+    "جاتوريد"
+  ],
+  "archive-selalaljazera": [
+    "Selal Aljazera",
+    "سلال الجزيرة",
+    "Selal Alzera"
+  ],
+  "archive-tazatreat": [
+    "Taza Treat",
+    "تازة تريت"
+  ],
+  "archive-nilky": [
+    "Nilky",
+    "نيلكي"
+  ],
+  "archive-orbitat": [
+    "Orbitat",
+    "أوربيتات"
+  ],
+  "archive-jebtoon": [
+    "Jebtoon",
+    "جبتون"
+  ],
+  "archive-faborita": [
+    "Faborita",
+    "فابوريتا"
+  ],
+  "archive-vitabella": [
+    "Vitabella",
+    "فيتابيلا"
+  ],
+  "archive-kras": [
+    "Kras",
+    "كراس"
+  ],
+  "archive-emessa": [
+    "Emessa",
+    "إميسا"
+  ],
+  "archive-abaan": [
+    "Abaan",
+    "أبان"
+  ],
+  "archive-zahrati": [
+    "Zahrati",
+    "زهراتي"
+  ],
+  "archive-doriva": [
+    "Doriva",
+    "دوريفا"
+  ],
+  "archive-maille": [
+    "Maille",
+    "مايل"
+  ],
+  "archive-volvic": [
+    "Volvic",
+    "فولفيك"
+  ],
+  "archive-ozmo": [
+    "Ozmo",
+    "أوزمو"
+  ],
+  "archive-gofrik": [
+    "Gofrik",
+    "غوفريك"
+  ],
+  "archive-artiach": [
+    "Artiach",
+    "أرتياش"
+  ],
+  "archive-wello": [
+    "Wello",
+    "ويلو"
+  ],
+  "archive-souroti": [
+    "Souroti",
+    "سوروتي"
+  ],
+  "archive-florbu": [
+    "Florbu",
+    "فلوربو"
+  ],
+  "archive-omela": [
+    "Omela",
+    "أوميلا"
+  ],
+  "archive-verde": [
+    "Verde",
+    "فيردي"
+  ],
+  "archive-ovomaltine": [
+    "Ovomaltine",
+    "أوفومالتين"
+  ],
+  "archive-maxwellhouse": [
+    "Maxwell House",
+    "ماكسويل هاوس"
+  ],
+  "archive-franui": [
+    "Franui",
+    "فرانوي"
+  ],
+  "archive-londondairy": [
+    "London Dairy",
+    "لندن ديري"
+  ],
+  "archive-kottaram": [
+    "Kottaram",
+    "كوتارام"
+  ],
+  "archive-cocomas": [
+    "Coco Mas",
+    "كوكو ماس"
+  ],
+  "archive-kudu": [
+    "Kudu",
+    "كودو"
+  ],
+  "archive-urussa": [
+    "Urussa",
+    "أوروسا"
+  ],
+  "archive-vilvi": [
+    "Vilvi",
+    "فلفي"
+  ],
+  "archive-thaicoco": [
+    "Thai Coco",
+    "تاي كوكو"
+  ],
+  "archive-bobmoos": [
+    "Bobmoos",
+    "بوبموس"
+  ],
+  "archive-classico": [
+    "Classico",
+    "كلاسيكو"
+  ],
+  "archive-wellness": [
+    "Wellness",
+    "ويلنس"
+  ],
+  "archive-munchking": [
+    "Munch King",
+    "مانش كينج"
+  ],
+  "archive-basatentabuk": [
+    "Basaten Tabuk",
+    "بساتين تبوك"
+  ],
+  "archive-fitflex": [
+    "Fit & Flex",
+    "فت فلكس"
+  ],
+  "archive-bluediamond": [
+    "Blue Diamond",
+    "بلو دايموند"
+  ],
+  "archive-pran": [
+    "Pran",
+    "بران"
+  ],
+  "archive-sovia": [
+    "Sovia",
+    "سوفيا"
+  ],
+  "archive-fleek": [
+    "Fleek",
+    "فليك"
+  ],
+  "archive-doobi": [
+    "Doobi",
+    "دوبي"
+  ],
+  "archive-konafetto": [
+    "Konafetto",
+    "كونافيتو"
+  ],
+  "archive-rico": [
+    "Rico",
+    "ريكو"
+  ],
+  "archive-maltesers": [
+    "Maltesers",
+    "مالتيزرز"
+  ],
+  "archive-siblou": [
+    "Siblou",
+    "سيبلو"
+  ],
+  "archive-baya": [
+    "Baya",
+    "بايا"
+  ],
+  "archive-kikkoman": [
+    "Kikkoman",
+    "كيكومان"
+  ],
+  "archive-sedaap": [
+    "Sedaap",
+    "سيداب"
+  ],
+  "archive-botan": [
+    "Botan",
+    "بوتان"
+  ],
+  "archive-orlando": [
+    "Orlando",
+    "أورلاندو"
+  ],
+  "archive-mamba": [
+    "Mamba",
+    "مامبا"
+  ],
+  "archive-luppo": [
+    "Luppo",
+    "لوبو"
+  ],
+  "archive-jacklinks": [
+    "Jack Link's",
+    "جاك لينكس"
+  ],
+  "archive-clown": [
+    "Clown",
+    "كلاون"
+  ],
+  "archive-sahaten": [
+    "Sahaten",
+    "صحتين"
+  ],
+  "archive-fulmer": [
+    "Fulmer",
+    "فولمر"
+  ],
+  "archive-nyssa": [
+    "Nyssa",
+    "نيسا"
+  ],
+  "archive-cardinal": [
+    "Cardinal",
+    "كاردينال"
+  ],
+  "archive-cofique": [
+    "Cofique",
+    "كوفيك"
+  ],
+  "archive-kallo": [
+    "Kallo",
+    "كالو"
+  ],
+  "archive-maruja": [
+    "Maruja",
+    "ماروجا"
+  ],
+  "archive-lazeez": [
+    "Lazeez",
+    "لازيز"
+  ],
+  "archive-looneytunes": [
+    "Looney Tunes",
+    "لوني تونز"
+  ],
+  "archive-bramili": [
+    "Bramili",
+    "براملي"
+  ],
+  "archive-berryland": [
+    "Berry Land",
+    "بيري لاند"
+  ],
+  "archive-katchello": [
+    "Katchello",
+    "كاتشيلو"
+  ],
+  "archive-betello": [
+    "Betello",
+    "بتلو"
+  ],
+  "archive-colliers": [
+    "Colliers",
+    "كوليرز"
+  ],
+  "archive-grandiosi": [
+    "Grandiosi",
+    "غرانديوسي"
+  ],
+  "archive-tregar": [
+    "Tregar",
+    "تريغار"
+  ],
+  "archive-morningdelight": [
+    "Morning Delight",
+    "مورنينج ديلايت"
+  ],
+  "archive-lucerne": [
+    "Lucerne",
+    "لوسيرن"
+  ],
+  "archive-josephheler": [
+    "Joseph Heler",
+    "جوزيف هيلر"
+  ],
+  "archive-kingsley": [
+    "Kingsley",
+    "كينغسلي"
+  ],
+  "archive-bluedragon": [
+    "Blue Dragon",
+    "بلو دراغون"
+  ],
+  "archive-teksut": [
+    "Teksut",
+    "تيكسوت"
   ]
 };

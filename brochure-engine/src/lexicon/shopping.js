@@ -112,7 +112,7 @@ const CATEGORY_TERMS = [
   { id: 'cheese', en: ['cheese'], ar: 'جبن', family: 'cheese', aisle: 'cheese-cream' },
   { id: 'cream-cheese', en: ['cream cheese'], ar: 'جبن كريمي', family: 'cheese', aisle: 'cheese-cream' },
   { id: 'cheddar-cheese', en: ['cheddar cheese', 'cheddar'], ar: 'جبن شيدر', family: 'cheese', aisle: 'cheese-cream' },
-  { id: 'mozzarella-cheese', en: ['mozzarella cheese', 'mozzarella'], ar: 'جبن موزاريلا', family: 'cheese', aisle: 'cheese-cream' },
+  { id: 'mozzarella-cheese', en: ['mozzarella cheese', 'mozzarella', 'mozarella', 'mozarella cheese', 'mozzarela'], ar: 'جبن موزاريلا', family: 'cheese', aisle: 'cheese-cream' },
   { id: 'halloumi-cheese', en: ['halloumi cheese', 'halloumi', 'haloumi'], ar: 'جبن حلوم', family: 'cheese', aisle: 'cheese-cream' },
   { id: 'feta-cheese', en: ['feta cheese', 'feta'], ar: 'جبن فيتا', family: 'cheese', aisle: 'cheese-cream' },
   { id: 'processed-cheese', en: ['processed cheese', 'triangle cheese', 'spreadable cheese'], ar: 'جبن مثلثات', family: 'cheese', aisle: 'cheese-cream' },
@@ -144,14 +144,14 @@ const CATEGORY_TERMS = [
   { id: 'cookies', en: ['cookies', 'cookie'], ar: 'كوكيز', family: 'biscuit', aisle: 'biscuits' },
   { id: 'wafer', en: ['wafer', 'wafers'], ar: 'ويفر', family: 'biscuit', aisle: 'biscuits' },
   { id: 'crackers', en: ['crackers', 'cracker'], ar: 'كراكرز', family: 'biscuit', aisle: 'biscuits' },
-  { id: 'chocolate', en: ['chocolate', 'chocolates'], ar: 'شوكولاتة', family: 'chocolate', aisle: 'chocolates-candies' },
+  { id: 'chocolate', en: ['chocolate', 'chocolates', 'milk chocolate', 'dark chocolate', 'white chocolate', 'dairy milk'], ar: 'شوكولاتة', family: 'chocolate', aisle: 'chocolates-candies' },
   { id: 'chocolate-bar', en: ['chocolate bar'], ar: 'لوح شوكولاتة', family: 'chocolate', aisle: 'chocolates-candies' },
   { id: 'chocolate-spread', en: ['chocolate spread', 'cocoa spread'], ar: 'شوكولاتة للدهن', family: 'chocolate', aisle: 'sauces-spreads' },
   { id: 'candy', en: ['candy', 'sweets', 'toffee'], ar: 'حلوى', family: 'candy', aisle: 'chocolates-candies' },
   { id: 'chewing-gum', en: ['chewing gum'], ar: 'علكة', family: 'candy', aisle: 'chocolates-candies' },
   { id: 'lollipop', en: ['lollipop', 'lollipops', 'lollies'], ar: 'مصاصة', family: 'candy', aisle: 'chocolates-candies' },
   { id: 'marshmallow', en: ['marshmallow', 'marshmallows'], ar: 'مارشميلو', family: 'candy', aisle: 'chocolates-candies' },
-  { id: 'halawa', en: ['halawa', 'halva', 'halwa'], ar: 'حلاوة طحينية', aisle: 'sauces-spreads' },
+  { id: 'halawa', en: ['halawa', 'halva', 'halwa', 'halawa tahina', 'halawa tahini', 'tahina halawa', 'halwa tahina'], ar: 'حلاوة طحينية', aisle: 'sauces-spreads' },
   { id: 'ice-cream', en: ['ice cream', 'icecream'], ar: 'آيس كريم', family: 'icecream', aisle: 'ice-cream' },
   { id: 'dessert', en: ['dessert', 'desserts'], ar: 'حلى', family: 'dessert', aisle: 'cakes-pastry' },
   { id: 'custard', en: ['custard'], ar: 'كاسترد', family: 'dessert', aisle: 'cakes-pastry' },
@@ -608,7 +608,7 @@ const DESCRIPTOR_TERMS = [
   { id: 'full-fat', en: ['full fat', 'full cream'], ar: 'كامل الدسم', role: 'attribute' },
   { id: 'low-fat', en: ['low fat', 'light fat', 'half fat'], ar: 'قليل الدسم', role: 'attribute' },
   { id: 'fat-free', en: ['fat free', 'skimmed', 'non fat'], ar: 'خالي الدسم', role: 'attribute' },
-  { id: 'sugar-free', en: ['sugar free', 'no sugar'], ar: 'خالي السكر', role: 'attribute' },
+  { id: 'sugar-free', en: ['sugar free', 'no sugar', 'zero sugar', 'sugarfree'], ar: 'خالي السكر', role: 'attribute' },
   { id: 'no-added-sugar', en: ['no added sugar', 'without added sugar'], ar: 'بدون سكر مضاف', role: 'attribute' },
   { id: 'organic', en: ['organic'], ar: 'عضوي', role: 'attribute' },
   { id: 'natural', en: ['natural'], ar: 'طبيعي', role: 'attribute' },
@@ -714,6 +714,8 @@ const VETO_NEXT = Object.freeze({
   oil: ['filter', 'pump'],
   // "salt lamp", "salt shaker".
   salt: ['lamp', 'shaker', 'grinder'],
+  // "sugar free" is a claim about the product, never the product.
+  sugar: ['free'],
 });
 const VETO_PREV = Object.freeze({
   // "shaving cream"/"face cream" are phrases; this catches the open-ended tail
@@ -724,6 +726,8 @@ const VETO_PREV = Object.freeze({
   soap: [],
   // "corn oil" is a phrase; "pop corn" must never read as the vegetable.
   'sweet-corn': ['pop'],
+  // "no added sugar", "0% sugar", "zero sugar", "less sugar".
+  sugar: ['added', 'no', 'zero', 'less', 'low', 'reduced', '0', '0%'],
 });
 
 // --- stopwords -----------------------------------------------------------------
@@ -825,6 +829,24 @@ function matchSpans(index, tokens, { skip = () => false } = {}) {
   return spans;
 }
 
+// Fruit, vegetables, nuts, spices and the flavour descriptors (chicken, beef,
+// garlic...) name a product on their own but are usually the FLAVOUR beside a
+// prepared product. Dairy heads stay products: "Pizza Cheese" is cheese and
+// "Strawberry Milk" is milk.
+const FLAVOR_AISLES = new Set(['fruits', 'vegetables', 'frozen-fruits-veg', 'dates-dried-fruits']);
+const FLAVOR_SPICES = new Set(['cardamom', 'cinnamon', 'saffron', 'black-pepper', 'paprika',
+  'archive-anise', 'archive-cassia', 'archive-sumac', 'archive-mastic']);
+const PRODUCT_DAIRY = new Set(['cheese', 'milk', 'cream', 'butter']);
+function flavorCapable(span, tokens) {
+  const phrase = tokens.slice(span.start, span.end).join(' ');
+  if (PRODUCT_DAIRY.has(phrase)) return false;
+  if (descriptorIndex.index.get(phrase)?.role === 'flavor') return true;
+  return FLAVOR_AISLES.has(span.entry.aisle) || FLAVOR_SPICES.has(span.entry.id);
+}
+export const isFlavorCategory = (category) => !!category && !PRODUCT_DAIRY.has(category.matched_phrase)
+  && (descriptorIndex.index.get(category.matched_phrase)?.role === 'flavor'
+    || FLAVOR_AISLES.has(category.aisle) || FLAVOR_SPICES.has(category.id));
+
 // --- category resolution -------------------------------------------------------
 // THE HEAD-NOUN RULE: longest phrase wins; ties break RIGHTMOST.
 //
@@ -844,6 +866,11 @@ export function resolveCategory(englishName, { skipTokens = new Set() } = {}) {
     const widthB = b.end - b.start;
     if (widthB > widthA) return b;
     if (widthB < widthA) return a;
+    // Flyers also print the flavour AFTER the product ("Mayonnaise Garlic",
+    // "Noodles Chicken", "Juice Apple"). A noun that is also a flavour or
+    // ingredient never outranks a product noun of the same width.
+    const flavorA = flavorCapable(a, tokens), flavorB = flavorCapable(b, tokens);
+    if (flavorA !== flavorB) return flavorA ? b : a;
     return b.start > a.start ? b : a;
   });
   return {

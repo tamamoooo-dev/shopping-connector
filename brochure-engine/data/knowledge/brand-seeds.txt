@@ -226,7 +226,7 @@ Shan|شان
 LG|إل جي
 Al Jabal|الجبل
 Rice King|رايس كينج
-Golden Chicken|الفروج الذهبي|Golden
+Golden Chicken|الفروج الذهبي
 Bonux|بونكس
 Alisa|أليسا
 Pears|بيرز
@@ -356,7 +356,7 @@ Eco Home|إيكو هوم
 Albashayer|البشائر
 Fadeco|فاديكو
 Babul|بابول
-Bahar|بحر
+Bahar|بهار|بحر
 Alicafé|علي كافيه
 Taj Al Hind|تاج الهند
 Femfresh|فيم فريش
@@ -682,3 +682,176 @@ Cheeseland|شيزالاند
 Omara|عمارة|Amara
 
 Belgian|بلجين|The Belgian
+# 2026-10-23 Panda replay: brands printed on the reviewed crops, Arabic as the flyer or market spells it.
+Med|مد
+Hills|هيلز|Hills Collection|هيلس
+Energizer|إنرجايزر|أنرجايزر
+Oraimo|أورايمو
+itel|آيتل|آيتيل|إيتيل
+Golden Ring|جولدن رينغ|جولدن رنج
+Elvive|إلفيف
+Cristal|كريستال
+Wella|ويلا
+Just For Men|جاست فور مين
+David Beckham|ديفيد بيكهام
+Nautica|نوتيكا
+Clean & Clear|كلين أند كلير|Clean and Clear
+Redoxon|ريدوكسون
+AloeDent|ألودنت|Aloe Dent
+Imperial Leather|إمبريال ليذر|امبيريال ليدر
+Pyari|بياري
+Sunrosa|صنروزا
+Eva Senses|إيفا سينسز|إيفا سينسيس
+Lady Speed Stick|ليدي سبيد ستيك
+Omino Bianco|أومينو بيانكو|Omino
+Windex|ويندكس
+Baygon|بايجون|بيجون
+Billy Beez|بيلي بيز
+Xbox|إكس بوكس|Microsoft Xbox|أكس بوكس
+Brands For Less|براندز فور لس
+Razer|ريزر
+Al Mosafer|المسافر
+Mintra|منترا
+Ambest|أمبست
+Excalibur|إكسكاليبر
+Al Helal|الهلال
+Al Sharqiya|الشرقية|Al-Sharqiya
+Saif Plus|سيف بلس
+Shaha|شاها
+Emdico|إمديكو
+UGreen|يوجرين|يو جرين
+British Chef|بريتش شيف
+Kawan|كاوان|كاون
+Awafy|أوافي
+Rasikh|راسخ
+Whipy|ويبي
+Marretti|ماريتي
+Tastee|تاستي
+Saudi Gardens|حدائق السعودية
+Al Bakri|البكري|Albakri
+Bunalun|بونالون|Bunalun Organic
+Balim|باليم
+
+# 2026-10-23 reading knowledge: grocery brands with no Arabic name, spelled as
+# the readings print them (>=3 sightings, one spelling in >=60%, consonants
+# agree with the English). Generic English words are typed-field only.
+Foodex|فودكس
+Naimi|نعيمي
+Lago|لاجو
+Paradise|باراديس
+Sorini|سوريني
+Evian|إيفيان
+Pomi|بومي
+Acorsa|أكورسا
+Capilano|كابيلانو
+Hanai|هناي
+Harvest|هارفست
+Nahool|نحول
+Hiba|هيبا
+Makati|مكاتي
+Toya|تويا
+Solo|سولو
+Abu Bint|أبو بنت
+Shimal|شمال
+Dania|دانيا|Danya
+Rinata|ريناتا
+Fourati|فوراتي
+Fiji|فيجي
+Noora|نورا
+Danisa|دانيسا
+Toliven|توليفن
+Lahitha|لاهيتا|Lahita
+Dava|دافا
+Christis|كريستيس
+Heineken|هاينكن
+Barni|بارني
+Holsten|هولستن
+Cuetara|كويتارا|Cuetara Krit
+Amigo|أميجو
+Acqua Panna|أكوا بانا
+Rice Up|رايس أب|رائس أب
+Abu Sunbulatain|أبو سنبلتين|Abu Sumbulatein
+Sabahoo|صباحو
+Caprice|كابريس
+Gatorade|جاتوريد
+Selal Aljazera|سلال الجزيرة|Selal Alzera
+Taza Treat|تازة تريت
+Nilky|نيلكي
+Orbitat|أوربيتات
+Jebtoon|جبتون
+Faborita|فابوريتا
+Vitabella|فيتابيلا
+Kras|كراس
+Emessa|إميسا
+Abaan|أبان
+Zahrati|زهراتي
+Doriva|دوريفا
+Wadi Fatma|وادي فاطمة|Wadi Fatima
+Maille|مايل
+Volvic|فولفيك
+Ozmo|أوزمو
+Gofrik|غوفريك
+Artiach|أرتياش
+Wello|ويلو
+Souroti|سوروتي
+Castania|كاستنيا|Castina|كاستانيا
+Florbu|فلوربو
+Omela|أوميلا
+Verde|فيردي
+Ovomaltine|أوفومالتين
+Maxwell House|ماكسويل هاوس
+Franui|فرانوي
+London Dairy|لندن ديري
+Kottaram|كوتارام
+Coco Mas|كوكو ماس
+Kudu|كودو
+Urussa|أوروسا
+Vilvi|فلفي
+Thai Coco|تاي كوكو
+Bobmoos|بوبموس
+Classico|كلاسيكو
+Wellness|ويلنس
+Munch King|مانش كينج
+Basaten Tabuk|بساتين تبوك
+Fit & Flex|فت فلكس
+Blue Diamond|بلو دايموند
+Pran|بران
+Sovia|سوفيا
+Fleek|فليك
+Doobi|دوبي
+Konafetto|كونافيتو
+Rico|ريكو
+Maltesers|مالتيزرز
+Siblou|سيبلو
+Baya|بايا
+Kikkoman|كيكومان
+Sedaap|سيداب
+Botan|بوتان
+Orlando|أورلاندو
+Mamba|مامبا
+Luppo|لوبو
+Jack Link's|جاك لينكس
+Clown|كلاون
+Sahaten|صحتين
+Fulmer|فولمر
+Nyssa|نيسا
+Cardinal|كاردينال
+Cofique|كوفيك
+Kallo|كالو
+Maruja|ماروجا
+Lazeez|لازيز
+Looney Tunes|لوني تونز
+Bramili|براملي
+Marietta|ماريتا|Marieta
+Berry Land|بيري لاند
+Katchello|كاتشيلو
+Betello|بتلو
+Colliers|كوليرز
+Grandiosi|غرانديوسي
+Tregar|تريغار
+Morning Delight|مورنينج ديلايت
+Lucerne|لوسيرن
+Joseph Heler|جوزيف هيلر
+Kingsley|كينغسلي
+Blue Dragon|بلو دراغون
+Teksut|تيكسوت

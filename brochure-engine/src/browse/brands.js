@@ -34,6 +34,7 @@
 // "فيريرو"→Fairy, "برينس"→Berain). Exact + article + doubled-letter repair
 // remain.
 
+import { NAME_SCAN_UNSAFE } from '../knowledge/brandNameScan.js';
 import { ARCHIVE_BRANDS } from '../knowledge/archiveBrands.js';
 import { normalizeText } from '../matching.js';
 import { canonicalAisle } from './mapping.js';
@@ -183,7 +184,7 @@ const CORE_BRANDS = [
   { slug: "siniora", en: "Siniora", ar: "سنيورة" },
   { slug: "radwa", en: "Radwa", ar: "رضوى" },
   { slug: "baytouti", en: "Baytouti", ar: "بيتوتي" },
-  { slug: "kelloggs", en: "Kellogg's", ar: "كلوقز" },
+  { slug: "kelloggs", en: "Kellogg's", ar: "كيلوجز" },
   { slug: "ritter-sport", en: "Ritter Sport", ar: "ريتر سبورت" },
   { slug: "american-garden", en: "American Garden", ar: "أمريكان جاردن" },
   { slug: "finah", en: "Finah", ar: "فينة" },
@@ -212,7 +213,7 @@ const CORE_BRANDS = [
   { slug: "bugles", en: "Bugles", ar: "بوقلز" },
   { slug: "lorenz", en: "Lorenz", ar: "لورنز" },
   { slug: "cheetos", en: "Cheetos", ar: "شيتوس" },
-  { slug: "mcvities", en: "McVities", ar: "مكفتيز" },
+  { slug: "mcvities", en: "McVities", ar: "مكفيتيز" },
   { slug: "tiffany", en: "Tiffany", ar: "تيفاني" },
   { slug: "alosra", en: "Al Osra", ar: "الأسرة" },
   { slug: "shams", en: "Shams", ar: "شمس" },
@@ -266,6 +267,8 @@ const GENERIC = new Set(
 // Neighbor-word vetoes (folded): the adjacent word flips the token's meaning.
 const VETO_PREV = {
   alsafi: ['الوزن', 'وزن'], // "الوزن الصافي" = net weight
+  puck: ['نوت'], // "نوت بوك" = notebook
+  doux: ['ultra', 'الترا'], // Garnier Ultra Doux is a shampoo line
   alrabie: ['زهور', 'نسيم', 'برايحه', 'رايحه'], // "زهور الربيع" = spring-flowers scent
 };
 const VETO_NEXT = {
@@ -279,7 +282,9 @@ const DEDUPE_INDEX = new Map(); // dedupe(key) -> slug
 // "اب" from كلوس اب) tag ordinary words (LED = "ال اي دي", 7up = "سفن اب").
 function addKey(rawKey, slug) {
   const k = fold(rawKey);
-  if (!k || k.length < 3 || AMBIGUOUS.has(k)) return;
+  // Ordinary words (كريم, baby, الشمس...) never index a brand: measured to
+  // tag other companies' products more often than their own.
+  if (!k || k.length < 3 || AMBIGUOUS.has(k) || NAME_SCAN_UNSAFE.has(k)) return;
   if (!INDEX.has(k)) INDEX.set(k, slug);
   const d = dedupe(k);
   if (!DEDUPE_INDEX.has(d)) DEDUPE_INDEX.set(d, slug);
@@ -329,7 +334,8 @@ function offerDept(offer) {
 // least one script); the first hit that survives the context guards wins —
 // earliest word first, English name first (it OCRs cleaner). Never throws,
 // never guesses: any failed guard means "no brand", never "next-best brand".
-const ARCHIVE_EXACT=new Map(ARCHIVE_BRANDS.filter(b=>!b.typedOnly).flatMap(b=>[b.en,b.ar].map(s=>[fold(s),b.slug])));
+const ARCHIVE_EXACT=new Map(ARCHIVE_BRANDS.filter(b=>!b.typedOnly).flatMap(b=>[b.en,b.ar].map(s=>[fold(s),b.slug]))
+  .filter(([key])=>!NAME_SCAN_UNSAFE.has(key) && !NAME_SCAN_UNSAFE.has(key.replace(/^ال/u,''))));
 export function detectBrand(offer) {
   for (const name of [offer.name,offer.nameAr ?? offer.name_ar]) {
     const tokens=fold(name || '').split(' ');

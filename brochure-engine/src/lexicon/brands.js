@@ -88,7 +88,8 @@ export const LEXICON_ONLY_BRANDS = Object.freeze([
   { slug: 'nikai', en: 'Nikai', ar: 'نيكاي' },
   { slug: 'baseus', en: 'Baseus', ar: 'بيسوس' },
   { slug: 'prime', en: 'Prime', ar: 'برايم' },
-  { slug: 'royal', en: 'Royal', ar: 'رويال' },
+  // Royal chicken and franks; Royal Prince/Ford/Club are other companies.
+  { slug: 'royal', en: 'Royal', ar: 'رويال', depts: ['fresh', 'frozen'] },
   { slug: 'grand', en: 'Grand', ar: 'جراند' },
   { slug: 'gloria', en: 'Gloria', ar: 'غلوريا' },
   { slug: 'super-dine', en: 'Super Dine', ar: 'سوبر داين' },
@@ -123,6 +124,8 @@ export const LEXICON_ONLY_BRANDS = Object.freeze([
 // mapping silently merges two companies' products for every phase downstream.
 export const BRAND_ALIASES = Object.freeze({
   'head-shoulders': ['Head and Shoulders', 'هيد شولدرز', 'هيد آند شولدرز'],
+  kelloggs: ['كلوقز', 'كيلوغز', 'Kelloggs'],
+  mcvities: ['مكفتيز', 'ماكفيتيز', "McVitie's"],
   johnsons: ['Johnson and Johnson', 'Johnson & Johnson', 'جونسون اند جونسون', 'جونسونز'],
   'california-garden': ['كاليفورنيا جاردن'],
   'foster-clarks': ['فوستر كلارك'],

@@ -64,7 +64,24 @@ export const TITLE_TERMS = [
   ['window air condition', 'مكيف شباك'], ['window ac', 'مكيف شباك'], ['split ac', 'مكيف سبليت'],
   ['chest freezer', 'فريزر أفقي'], ['refrigerator', 'ثلاجة'], ['airpods', 'سماعات أذن'],
   ['power bank', 'شاحن متنقل'], ['usb c to lightning cable', 'كابل USB-C إلى لايتنينغ'],
+  ['sparkling water', 'مياه فوارة'], ['olive pomace oil', 'زيت تفل الزيتون'], ['pomace olive oil', 'زيت تفل الزيتون'],
+  ['orange blossom water', 'ماء زهر'], ['orange blossom', 'ماء زهر'], ['rose water', 'ماء ورد'],
+  ['milk chocolate', 'شوكولاتة بالحليب'], ['dairy milk', 'شوكولاتة بالحليب'], ['dark chocolate', 'شوكولاتة داكنة'],
+  ['white chocolate', 'شوكولاتة بيضاء'], ['pizza cheese', 'جبن بيتزا'], ['cheese slices burger', 'شرائح جبن للبرجر'],
+  ['burger cheese slices', 'شرائح جبن للبرجر'], ['burger slices', 'شرائح جبن للبرجر'],
   ['iphone', 'هاتف آيفون'], ['galaxy', 'هاتف جالاكسي'], ['redmi pad', 'جهاز لوحي'],
+  // 2026-10-23 grocery gaps (reading-knowledge).
+  ['sweet potato', 'بطاطا حلوة'], ['sweet potatoes', 'بطاطا حلوة'],
+  ['chickpeas whole', 'حمص حب'], ['whole chickpeas', 'حمص حب'], ['black chana', 'حمص أسود'],
+  ['masoor dal', 'عدس أحمر'], ['dal masoor', 'عدس أحمر'], ['masoor', 'عدس أحمر'],
+  ['chicken legs', 'أفخاذ دجاج'], ['chicken leg', 'أفخاذ دجاج'], ['chicken thighs', 'أوراك دجاج'],
+  ['chicken drumsticks', 'سيقان دجاج'], ['chicken wings', 'أجنحة دجاج'], ['chicken gizzard', 'قوانص دجاج'],
+  ['chicken mix parts', 'قطع دجاج مشكلة'], ['chicken mixed parts', 'قطع دجاج مشكلة'], ['chicken portion mix', 'قطع دجاج مشكلة'],
+  ['chicken meatballs', 'كرات دجاج'], ['paya', 'كوارع'], ['lamb paya', 'كوارع غنم'], ['rib eye', 'ريب آي'], ['ribeye', 'ريب آي'],
+  ['butter popcorn', 'فشار بالزبدة'], ['popcorn butter', 'فشار بالزبدة'], ['pop corn', 'فشار'], ['corn dog', 'كورن دوغ'],
+  ['whip topping', 'كريمة خفق'], ['whipped topping', 'كريمة خفق'], ['hazelnut spread', 'كريمة البندق'],
+  ['juice drink', 'مشروب عصير'], ['apple cider vinegar', 'خل تفاح'], ['cider vinegar', 'خل تفاح'],
+  ['sesame seeds', 'سمسم'], ['sesame seed', 'سمسم'], ['paneer', 'جبن بانير'],
 ];
 
 export const TITLE_DETAILS = [
@@ -81,13 +98,25 @@ export const TITLE_DETAILS = [
   ['brazilian', 'برازيلي'], ['jordanian', 'أردني'], ['turkish', 'تركي'],
   ['egyptian', 'مصري'], ['masry', 'مصري'], ['french', 'فرنسي'],
   ['low salt', 'قليل الملح'], ['black seeds', 'حبة سوداء'],
+  ['blue raspberry', 'توت أزرق'], ['fine', 'ناعم'], ['raspberry', 'توت العليق'],
+  ['blueberry', 'توت أزرق'], ['dark roast', 'تحميص داكن'], ['medium roast', 'تحميص متوسط'], ['light roast', 'تحميص فاتح'],
+  ['bone in', 'بالعظم'], ['with bone', 'بالعظم'], ['boneless', 'بدون عظم'], ['bone less', 'بدون عظم'],
+  ['mince', 'مفروم'], ['minced', 'مفروم'], ['tempura', 'تمبورا'], ['chocolate coated', 'مغطى بالشوكولاتة'],
+  ['coated', 'مغطى'], ['cone', 'كون'], ['cube', 'مكعبات'], ['cubes', 'مكعبات'], ['classic', 'كلاسيك'], ['big', 'كبير'], ['small', 'صغير'], ['sesame', 'بالسمسم'],
+  // Where a fresh product comes from is how shoppers tell it apart (رمان يمني).
+  ['local', 'محلي'], ['saudi', 'سعودي'], ['egypt', 'مصري'], ['yemen', 'يمني'], ['yemeni', 'يمني'], ['india', 'هندي'],
+  ['pakistan', 'باكستاني'], ['south africa', 'جنوب أفريقي'], ['usa', 'أمريكي'], ['china', 'صيني'], ['spain', 'إسباني'],
+  ['spanish', 'إسباني'], ['kenya', 'كيني'], ['australia', 'أسترالي'], ['australian', 'أسترالي'], ['chile', 'تشيلي'],
+  ['iran', 'إيراني'], ['lebanon', 'لبناني'], ['lebanese', 'لبناني'], ['syria', 'سوري'], ['sri lanka', 'سريلانكي'],
+  ['srilanka', 'سريلانكي'], ['vietnam', 'فيتنامي'], ['morocco', 'مغربي'], ['jordan', 'أردني'], ['new zealand', 'نيوزيلندي'],
 ];
 
 // Identity details belong to a product family, rather than one global
 // adjective list: fig describes a jam and sheep identifies the milk in cheese.
 // Each English phrase must be printed in the name; Arabic OCR is not copied.
 export const TITLE_VARIANTS = [
-  {heads:['جبن','جبنة'], terms:[['kashkaval','قشقوان'],['areesh','قريش'],['romi','رومي'],['feta','فيتا'],['sheep', 'غنم'],['triangles','مثلثات'],['portions','قطع']]},
+  {heads:['جبن','جبنة'], terms:[['mozzarella','موزاريلا'],['mozarella','موزاريلا'],['cheddar','شيدر'],['halloumi','حلوم'],
+    ['parmesan','بارميزان'],['akkawi','عكاوي'],['nabulsi','نابلسي'],['kashkaval','قشقوان'],['areesh','قريش'],['romi','رومي'],['feta','فيتا'],['sheep', 'غنم'],['triangles','مثلثات'],['portions','قطع']]},
   {heads:['مربى'], terms:[['raspberry','توت العليق'],['fig','تين'],['apricot','مشمش']]},
   {heads:['معمول','كوكيز','بسكويت'], terms:[['dates','بالتمر'],['date','بالتمر'],['brownie','براوني']]},
   {heads:['روبيان'], terms:[['sea','بحري'],['cooking','للطبخ']]},
@@ -96,4 +125,14 @@ export const TITLE_VARIANTS = [
   {heads:['حليب'], terms:[['long life','طويل الأجل'],['flavored','بالنكهات'],['flavoured','بالنكهات']]},
   {heads:['قشطة'], terms:[['thick','كثيفة']]},
   {heads:['بامية'], terms:[['zero','زيرو'],['extra','إكسترا']]},
+  {heads:['شاي'], terms:[['tea bags','أكياس'],['bags','أكياس'],['karak','كرك'],['ice','مثلج'],['iced','مثلج']]},
+  {heads:['أرز'], terms:[['biryani','برياني'],['basmati','بسمتي'],['calrose','كالروز'],['jasmine','ياسمين'],['mazza','مزة']]},
+  {heads:['مافن','كيك','بسكويت','زبادي'], terms:[['fruit','بالفواكه'],['fruits','بالفواكه']]},
+  {heads:['معكرونة'], terms:[['penne','بيني'],['fusilli','فوسيلي']]},
+  {heads:['لحم'], terms:[['camel','جمل'],['hashi','حاشي'],['veal','عجل']]},
+  {heads:['تفاح'], terms:[['royal gala','رويال جالا'],['gala','جالا'],['red delicious','أحمر'],['granny smith','أخضر'],['fuji','فوجي']]},
+  {heads:['مانجو'], terms:[['keitt','كيت'],['keith','كيت'],['keeth','كيت'],['kent','كنت'],['sudani','سوداني']]},
+  // "Turkey" is the meat everywhere else.
+  {heads:['تفاح','رمان','مانجو','برتقال','يوسفي','عنب','جوافة','ليمون','كمثرى','خوخ','مشمش','كرز','تين','بطاطس','بصل','طماطم','ثوم','باذنجان','فلفل'],
+    terms:[['turkey','تركي']]},
 ];
