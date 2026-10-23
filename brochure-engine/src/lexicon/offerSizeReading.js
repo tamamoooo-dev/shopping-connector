@@ -92,14 +92,16 @@ export function resolveOfferSize({size,nameEn,nameAr,sale,nonGrocery=false}={}) 
   // Sizes printed as alternatives in the English name ("(1L) / (900ml)") are
   // one assorted offer at one price; the field often kept only one of them.
   // A "+" is a bundle or bonus, never a choice; a merged OCR number
-  // (150170/180g) is not a size the shopper can buy.
+  // (150170/180g) is not a size the shopper can buy. Each alternative must
+  // print its own unit: "Cashew W 180/ 500g" is a grade beside one size.
   if (field && !field.assorted && !diaper && field.canonical && !/\+/u.test(String(nameEn || ''))) {
     const listed = fromName(nameEn, 'english_name', nonGrocery);
     const same = o => o.canonical.unit === field.canonical.unit && o.canonical.pack === field.canonical.pack
       && Math.abs(o.canonical.total - field.canonical.total) < 1e-6;
     const totals = listed?.options.map(o => o.canonical.total) || [];
+    const units = (String(nameEn || '').match(/\d+(?:[.,]\d+)?\s*(?:kgs?|g|gms?|gr|grams?|mg|ml|cl|l|lt|ltrs?|litres?|liters?|oz|lbs?)\b/giu) || []).length;
     if (listed?.assorted && listed.kind === 'alternatives' && listed.options.some(same)
-      && Math.max(...totals) / Math.min(...totals) <= 20) field = listed;
+      && units >= listed.options.length && Math.max(...totals) / Math.min(...totals) <= 20) field = listed;
   }
   if (!field && sale?.status === 'matched' && sale.count > 1 && !sale.package_size) return null;
   let reading=field || fromName(nameEn,'english_name',nonGrocery,diaper) || fromName(nameAr,'arabic_name',nonGrocery,diaper);

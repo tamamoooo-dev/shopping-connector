@@ -1,7 +1,7 @@
 import { BRAND_LEXICON, LEXICON_ONLY_BRANDS, resolveBrand } from './brands.js';
 import { buildStructuredProduct } from './structuredProduct.js';
 import { TITLE_TERMS, TITLE_DETAILS, TITLE_VARIANTS, GROCERY_ONLY_DETAILS } from './productTitleDictionary.js';
-import { normalizeShoppingText, resolveDescriptors, resolveCategory, isFlavorCategory } from './shopping.js';
+import { normalizeShoppingText, resolveDescriptors, resolveCategory, isFlavorCategory, SHOPPING_CATEGORIES, SHOPPING_DESCRIPTORS } from './shopping.js';
 import { NAME_SCAN_UNSAFE } from '../knowledge/brandNameScan.js';
 import { READING_BRAND_VARIANTS, READING_TERM_CORRECTIONS } from '../knowledge/readingVariants.js';
 import { normalizeText } from '../matching.js';
@@ -85,6 +85,12 @@ export function titleBrand(nameEn, observedBrand, { leading = false } = {}) {
 // spellings of known brands. Keys are folded as the builder folds them.
 const READING_CLITIC = /^(?:وال|بال|فال|لل|ال)/u;
 const readingKey = w => normalizeText(w).replace(/\s+/gu, '');
+// Arabic product words of the dictionaries. A learned brand misreading that is
+// also one of them (جزرة for Aljazera, كبيرة for Al Kabeer) names the product.
+const PRODUCT_WORDS = new Set([...TITLE_TERMS, ...TITLE_DETAILS, ...TITLE_VARIANTS.flatMap(g => g.terms)].map(t => t[1])
+  .concat([...SHOPPING_CATEGORIES, ...SHOPPING_DESCRIPTORS].map(e => e.ar))
+  .flatMap(ar => String(ar || '').split(/\s+/u)).map(w => readingKey(w).replace(READING_CLITIC, '')).filter(Boolean)
+  .flatMap(w => [w, w.endsWith('ه') ? w.slice(0, -1) : w + 'ه']));
 const readingCorrections = new Map(READING_TERM_CORRECTIONS.map(([observed, canonical, required]) => [observed, { canonical, required }]));
 
 // A fallback name is the reading's own Arabic. A word in it that historical
@@ -108,6 +114,9 @@ export function correctedReading(name, nameEn) {
 }
 
 const ARABIC_ARTICLE = /^(?:وال|ال)/u;
+// A short code with a digit (Q10, A200, 4K) or a feature acronym; long SKU
+// codes (ZAEH0050SA) and OCR noise (12Empty) are not product details.
+const LATIN_DETAIL = /^(?=.*\d)[A-Za-z0-9]{1,5}$|^(?:SPF|UV|USB|USB-?C|TYPE-?C|HDMI|LED|LCD|OLED|QLED|HD|FHD|UHD|XS|XL|XXL|BBQ|AC|DC|GPS|SIM|NFC)$/iu;
 const foldWord = w => arabicKey(String(w).toLowerCase()).replace(/[^\p{L}\p{N}]/gu, '');
 // The Arabic product name never carries the brand: it is shown in its own
 // field. Removes the brand's known spellings (Arabic, English, typed field)
@@ -132,8 +141,20 @@ function brandWordsRemoved(name, brands, observedBrand) {
   const keys=[...new Set(phrases.map(p=>String(p).trim().split(/\s+/u).map(foldWord).filter(Boolean).join(' ')).filter(Boolean))]
     .sort((a,b)=>b.split(' ').length-a.split(' ').length);
   const folded=words.map(foldWord), keep=words.map(()=>true);
-  // Misread spellings of this offer's own brand (ناديك for Nadec) leave too.
-  const variants=new Set(brands.flatMap(b=>READING_BRAND_VARIANTS[b.id] || []));
+  let spelled=false;
+  for (const key of keys) {
+    const parts=key.split(' ');
+    for (let i=0;i+parts.length<=words.length;i++) {
+      if (!keep[i]) continue;
+      const window=folded.slice(i,i+parts.length);
+      const same=window.every((w,j)=>w===parts[j] || w.replace(ARABIC_ARTICLE,'')===parts[j].replace(ARABIC_ARTICLE,''));
+      if (same) { spelled=true; for (let j=0;j<parts.length;j++) keep[i+j]=false; }
+    }
+  }
+  // Misread spellings of this offer's own brand (ناديك for Nadec) leave too,
+  // but only when the brand was not read correctly: then a look-alike word
+  // («عصير الجزرة الجزيرة») is the product, not a second brand.
+  const variants=spelled ? new Set() : new Set(brands.flatMap(b=>READING_BRAND_VARIANTS[b.id] || []).filter(v=>!PRODUCT_WORDS.has(v)));
   if (variants.size) for (let i=0;i<words.length;i++) for (let width=Math.min(3,words.length-i);width>0;width--) {
     if (!keep.slice(i,i+width).every(Boolean)) continue;
     if (variants.has(readingKey(words.slice(i,i+width).join(' ')).replace(READING_CLITIC,''))) {
@@ -141,17 +162,11 @@ function brandWordsRemoved(name, brands, observedBrand) {
       break;
     }
   }
-  for (const key of keys) {
-    const parts=key.split(' ');
-    for (let i=0;i+parts.length<=words.length;i++) {
-      if (!keep[i]) continue;
-      const window=folded.slice(i,i+parts.length);
-      const same=window.every((w,j)=>w===parts[j] || w.replace(ARABIC_ARTICLE,'')===parts[j].replace(ARABIC_ARTICLE,''));
-      if (same) for (let j=0;j<parts.length;j++) keep[i+j]=false;
-    }
-  }
-  // Latin words inside an Arabic name are brand, line or model names.
-  if (words.some((w,i)=>keep[i] && /\p{Script=Arabic}/u.test(w))) words.forEach((w,i)=>{ if (/[A-Za-z]/u.test(w)) keep[i]=false; });
+  // Latin words inside an Arabic name are brand or line names and leave; a
+  // model, grade or feature code (Q10, 4K, SPF, USB-C) describes the product.
+  if (words.some((w,i)=>keep[i] && /\p{Script=Arabic}/u.test(w))) words.forEach((w,i)=>{
+    if (/[A-Za-z]/u.test(w) && !LATIN_DETAIL.test(w.replace(/^[^\p{L}\p{N}]+|[^\p{L}\p{N}]+$/gu,''))) keep[i]=false;
+  });
   const text=words.filter((w,i)=>keep[i]).join(' ').replace(/\(\s*\)/gu,'').replace(/\s+/gu,' ').trim();
   return text && /\p{Script=Arabic}/u.test(text) ? text : null;
 }
@@ -316,25 +331,34 @@ export function dictionaryProductTitle({ nameEn, nameAr, brand: observedBrand, s
     if(structured.category_diagnostics?.reason==='head_final_guard'){
       const candidate=resolveCategory(head);
       const scoped=TITLE_VARIANTS.filter(g=>g.heads.some(h=>candidate?.ar===h||candidate?.ar.startsWith(h+' ')))
-        .flatMap(g=>g.terms).map(t=>t[0]).concat(TITLE_DETAILS.map(t=>t[0]));
+        .flatMap(g=>g.terms).map(t=>t[0]);
       let clarified=' '+head+' ';
       for(const phrase of scoped)clarified=clarified.split(' '+phrase+' ').join(' ');
+      // General details (Rice Basmati India, Chicken Classic Fillets) are set
+      // aside too, but only when the head they reveal ends the clause: an
+      // unknown noun before them is the real product (Coffee Table Classic).
+      let general=clarified;
+      for(const [phrase] of TITLE_DETAILS)general=general.split(' '+phrase+' ').join(' ');
+      const revealed=general.trim()!==clarified.trim()&&general.trim()?buildStructuredProduct({name_en:general.trim(),brand:null}):null;
+      const final=revealed?.category&&` ${general.trim()} `.endsWith(` ${revealed.category.matched_phrase} `);
       // Known, category-scoped details are not unknown trailing nouns. Keep
       // the original clause for display details and retain the refusal guard
       // for every other unexplained word. Registry parsing is unchanged.
-      if(clarified.trim()!==head)structured=buildStructuredProduct({name_en:clarified.trim(),brand:null});
+      if(final)structured=revealed;
+      else if(clarified.trim()!==head)structured=buildStructuredProduct({name_en:clarified.trim(),brand:null});
     }
 
     let direct = TITLE_TERMS.filter(([phrase]) => includesPhrase(head, phrase))
       .sort((a,b) => b[0].split(' ').length - a[0].split(' ').length)[0];
     // A title dictionary hit must not replace a more specific classifier
-    // phrase with a shorter product word, nor a product noun of the same
-    // width printed after it ("Pizza Cheese" is cheese).
+    // phrase with a shorter product word, nor a food noun of the same width
+    // printed after a food ("Pizza Cheese" is cheese). After a non-food head
+    // a food word is a scent (Roll-On Cucumber & Green Tea is a deodorant).
     if (direct && structured.category) {
       const width = structured.category.matched_phrase.split(' ').length, directWidth = direct[0].split(' ').length;
       const directAt = ` ${head} `.indexOf(` ${direct[0]} `), categoryAt = ` ${head} `.indexOf(` ${structured.category.matched_phrase} `);
       if (width > directWidth || (width === directWidth && categoryAt > directAt && !isFlavorCategory(structured.category)
-        && !includesPhrase(direct[0], structured.category.matched_phrase))) direct = null;
+        && isGrocery(resolveCategory(direct[0])) && !includesPhrase(direct[0], structured.category.matched_phrase))) direct = null;
     }
     const detailsOnly = [...resolveDescriptors(head).map(d => d.matched_phrase),
       ...TITLE_DETAILS.filter(([phrase]) => includesPhrase(head, phrase)).map(d => d[0])];

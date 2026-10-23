@@ -218,3 +218,28 @@ assert.equal(title({nameEn:'Nadec Milk Full Fat Long Life 1 Ltr*4pcs',brand:'Nad
   const servedBrief={};applyProductTitle(servedBrief,{e_product_title:brief});
   assert.equal(servedBrief.nameAr,'شاي أخضر','A brand e173026 appended to a longer name leaves');
 }
+
+// Codex review of db448e4 (2026-10-23).
+// A trailing detail never hides the real head: refuse rather than guess.
+for (const nameEn of ['Oil Bottle Print Big Astd','Furidi Plastic Coffee Table Classic','ORINEX CHARCOAL LIGHTER FLUID 32OZ'])
+  assert.equal(title({nameEn}).name,null,nameEn);
+assert.equal(title({nameEn:'Dove Roll-On Cucumber & Green Tea 50ml',brand:'Dove'}).name.startsWith('شاي'),false,'A scent is not the product');
+{
+  const { withoutBrand } = await import('./productTitle.js');
+  // Brand and line names in Latin leave the Arabic name; codes stay.
+  assert.equal(withoutBrand('كريم الوجه اليومي يوسيرين Q10 لتنشيط البشرة',[{id:'eucerin',en:'Eucerin',ar:'يوسيرين'}],'Eucerin'),
+    'كريم الوجه اليومي Q10 لتنشيط البشرة');
+  assert.equal(withoutBrand('واقي شمس SPF 50 Sunsilk',[]),'واقي شمس SPF 50');
+  // A learned misreading of the brand is not removed when the brand is
+  // spelled right, nor when it is a product word (جزرة).
+  const aljazera=[{id:'archive-aljazera',en:'Aljazera',ar:'الجزيرة'}];
+  assert.equal(withoutBrand('عصير الجزرة الجزيرة',aljazera),'عصير الجزرة');
+  assert.equal(withoutBrand('عصير جزره',aljazera),'عصير جزره');
+}
+{
+  const { withoutBrand } = await import('./productTitle.js');
+  assert.equal(withoutBrand('تابلت ZAEH0050SA',[]),'تابلت','A long SKU code is not a product detail');
+  assert.equal(withoutBrand('أقراص الكل في واحد (9/80/V0)',[]),'أقراص الكل في واحد','OCR noise leaves');
+  assert.equal(withoutBrand('هاتف A200',[]),'هاتف A200');
+}
+assert.equal(title({nameEn:'Sadia Broasted Chicken Classic Fillets',brand:'Sadia'}).name.startsWith('دجاج'),true,'A general detail may reveal a final head');

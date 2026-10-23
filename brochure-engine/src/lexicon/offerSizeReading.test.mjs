@@ -63,4 +63,8 @@ assert.equal(listed.assorted,true);
 assert.equal(listed.displayAr,'1 لتر أو 900 مل');
 assert.equal(read({size:'6’s',nameEn:'Sponge Scourer (6’s + 3’s) / Steel Scourer (5Pcs)'}).assorted,false);
 assert.equal(read({size:'180g',nameEn:"M&M's Chocolate (150170/180g)"}).assorted,false);
+// A grade beside one size (cashew W180) is not a second size: each
+// alternative must print its own unit.
+const cashew=read({size:'500g',nameEn:'Cashew Nut W 180/ 500g'});
+assert.equal(cashew.assorted,false);assert.equal(cashew.displayAr,'500 جم');
 console.log('Bilingual size fallback, assortments, shared multipacks, bonus packs, equivalent units and printed-price basis passed.');

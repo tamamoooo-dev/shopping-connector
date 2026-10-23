@@ -113,10 +113,11 @@ export const TITLE_DETAILS = [
 
 // Details that describe food only: a country beside a dinner set is "Fine
 // China", not Chinese, and a granite-coated pan is not a coated chicken.
-export const GROCERY_ONLY_DETAILS = new Set(['fine', 'bone in', 'with bone', 'boneless', 'bone less', 'mince', 'minced',
-  'tempura', 'chocolate coated', 'coated', 'cone', 'sesame', 'local', 'saudi', 'egypt', 'yemen', 'yemeni', 'india', 'pakistan',
+export const ORIGIN_DETAILS = new Set(['local', 'saudi', 'egypt', 'yemen', 'yemeni', 'india', 'pakistan',
   'south africa', 'usa', 'china', 'spain', 'spanish', 'kenya', 'australia', 'australian', 'chile', 'iran', 'lebanon',
   'lebanese', 'syria', 'sri lanka', 'srilanka', 'vietnam', 'morocco', 'jordan', 'new zealand']);
+export const GROCERY_ONLY_DETAILS = new Set(['fine', 'bone in', 'with bone', 'boneless', 'bone less', 'mince', 'minced',
+  'tempura', 'chocolate coated', 'coated', 'cone', 'sesame', ...ORIGIN_DETAILS]);
 
 // Identity details belong to a product family, rather than one global
 // adjective list: fig describes a jam and sheep identifies the milk in cheese.
