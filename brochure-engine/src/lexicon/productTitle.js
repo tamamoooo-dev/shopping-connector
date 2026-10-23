@@ -1,6 +1,6 @@
 import { BRAND_LEXICON, LEXICON_ONLY_BRANDS, resolveBrand } from './brands.js';
 import { buildStructuredProduct } from './structuredProduct.js';
-import { TITLE_TERMS, TITLE_DETAILS, TITLE_VARIANTS } from './productTitleDictionary.js';
+import { TITLE_TERMS, TITLE_DETAILS, TITLE_VARIANTS, GROCERY_ONLY_DETAILS } from './productTitleDictionary.js';
 import { normalizeShoppingText, resolveDescriptors, resolveCategory, isFlavorCategory } from './shopping.js';
 import { NAME_SCAN_UNSAFE } from '../knowledge/brandNameScan.js';
 import { READING_BRAND_VARIANTS, READING_TERM_CORRECTIONS } from '../knowledge/readingVariants.js';
@@ -9,6 +9,9 @@ import { BRANDS } from '../browse/brands.js';
 import { AISLE_BY_ID } from '../browse/taxonomy.js';
 
 export const PRODUCT_TITLE_VERSION = 'dictionary-title-v1';
+const GROCERY_DEPARTMENTS = new Set(['fresh', 'dairy-eggs', 'beverages', 'pantry', 'snacks-sweets', 'bakery', 'frozen']);
+const departmentOf = category => AISLE_BY_ID.get(category?.aisle)?.dept;
+const isGrocery = category => GROCERY_DEPARTMENTS.has(departmentOf(category));
 const norm = value => normalizeShoppingText(String(value ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, ''));
 const includesPhrase = (value, phrase) => ` ${value} `.includes(` ${phrase} `);
 const arabicKey = s => String(s ?? '').replace(/[أإآ]/g, 'ا').replace(/ة/g, 'ه').replace(/ى/g, 'ي').replace(/[\u064b-\u065fـ]/g, '');
@@ -191,10 +194,15 @@ function productClause(text, brand, observedBrand) {
   }
   value=tokens.join(' ');
   // Measurements, sale quantities and container names belong to other fields.
-  return value.replace(/\bper\s+(?:kg|kilo|pc|piece)\b/g, ' ')
+  value = value.replace(/\bper\s+(?:kg|kilo|pc|piece)\b/g, ' ')
     .replace(/\b\d+(?:\.\d+)?\s*(?:kg|g|gm|grams|ml|l|ltr|ltrs|litre|litres|liter|liters|kilo|pcs|pc|s|cm)?\b/g, ' ')
-    .replace(/\b(?:bag|box|pack|packet|carton|bottle|economy pack|giant box|pouch|jar|tin|can|sachet|tub|bucket)\b/g, ' ')
+    .replace(/\b(?:bag|box|pack|packet|carton|bottle|economy pack|giant box)\b/g, ' ')
     .replace(/\s+/g, ' ').trim();
+  // A pouch or sachet is packaging only beside a food ("Milk Powder Pouch");
+  // elsewhere it is the product (Pencil Pouch). Jar, tin, can, tub and bucket
+  // stay: they are products in their own right (Cookie Jar, Mop Bucket).
+  const unpacked = value.replace(/\b(?:pouch|sachet)\b/g, ' ').replace(/\s+/g, ' ').trim();
+  return unpacked !== value && isGrocery(resolveCategory(unpacked)) ? unpacked : value;
 }
 
 // Adjectives agree with a feminine product noun: قهوة تركية, شوكولاتة داكنة.
@@ -345,8 +353,12 @@ export function dictionaryProductTitle({ nameEn, nameAr, brand: observedBrand, s
     // "blue raspberry"); flavour nouns and descriptors read what they leave.
     let detailText = remainder;
     const extras = [];
+    // An unresolved head (Sukkary Rotab) keeps its origin; only a known
+    // non-food department (Fine China Dinner Set) refuses food details.
+    const department = departmentOf(structured.category || resolveCategory(categoryEnglish));
+    const notFood = Boolean(department) && !GROCERY_DEPARTMENTS.has(department);
     for (const term of [...TITLE_DETAILS].sort((a, b) => b[0].length - a[0].length)) {
-      if (!includesPhrase(detailText, term[0])) continue;
+      if (!includesPhrase(detailText, term[0]) || (notFood && GROCERY_ONLY_DETAILS.has(term[0]))) continue;
       extras.push(term);
       detailText = ` ${detailText} `.replace(` ${term[0]} `, ' ').trim();
     }

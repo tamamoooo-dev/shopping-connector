@@ -111,6 +111,13 @@ export const TITLE_DETAILS = [
   ['srilanka', 'سريلانكي'], ['vietnam', 'فيتنامي'], ['morocco', 'مغربي'], ['jordan', 'أردني'], ['new zealand', 'نيوزيلندي'],
 ];
 
+// Details that describe food only: a country beside a dinner set is "Fine
+// China", not Chinese, and a granite-coated pan is not a coated chicken.
+export const GROCERY_ONLY_DETAILS = new Set(['fine', 'bone in', 'with bone', 'boneless', 'bone less', 'mince', 'minced',
+  'tempura', 'chocolate coated', 'coated', 'cone', 'sesame', 'local', 'saudi', 'egypt', 'yemen', 'yemeni', 'india', 'pakistan',
+  'south africa', 'usa', 'china', 'spain', 'spanish', 'kenya', 'australia', 'australian', 'chile', 'iran', 'lebanon',
+  'lebanese', 'syria', 'sri lanka', 'srilanka', 'vietnam', 'morocco', 'jordan', 'new zealand']);
+
 // Identity details belong to a product family, rather than one global
 // adjective list: fig describes a jam and sheep identifies the milk in cheese.
 // Each English phrase must be printed in the name; Arabic OCR is not copied.

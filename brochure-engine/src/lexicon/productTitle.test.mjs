@@ -189,3 +189,17 @@ assert.equal(title({nameEn:'Nadec Milk Full Fat Long Life 1 Ltr*4pcs',brand:'Nad
       product_title: title({nameEn:'Nadec Rusk', nameAr:'ناديك شافوره', brand:'Nadec'}) } } });
   assert.ok(text.split(' ').includes('نادك'), 'The dictionary brand spelling is searchable');
 }
+
+// Containers and origins belong to food only. A jar, tin or bucket is often the
+// product itself, and "Fine China" beside a dinner set is porcelain, not Chinese.
+assert.equal(title({nameEn:'Cookie Jar'}).name,'مرطبان');
+assert.ok(title({nameEn:'Mop Bucket'}).unknown.includes('bucket'),'An unknown container stays flagged for review');
+assert.equal(title({nameEn:'Storage Jar Glass'}).name,'مرطبان زجاج');
+assert.equal(title({nameEn:'Fine China Dinner Set'}).name,'طقم سفرة');
+assert.equal(title({nameEn:'Milk Powder Pouch'}).name,'حليب مجفف');
+assert.equal(title({nameEn:'Coffee Sachet'}).name,'قهوة');
+assert.equal(title({nameEn:'Sugar White Fine'}).name,'سكر أبيض ناعم');
+assert.equal(title({nameEn:'Rice Basmati India'}).name,'أرز بسمتي هندي');
+assert.equal(title({nameEn:'Guava Egypt'}).name,'جوافة مصرية');
+assert.equal(title({nameEn:'Local Sukkary Rotab'}).name.includes('محلي'),true,'An unresolved food head keeps its origin');
+assert.equal(title({nameEn:'HOMEWAY 8 Pcs Granite Coated Cooking Set'}).name.includes('مغطى'),false,'Coated cookware is not coated food');
