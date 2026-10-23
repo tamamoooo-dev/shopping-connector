@@ -1,0 +1,31 @@
+[
+  {
+    "id": "hyperpanda:central:d4d:99541638",
+    "brandEn": "Farm",
+    "brandAr": "فارم",
+    "image": "panda-reading-audit-2026-10-22/images/99541638.jpg",
+    "evidence": "Arabic logo and offer both say فارم; not a literal translation of Farm."
+  },
+  {
+    "id": "hyperpanda:central:d4d:99541263",
+    "brandEn": "Belgian",
+    "brandAr": "بلجين",
+    "typedOnly": true,
+    "image": "panda-reading-audit-2026-10-22/images/99541263.jpg",
+    "evidence": "Product logo confirms brand; plain adjective alone is insufficient."
+  },
+  {
+    "id": "hyperpanda:central:d4d:99539184",
+    "brandEn": "Cheeseland",
+    "brandAr": "شيزالاند",
+    "image": "panda-reading-audit-2026-10-22/images/99539184.jpg",
+    "evidence": "Areesh is cheese variety, Cheeseland is brand."
+  },
+  {
+    "id": "hyperpanda:central:d4d:99539292",
+    "brandEn": "Amara",
+    "brandAr": "عمارة",
+    "image": "panda-reading-audit-2026-10-22/images/99539292.jpg",
+    "evidence": "Offer confirms عمارة."
+  }
+]

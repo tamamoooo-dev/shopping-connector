@@ -79,7 +79,7 @@ const productOf = (over = {}) =>
 {
   const product = productOf();
   const v = verifyListing(
-    listing({ name: 'Alyoum Chicken Breast 900 g', brand: 'Alyoum' }),
+    listing({ name: 'Unknown-Test-Brand Chicken Breast 900 g', brand: 'Unknown-Test-Brand' }),
     product,
   );
   assert.equal(v.matched, true, 'an unresolvable brand must not veto');

@@ -1,3 +1,4 @@
+import { ARCHIVE_PRODUCT_TYPES } from '../knowledge/archiveProductTypes.js';
 // lexicon/shopping.js — the SHOPPING LEXICON: what a product IS, and what is
 // said about it, read from the ENGLISH extraction.
 //
@@ -106,7 +107,7 @@ const CATEGORY_TERMS = [
   { id: 'baby-formula', en: ['infant formula', 'baby milk', 'growing up milk'], ar: 'حليب أطفال', aisle: 'baby-feeding' },
   { id: 'laban', en: ['laban', 'buttermilk'], ar: 'لبن', family: 'laban', aisle: 'milk-laban' },
   { id: 'yogurt', en: ['yoghurt', 'yogurt'], ar: 'زبادي', family: 'yogurt', aisle: 'yogurt-labneh' },
-  { id: 'greek-yogurt', en: ['greek yoghurt', 'greek yogurt'], ar: 'زبادي يوناني', family: 'yogurt', aisle: 'yogurt-labneh' },
+  { id: 'greek-yogurt', en: ['greek yoghurt', 'greek yogurt', 'greek low fat yoghurt', 'greek low fat yogurt'], ar: 'زبادي يوناني', family: 'yogurt', aisle: 'yogurt-labneh' },
   { id: 'labneh', en: ['labneh', 'labaneh'], ar: 'لبنة', family: 'cheese', aisle: 'yogurt-labneh' },
   { id: 'cheese', en: ['cheese'], ar: 'جبن', family: 'cheese', aisle: 'cheese-cream' },
   { id: 'cream-cheese', en: ['cream cheese'], ar: 'جبن كريمي', family: 'cheese', aisle: 'cheese-cream' },
@@ -123,6 +124,12 @@ const CATEGORY_TERMS = [
   { id: 'margarine', en: ['margarine'], ar: 'مارجرين', family: 'butter', aisle: 'butter-margarine' },
   { id: 'eggs', en: ['eggs', 'egg'], ar: 'بيض', family: 'eggs', aisle: 'eggs' },
 
+  { id: 'chopper-food', en: ['chopper'], ar: 'قطاعة', aisle: 'appliances' },
+  { id: 'cheese-curls-snack', en: ['cheese curls'], ar: 'مقرمشات بالجبن', family: 'chips', aisle: 'chips-snacks' },
+  { id: 'chick-peas-food', en: ['chick peas'], ar: 'حمص حب', aisle: 'canned-food' },
+  { id: 'brown-toast', en: ['brown toast', 'bran toast', 'whole wheat toast', 'wholemeal toast'], ar: 'خبز توست بر', family: 'bread', aisle: 'bread' },
+  { id: 'bread-bran', en: ['bran bread', 'brown bread', 'whole wheat bread'], ar: 'خبز بر', family: 'bread', aisle: 'bread' },
+
   // --- bakery & sweets ---------------------------------------------------------
   { id: 'bread', en: ['bread'], ar: 'خبز', family: 'bread', aisle: 'bread' },
   { id: 'toast-bread', en: ['toast bread', 'toast'], ar: 'خبز توست', family: 'bread', aisle: 'bread' },
@@ -132,7 +139,7 @@ const CATEGORY_TERMS = [
   { id: 'maamoul', en: ['maamoul', 'mamoul'], ar: 'معمول', family: 'cake', aisle: 'cakes-pastry' },
   { id: 'donut', en: ['donut', 'donuts', 'doughnut'], ar: 'دونات', family: 'cake', aisle: 'cakes-pastry' },
   { id: 'pancake', en: ['pancake', 'pancakes'], ar: 'بان كيك', family: 'cake', aisle: 'cakes-pastry' },
-  { id: 'rusk', en: ['rusk', 'rusks'], ar: 'قرشلة', family: 'biscuit', aisle: 'biscuits' },
+  { id: 'rusk', en: ['rusk', 'rusks'], ar: 'شابورة', family: 'biscuit', aisle: 'biscuits' },
   { id: 'biscuit', en: ['biscuit', 'biscuits'], ar: 'بسكويت', family: 'biscuit', aisle: 'biscuits' },
   { id: 'cookies', en: ['cookies', 'cookie'], ar: 'كوكيز', family: 'biscuit', aisle: 'biscuits' },
   { id: 'wafer', en: ['wafer', 'wafers'], ar: 'ويفر', family: 'biscuit', aisle: 'biscuits' },
@@ -194,9 +201,9 @@ const CATEGORY_TERMS = [
   { id: 'ketchup', en: ['ketchup', 'tomato ketchup'], ar: 'كاتشب', family: 'sauce', aisle: 'sauces-spreads' },
   { id: 'mayonnaise', en: ['mayonnaise'], ar: 'مايونيز', family: 'sauce', aisle: 'sauces-spreads' },
   { id: 'mustard', en: ['mustard'], ar: 'مسطردة', family: 'sauce', aisle: 'sauces-spreads' },
-  { id: 'sauce', en: ['sauce'], ar: 'صوص', family: 'sauce', aisle: 'sauces-spreads' },
-  { id: 'soy-sauce', en: ['soy sauce'], ar: 'صوص صويا', family: 'sauce', aisle: 'sauces-spreads' },
-  { id: 'hot-sauce', en: ['hot sauce', 'chilli sauce', 'chili sauce'], ar: 'صوص حار', family: 'sauce', aisle: 'sauces-spreads' },
+  { id: 'sauce', en: ['sauce'], ar: 'صلصة', family: 'sauce', aisle: 'sauces-spreads' },
+  { id: 'soy-sauce', en: ['soy sauce'], ar: 'صلصة صويا', family: 'sauce', aisle: 'sauces-spreads' },
+  { id: 'hot-sauce', en: ['hot sauce', 'chilli sauce', 'chili sauce'], ar: 'شطة حارة', family: 'sauce', aisle: 'sauces-spreads' },
   { id: 'honey', en: ['honey'], ar: 'عسل', family: 'honey', aisle: 'sauces-spreads' },
   { id: 'jam', en: ['jam', 'marmalade'], ar: 'مربى', family: 'jam', aisle: 'sauces-spreads' },
   { id: 'peanut-butter', en: ['peanut butter'], ar: 'زبدة الفول السوداني', aisle: 'sauces-spreads' },
@@ -210,7 +217,8 @@ const CATEGORY_TERMS = [
   { id: 'sardines', en: ['sardines', 'sardine'], ar: 'سردين', family: 'fish', aisle: 'canned-food' },
   { id: 'sweet-corn', en: ['sweet corn', 'kernel corn'], ar: 'ذرة حلوة', aisle: 'canned-food' },
   { id: 'beans', en: ['beans', 'fava beans', 'foul medames'], ar: 'فول', aisle: 'canned-food' },
-  { id: 'chickpeas', en: ['chickpeas', 'hummus'], ar: 'حمص', aisle: 'canned-food' },
+  { id: 'hummus', en: ['hummus'], ar: 'حمص', aisle: 'canned-food' },
+  { id: 'chickpeas', en: ['chickpeas', 'garbanzo beans'], ar: 'حمص حب', aisle: 'canned-food' },
   { id: 'lentils', en: ['lentils', 'lentil'], ar: 'عدس', aisle: 'rice' },
   { id: 'pickles', en: ['pickles', 'pickle'], ar: 'مخلل', family: 'pickle', aisle: 'sauces-spreads' },
   { id: 'nuts', en: ['nuts', 'mixed nuts'], ar: 'مكسرات', aisle: 'dates-dried-fruits' },
@@ -219,8 +227,8 @@ const CATEGORY_TERMS = [
   { id: 'pistachio', en: ['pistachio', 'pistachios'], ar: 'فستق', aisle: 'dates-dried-fruits' },
   { id: 'walnut', en: ['walnut', 'walnuts'], ar: 'جوز', aisle: 'dates-dried-fruits' },
   { id: 'raisins', en: ['raisins'], ar: 'زبيب', aisle: 'dates-dried-fruits' },
-  { id: 'chips', en: ['chips', 'crisps', 'potato chips'], ar: 'شيبس', family: 'chips', aisle: 'biscuits' },
-  { id: 'popcorn', en: ['popcorn'], ar: 'فشار', aisle: 'biscuits' },
+  { id: 'chips', en: ['chips', 'crisps', 'potato chips'], ar: 'شيبس', family: 'chips', aisle: 'chips-snacks' },
+  { id: 'popcorn', en: ['popcorn'], ar: 'فشار', aisle: 'chips-snacks' },
   { id: 'spices', en: ['spices', 'spice', 'seasoning', 'masala'], ar: 'بهارات', aisle: 'spices' },
   { id: 'black-pepper', en: ['black pepper'], ar: 'فلفل أسود', aisle: 'spices' },
   { id: 'cardamom', en: ['cardamom'], ar: 'هيل', aisle: 'spices' },
@@ -600,7 +608,8 @@ const DESCRIPTOR_TERMS = [
   { id: 'full-fat', en: ['full fat', 'full cream'], ar: 'كامل الدسم', role: 'attribute' },
   { id: 'low-fat', en: ['low fat', 'light fat', 'half fat'], ar: 'قليل الدسم', role: 'attribute' },
   { id: 'fat-free', en: ['fat free', 'skimmed', 'non fat'], ar: 'خالي الدسم', role: 'attribute' },
-  { id: 'sugar-free', en: ['sugar free', 'no sugar', 'no added sugar'], ar: 'خالي السكر', role: 'attribute' },
+  { id: 'sugar-free', en: ['sugar free', 'no sugar'], ar: 'خالي السكر', role: 'attribute' },
+  { id: 'no-added-sugar', en: ['no added sugar', 'without added sugar'], ar: 'بدون سكر مضاف', role: 'attribute' },
   { id: 'organic', en: ['organic'], ar: 'عضوي', role: 'attribute' },
   { id: 'natural', en: ['natural'], ar: 'طبيعي', role: 'attribute' },
   { id: 'pure', en: ['pure'], ar: 'نقي', role: 'attribute' },
@@ -765,7 +774,10 @@ function buildIndex(terms, kind) {
   return { index, entries: Object.freeze(entries), collisions };
 }
 
-const categoryIndex = buildIndex(CATEGORY_TERMS, 'category');
+// Preserve established canonical identities; extend only missing whole phrases.
+const knownCategoryPhrases=new Set(CATEGORY_TERMS.flatMap(term=>term.en.map(normalizeShoppingText)));
+const archiveCategories=ARCHIVE_PRODUCT_TYPES.map(term=>({...term,en:term.en.filter(phrase=>!knownCategoryPhrases.has(normalizeShoppingText(phrase)))})).filter(term=>term.en.length);
+const categoryIndex = buildIndex([...CATEGORY_TERMS,...archiveCategories], 'category');
 const descriptorIndex = buildIndex(DESCRIPTOR_TERMS, 'descriptor');
 const packageTypeIndex = buildIndex(PACKAGE_TYPE_TERMS, 'package_type');
 

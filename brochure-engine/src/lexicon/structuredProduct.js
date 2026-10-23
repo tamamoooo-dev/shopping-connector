@@ -136,8 +136,13 @@ export function buildStructuredProduct(observation = {}) {
   // A price-associated package reading already separated internal contents
   // from the external deal. Incidental slice counts in the title must not
   // multiply its net weight again in the registry/Arabic shadow either.
-  const size = parsePackageSize({ size: sizeObserved,
+  let size = parsePackageSize({ size: sizeObserved,
     name: observation.size_authoritative === true ? null : nameEn, packCount, nonGrocery });
+  if (observation.size_reading?.version === 'offer-size-reading-v1' && observation.size_reading.assorted) {
+    const reading=observation.size_reading;
+    size={present:true,canonical:null,assorted:true,display_ar:reading.displayAr,display_en:reading.displayEn,
+      options:reading.options,source:reading.source,version:'package-size-v1'};
+  }
   const packageType = resolvePackageType(packageTypeObserved);
 
   const usableEnglish = hasUsableEnglish(nameEn);

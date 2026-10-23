@@ -1,6 +1,9 @@
+import { classifyArchivedProduct } from '../knowledge/classification.js';
+import { saleUnitKind, hasAmbiguousSizeOptions } from './saleUnit.js';
 import { observedText } from '../observedText.js';
 import { selectSaleObservation, readSaleObservation } from './saleObservation.js';
-import { selectArabicCaption } from '../lexicon/arabicCaptionRepair.js';
+import { dictionaryProductTitle, applyProductTitle } from '../lexicon/productTitle.js';
+import { resolveOfferSize, sizeOptionPrices } from '../lexicon/offerSizeReading.js';
 // offers/enrich.js — VISION ENRICHMENT for debris-name offers (spike, 2026-07-18).
 //
 // ~3% of ingested offers arrive with OCR text so mangled that deriveNames
@@ -188,12 +191,14 @@ export function applyEnrichment(offer, row) {
   if (isServable) {
     offer.name = enr.name;
     offer.nameAr = enr.name_ar;
+    applyProductTitle(offer, row);
+    if (!offer.classification) offer.classification=classifyArchivedProduct({id:offer.id,name:offer.name,nameAr:offer.nameAr,brand:row?.e_brand,category:offer.category,source:offer.source});
     offer.enriched = true;
     offer.enrichmentModel = row?.e_model ?? null;
     // Preserve an existing brand. Otherwise expose only an exact, known
     // observed brand through the existing field, so frontend matching sees
     // the same evidence as the engine. Unknown strings remain unresolved.
-    if (!offer.brandSlug) {
+    if (!offer.brandSlug && !offer.brandSlugs?.length) {
       const brandId = resolveBrand(row?.e_brand).brand_id;
       if (brandId) offer.brandSlug = brandId;
     }
@@ -222,7 +227,7 @@ export function applyUnitPrice(offer, row, isServable = true) {
   // Only a SERVABLE reading may contribute its size/unit: an unservable
   // enrichment is one the vision-canonical gate already refused to display, and
   // a unit price derived from a name we will not show is not evidence.
-  const size = isServable ? (row?.e_size ?? null) : null;
+  const size = isServable ? (offer.sizeReading?.priceBasisInput ?? offer.sizeReading?.value ?? row?.e_size ?? null) : null;
   const unit = isServable ? (row?.e_unit ?? null) : null;
   // `offer.name` is ALREADY the canonical display name — the caller overlaid the
   // vision reading above when servable, and left the OCR name otherwise. Reading
@@ -237,12 +242,14 @@ export function applyUnitPrice(offer, row, isServable = true) {
   // unrepresentable.
   const sale = isServable ? readSaleObservation(row?.e_sale, offer.price) : null;
   const inputs = {
-    size,
-    name: sale && size ? null : name,
+    // A known assortment supplies its alternatives below, not one package
+    // magnitude. The independent printed price basis can still resolve here.
+    size: offer.sizeReading?.assorted ? null : size,
+    name: offer.sizeReading?.assorted || (sale && size) ? null : name,
     unit,
     // The retailer's own bilingual text, where 899 live offers state the basis
     // and nothing else does.
-    text: [offer?.nameAr, row?.search_text].filter(Boolean).join(' ') || null,
+    text: [offer?.name, offer?.nameAr, offer.sizeReading?.priceBasisText, row?.search_text].filter(Boolean).join(' ') || null,
     nonGrocery: isNonGrocery(offer?.category ?? row?.category ?? null),
   };
   let quantity = resolveComparableQuantity(inputs);
@@ -275,7 +282,9 @@ export function applyUnitPrice(offer, row, isServable = true) {
       offer.quantityReviewRequired = true;
     } else if (sale.count > 1) {
       offer.saleQuantity = { count: sale.count, packageSize: size,
-        packagePrice: offer.price / sale.count, evidence: sale.text };
+        packagePrice: offer.price / sale.count, evidence: sale.text,
+        unitKind: saleUnitKind(name, offer.sizeReading?.options?.[0]?.value || size, row?.e_package_type),
+        ...(offer.sizeReading ? {packageSizeAr:offer.sizeReading.displayAr,packageSizeEn:offer.sizeReading.displayEn} : {}) };
       offer.size = size ? `${sale.count} × (${size})` : `${sale.count} PCS`;
       // A deal multiplier scales the whole already-parsed package, including
       // an internal multipack. A printed per-kg price remains a separate basis.
@@ -287,8 +296,23 @@ export function applyUnitPrice(offer, row, isServable = true) {
       }
     }
   }
+  // A printed choice of weights is not one exact comparison denominator.
+  // e.g. 3 offers of (5 x 70/75/80g) cannot be priced as three 80g pieces.
+  // The sale count and its per-sale-item price remain independently valid.
+  const printedBasis=quantity.evidence===COMPARABLE_QUANTITY_EVIDENCE.PRICE_BASIS;
+  if (!printedBasis && (offer.sizeReading?.assorted || hasAmbiguousSizeOptions(size))) {
+    quantity = { ...quantity, reference: null };
+    if (!offer.sizeReading?.assorted) offer.quantityReviewRequired = true;
+  }
+  if (offer.sizeReading) {
+    const reading=offer.sizeReading, multiplier=sale?.status==='matched' && sale.count>1?sale.count:1;
+    offer.assortedSizes=reading.assorted;
+    offer.sizeDisplayAr=multiplier>1?`${multiplier} × (${reading.displayAr})`:reading.displayAr;
+    offer.sizeDisplayEn=multiplier>1?`${multiplier} × (${reading.displayEn})`:reading.displayEn;
+    offer.sizeOptions=!printedBasis && (!sale || sale.status==='matched') ? sizeOptionPrices(reading,offer.price,multiplier) : [];
+  }
   offer.sellingMode = quantity.sellingMode;
-  if (sale) {
+  if (sale || offer.sizeReading) {
     const ref = quantity.reference;
     const factor = ref && ['kg', 'l'].includes(ref.unit) ? 1000 : 1;
     offer.packageContents = ref && quantity.evidence !== COMPARABLE_QUANTITY_EVIDENCE.PRICE_BASIS ? {
@@ -851,13 +875,18 @@ function identityFromExtraction(result, mode, extracted = result.extraction) {
 // expose.
 export function productKnowledge(extracted, observation, commerceContext = {}) {
   extracted = canonicalExtraction(extracted);
+  const sizeReading=resolveOfferSize({size:extracted.size,
+    nameEn:observation?._sale?.original?.name_en || extracted.productName,
+    nameAr:observation?._sale?.original?.name_ar || extracted.arabicName,
+    sale:observation?._sale,nonGrocery:isNonGrocery(commerceContext?.category)});
   const knowledge = buildArabicShadow({
     name_en: extracted.productName,
     name_ar: extracted.arabicName,
     brand: extracted.brand,
-    size: extracted.size,
+    size: sizeReading?.priceBasisInput || sizeReading?.value || extracted.size,
+    size_reading: sizeReading,
     pack_count: observation?._sale ? null : extracted.packCount,
-    size_authoritative: observation?._sale?.status === 'matched' && !!extracted.size,
+    size_authoritative: observation?._sale?.status === 'matched' && !!(sizeReading || extracted.size),
     // Expanded JSON fields (§44) that until now nothing read.
     package_type: observation?.package_type ?? null,
     attributes: observation?.attributes ?? null,
@@ -873,15 +902,15 @@ export function productKnowledge(extracted, observation, commerceContext = {}) {
     // name only.
     non_grocery: isNonGrocery(commerceContext?.category),
   });
-  if (observation?._sale) {
-    const caption = selectArabicCaption({ nameAr: extracted.arabicName,
-      nameEn: extracted.productName, brand: extracted.brand,
-      retailerText: commerceContext.search_text ?? commerceContext.searchText,
-      retailerCategory: commerceContext.category });
-    if (caption) knowledge.arabicBuilder = { ...knowledge.arabicBuilder,
-      display_arabic: caption.name, display_source: caption.source,
-      caption_version: caption.version, caption_evidence: caption.caption };
-  }
+  const title = dictionaryProductTitle({ nameEn: extracted.productName,
+    nameAr: extracted.arabicName, brand: extracted.brand, size: extracted.size });
+  title.classification=classifyArchivedProduct({id:commerceContext?.id,name:extracted.productName,nameAr:extracted.arabicName,brand:extracted.brand,category:commerceContext?.category});
+  knowledge.classification=title.classification;
+  title.sizeReading=sizeReading;
+  knowledge.sizeReading=sizeReading;
+  knowledge.arabicBuilder = { ...knowledge.arabicBuilder,
+    display_arabic: title.name, display_source: title.source === 'vision_fallback' ? 'vision_fallback' : 'dictionary_title',
+    title_version: title.version, product_title: title };
   return knowledge;
 }
 
@@ -904,7 +933,7 @@ export function canonicalRowFromResult(offerId, crop, result, {
     name: extracted.productName,
     name_ar: extracted.arabicName,
     brand: extracted.brand,
-    size: extracted.size,
+    size: knowledge.sizeReading?.priceBasisInput || knowledge.sizeReading?.value || extracted.size,
     confidence: result.confidence,
     corroboration: validatedExtractionCorroboration(result),
     model: extractionModel(result.diagnostics, model, ocrModel),
@@ -919,7 +948,8 @@ export function canonicalRowFromResult(offerId, crop, result, {
     structured_product: knowledge.structuredProduct,
     arabic_name: knowledge.arabicName,
     arabic_builder: knowledge.arabicBuilder,
-    identity_candidate: identity?.identityCandidate ?? null,
+    identity_candidate: knowledge.sizeReading?.assorted && identity?.identityCandidate
+      ? {...identity.identityCandidate,size:null,count:null} : identity?.identityCandidate ?? null,
     identityDiagnostics: identity?.diagnostics ?? null,
     // Brand Lexicon (HISTORY §45): the canonical brand identity for the brand
     // the model observed. ADDITIVE and NOT PERSISTED — `brand` above still

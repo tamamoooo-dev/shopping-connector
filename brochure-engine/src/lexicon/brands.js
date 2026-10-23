@@ -28,6 +28,7 @@
 //
 // FAILURE MODE (the project rule, unchanged): "no brand", never "wrong brand".
 
+import { ARCHIVE_BRAND_ALIASES } from '../knowledge/archiveBrands.js';
 import { BRANDS } from '../browse/brands.js';
 import { normalizeText } from '../matching.js';
 
@@ -171,15 +172,17 @@ function compactKey(key) {
   return key ? key.replace(/\s+/gu, '') : null;
 }
 
-function lexiconEntry({ slug, en, ar }) {
+function lexiconEntry({ slug, en, ar, typedOnly }) {
   return Object.freeze({
     id: slug,
+    typedOnly: typedOnly === true,
     display_en: en ?? null,
     display_ar: ar ?? null,
     aliases: Object.freeze([
       ...(en ? [en] : []),
       ...(ar ? [ar] : []),
       ...(BRAND_ALIASES[slug] || []),
+      ...(ARCHIVE_BRAND_ALIASES[slug] || []),
     ]),
   });
 }
@@ -238,12 +241,15 @@ for (const entry of BRAND_LEXICON) {
     const key = normalizeBrandKey(alias);
     indexKey(ALIAS_INDEX, key, entry.id, 'alias');
     indexKey(COMPACT_INDEX, compactKey(key), entry.id, 'compact');
-    const withArticle = articleVariant(key);
-    if (withArticle) {
-      indexKey(ALIAS_INDEX, withArticle, entry.id, 'article');
-      indexKey(COMPACT_INDEX, withArticle, entry.id, 'article');
-    }
   }
+}
+// Explicit company spellings win over a generated Arabic article. Rabea tea
+// (ربيع) and Al Rabie juice (الربيع) are distinct brands, not grammatical aliases.
+for (const entry of BRAND_LEXICON) for (const alias of entry.aliases) {
+  const withArticle=articleVariant(normalizeBrandKey(alias));
+  if (!withArticle) continue;
+  if (!ALIAS_INDEX.has(withArticle)) ALIAS_INDEX.set(withArticle,entry.id);
+  if (!COMPACT_INDEX.has(compactKey(withArticle))) COMPACT_INDEX.set(compactKey(withArticle),entry.id);
 }
 
 export const BRAND_ALIAS_INDEX_SIZE = ALIAS_INDEX.size;

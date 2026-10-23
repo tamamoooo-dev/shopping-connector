@@ -425,6 +425,8 @@ export function createMemoryOfferStore({
         e_unit: readExtractionUnit(e?.extraction_json),
         e_pack_count: readExtractionPackCount(e?.extraction_json, r.search_text),
         e_sale: readSaleObservation(e?.extraction_json, r.price),
+        e_product_title: (() => { try { const obs = typeof e?.extraction_json === 'string' ? JSON.parse(e.extraction_json) : e?.extraction_json;
+          return obs?._arabic_builder?.product_title || null; } catch { return null; } })(),
         e_package_type: readExtractionPackageType(e?.extraction_json),
         e_attributes: e?.extraction_json ? (() => {
           try { const obs = typeof e.extraction_json === 'string' ? JSON.parse(e.extraction_json) : e.extraction_json;

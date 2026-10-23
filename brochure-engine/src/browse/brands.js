@@ -34,11 +34,12 @@
 // "فيريرو"→Fairy, "برينس"→Berain). Exact + article + doubled-letter repair
 // remain.
 
+import { ARCHIVE_BRANDS } from '../knowledge/archiveBrands.js';
 import { normalizeText } from '../matching.js';
 import { canonicalAisle } from './mapping.js';
 import { AISLE_BY_ID } from './taxonomy.js';
 
-export const BRANDS = [
+const CORE_BRANDS = [
   // --- dairy, cheese, milk, juice ---
   { slug: 'almarai', en: 'Almarai', ar: 'المراعي' },
   { slug: 'nadec', en: 'Nadec', ar: 'نادك' },
@@ -71,6 +72,9 @@ export const BRANDS = [
   { slug: 'alkabeer', en: 'Al Kabeer', ar: 'الكبير' },
   { slug: 'herfy', en: 'Herfy', ar: 'هرفي' },
   { slug: 'montana', en: 'Montana', ar: 'مونتانا', depts: ['frozen'] },
+  { slug: 'garameesh', en: 'Garameesh', ar: 'قراميش' },
+  { slug: 'yaumi', en: 'Yaumi', ar: 'يومي' },
+  { slug: 'lusine', en: 'Lusine', ar: 'لوزين' },
   // --- pantry: oil, grains, canned, bakery ---
   { slug: 'goody', en: 'Goody', ar: 'قودي' },
   { slug: 'afia', en: 'Afia', ar: 'عافية' },
@@ -154,8 +158,84 @@ export const BRANDS = [
   { slug: 'orinex', en: 'Orinex', ar: 'اورينكس' },
   { slug: 'samsung', en: 'Samsung', ar: 'سامسونج', depts: ['home-electronics', 'more'] },
   { slug: 'bestway', en: 'Bestway', ar: 'بيست واي', depts: ['home-electronics', 'more'] },
+  // Curated grocery brands observed across the multi-retailer audit.
+  { slug: "bambi", en: "Bambi", ar: "بامبي" },
+  { slug: "uno", en: "Uno", ar: "أونو" },
+  { slug: "kotex", en: "Kotex", ar: "كوتكس" },
+  { slug: "sofy", en: "Sofy", ar: "سوفي" },
+  { slug: "baby-joy", en: "Baby Joy", ar: "بيبي جوي" },
+  { slug: "fam", en: "Fam", ar: "فام" },
+  { slug: "miza", en: "Miza", ar: "ميزة" },
+  { slug: "treva", en: "Treva", ar: "تريفا" },
+  { slug: "baidar", en: "Baidar", ar: "بيدر" },
+  { slug: "aloumara", en: "Al Oumara", ar: "الأمارة" },
+  { slug: "rana", en: "Rana", ar: "رانا" },
+  { slug: "alzoadeh", en: "Al Zoadeh", ar: "الزوادة" },
+  { slug: "alkhair", en: "Al Khair", ar: "الخير" },
+  { slug: "whiskas", en: "Whiskas", ar: "ويسكاس" },
+  { slug: "jif", en: "Jif", ar: "جيف" },
+  { slug: "albatal", en: "Al Batal", ar: "البطل" },
+  { slug: "mazare-alnakheel", en: "Mazare Al Nakheel", ar: "مزارع النخيل" },
+  { slug: "altayeb", en: "Al Tayeb", ar: "الطيب" },
+  { slug: "switz", en: "Switz", ar: "سويتز" },
+  { slug: "fonte", en: "Fonte", ar: "فونتي" },
+  { slug: "freshco", en: "Freshco", ar: "فريشكو" },
+  { slug: "siniora", en: "Siniora", ar: "سنيورة" },
+  { slug: "radwa", en: "Radwa", ar: "رضوى" },
+  { slug: "baytouti", en: "Baytouti", ar: "بيتوتي" },
+  { slug: "kelloggs", en: "Kellogg's", ar: "كلوقز" },
+  { slug: "ritter-sport", en: "Ritter Sport", ar: "ريتر سبورت" },
+  { slug: "american-garden", en: "American Garden", ar: "أمريكان جاردن" },
+  { slug: "finah", en: "Finah", ar: "فينة" },
+  { slug: "aljouf", en: "Al Jouf", ar: "الجوف" },
+  { slug: "vatika", en: "Vatika", ar: "فاتيكا" },
+  { slug: "parachute", en: "Parachute", ar: "باراشوت" },
+  { slug: "foom", en: "Foom", ar: "فوم" },
+  { slug: "kerrygold", en: "Kerrygold", ar: "كيريجولد" },
+  { slug: "fantazee", en: "Fantazee", ar: "فانتازي" },
+  { slug: "herbal-essences", en: "Herbal Essences", ar: "هيربال إسنسز" },
+  { slug: "delmonte", en: "Del Monte", ar: "ديل مونتي" },
+  { slug: "fakieh", en: "Fakieh", ar: "فقيه" },
+  { slug: "alaseel", en: "Al Aseel", ar: "الأصيل" },
+  { slug: "tamara", en: "Tamara", ar: "تمارا" },
+  { slug: "pride", en: "Pride", ar: "برايد" },
+  { slug: "wafrah", en: "Wafrah", ar: "وفرة" },
+  { slug: "albalad", en: "Al Balad", ar: "البلد" },
+  { slug: "alshifa", en: "Al Shifa", ar: "الشفاء" },
+  { slug: "nesquik", en: "Nesquik", ar: "نسكويك" },
+  { slug: "ival", en: "Ival", ar: "إيفال" },
+  { slug: "safa", en: "Safa", ar: "صفا" },
+  { slug: "tania", en: "Tania", ar: "تانيا" },
+  { slug: "oska", en: "Oska", ar: "أوسكا" },
+  { slug: "godiva", en: "Godiva", ar: "جوديفا" },
+  { slug: "skittles", en: "Skittles", ar: "سكيتلز" },
+  { slug: "bugles", en: "Bugles", ar: "بوقلز" },
+  { slug: "lorenz", en: "Lorenz", ar: "لورنز" },
+  { slug: "cheetos", en: "Cheetos", ar: "شيتوس" },
+  { slug: "mcvities", en: "McVities", ar: "مكفتيز" },
+  { slug: "tiffany", en: "Tiffany", ar: "تيفاني" },
+  { slug: "alosra", en: "Al Osra", ar: "الأسرة" },
+  { slug: "shams", en: "Shams", ar: "شمس" },
+  { slug: "rahma", en: "Rahma", ar: "رحمة" },
+  { slug: "alwazir", en: "Al Wazir", ar: "الوزير" },
+  { slug: "libbys", en: "Libby's", ar: "ليبيز" },
+  { slug: "crystal", en: "Crystal", ar: "كريستال" },
+  { slug: "bepanthen", en: "Bepanthen", ar: "بيبانثين" },
+  { slug: "dabur", en: "Dabur", ar: "دابر" },
+  { slug: "bigen", en: "Bigen", ar: "بيجن" },
+  { slug: "creme21", en: "Creme 21", ar: "كريم 21" },
+  { slug: "crest", en: "Crest", ar: "كرست" },
+  { slug: "beesline", en: "Beesline", ar: "بيزلين" },
+  { slug: "private", en: "Private", ar: "برايفت" },
+  { slug: "finish", en: "Finish", ar: "فينيش" },
+  { slug: "zoflora", en: "Zoflora", ar: "زوفلورا" },
+  { slug: "addoha", en: "Addoha", ar: "الدوحة" },
+  { slug: "kojie-san", en: "Kojie San", ar: "كوجي سان" },
+  { slug: "almawasim", en: "Almawasim", ar: "المواسم" },
 ];
 
+// Archive additions use exact phrase matching; they never seed word fragments.
+export const BRANDS = [...CORE_BRANDS, ...ARCHIVE_BRANDS];
 export const BRAND_BY_SLUG = new Map(BRANDS.map((b) => [b.slug, b]));
 
 /* --- the OCR normalization / repair index (ported from viewer/brandNormalize) --- */
@@ -205,7 +285,8 @@ function addKey(rawKey, slug) {
   if (!DEDUPE_INDEX.has(d)) DEDUPE_INDEX.set(d, slug);
 }
 
-for (const { slug, en, ar, noStrip } of BRANDS) {
+for (const { slug, en, ar, noStrip, archive } of BRANDS) {
+  if (archive) continue;
   for (const name of [en, ar]) {
     if (!name) continue;
     const words = fold(name).split(' ').filter(Boolean);
@@ -248,7 +329,14 @@ function offerDept(offer) {
 // least one script); the first hit that survives the context guards wins —
 // earliest word first, English name first (it OCRs cleaner). Never throws,
 // never guesses: any failed guard means "no brand", never "next-best brand".
+const ARCHIVE_EXACT=new Map(ARCHIVE_BRANDS.filter(b=>!b.typedOnly).flatMap(b=>[b.en,b.ar].map(s=>[fold(s),b.slug])));
 export function detectBrand(offer) {
+  for (const name of [offer.name,offer.nameAr ?? offer.name_ar]) {
+    const tokens=fold(name || '').split(' ');
+    for(let i=0;i<tokens.length;i++) for(let width=Math.min(5,tokens.length-i);width>0;width--){
+      const slug=ARCHIVE_EXACT.get(tokens.slice(i,i+width).join(' '));if(slug)return slug;
+    }
+  }
   let dept = null; // resolved lazily — most offers have no brand token at all
   for (const name of [offer.name, offer.nameAr ?? offer.name_ar]) {
     if (!name) continue;

@@ -667,15 +667,15 @@ console.log('S4 acceptance in the drain:');
 {
   // An unknown brand must reach the record unresolved rather than guessed at.
   const fetchImpl = fakeFetch({
-    'http://c/unknown.jpg': '{"name_en":"Instant Coffee","name_ar":"قهوة سريعة الذوبان","brand":"NAJJAR","size":"190g","confidence":0.9}',
+    'http://c/unknown.jpg': '{"name_en":"Instant Coffee","name_ar":"قهوة سريعة الذوبان","brand":"UNKNOWN-TEST-BRAND","size":"190g","confidence":0.9}',
   });
   const res = await enrichOffer(
     { id: 'unknown', name: null, nameAr: null, imageUrl: 'http://c/unknown.jpg' },
     { apiKey: 'k', fetchImpl },
   );
   check('an unknown brand stays unresolved and unmodified',
-    res.brand === 'NAJJAR' && res.brandIdentity.brand_id === null &&
-    res.brandIdentity.canonical_brand === 'NAJJAR' && res.brandIdentity.status === 'unknown');
+    res.brand === 'UNKNOWN-TEST-BRAND' && res.brandIdentity.brand_id === null &&
+    res.brandIdentity.canonical_brand === 'UNKNOWN-TEST-BRAND' && res.brandIdentity.status === 'unknown');
   // Structured Product + Arabic Builder (HISTORY §47): built from the ENGLISH
   // name, additive, and never replacing the observed Arabic.
   check('the structured product is built from the English name',

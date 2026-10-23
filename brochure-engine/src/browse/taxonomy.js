@@ -125,6 +125,9 @@ export const AISLES = [
   { id: 'fashion', dept: 'home-electronics', en: 'Clothing & Footwear', ar: 'ملابس وأحذية' },
   { id: 'toys-stationery', dept: 'home-electronics', en: 'Toys & Stationery', ar: 'ألعاب وقرطاسية' },
   { id: 'outdoors-tools', dept: 'home-electronics', en: 'Outdoors & Tools', ar: 'العدد والحدائق' },
+  { id: 'gift-cards', dept: 'home-electronics', en: 'Gift Cards & Subscriptions', ar: 'بطاقات وهدايا رقمية واشتراكات' },
+  { id: 'sports-fitness', dept: 'home-electronics', en: 'Sports & Fitness Equipment', ar: 'أدوات الرياضة واللياقة' },
+  { id: 'sports-drinks', dept: 'beverages', en: 'Sports & Hydration Drinks', ar: 'مشروبات رياضية' },
   { id: 'travel', dept: 'home-electronics', en: 'Luggage & Travel', ar: 'حقائب وسفر' },
 
   // --- the visible landing zone for unmapped provider categories --------------------------------

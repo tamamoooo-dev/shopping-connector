@@ -172,6 +172,7 @@ export const CANON_HAYSTACK_SQL =
 // applyEnrichment() can overlay without a second query.
 export function enrichRowCols(enabled = false) {
   return `e.name AS e_name, ${enrichmentNameArSql(enabled)} AS e_name_ar, ` +
+    "json_extract(e.extraction_json, '$._arabic_builder.product_title') AS e_product_title, " +
     'e.match_text AS e_match_text, e.corroboration AS e_corroboration, e.model AS e_model, ' +
     // The printed size and the extractor's `unit` observation, for the price
     // basis (offers/enrich.js applyUnitPrice). `unit` lives inside
@@ -227,7 +228,7 @@ export function visionMatchText({ name, name_ar, brand, extraction_json }) {
   let display = null;
   try {
     const record = typeof extraction_json === 'string' ? JSON.parse(extraction_json) : extraction_json;
-    if (record?._arabic_builder?.caption_version === 'arabic-caption-v1') display = record._arabic_builder.display_arabic;
+    if (record?._arabic_builder?.caption_version === 'arabic-caption-v1' || record?._arabic_builder?.title_version === 'dictionary-title-v1') display = record._arabic_builder.display_arabic;
   } catch { /* A missing optional display caption cannot block persistence. */ }
   const t = normalizeText([name, name_ar, brand, display].filter(Boolean).join(' '));
   return t || null;
@@ -1527,7 +1528,9 @@ export function createD1EnrichStore(db) {
                     '_arabic_builder', json_object(
                       'status', ${field('$._arabic_builder.status')},
                       'built_arabic', ${field('$._arabic_builder.built_arabic')},
-                      'display_arabic', ${field('$._arabic_builder.display_arabic')}
+                      'display_arabic', ${field('$._arabic_builder.display_arabic')},
+                      'product_title', json(json_remove(${field('$._arabic_builder.product_title')},
+                        '$.unknown', '$.evidence', '$.corrections'))
                     )
                   ),
                   identity_candidate = CASE WHEN EXISTS (

@@ -90,7 +90,7 @@ check('skipTokens keeps a brand from naming the product',
   resolveCategory('Cream Fresh Chicken', { skipTokens: new Set([0]) }).id === 'chicken');
 
 console.log('\nneighbour vetoes (the guard of last resort):');
-check('"water pump" is not water', resolveCategory('Geepas Water Pump') === null);
+check('"water pump" is not water', resolveCategory('Geepas Water Pump')?.id === 'archive-water-pump');
 check('"water heater" is its own category, matched before the veto',
   resolveCategory('Geepas Water Heater').id === 'water-heater');
 check('"bottled water" still resolves next to the veto list',

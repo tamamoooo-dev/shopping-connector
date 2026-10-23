@@ -76,7 +76,7 @@ check('a model code is never read as a package count (NRF110N26S)',
   buildStructuredProduct({ name_en: 'Refrigerator NRF110N26S', brand: 'NIKAI' }).size === null);
 check('an attribute already inside the category phrase is not repeated',
   arabic({ name_en: 'NAJJAR INSTANT COFFEE RED / GOLD 190G', brand: 'NAJJAR', package_size: '190G', attributes: ['INSTANT COFFEE', 'RED', 'GOLD'] })
-    === 'قهوة سريعة التحضير أحمر ذهبي 190 جم');
+    === 'قهوة سريعة التحضير أحمر ذهبي نجار 190 جم');
 check('attributes still contribute descriptors the name did not carry',
   buildStructuredProduct({ name_en: 'Zoflora Disinfectant Spray 800ml', brand: 'Zoflora', package_size: '800ml', attributes: ['Concentrated'] })
     .descriptors.some((d) => d.id === 'concentrated' && d.from === 'attributes'));

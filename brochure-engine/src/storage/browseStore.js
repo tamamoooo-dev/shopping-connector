@@ -1,3 +1,4 @@
+import { AISLES } from '../browse/taxonomy.js';
 import { saleObservationSql } from '../offers/saleObservation.js';
 // storage/browseStore.js — the Browse read layer behind a narrow interface,
 // backed by D1 (the same database as offers/price history — Browse is a VIEW
@@ -67,13 +68,27 @@ const OUTER_SORTS = {
 
 export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}) {
   const canonicalNameAr = canonicalNameArSql(builtArabicNamesEnabled);
+  // The saved classification drives tile counts, filters and card placement
+  // together. Legacy rows retain their provider mapping until reprocessed.
+  const titleVersion="json_extract(e.extraction_json, '$._arabic_builder.product_title.version')";
+  const classRoot='$._arabic_builder.product_title.classification';
+  const savedAisle=`json_extract(e.extraction_json, '${classRoot}.aisle')`;
+  const classified=`(${SERVABLE_SQL} AND json_valid(e.extraction_json) AND ${titleVersion}='dictionary-title-v1'
+    AND json_extract(e.extraction_json, '${classRoot}.version')='archive-classification-v1'
+    AND json_extract(e.extraction_json, '${classRoot}.status')='classified'
+    AND ${savedAisle} IN (${AISLES.filter(a=>a.id!=='other').map(a=>"'"+a.id+"'").join(',')}))`;
+  const sourceSql=`(CASE WHEN ${classified} THEN 'knowledge' ELSE o.source END)`;
+  const categorySql=`(CASE WHEN ${classified} THEN ${savedAisle} ELSE o.category END)`;
+  const canonicalBrandSql=`(CASE WHEN ${SERVABLE_SQL} AND json_valid(e.extraction_json) AND ${titleVersion}='dictionary-title-v1'
+    THEN json_extract(e.extraction_json, '$._arabic_builder.product_title.brand.id') ELSE o.brand_slug END)`;
+
   const cardColumns = `
     o.id, o.store, o.region, o.source, o.offer_id, o.flyer_ref, o.page_ref,
     o.brochure_id, o.page_index, o.navigation_provenance, o.edition,
     ${CANON_NAME_SQL} AS name, ${canonicalNameAr} AS name_ar,
     o.price, o.old_price, o.currency, o.category,
     o.image_url, o.source_url, o.valid_from, o.valid_to, o.detected_at,
-    o.identity, o.brand_slug, pi.weeks_seen, pi.first_seen,
+    o.identity, ${canonicalBrandSql} AS brand_slug, pi.weeks_seen, pi.first_seen,
     h.min_price, h.max_price, h.points,
     -- The three enrichment fields the PER-ITEM price needs (browse/api.js
     -- cardDoc). Deliberately NOT o.search_text, which the /offers path also
@@ -89,6 +104,7 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
     json_extract(e.extraction_json, '$.unit') AS e_unit,
     ${corroboratedPackCountSql()} AS e_pack_count,
     ${saleObservationSql()} AS e_sale,
+    json_extract(e.extraction_json, '$._arabic_builder.product_title') AS e_product_title,
     json_extract(e.extraction_json, '$.package_type') AS e_package_type`;
   const markNames = `(ifnull(${CANON_NAME_SQL},'') || ' ' || ifnull(${canonicalNameAr},''))`;
   const likeAny = (terms) => terms.map((t) => `${markNames} LIKE '%${t}%'`).join(' OR ');
@@ -113,13 +129,13 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
     async categoryCounts(currentOn) {
       const { results } = await db
         .prepare(
-          `SELECT o.source, o.category,
+          `SELECT ${sourceSql} AS source, ${categorySql} AS category,
                   (CASE WHEN ${frozenMarkSql} THEN 1 ELSE 0 END) AS frozen_marked,
                   COUNT(*) AS n
              FROM offers o ${ENRICH_JOIN}
             WHERE o.valid_to >= ?
               AND o.brochure_id IS NOT NULL AND o.page_index IS NOT NULL
-            GROUP BY o.source, o.category, frozen_marked`,
+            GROUP BY ${sourceSql}, ${categorySql}, frozen_marked`,
         )
         .bind(currentOn)
         .all();
@@ -136,12 +152,12 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
     async brandCounts(currentOn) {
       const { results } = await db
         .prepare(
-          `SELECT o.brand_slug, COUNT(DISTINCT ${dealKeySql}) AS n,
+          `SELECT ${canonicalBrandSql} AS brand_slug, COUNT(DISTINCT ${dealKeySql}) AS n,
                   COUNT(DISTINCT o.store) AS stores
              FROM offers o ${ENRICH_JOIN}
-            WHERE o.valid_to >= ? AND o.brand_slug IS NOT NULL
+            WHERE o.valid_to >= ? AND ${canonicalBrandSql} IS NOT NULL
               AND o.brochure_id IS NOT NULL AND o.page_index IS NOT NULL
-            GROUP BY o.brand_slug ORDER BY n DESC`,
+            GROUP BY ${canonicalBrandSql} ORDER BY n DESC`,
         )
         .bind(currentOn)
         .all();
@@ -155,14 +171,14 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
       const { results } = await db
         .prepare(
           `WITH ranked AS (
-             SELECT o.source, o.category,
+             SELECT ${sourceSql} AS source, ${categorySql} AS category,
                     (CASE WHEN ${frozenMarkSql} THEN 1 ELSE 0 END) AS frozen_marked,
                     ROW_NUMBER() OVER (
                       PARTITION BY ${dealKeySql}
                       ORDER BY o.valid_to DESC, o.id ASC
                     ) AS deal_rank
                FROM offers o ${ENRICH_JOIN}
-              WHERE o.valid_to >= ? AND o.brand_slug = ?
+              WHERE o.valid_to >= ? AND ${canonicalBrandSql} = ?
                 AND o.brochure_id IS NOT NULL AND o.page_index IS NOT NULL
            )
            SELECT source, category, frozen_marked, COUNT(*) AS n
@@ -199,7 +215,7 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
         // stay exact (browse/api.js categoryFilter builds the groups).
         const parts = include.map(({ source, categories, frozen }) => {
           binds.push(source, ...categories);
-          let p = `(o.source = ? AND o.category IN (${categories.map(() => '?').join(',')})`;
+          let p = `(${sourceSql} = ? AND ${categorySql} IN (${categories.map(() => '?').join(',')})`;
           if (frozen === 'exclude') p += ` AND NOT ${frozenMarkSql}`;
           else if (frozen === 'only') p += ` AND ${frozenMarkSql}`;
           return `${p})`;
@@ -210,7 +226,7 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
         for (const { source, categories } of excludeMapped) {
           binds.push(source, ...categories);
           where.push(
-            `(o.source != ? OR o.category IS NULL OR o.category NOT IN (${categories.map(() => '?').join(',')}))`,
+            `(${sourceSql} != ? OR ${categorySql} IS NULL OR ${categorySql} NOT IN (${categories.map(() => '?').join(',')}))`,
           );
         }
       }
@@ -219,7 +235,7 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
         binds.push(store);
       }
       if (brand) {
-        where.push('o.brand_slug = ?');
+        where.push(`${canonicalBrandSql} = ?`);
         binds.push(brand);
       }
       if (hasDrop) where.push('o.old_price IS NOT NULL AND o.old_price > o.price');

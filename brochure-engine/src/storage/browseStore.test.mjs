@@ -3,6 +3,8 @@
 // brand's badge and were removed only after LIMIT/OFFSET.
 
 import assert from 'node:assert/strict';
+import { productKnowledge } from '../offers/enrich.js';
+import { resolveBrand } from '../lexicon/brands.js';
 import { createD1BrowseStore } from './browseStore.js';
 import { createSqliteD1, insertOffers } from './testSqliteD1.mjs';
 
@@ -49,5 +51,25 @@ assert.equal(secondPage.length, 1);
 assert.notEqual(firstPage[0].identity, secondPage[0].identity,
   'pagination happens after dedupe and never skips the second real product');
 
+// Saved canonical classification must agree across counts, filtering and cards.
+insertOffers(raw,[
+ {id:'panda:central:d4d:classified',name:'Al Batal Potato Chips',category:null},
+ {id:'panda:central:d4d:unservable',name:'Raw Rice',category:'rice'},
+]);
+raw.exec("UPDATE offers SET brochure_id='fixture-brochure',page_index=0,brand_slug='lays' WHERE id LIKE '%:classified' OR id LIKE '%:unservable'");
+const knowledge=productKnowledge({productName:'Al Batal Potato Chips',arabicName:'بطاطس شيبس البطل',brand:'Al Batal',size:'100g'},{});
+const insertEnrichment=raw.prepare('INSERT INTO offer_enrichments(id,name,name_ar,brand,corroboration,enriched_at,extraction_json) VALUES(?,?,?,?,?,?,?)');
+for(const [suffix,score] of [['classified',1],['unservable',0]]) insertEnrichment.run('panda:central:d4d:'+suffix,
+ 'Al Batal Potato Chips','بطاطس شيبس البطل','Al Batal',score,'2026-07-20',JSON.stringify({_arabic_builder:knowledge.arabicBuilder}));
+const typed=await store.list({include:[{source:'knowledge',categories:['chips-snacks']}],currentOn:CURRENT_ON,limit:20});
+assert.deepEqual(typed.map(r=>r.id),['panda:central:d4d:classified']);
+const categoryCounts=await store.categoryCounts(CURRENT_ON);
+assert.equal(Number(categoryCounts.find(r=>r.source==='knowledge'&&r.category==='chips-snacks')?.n),1);
+assert.equal(Number(categoryCounts.find(r=>r.source==='d4d'&&r.category==='rice')?.n),1,'Unservable metadata cannot override retailer category');
+const canonicalBrand=resolveBrand('Al Batal').brand_id;
+assert.equal(typed[0].brand_slug,canonicalBrand);
+const canonicalCounts=await store.brandCounts(CURRENT_ON);
+assert.equal(Number(canonicalCounts.find(r=>r.brand_slug===canonicalBrand)?.n),1);
+assert.equal((await store.list({brand:canonicalBrand,currentOn:CURRENT_ON,limit:20}))[0].id,'panda:central:d4d:classified');
 close();
 console.log('browseStore brand dedupe: 3 assertions passed');

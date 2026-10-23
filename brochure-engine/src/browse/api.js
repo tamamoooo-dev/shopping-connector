@@ -1,3 +1,4 @@
+import { classifyArchivedProduct, storedProductClassification } from '../knowledge/classification.js';
 import { observedText } from '../observedText.js';
 // browse/api.js — the Browse read API's document builders (BROWSE-DESIGN.md
 // §7). Pure orchestration over the browse store + canonical knowledge: no SQL
@@ -17,6 +18,7 @@ import {
 } from './mapping.js';
 import { offerBadges } from './deals.js';
 import { BRAND_BY_SLUG } from './brands.js';
+import { applyProductTitle } from '../lexicon/productTitle.js';
 import { applyUnitPrice } from '../offers/enrich.js';
 
 // Browse V1.1 (2026-07-16): the homepage keeps only the rails that earn their
@@ -32,9 +34,11 @@ const RAIL_SIZE = 12;
 // and derived badges. Mirrors rowToOffer's field naming so the frontend treats
 // Browse cards and /offers cards identically.
 function cardDoc(row, today) {
-  const aisleId = refineAisle(canonicalAisle(row.source, row.category), row);
+  const storedClassification=row.servable===1?storedProductClassification(row):null;
+  const classification=storedClassification||classifyArchivedProduct({id:row.id,name:row.name,nameAr:row.name_ar,brand:row.e_brand,category:row.category,source:row.source});
+  const aisleId = storedClassification?.status==='classified'?storedClassification.aisle:refineAisle(canonicalAisle(row.source,row.category),row);
   const aisle = AISLE_BY_ID.get(aisleId);
-  const brand = row.brand_slug ? BRAND_BY_SLUG.get(row.brand_slug) : null;
+  let brand = row.brand_slug ? BRAND_BY_SLUG.get(row.brand_slug) : null;
   // The PER-ITEM price, through the SAME read-path projection /offers uses —
   // `applyUnitPrice` is called, not reimplemented, so Browse can never grow its
   // own opinion of a pack (offers/enrich.js is the one home for that arithmetic).
@@ -46,6 +50,9 @@ function cardDoc(row, today) {
   // mean a Browse card and a Search card disagreeing about the same offer —
   // exactly the cross-surface drift the per-item price was just fixed for.
   const priced = { name: row.name, nameAr: row.name_ar, price: row.price, category: row.category };
+  if (row.servable === 1) applyProductTitle(priced, row);
+  if (priced.brandSlug) brand=BRAND_BY_SLUG.get(priced.brandSlug) || brand;
+  else if (priced.brandSlugs?.length) brand=null;
   applyUnitPrice(priced, row, row.servable === 1);
   return {
     brand: brand ? { slug: brand.slug, en: brand.en, ar: brand.ar } : null,
@@ -61,7 +68,9 @@ function cardDoc(row, today) {
     navigationProvenance: row.navigation_provenance ?? null,
     edition: row.edition,
     name: observedText(row.name),
-    nameAr: observedText(row.name_ar),
+    nameAr: observedText(priced.nameAr),
+    ...(priced.productTitleVersion ? { productTitleVersion: priced.productTitleVersion,
+      nameReviewRequired: priced.nameReviewRequired, brandNameAr: priced.brandNameAr, brandNameEn: priced.brandNameEn } : {}),
     price: row.price,
     oldPrice: row.old_price,
     currency: row.currency,
@@ -69,6 +78,7 @@ function cardDoc(row, today) {
     sourceUrl: null,
     validFrom: row.valid_from,
     validTo: row.valid_to,
+    classification,
     aisle: aisleId,
     dept: aisle ? aisle.dept : null,
     badges: offerBadges(row, today),
@@ -77,6 +87,8 @@ function cardDoc(row, today) {
     saleQuantity: priced.saleQuantity,
     quantityReviewRequired: priced.quantityReviewRequired,
     packageContents: priced.packageContents,
+    ...(priced.sizeReading ? {sizeReading:priced.sizeReading,assortedSizes:priced.assortedSizes,
+      sizeDisplayAr:priced.sizeDisplayAr,sizeDisplayEn:priced.sizeDisplayEn,sizeOptions:priced.sizeOptions,priceBasis:priced.priceBasis} : {}),
     enriched: row.servable === 1,
     enrichmentModel: row.servable === 1 ? row.e_model || null : null,
   };

@@ -14,7 +14,7 @@
 //
 // Adding a new offers source = adding one object here. Zero code changes.
 
-import { AISLE_BY_ID, OTHER_AISLE } from './taxonomy.js';
+import { AISLES, AISLE_BY_ID, OTHER_AISLE } from './taxonomy.js';
 
 // D4D's global taxonomy (the `offers.category` slug) → canonical aisle id.
 // Complete over every slug observed in production as of 2026-07-15; a slug D4D
@@ -130,7 +130,7 @@ const D4D = {
 };
 
 // source id (offers.source) -> { providerCategory -> canonical aisle id }
-export const PROVIDER_AISLES = { d4d: D4D };
+export const PROVIDER_AISLES = { d4d: D4D, knowledge:Object.fromEntries(AISLES.filter(a=>a.id!==OTHER_AISLE).map(a=>[a.id,a.id])) };
 
 // The canonical aisle of one offer row's (source, category) — `other` when the
 // category is null, unknown, or the source has no mapping yet.

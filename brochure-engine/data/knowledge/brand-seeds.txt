@@ -1,0 +1,684 @@
+# Canonical bilingual forms reviewed against archived observations. English aliases are explicit.
+Infinix|إنفينيكس
+Royalford|رويال فورد
+Xiaomi|شاومي|شاوومي
+DAC|داك
+Chill Berry|تشيل بيري
+Haley|هالي
+Farm|فارم|فآرم
+Signature Select|سيجنتشر سيليكت
+Perinna|بيرينا
+Noor|نور
+Gento|جنتو|جينتو
+Avoaky|أفواكي
+OMO|أومو
+Honeywell|هانيويل
+Flow|فلو
+Al Jameel|الجميل
+Lenovo|لينوفو
+JBL|جي بي إل
+Ruay|رواي
+Motorola|موتورولا
+Cadbury|كادبوري
+Lamb Weston|لامب وستون
+Kinza|كينزا
+Panasonic|باناسونيك
+Vileda|فيليدا
+Tecno|تكنو
+Forsana|فرسانا
+Jergens|جيرجنز|JERGEN'S
+Alzook|الذوق
+Kenwood|كينوود
+Oppo|أوبو
+Royal Prince|رويال برنس
+Ttec|تي تيك
+Nezline|نيزلين
+Mycandy|ماي كاندي
+Aukey|أوكي
+Tamimi Markets|أسواق التميمي|TM
+Pantene|بانتين|Pantene Pro-V
+Alyoum|اليوم
+Sainsbury's|سينسبري
+Olay|أولاي
+Moulinex|مولينكس
+Rexona|ريكسونا
+Freshly|فرشلي
+Joda|جودا
+Memories|ميموريز
+Lulu|لولو
+Pril|بريل
+Apple|أبل
+Vivo|فيفو
+Maog|موج
+Foska|فوسكا
+Redmi|ريدمي
+HP|إتش بي
+Abu Kass|أبو كاس
+Elora|إيلورا
+Clear|كلير|Clear Men
+Orient Gardens|أورينت جاردنز
+Al Folla|الفلة
+Alwalimah|الوليمة
+Lilac|ليلاك
+Mayda|مايدا
+Alove|ألوف
+Home 4U|هوم فور يو
+Denx|دينكس
+iOsuite|آي أو سويت
+Al Alia|العالية
+Coca-Cola|كوكاكولا
+Mr. Chef|مستر شيف
+Al Wafa|الوفا
+Nanma|نانما
+Al Mehbaj|المهباج|Mehbaj
+Green Garden|جرين جاردن
+Fa|فا
+Anker|أنكر
+Hexel|هيكسل
+Blue Sky|بلو سكاي
+Rinzo|رينزو
+Adidas|أديداس
+Huawei|هواوي
+Grey Fox|جراي فوكس
+Maple Leaf|مابل ليف
+Zod|زود
+Sunny|سني
+Essentro|إسنترو
+Prime Plus|برايم بلس
+Kwality|كوالتي
+Meezan|ميزان
+Nunu|نونو
+Betty Crocker|بيتي كروكر
+Mouchoir|مشوار
+Al Emlaq|العملاق
+Punjabi Mahal|بنجابي محل
+Koolen|كولين
+Rex|ركس
+Saloumi|سلومي
+Zaiqa|ذائقة
+Hayat|حياة
+Vanish|فانيش
+Sary|ساري
+Al Watania|الوطنية|Watania
+Purples|بيربلز
+Growmark|جرو مارك
+Fine Baby|فاين بيبي
+Labello|لابيلو
+Activia|أكتيفيا
+Halwani Brothers|حلواني إخوان|Halwani Bros.|HB
+Fair & Lovely|فير أند لفلي
+Vicks|فيكس
+Carefree|كيرفري
+Mars|مارس
+Zeina|زينة
+Raid|ريد
+Oral B|أورال بي
+Rio Mare|ريو ماري
+Hellmann's|هيلمانز
+El Corte Ingles|إل كورتي إنجليس
+Crystel|كريستال
+Salim|سالم
+Mobi|موبي
+Gulfmaid|جلف ميد
+Altaie|الطائي
+Nivea|نيفيا|Nivea Men
+Mercely's|ميرسيليز
+Cetaphil|سيتافيل
+Bissou|بيسو
+Sony|سوني
+Universal|يونيفرسال
+Yardley|ياردلي|Yardley London
+Teashop|تي شوب
+Eastern|إيسترن
+HMD|إتش إم دي
+Al Ameen|الأمين
+Endefo|إنديفو
+Fuchsia|فوشيا
+Pinar|بينار
+Dr. Beckmann|دكتور بيكمان
+Deligos|ديليجوس
+Nesto|نستو
+Braun|براون
+Bunna|بنة
+Al-Kbous|الكبوس
+Glow & Lovely|جلو أند لفلي
+Belkin|بيلكين
+SKI|إس كيه آي
+Tefal|تيفال
+Routex|روتكس
+Philadelphia|فيلادلفيا
+Yamama|يمامة
+Sweethome|سويت هوم
+Zidnee|زدني
+L'Oreal|لوريال|L'Oreal Paris|Loreal Elvive
+Peep|بيب
+Abu Hussain|أبو حسين
+Sreen|سرين
+Toblerone|توبليرون
+Flexy|فليكسي
+Neskers|نيسكرز
+Envase|إنفاز
+Victoria|فيكتوريا
+The Three Cows|البقرات الثلاث|Three Cows
+Kitco|كيتكو
+Hala|هلا
+Wafra|وفرة
+Ritz|ريتز
+Baja|باجة
+Green Farms|جرين فارمز
+TRESemmé|تريسيمي
+Uno Plus|أونو بلس
+Home Way|هوم واي
+Ferrero|فيريرو
+Toshiba|توشيبا
+G Plus|جي بلس
+Zerospace|زيرو سبيس
+Medicare|ميديكير
+Oscar|أوسكار
+Sheba|شيبا
+Blue River|بلو ريفر
+O Organics|أو أورجانيكس
+Reem|ريم
+Himalaya Herbals|هيمالايا
+Kasia|كاسيا
+Allana|ألانا
+Delights|ديلايتس
+Tiny Tunes|تايني تونز
+Kabool|كابول
+Starbucks|ستاربكس
+Pack Well|باك ويل
+Magic Clean|ماجيك كلين
+Best Choice|بيست تشويس
+Shangrila|شانجريلا
+Sosero|سوسيرو
+Kirkland Signature|كيركلاند سيجنتشر
+Pif Paf|بيف باف
+Fogg|فوج
+DLC|دي إل سي
+Catch Me|كاتش مي
+TCL|تي سي إل
+Pride Of Pakistan|برايد أوف باكستان
+Glaze|جليز
+Everfine|إيفرفاين
+Gandour|غندور
+Marietta|ماريتا
+Al Gharbi|الغربي
+Wahl|وال
+Danah|دانة
+Steviana|ستيفيانا
+Shurooq|شروق
+Korkmaz|كوركماز
+M&M's|إم أند إمز
+Haribo|هاريبو
+Borgat|بورقات
+Al Aila|العائلة|Al.Aila
+Sunwhite|صن وايت
+Rollana|رولانا
+Safio|صافيو
+Sapil|سابيل
+Al Maedah|المائدة
+Arrow|أرو
+Hi-Tea|هاي تي
+Dell|ديل
+Skechers|سكيتشرز
+Heatz|هيتز
+Shan|شان
+LG|إل جي
+Al Jabal|الجبل
+Rice King|رايس كينج
+Golden Chicken|الفروج الذهبي|Golden
+Bonux|بونكس
+Alisa|أليسا
+Pears|بيرز
+Fujika|فوجيكا
+Cutey|كيوتي
+Kioxia|كيوكسيا
+Montag|مونتاج
+Hafel|حافل
+Glade|جليد
+Goree|جوري
+Esnad|إسناد
+Sinan|سنان
+Roaya|رؤيا
+Gesas|جيساس
+Langnese|لانجنيز
+White Swan|وايت سوان
+Epsilon|إبسيلون
+McCain|ماكين
+Surf|سيرف
+Bounty|باونتي
+Oxi|أوكسي
+Jovan|جوفان
+Baby Cool|بيبي كول
+Smaker|سميكر
+Suntop|سن توب
+John Cooper|جون كوبر
+Yopro|يو برو
+Bahlsen|باهلسن
+Nolin|نولين
+Mentos|منتوس
+Chupa Chups|تشوبا تشوبس
+Sebamed|سيباميد|Seba Med
+Chefline|شيف لاين
+Golden Bird|جولدن بيرد
+Al Baker|الباكر
+Junior|جونيور
+Al Rai|الراي
+Bragg|براج
+Mersin|مرسين
+Joline|جولين
+Brooke Bond|بروك بوند|Brookebond
+Bonny|بوني
+Glysolid|جليسوليد
+Delcasa|ديلكاسا
+Thrill|ثريل
+Barilla|باريلا
+Maqadir|مقادير
+Green Giant|العملاق الأخضر
+Nature Valley|نيتشر فالي
+Al Bayt|البيت|AlBayt
+Tefoner|تيفونر
+Pristine|بريستين
+Maxy|ماكسي
+Novel|نوفل
+Davidoff|دافيدوف
+Bibi|بيبي
+Kasih|كسيح
+Farayed|فرائد
+Reeem|رييم
+Al Nakheel|النخيل
+Air Wick|إير ويك
+Al Ajeeb|العجيب
+Perrier|بيرييه
+Astra|أسترا
+Olio Sasso|أوليو ساسو
+Fem|فيم
+White-Westinghouse|وايت وستنجهاوس
+Safix|سافيكس
+Super Sharp|سوبر شارب
+Holland Park|هولاند بارك
+CeraVe|سيرافي
+Cottage|كوتاج
+Mehran|مهران
+7Days|سفن دايز
+Super General|سوبر جنرال
+Good Seoul|جود سيول
+Emborg|إمبورج
+Scholine|سكولين
+Arjoon|عرجون
+Softy|سوفتي
+Narpa|ناربا
+Top1|توب ون
+Tora Bika|تورا بيكا
+Peanut Butter & Co.|بينت بتر أند كو
+Perfetto|بيرفيتو
+Riyadh Food|رياض فود
+Parry Life|باري لايف
+Herfy|هرفي|Herfy Foods
+RDL|آر دي إل
+Aghsan|أغصان
+Nestle Pure Life|نستله بيور لايف
+Khalifa|خليفة
+Godrej|جودريج
+Eufy|يوفي
+Delicio|ديليسيو
+Pavareal|بافاريال
+Silka|سيلكا
+Wisme|ويزمي
+Najjar|نجار
+Grand Star|جراند ستار
+Durra|درة
+Cream Silk|كريم سيلك
+Thennal|ثينال
+Jana|جنى
+Arla|آرلا
+Orlanda|أورلاندا
+Geisha|جيشا
+Freshdays|فريش دايز
+Swissland|سويس لاند
+Nami|نامي
+Claret|كلاريت
+SMAC|سماك
+Dr. Oetker|دكتور أوتكر
+Storck|شتورك
+Capri-Sun|كابري صن
+Bic|بيك
+Moov|موف
+7Bahar|سبع بحار
+Furidi|فوريدي
+Al Waleed|الوليد
+Basics|بيسيكس
+Dilmah|ديلما
+Al Safeer|السفير
+Poppins|بوبينز
+Majdi|مجدي
+Eco Home|إيكو هوم
+Albashayer|البشائر
+Fadeco|فاديكو
+Babul|بابول
+Bahar|بحر
+Alicafé|علي كافيه
+Taj Al Hind|تاج الهند
+Femfresh|فيم فريش
+Kanari|كناري
+Al Joud|الجود
+Häagen-Dazs|هاجن داز
+Halabi|حلبي
+Eva|إيفا
+Amwaj|أمواج
+ClassPro|كلاس برو
+Hisense|هايسنس
+Relax|ريلاكس
+Lutors|لوتورز
+Etios|إيتيوس
+La Vache Qui Rit|البقرة الضاحكة|La Vache Quirit
+Dandy|داندي
+Coffee Joy|كوفي جوي
+Aljazera|الجزيرة
+Febreze|فبريز
+Kagi|كاجي
+belVita|بلفيتا
+Samyang|ساميانج
+Marami|مرامي
+Vitrac|فيتراك
+Sunlife|صن لايف
+Acer|إيسر
+Nutsun|ناتسن
+Master Café|ماستر كافيه
+Abu Walad|أبو ولد
+Al Barakeh|البركة
+Lahith|لهيث
+Evan Ryan|إيفان رايان
+Tuffex|تافيكس
+Ranger|رينجر
+Swiszone|سويس زون
+Bashayer|بشاير
+Pert|بيرت
+Canopus|كانوبوس
+Xtream Beauty|إكستريم بيوتي
+Maeen|معين
+Aquafresh|أكوافريش
+Zaina|زاينة
+Juhayna|جهينة
+Danette|دانيت
+Grandi|جراندي
+Skyworth|سكاي وورث
+Fons|فونس
+Track|تراك
+Tara|تارا
+Nongshim|نونجشيم
+Golden Chair|جولدن تشير
+Dove|دوف|Dove Men+Care
+Smile|سمايل
+Britex|بريتيكس
+Horayra|حريرة
+Dunkin|دانكن
+Al Sawsan|السوسن
+Bastec|باستك
+Mtools|إم تولز
+Al Wadi|الوادي
+Excellent Houseware|إكسلنت هاوس وير
+Mozhilah|مذهلة
+Amal|أمل
+YumEarth|يام إيرث
+Hershey's|هيرشيز
+St. Dalfour|سان دالفور
+Mk Foods|إم كي فودز
+Pronto|برونتو
+Namson|نامسون
+Tanmiah|التنمية|Tanmia
+Al Falah|الفلاح
+Al Safwa|الصفوة
+Smart Life|سمارت لايف
+Rota|روتا
+Aira|أيرا
+Al Tayeb|الطيب|Al Tayab
+Perdix|بيرديكس
+Werther's|فيرترز
+GoGreen|جو جرين
+Biona|بيونا
+Palette|باليت
+Shiraa|شراع
+Mr. Muscle|مستر ماسل
+Felix|فيليكس
+Organic Larder|أورجانيك لاردر
+Pringles|برينجلز
+Seeberger|سيبرجر
+Farfasha|فرفشة
+Crackles|كراكلز
+Mize|مايز
+Entaj|إنتاج
+Neutrogena|نيتروجينا
+Parodontax|بارودونتكس
+Kopiko|كوبيكو
+Eleganza|إليجانزا
+Siafa|سيافا
+Pond's|بوندز|Ponds
+Al Suman|الصمان|AlSuman
+Beurer|بيورير
+Axe|أكس
+Listerine|ليسترين
+Osoul|أصول
+Al Oula|الأولى|Aloula
+Ringo|رينجو
+Wurfal|ورفال
+Valita|فاليتا
+Nestle Coffee Mate|نستله كوفي ميت
+Extra|إكسترا
+Misti|ميستي
+Torrent|تورنت
+Midea|ميديا
+Clenso|كلينسو
+Uno Baby|أونو بيبي
+Lavida|لافيدا
+Aseela|أصيله
+Merci|ميرسي
+Wow|واو
+Nakhlatain|نخلتين
+Sante|سانتي
+Renada|رينادا
+Century|سنتشري
+Cannon|كانون
+Bright Home|برايت هوم
+Al Nokhba|النخبة
+Frico|فريكو
+Foody's|فوديز
+Abu Zahra|أبو زهرة
+Glance|جلانس
+Neop|نيوب
+Al Saif|السيف
+Dalal|دلال
+Lotus Biscoff|لوتس بسكوف
+Rafa|رافا
+Asus|أسوس
+Al Andalus|الأندلس
+Indian Gold|إنديان جولد
+Dorall|دورال
+Maxy Flash|ماكسي فلاش
+Ahmad Tea|شاي أحمد
+Master Mills|ماستر ميلز
+Daze|ديز
+Aloha|ألوها
+Jif|جف
+Ferrero Rocher|فيريرو روشيه
+Star|ستار
+KitKat|كيت كات|Nestle Kit Kat
+Sanita Club|سانيتا كلوب
+City|سيتي
+Lexus|ليكسس
+Falah|فلاح
+Original|أوريجينال
+Halah|هالة
+Al Majlis|المجلس
+Ristorante|ريستورانتي
+Schweppes|شويبس
+Twinings|تويننجز
+Fismi|فيسمي
+Moonnaar|مونار
+Al Nakhil|النخيل
+Dream House|دريم هاوس
+Plyms|بليمز
+Crispy|كريسبي
+First Mills|المطاحن الأولى
+Al Madina|المدينة
+Al Nasriyah|الناصرية
+Tandy|تاندي
+Indofood|إندوفود
+Silver Sparrows|سيلفر سباروز
+Choki Choki|تشوكي تشوكي
+Pinoy|بينوي
+Gullon|جولون
+O-Lite|أولايت
+Nescafe Dolce Gusto|نسكافيه دولتشي جوستو
+Tilda|تيلدا
+Tabasco|تاباسكو
+Qoot & Root|قوت أند روت
+Nestle Nesquik|نستله نسكويك
+XL|إكس إل
+Ava|آفا
+Tetley|تيتلي
+Kafy|كافي
+Amora|أمورا
+Tea Shop Ringo|تي شوب رينجو
+Bob's Red Mill|بوبز ريد ميل
+Igloo|إجلو
+Al Falak|الفلك
+Al Jeser|الجسر
+Bonta|بونتا
+Merba|ميربا
+Roshen|روشن
+Chtoura Garden|حدائق شتورة
+Al Shagawi|الشقاوي
+Flora|فلورا
+Teashop Marie|تي شوب ماري
+Breadberries|بريدبيريز
+Piccadeli|بيكاديلي
+Castania|كاستنيا
+Born Winner|بورن وينر
+Wai Wai|واي واي
+Wrigley's|ريجليز
+Ritter Sport|ريتر سبورت
+Jucina|جوسينا
+Haldiram's|هالديرام
+Wildalp|وايلد ألب
+Valor|فالور
+Ecuador|إكوادور
+Essential Everyday|إسينشال إيفري داي
+Leduc|ليدوك
+Castelijn|كاستلين
+Brain Blasterz|برين بلاسترز
+Bebeto|بيبيتو
+Crunchies|كرانشيز
+Krack Lite|كراك لايت
+Nabati|نباتي
+Nabati Siip|نباتي سيب
+Rana|رنا
+Biernacki|بيرناكي
+Al Oula|الأولى
+Kummanah|كمانة
+Nongshim|نونجشيم
+Pulmuone|بولموني
+Freshcourt|فريش كورت
+Meiji|ميجي
+Eggo|إيجو
+Forno Bonomi|فورنو بونومي
+Massel|ماسيل
+Herr's|هيرز
+Smucker's|سماكرز
+Signature Reserve|سيجنتشر ريزيرف
+The Premium Harvest|ذا بريميوم هارفيست
+Sante|سانتي
+Bragg|براج
+Boncafe|بونكافيه
+Shan|شان
+Daawat|داوات
+Laziza|لذيذة
+National|ناشونال
+Foster Clark's|فوستر كلاركس
+Green's|جرينز
+Grand Mills|المطاحن الكبرى
+Dole|دول
+Del Monte|ديل مونتي
+Puck|بوك
+Al Jameel|الجميل|Jameel
+Halwani Brothers|حلواني إخوان
+Sadia|ساديا
+Americana|أمريكانا|Americana Zingz
+Delices|ديليس
+Pez|بيز
+Hollinz|هولينز
+Mr Tito|مستر تيتو
+Vielle|فييل
+Regano|ريجانو
+Taste Of Al Reef|طعم الريف
+Atlas|أطلس
+Tak Tat|تاك تات
+Naqua|نقوا
+Zainah|زينة
+Daily Dairy|ديلي ديري
+Valbresso|فالبريسو|Valbreso
+Fragata|فراغاتا
+Olyana|أوليانا
+Al Reef|الريف
+Gulf Country Flavour|جلف كانتري فليفر
+Ritaj|ريتاج
+Eti|إتي|Darelo
+Al Fakherat|الفاخرات
+Kako|كاكو
+Golden Brown|جولدن براون
+Tayba|طيبة
+Macolate|ماكوليت
+Asmak|أسماك
+Little Moons|ليتل مونز
+Balparmak|بالبارماك
+Halwani Brothers|حلواني إخوان|Halawani Brothers
+Wadi Fatma|وادي فاطمة
+Zoi|زوي
+Chazey|تشازي
+Desperados|ديسبيرادوس
+Coffee Mate|كوفي ميت|Coffeemate
+Melitta|ميليتا|Melitta Cafe Bar
+Tchibo|تشيبو
+Food Makers|فود ميكرز
+Mackintosh|ماكنتوش
+Batook|باطوق
+Airwaves|إيرويفز
+Crispito|كريسبيتو
+Snubz|سنابز
+SunBites|صن بايتس
+Fairco|فيركو
+Nabil|نبيل
+Relish|ريليش
+Chiquilin|شيكيلين
+Loacker|لواكر|Loaker
+McVitie's|مكفتيز|Macvites
+Amada|أمادا
+Knoppers|كنوبرز
+Johnny Krocker|جوني كروكر
+Pezzullo|بيزولو
+Charminar|تشارمينار
+Abu Siouf|أبو سيوف
+Al Rajhi|الراجحي
+Al Muhaideb|المهيدب
+Taj Mahal|تاج محل
+Sasso|ساسو
+Gold Branch|جولد برانش
+Baidar|بيدر|Baldar
+Chtoura Garden|حدائق شتورة|Chtoura
+Zain|زين
+Friskies|فريسكيز
+Bess|بيس
+Purevet|بيورفيت
+Bibena|بيبينا
+Belvit|بيلفيت
+Pediasure|بيدياشور
+Blemil|بليميل
+Hero Baby|هيرو بيبي
+Hey Baby|هاي بيبي
+Zespri|زيسبري
+
+Copoliva|كوبوليفا
+Cheeseland|شيزالاند
+Omara|عمارة|Amara
+
+Belgian|بلجين|The Belgian

@@ -282,6 +282,8 @@ await test('expired evidence compacts to the serving projection and preserves li
     name_en: 'Milk', unit: 'L', package_type: 'bottle', attributes: ['fresh'],
     _arabic_builder: {
       status: 'BUILT', built_arabic: 'حليب', display_arabic: 'حليب',
+      product_title: {version:'dictionary-title-v1',name:'حليب',brand:{ar:'نادك',en:'Nadec'},
+        reviewRequired:false,unknown:[],evidence:['English reading'],corrections:['raw observation']},
       commerce_score_breakdown: { deliberately: 'large audit-only diagnostics' },
     },
   });
@@ -309,6 +311,10 @@ await test('expired evidence compacts to the serving projection and preserves li
   assert.equal(doc.package_type, 'bottle');
   assert.equal(doc._arabic_builder.status, 'BUILT');
   assert.equal(doc._arabic_builder.commerce_score_breakdown, undefined);
+  assert.equal(doc._arabic_builder.product_title.name, 'حليب');
+  assert.equal(doc._arabic_builder.product_title.brand.ar, 'نادك');
+  assert.equal(doc._arabic_builder.product_title.reviewRequired, false);
+  assert.equal(doc._arabic_builder.product_title.evidence, undefined);
   assert.equal(compact.identity_candidate, null);
   assert.equal(raw.prepare('SELECT extraction_json FROM offer_enrichments WHERE id=?').get(live).extraction_json, verbose);
   assert.equal(await store.compactExpiredEvidence('2026-07-20'), 0, 'compaction is idempotent');

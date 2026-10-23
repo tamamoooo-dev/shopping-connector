@@ -107,7 +107,8 @@ test('canonicalAisle: unknown/null/foreign-source degrade to other, never throw'
 
 test('providerCategoriesFor inverts the mapping', () => {
   const inv = providerCategoriesFor(['tissues']);
-  assert.equal(inv.length, 1);
+  assert.equal(inv.length, 2);
+  assert.deepEqual(inv.find(row=>row.source==='knowledge').categories,['tissues']);
   assert.equal(inv[0].source, 'd4d');
   assert.deepEqual(inv[0].categories.sort(), ['facial-tissue', 'toilet-paper-tissue']);
 });
