@@ -54,7 +54,7 @@ const noodles={name:'Indomie Instant Noodles',price:15.99};
 applyUnitPrice(noodles,{e_size:'5 x 70/75/80g',e_sale:{version:'sale-reading-v1',status:'matched',price:15.99,count:3,text:'3 PCS',package_size:'5 x 70/75/80g'}});
 assert.equal(noodles.unitPrice,null,'Alternative inner weights cannot become a single chosen denominator');
 assert.equal(noodles.saleQuantity.count,3);assert.equal(noodles.saleQuantity.packagePrice,5.33);
-assert.equal(noodles.quantityReviewRequired,true);
+assert.equal(noodles.quantityReviewRequired,false,'Explicitly price-bound alternatives are documented choices, not an extraction failure');
 assert.equal(hasAmbiguousSizeOptions('1kg / 1000g'),false);
 assert.equal(hasAmbiguousSizeOptions('0.5L / 500ml'),false);
 assert.equal(hasAmbiguousSizeOptions('5 x 70/75/80g'),true);

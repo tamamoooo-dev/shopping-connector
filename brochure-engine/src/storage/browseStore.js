@@ -1,5 +1,6 @@
 import { AISLES } from '../browse/taxonomy.js';
 import { saleObservationSql } from '../offers/saleObservation.js';
+import { priceSizeContextSql } from '../offers/priceSizeAssociation.js';
 // storage/browseStore.js — the Browse read layer behind a narrow interface,
 // backed by D1 (the same database as offers/price history — Browse is a VIEW
 // over the existing substrate, it owns no tables of its own).
@@ -104,6 +105,7 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
     json_extract(e.extraction_json, '$.unit') AS e_unit,
     ${corroboratedPackCountSql()} AS e_pack_count,
     ${saleObservationSql()} AS e_sale,
+    ${priceSizeContextSql()} AS e_price_context,
     json_extract(e.extraction_json, '$._arabic_builder.product_title') AS e_product_title,
     json_extract(e.extraction_json, '$.package_type') AS e_package_type`;
   const markNames = `(ifnull(${CANON_NAME_SQL},'') || ' ' || ifnull(${canonicalNameAr},''))`;

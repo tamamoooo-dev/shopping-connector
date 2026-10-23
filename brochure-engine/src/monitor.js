@@ -1340,13 +1340,13 @@ export function watchTarget(watch, anchor) {
 
 // A listing-shaped view of a flyer offer row, so ONE extractor serves both
 // sources. The engine never grows a second way to read a product.
-function offerAsListing(offer, row = {}) {
+export function offerAsListing(offer, row = {}) {
   return {
     id: offer.id,
     name: offer.name || offer.nameAr || '',
     nameAr: offer.nameAr || null,
     brand: row.e_brand || null,
-    size: row.e_size || null,
+    size: offer.size ?? null,
     price: offer.price,
     currency: offer.currency || 'SAR',
     link: offer.link || null,

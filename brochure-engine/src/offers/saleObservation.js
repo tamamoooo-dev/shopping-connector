@@ -3,6 +3,7 @@
 export const SALE_READING_VERSION = 'sale-reading-v1';
 import { repairArabicCaption } from '../lexicon/arabicCaptionRepair.js';
 import { parsePackageSize } from '../lexicon/packageSize.js';
+import { legacyPriceSizeConflict } from './priceSizeAssociation.js';
 
 const digits = value => String(value ?? '').replace(/[٠-٩۰-۹]/gu, d =>
   String(d.codePointAt(0) >= 0x6f0 ? d.codePointAt(0) - 0x6f0 : d.codePointAt(0) - 0x660));
@@ -19,9 +20,12 @@ const cents = value => typeof value === 'number' && Number.isFinite(value) && va
 
 export function selectSaleObservation(observation, offer = {}) {
   const output = observation?.parsedObject;
-  if (!Array.isArray(output?.sale_options)) return observation;
+  const hasOptions=Array.isArray(output?.sale_options);
+  const sourceContext={price:offer.price,size:output?.package_size ?? output?.size,
+    packageType:output?.package_type ?? output?.unit,text:offer.search_text ?? offer.searchText};
+  if (!hasOptions && !legacyPriceSizeConflict(sourceContext)) return observation;
   const price = cents(offer.price);
-  const options = output.sale_options.filter(o => price != null && cents(o?.current_price) === price);
+  const options = (output.sale_options || []).filter(o => price != null && cents(o?.current_price) === price);
   const signatures = new Set(options.map(o => JSON.stringify([o.package_size ?? null, o.sale_count ?? null, o.sale_count_text ?? null])));
   const option = signatures.size === 1 ? options[0] : null;
   const count = option?.sale_count;
@@ -44,6 +48,8 @@ export function selectSaleObservation(observation, offer = {}) {
       quantity: output.quantity ?? output.pack_count ?? null,
     },
   };
+  const conflict=legacyPriceSizeConflict({...sourceContext,sale:hasOptions?sale:null});
+  if (conflict) Object.assign(sale,{status:'ambiguous',count:null,text:null,package_size:null,reason:conflict.reason});
   const parsedObject = { ...output, _sale: sale };
   // Sizes have their own validated field. A second, mistranscribed numeric
   // suffix in the Arabic caption must not contradict that field on the card.
@@ -56,10 +62,10 @@ export function selectSaleObservation(observation, offer = {}) {
     }).replace(/\s+/gu, ' ').trim();
   }
   // This selected size still passes the normal source-local size validator.
-  if (sale.package_size) {
-    parsedObject.package_size = sale.package_size;
-    delete parsedObject.size;
-  }
+  // A null size on the selected price means unknown. The general caption's
+  // size may belong to another price and must never fill this gap.
+  parsedObject.package_size = sale.package_size;
+  delete parsedObject.size;
   // An internal count next to a TOTAL weight must never multiply that weight.
   // Complete internal multipacks already carry their multiplier in size.
   parsedObject.quantity = null;

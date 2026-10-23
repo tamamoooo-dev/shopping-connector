@@ -255,10 +255,15 @@ export function parseVisionObject(text) {
 
 export function validateVisionOutput(output, { usable = true, error = null } = {}) {
   const objectOk = usable && output && typeof output === 'object' && !Array.isArray(output);
+  const sale = output?._sale?.version==='sale-reading-v1' ? output._sale : null;
   const candidates = Object.fromEntries(EXTRACTION_FIELDS.map((field) => [
     field,
     objectOk ? readObservationField(output, field) : null,
   ]));
+  if (sale) {
+    candidates.size=sale.status==='matched'?sale.package_size:null;
+    candidates.pack_count=null;
+  }
   const fields = Object.fromEntries(
     EXTRACTION_FIELDS.map((field) => [field, fieldDecision(field, candidates[field], objectOk, 'Vision')]),
   );
@@ -274,7 +279,7 @@ export function validateVisionOutput(output, { usable = true, error = null } = {
       };
     }
   }
-  const packEvidence = visiblePackEvidence(candidates);
+  const packEvidence = visiblePackEvidence(sale ? {...candidates,name_en:null,name_ar:null} : candidates);
   if ((fields.pack_count.status !== 'Accepted' && packEvidence)
       || (fields.pack_count.status === 'Accepted' && packEvidence?.field !== 'pack_count')) {
     fields.pack_count = {
@@ -652,7 +657,14 @@ export function finalizeValidatedExtraction({
   humanReview = null,
 } = {}) {
   const selectedStrategy = normalizeExtractionStrategy(strategy);
-  const machineMerge = mergeValidatedExtractions(visionValidation, ocrValidation);
+  const sale = visionOutput?._sale?.version==='sale-reading-v1' ? visionOutput._sale : null;
+  // A generic OCR caption cannot fill a price-specific quantity gap. Rejudge
+  // saved validations too: older rules recovered carton counts from names.
+  const priceScopedVision = sale ? validateVisionOutput(visionOutput) : visionValidation;
+  const priceScopedOcr = sale ? {...ocrValidation,fields:{...ocrValidation.fields,
+    ...Object.fromEntries(['size','pack_count'].map(field=>[field,{...ocrValidation.fields[field],
+      status:'Missing',value:null,reasons:['OCR quantity has no selected-price association']}]))}} : ocrValidation;
+  const machineMerge = mergeValidatedExtractions(priceScopedVision, priceScopedOcr);
   // The review sits ON TOP of the machine merge and never inside it (P2): the
   // machine rungs' conflict handling, including OCR-vs-Vision immutability, has
   // already run and is left exactly as it was.

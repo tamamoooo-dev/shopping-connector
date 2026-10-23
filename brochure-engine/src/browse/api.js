@@ -67,7 +67,7 @@ function cardDoc(row, today) {
     pageIndex: row.page_index,
     navigationProvenance: row.navigation_provenance ?? null,
     edition: row.edition,
-    name: observedText(row.name),
+    name: observedText(priced.name),
     nameAr: observedText(priced.nameAr),
     ...(priced.productTitleVersion ? { productTitleVersion: priced.productTitleVersion,
       nameReviewRequired: priced.nameReviewRequired, brandNameAr: priced.brandNameAr, brandNameEn: priced.brandNameEn } : {}),

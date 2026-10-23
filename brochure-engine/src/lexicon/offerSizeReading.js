@@ -80,6 +80,10 @@ function printedDimensions(raw) {
 // outranks language: a valid selected sale size cannot be replaced by a size
 // from a differently-priced carton mentioned in the title.
 export function resolveOfferSize({size,nameEn,nameAr,sale,nonGrocery=false}={}) {
+  if (sale) {
+    if (sale.status!=='matched' || !sale.package_size) return null;
+    size=sale.package_size;
+  }
   const context=`${nameEn||''} ${nameAr||''}`;
   const diaper=/\b(?:diapers?|nappies|nappy)\b|حفاض|حفاظ/iu.test(context)
     && !/\bdiaper(?:\s+rash)?\s+(?:cream|ointment|lotion|balm|oil)\b|(?:كريم|مرهم|لوشن).{0,20}حفاض/iu.test(context);
@@ -89,12 +93,12 @@ export function resolveOfferSize({size,nameEn,nameAr,sale,nonGrocery=false}={}) 
     const candidate=fromName(nameEn,'english_body_fit',nonGrocery) || fromName(nameAr,'arabic_body_fit',nonGrocery);
     if (candidate?.options.some(o=>o.canonical.unit==='g') && /kg|كجم|كغ|كيلو/iu.test(candidate.value)) fit=candidate;
   }
-  // Sizes printed as alternatives in the English name ("(1L) / (900ml)") are
-  // one assorted offer at one price; the field often kept only one of them.
+  // Without a price-specific option, retain alternatives for DISPLAY only.
+  // A selected option must not absorb sizes belonging to another price.
   // A "+" is a bundle or bonus, never a choice; a merged OCR number
   // (150170/180g) is not a size the shopper can buy. Each alternative must
   // print its own unit: "Cashew W 180/ 500g" is a grade beside one size.
-  if (field && !field.assorted && !diaper && field.canonical && !/\+/u.test(String(nameEn || ''))) {
+  if (!sale && field && !field.assorted && !diaper && field.canonical && !/\+/u.test(String(nameEn || ''))) {
     const listed = fromName(nameEn, 'english_name', nonGrocery);
     const same = o => o.canonical.unit === field.canonical.unit && o.canonical.pack === field.canonical.pack
       && Math.abs(o.canonical.total - field.canonical.total) < 1e-6;
@@ -121,14 +125,24 @@ export function resolveOfferSize({size,nameEn,nameAr,sale,nonGrocery=false}={}) 
   if (reading && resolvePriceBasis({size}).status==='RESOLVED') reading.priceBasisInput=size;
   const basis=resolvePriceBasis({size,name:nameEn,text:nameAr,sizeResolved:true});
   if (reading && basis.status==='RESOLVED') reading.priceBasisText=[size,nameEn,nameAr].filter(Boolean).join(' ');
+  if (reading && sale) reading.priceAssociation={status:'matched',price:sale.price,source:'sale_option'};
   return reading;
 }
 
 export function sizeOptionPrices(reading, price, saleCount=1) {
   if (!reading?.assorted || !(price>0) || !(saleCount>0)) return [];
+  if (reading.priceAssociation?.status!=='matched'
+    || Math.round(reading.priceAssociation.price*100)!==Math.round(price*100)) return [];
   return reading.options.map(option=>{
     const c=option.canonical, quantity=c.total*saleCount;
     const unit=c.unit==='g'?'kg':c.unit==='ml'?'l':'piece';
     return {...option,saleCount,range:reading.kind==='range',unitPrice:{value:price/(quantity/(['g','ml'].includes(c.unit)?1000:1)),unit}};
   });
+}
+
+// Unbound quantities may remain in a legacy verbatim caption. Remove them
+// from the served name too, while leaving stored readings/evidence untouched.
+export function withoutUnboundSizes(name) {
+  return digits(name).replace(expression,'').replace(/\(\s*\)/gu,'')
+    .replace(/\s+/gu,' ').replace(/[\s,،;·]+$/gu,'').trim();
 }

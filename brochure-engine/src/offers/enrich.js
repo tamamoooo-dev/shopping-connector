@@ -3,7 +3,8 @@ import { saleUnitKind, hasAmbiguousSizeOptions } from './saleUnit.js';
 import { observedText } from '../observedText.js';
 import { selectSaleObservation, readSaleObservation } from './saleObservation.js';
 import { dictionaryProductTitle, applyProductTitle } from '../lexicon/productTitle.js';
-import { resolveOfferSize, sizeOptionPrices } from '../lexicon/offerSizeReading.js';
+import { resolveOfferSize, sizeOptionPrices, withoutUnboundSizes } from '../lexicon/offerSizeReading.js';
+import { legacyPriceSizeConflict } from './priceSizeAssociation.js';
 // offers/enrich.js — VISION ENRICHMENT for debris-name offers (spike, 2026-07-18).
 //
 // ~3% of ingested offers arrive with OCR text so mangled that deriveNames
@@ -224,10 +225,28 @@ export function applyEnrichment(offer, row) {
 // mirrors can be compared field by field, and so a caller holding a row without
 // enrichment columns still gets a correct (empty) answer rather than a throw.
 export function applyUnitPrice(offer, row, isServable = true) {
+  const storedSale = isServable ? readSaleObservation(row?.e_sale, offer.price) : null;
+  const conflict = isServable ? legacyPriceSizeConflict({price:offer.price,
+    size:offer.sizeReading?.value || row?.e_size, packageType:row?.e_package_type || row?.e_unit,
+    text:row?.e_price_context || row?.search_text,sale:storedSale}) : null;
+  const sale = conflict ? {version:'sale-reading-v1',status:'ambiguous',price:offer.price,
+    count:null,package_size:null} : storedSale;
+  const unboundSize = !!sale && (sale.status!=='matched' || !sale.package_size);
+  if (sale?.status==='matched' && sale.package_size) {
+    offer.sizeReading=resolveOfferSize({size:sale.package_size,nameEn:offer.name,nameAr:offer.nameAr,
+      sale,nonGrocery:isNonGrocery(offer.category ?? row?.category)});
+  } else if (unboundSize) {
+    offer.sizeReading=null; offer.sizeDisplayAr=null; offer.sizeDisplayEn=null;
+    offer.sizeOptions=[]; offer.assortedSizes=false;
+    if (!isNonGrocery(offer.category ?? row?.category)) {
+      offer.name=withoutUnboundSizes(offer.name); offer.nameAr=withoutUnboundSizes(offer.nameAr);
+    }
+  }
   // Only a SERVABLE reading may contribute its size/unit: an unservable
   // enrichment is one the vision-canonical gate already refused to display, and
   // a unit price derived from a name we will not show is not evidence.
-  const size = isServable ? (offer.sizeReading?.priceBasisInput ?? offer.sizeReading?.value ?? row?.e_size ?? null) : null;
+  const size = isServable && !unboundSize
+    ? (sale?.package_size ?? offer.sizeReading?.priceBasisInput ?? offer.sizeReading?.value ?? row?.e_size ?? null) : null;
   const unit = isServable ? (row?.e_unit ?? null) : null;
   // `offer.name` is ALREADY the canonical display name — the caller overlaid the
   // vision reading above when servable, and left the OCR name otherwise. Reading
@@ -240,12 +259,11 @@ export function applyUnitPrice(offer, row, isServable = true) {
   // how the gate and the pricer came to disagree about a "40's" tissue pack.
   // Asking the same question in the same place makes that class of drift
   // unrepresentable.
-  const sale = isServable ? readSaleObservation(row?.e_sale, offer.price) : null;
   const inputs = {
     // A known assortment supplies its alternatives below, not one package
     // magnitude. The independent printed price basis can still resolve here.
     size: offer.sizeReading?.assorted ? null : size,
-    name: offer.sizeReading?.assorted || (sale && size) ? null : name,
+    name: offer.sizeReading?.assorted || sale ? null : name,
     unit,
     // The retailer's own bilingual text, where 899 live offers state the basis
     // and nothing else does.
@@ -274,7 +292,8 @@ export function applyUnitPrice(offer, row, isServable = true) {
 
   offer.size = countedSize || size;
   offer.saleQuantity = null;
-  offer.quantityReviewRequired = false;
+  offer.quantityReviewRequired = unboundSize;
+  offer.quantityReviewReason = unboundSize ? (conflict?.reason || sale.reason || 'size_not_bound_to_selected_price') : null;
   if (sale) {
     if (sale.status !== 'matched') {
       quantity = { ...quantity, reference: null };
@@ -300,6 +319,7 @@ export function applyUnitPrice(offer, row, isServable = true) {
   // e.g. 3 offers of (5 x 70/75/80g) cannot be priced as three 80g pieces.
   // The sale count and its per-sale-item price remain independently valid.
   const printedBasis=quantity.evidence===COMPARABLE_QUANTITY_EVIDENCE.PRICE_BASIS;
+  if (unboundSize && !printedBasis) quantity={...quantity,reference:null};
   if (!printedBasis && (offer.sizeReading?.assorted || hasAmbiguousSizeOptions(size))) {
     quantity = { ...quantity, reference: null };
     if (!offer.sizeReading?.assorted) offer.quantityReviewRequired = true;
@@ -492,12 +512,12 @@ export const PRODUCTION_EXTRACTION_BASELINE = Object.freeze({
 export { ENRICHMENT_VISION_PROMPT } from './enrichmentPrompt.js';
 import { ENRICHMENT_VISION_PROMPT } from './enrichmentPrompt.js';
 export const ENRICHMENT_READING_BASELINE = Object.freeze({
-  adoptedOn: '2026-10-22',
+  adoptedOn: '2026-10-23',
   model: DEFAULT_MODEL,
-  method: 'bilingual-caption-sale-options-v1',
-  promptSha256: '9a07db2363cd94489460ecb6a2664a9b42a25dc9ee2cde2e8ead1b1650851215',
+  method: 'bilingual-caption-price-bound-sizes-v2',
+  promptSha256: '95dd69b2ea19f8e06f9875c35068292d97dd07faf35c6c058fca82aa362bacca',
   requestsPerCrop: 1,
-  record: 'benchmarks/reading-quality-2026-10-22/REPORT.md',
+  record: 'benchmarks/price-size-association-2026-10-23/REPORT.md',
 });
 
 // bytes -> base64 without Buffer. Current Workers provide the native
@@ -875,6 +895,8 @@ function identityFromExtraction(result, mode, extracted = result.extraction) {
 // expose.
 export function productKnowledge(extracted, observation, commerceContext = {}) {
   extracted = canonicalExtraction(extracted);
+  const sale=observation?._sale;
+  if (sale) extracted={...extracted,size:sale.status==='matched'?sale.package_size:null};
   const sizeReading=resolveOfferSize({size:extracted.size,
     nameEn:observation?._sale?.original?.name_en || extracted.productName,
     nameAr:observation?._sale?.original?.name_ar || extracted.arabicName,
@@ -886,7 +908,7 @@ export function productKnowledge(extracted, observation, commerceContext = {}) {
     size: sizeReading?.priceBasisInput || sizeReading?.value || extracted.size,
     size_reading: sizeReading,
     pack_count: observation?._sale ? null : extracted.packCount,
-    size_authoritative: observation?._sale?.status === 'matched' && !!(sizeReading || extracted.size),
+    size_authoritative: !!sale,
     // Expanded JSON fields (§44) that until now nothing read.
     package_type: observation?.package_type ?? null,
     attributes: observation?.attributes ?? null,
@@ -922,12 +944,17 @@ export function canonicalRowFromResult(offerId, crop, result, {
   enrichedAt = new Date().toISOString(),
   commerceContext = {},
 } = {}) {
-  const extracted = canonicalExtraction(result.extraction);
+  let extracted = canonicalExtraction(result.extraction);
+  const observation = preservedObservation(result?.diagnostics?.visionOutput);
+  const sale=observation?._sale;
+  const unboundSize=!!sale && (sale.status!=='matched' || !sale.package_size);
+  if (unboundSize) extracted={...extracted,size:null,packCount:null,
+    ...(!isNonGrocery(commerceContext.category) ? {productName:withoutUnboundSizes(extracted.productName),
+      arabicName:withoutUnboundSizes(extracted.arabicName)} : {})};
   const hasName = !!(extracted.productName || extracted.arabicName);
   const identity = hasName
     ? identityFromExtraction(result, identityNormalizationMode, extracted)
     : null;
-  const observation = preservedObservation(result?.diagnostics?.visionOutput);
   const knowledge = productKnowledge(extracted, observation, commerceContext);
   return {
     id: offerId,
@@ -949,7 +976,7 @@ export function canonicalRowFromResult(offerId, crop, result, {
     structured_product: knowledge.structuredProduct,
     arabic_name: knowledge.arabicName,
     arabic_builder: knowledge.arabicBuilder,
-    identity_candidate: knowledge.sizeReading?.assorted && identity?.identityCandidate
+    identity_candidate: (unboundSize || knowledge.sizeReading?.assorted) && identity?.identityCandidate
       ? {...identity.identityCandidate,size:null,count:null} : identity?.identityCandidate ?? null,
     identityDiagnostics: identity?.diagnostics ?? null,
     // Brand Lexicon (HISTORY §45): the canonical brand identity for the brand
