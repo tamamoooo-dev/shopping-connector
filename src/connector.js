@@ -47,6 +47,7 @@ function json(body, status = 200, extraHeaders = {}) {
 async function runProvider(provider, query, options = {}) {
   const failures = [];
   let answered = null;
+  let blocked = 0;
   for (const strategy of provider.strategies) {
     try {
       const results = await strategy.run(query, options);
@@ -56,12 +57,18 @@ async function runProvider(provider, query, options = {}) {
       answered = answered || strategy.name;
       failures.push(`${strategy.name}: no results`);
     } catch (err) {
+      if (err.blocked) blocked += 1;
       failures.push(`${strategy.name}: ${err.message}`);
     }
   }
   if (answered) return { strategy: answered, results: [], empty: true, failures };
-  const error = new Error('No strategy returned results.');
+  const error = new Error(blocked === provider.strategies.length
+    ? `${provider.label || provider.id} refuses automated requests.`
+    : 'No strategy returned results.');
   error.failures = failures;
+  // Every way in was refused by the store itself (not a timeout, not a bug):
+  // asking again soon will not help, so callers stop retrying.
+  error.blocked = blocked === provider.strategies.length;
   throw error;
 }
 
@@ -140,9 +147,11 @@ export async function handleRequest(request, registry) {
     }
     return json({ provider: provider.id, query, strategy, count: window.length, results: window });
   } catch (err) {
+    // 403 + blocked: the store refuses this server (Lulu's firewall turns away
+    // every request from a Cloudflare Worker, 2026-11-03); 502: it failed.
     return json(
-      { provider: providerId, query, error: err.message, failures: err.failures || [] },
-      502,
+      { provider: providerId, query, error: err.message, failures: err.failures || [], ...(err.blocked ? { blocked: true } : {}) },
+      err.blocked ? 403 : 502,
     );
   }
 }

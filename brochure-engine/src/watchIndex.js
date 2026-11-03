@@ -56,6 +56,10 @@ import {
 } from './watchValue.js';
 
 export const VALUE_PROVIDERS = ['panda', 'tamimi', 'danube', 'lulu', 'ninja', 'amazon', 'noon'];
+// A store that refuses the connector outright (403 + blocked). Not retried
+// within a round, never holds a round back; asked again next round, so it
+// returns by itself the day the store lets the connector in.
+const STATE_BLOCKED = 'blocked';
 export const VALUE_SEARCH_LIMIT = 50;
 export const VALUE_UNIT_LABEL = 'per-item';
 // Rounds judge at most one batch of new listings; the index pass up to three.
@@ -190,6 +194,7 @@ async function searchStores(ctx, stores, queries, notes) {
     let answered = 0;
     let listed = 0;
     let lastError = null;
+    let blocked = false;
     const ask = async (query) => {
       const results = await ctx.searchClient.search(store, query, VALUE_SEARCH_LIMIT, { wide: true });
       for (const result of (results || []).slice(0, VALUE_SEARCH_LIMIT)) {
@@ -208,6 +213,12 @@ async function searchStores(ctx, stores, queries, notes) {
         answered += 1;
       } catch (err) {
         lastError = err?.message || String(err);
+        // The store refuses the connector itself (Lulu, 2026-11-03): the
+        // other queries would be refused the same way.
+        if (err?.blocked && !answered) {
+          blocked = true;
+          break;
+        }
       }
     }
     // Tamimi now and then answers a search with an empty page that a retry
@@ -222,7 +233,9 @@ async function searchStores(ctx, stores, queries, notes) {
       }
       blank = listed === 0;
     }
-    status[store] = blank
+    status[store] = blocked
+      ? { state: STATE_BLOCKED, error: lastError }
+      : blank
       ? { state: 'partial', blank: true, error: lastError || 'every search came back empty' }
       : answered === queries.length
         ? { state: 'ok' }
@@ -602,7 +615,7 @@ export async function checkValueWatch(ctx, watch, {
   const roundStartIso = sameRound ? indexInfo.round.startedAt : nowIso;
   const priorStatus = sameRound ? indexInfo.round.status || {} : {};
   const retryStores = sameRound
-    ? VALUE_PROVIDERS.filter((s) => priorStatus[s]?.state !== STATE_OK)
+    ? VALUE_PROVIDERS.filter((s) => ![STATE_OK, STATE_BLOCKED].includes(priorStatus[s]?.state))
     : VALUE_PROVIDERS;
 
   const sweep = await sweepValueWatch(ctx, watch, {
@@ -647,16 +660,25 @@ export async function checkValueWatch(ctx, watch, {
     .filter((r) => r.verdict === VERDICT.MATCH && r.source === 'online').map((r) => r.store));
   const requiredFailed = [...matchedStores].filter((s) => status[s]?.state === 'failed');
   // Every store down (the connector itself, say) answers nothing at all.
-  if (VALUE_PROVIDERS.every((s) => status[s]?.state === 'failed')) {
+  if (VALUE_PROVIDERS.every((s) => ['failed', STATE_BLOCKED].includes(status[s]?.state))) {
     for (const s of VALUE_PROVIDERS) if (!requiredFailed.includes(s)) requiredFailed.push(s);
   }
   const roundInfo = { key: roundKey || `${mode}:${nowIso}`, startedAt: roundStartIso, status };
+  // The verdict counts are the whole index's: a retry inside a round sweeps
+  // only the stores that failed, so its own counts cover just those (the
+  // 2026-11-03 07:00 round's Amazon retry read "1 verified" for 23).
+  const verdictCount = (verdict) => [...allRows.values()].filter((r) => r.verdict === verdict).length;
   const indexJson = {
     ...indexInfo,
     v: reference.v,
     lastSweepAt: nowIso,
     mode,
-    counts: sweep.counts,
+    counts: {
+      ...sweep.counts,
+      matched: verdictCount(VERDICT.MATCH),
+      pending: verdictCount(VERDICT.PENDING),
+      rejected: verdictCount(VERDICT.REJECT),
+    },
     stores: Object.fromEntries(Object.entries(status).map(([s, v]) => [s, v.state])),
     storeErrors: Object.fromEntries(Object.entries(status).filter(([, v]) => v.error).map(([s, v]) => [s, String(v.error).slice(0, 120)])),
     sizeChoices: sweep.sizeChoices,
@@ -893,6 +915,7 @@ export function valueWatchSummary(watch) {
     pending: index.counts?.pending ?? null,
     storesAnswered: Object.entries(stores).filter(([s, v]) => s !== 'flyers' && v === 'ok').map(([s]) => s),
     storesFailed: Object.entries(stores).filter(([s, v]) => s !== 'flyers' && v === 'failed').map(([s]) => s),
+    storesBlocked: Object.entries(stores).filter(([s, v]) => s !== 'flyers' && v === STATE_BLOCKED).map(([s]) => s),
     sizeChoices: index.sizeChoices || null,
     best: deal.best || null,
   };

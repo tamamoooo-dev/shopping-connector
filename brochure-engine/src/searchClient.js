@@ -10,6 +10,19 @@ function searchUrl(root, provider, query, limit, { wide = false } = {}) {
   return `${root}/search?provider=${encodeURIComponent(provider)}&q=${encodeURIComponent(query)}&limit=${n}${wide ? '&wide=1' : ''}`;
 }
 
+// A failed search. `blocked`: the store itself refused the connector (it
+// answered 403 with `blocked: true`) — asking again in the same round will
+// not help, unlike a timeout or a 502.
+async function searchError(provider, res) {
+  const body = await res.json().catch(() => ({}));
+  const blocked = res.status === 403 && body?.blocked === true;
+  const err = new Error(blocked
+    ? `search ${provider} -> blocked by the store (HTTP 403)`
+    : `search ${provider} -> HTTP ${res.status}`);
+  err.blocked = blocked;
+  return err;
+}
+
 export function createServiceBindingSearchClient({
   connector,
   origin = 'https://shopping-connector.internal',
@@ -20,7 +33,7 @@ export function createServiceBindingSearchClient({
   return {
     async search(provider, query, limit = 50, options = {}) {
       const res = await connector.fetch(searchUrl(origin, provider, query, limit, options));
-      if (!res.ok) throw new Error(`search ${provider} -> HTTP ${res.status}`);
+      if (!res.ok) throw await searchError(provider, res);
       const body = await res.json().catch(() => ({}));
       return body.results || [];
     },
@@ -42,7 +55,7 @@ export function createHttpSearchClient(base) {
   return {
     async search(provider, query, limit = 50, options = {}) {
       const res = await fetch(searchUrl(root, provider, query, limit, options));
-      if (!res.ok) throw new Error(`search ${provider} -> HTTP ${res.status}`);
+      if (!res.ok) throw await searchError(provider, res);
       const body = await res.json().catch(() => ({}));
       return body.results || [];
     },

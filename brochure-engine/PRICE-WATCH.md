@@ -66,6 +66,27 @@ Only `match` + size-verified + in stock + seen this round can price a watch or
 alert. A store that did not answer proves nothing: its listings are neither
 missing nor above target, and it cannot end a deal.
 
+### Store states, per sweep
+
+| State | Meaning | Within the round | Holds the round? |
+|---|---|---|---|
+| `ok` | every query answered | done | — |
+| `partial` | some queries failed, or every search came back blank (Tamimi) | retried | no |
+| `failed` | nothing answered (timeout, 5xx) | retried every minute | only if the store holds a verified online listing |
+| `blocked` | the store refuses the connector itself (403 + `blocked`) | **not** retried; asked with one query only | never |
+
+**Lulu is `blocked` (2026-11-03).** Lulu's Cloudflare firewall answers every
+request from a Cloudflare Worker with 403 "Attention Required", even
+`robots.txt`. The same request from a home connection gets 200, and its API
+refuses cross-origin browser calls too. That is the store's bot protection;
+**it is not to be worked around** (no proxies, no residential relays). Lulu
+online is asked once per round, so it comes back by itself the day Lulu lets
+the Worker in. Lulu's prices still arrive through its weekly flyers.
+
+The verdict counts in `index_json.counts` (what the card's "Tracking N" reads)
+are counted over the whole index, not over the last sweep: a retry inside a
+round sweeps only the failed stores.
+
 ## A3. The judge
 
 - Model `ministral-14b-2512` (the one-model policy), temperature 0, batches of
@@ -117,7 +138,8 @@ title plain Sprite "بنكهة الليمون والليمون الأخضر".
 5. A conflict rule ships only with 0 vetoes on the true listings and the twin
    pairs of the benchmark.
 6. A store that did not answer tells nothing; a store that never had the
-   product cannot block a round.
+   product cannot block a round; a store that refuses us is `blocked`, not
+   retried, and never bypassed.
 7. One deal, one alert.
 8. An assortment price is never a match by rule or by judge.
 

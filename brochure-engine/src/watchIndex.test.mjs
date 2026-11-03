@@ -10,7 +10,7 @@ import { handleRequest } from './engine.js';
 import { buildWatch, checkWatch } from './monitor.js';
 import { createMemoryWatchStore } from './storage/local.js';
 import { createMemoryWatchListingStore } from './storage/watchListingStore.js';
-import { checkValueWatch, indexDueWatches, watchListingsView } from './watchIndex.js';
+import { checkValueWatch, indexDueWatches, valueWatchSummary, watchListingsView } from './watchIndex.js';
 import { normalizeText } from './matching.js';
 
 let passed = 0;
@@ -484,6 +484,45 @@ const sameLine = (listing) => {
   eq([row.verdict, row.verdictBy], ['pending', 'assortment'], 'an assortment is unsure, overriding the earlier "yes"');
   eq(s.judgeCalls.length, 0, 'and never reaches the judge');
   ok(!line.alerted, 'so its 4.25 a tin never alerts');
+}
+
+// --- 12. A store that refuses the connector (Lulu, 2026-11-03) ----------------------
+// Lulu's firewall answers every Worker request with 403. That is "blocked", not
+// "did not answer": asked once per round (it comes back by itself), never
+// retried inside the round, never holding a round back.
+
+{
+  const catalog = tendrinaCatalog();
+  catalog.lulu = Object.assign(new Error('search lulu -> blocked by the store (HTTP 403)'), { blocked: true });
+  catalog.ninja = new Error('search ninja -> HTTP 502');
+  const s = await setup({
+    provider: 'danube', productId: '2674', query: 'تندرينا تونة',
+    label: 'تندرينا تونة قطع خفيفة بزيت دوار الشمس 80 جرام', targetPrice: 6,
+  }, catalog, sameLine);
+  const line = await checkValueWatch(s.ctx, await s.get(), { roundKey: 'blocked-am', now: t0 });
+  ok(line.alerted, 'a blocked store does not hold the round back');
+  eq(s.m.calls.filter((c) => c.store === 'lulu').length, 1, 'the blocked store is asked once, not once per search phrase');
+  const index = JSON.parse((await s.get()).indexJson);
+  eq([index.stores.lulu, index.stores.ninja], ['blocked', 'failed'], 'blocked and failed are told apart');
+  const summary = valueWatchSummary(await s.get());
+  eq([summary.storesBlocked, summary.storesFailed], [['lulu'], ['ninja']], 'the watch list says which is which');
+  const matched = index.counts.matched;
+  ok(matched >= 2, 'the index holds the verified listings');
+
+  // Ninja comes back: the retry inside the round asks only Ninja, and the
+  // counts still describe the whole index, not the retry.
+  s.m.catalog.ninja = [];
+  s.m.calls.length = 0;
+  await checkValueWatch(s.ctx, await s.get(), { roundKey: 'blocked-am', now: t0 });
+  const retried = new Set(s.m.calls.map((c) => c.store));
+  ok(retried.has('ninja') && !retried.has('lulu'), 'the retry re-asks the failed store, never the blocked one');
+  ok(!retried.has('danube') && !retried.has('panda'), 'nor the stores that answered');
+  eq(JSON.parse((await s.get()).indexJson).counts.matched, matched, 'a retry keeps the counts of the whole index');
+
+  // The next round asks Lulu again, so it returns the day Lulu lets us in.
+  s.m.catalog.lulu = [{ id: 'l1', name: 'تندرينا تونة قطع خفيفة بزيت دوار الشمس 80 جرام', price: 5.5 }];
+  await checkValueWatch(s.ctx, await s.get(), { roundKey: 'blocked-pm', now: at(12) });
+  eq(JSON.parse((await s.get()).indexJson).stores.lulu, 'ok', 'a store that lets us back in is tracked again');
 }
 
 console.log(`watchIndex.test: ${passed} passed, 0 failed`);
