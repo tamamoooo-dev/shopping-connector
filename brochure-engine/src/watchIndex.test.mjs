@@ -670,4 +670,61 @@ const sameLine = (listing) => {
   ok(html.includes(String.raw`/^\/watches\/observe\?[\w=&%.~-]*$/`), '… and forwarding only the observe calls');
 }
 
+// --- 15. "N to confirm" is the owner's questions; the checker's backlog drains ---------
+// 2026-11-03: the Uno watch read "137 to confirm" when 144 listings were only
+// waiting for the checker (its first pass judged its 60, rounds judge 20).
+
+{
+  const TIN = 'تندرينا تونة قطع خفيفة بزيت دوار الشمس 80 جرام';
+  const others = (from, n) => Array.from({ length: n }, (_, i) => ({
+    id: `x${from + i}`, name: `تندرينا تونة قطع خفيفة رقم ${from + i} 80 جم`, price: 4 + i / 100,
+  }));
+  const s = await setup({
+    provider: 'danube', productId: '2674', query: 'تندرينا تونة', label: TIN, targetPrice: 3,
+  }, {
+    danube: [{ id: '2674', name: TIN, price: 5.99 }],
+    // A store answers at most 50 per query (VALUE_SEARCH_LIMIT): 70 over two.
+    panda: others(0, 35),
+    tamimi: others(35, 35),
+  }, (listing) => (/رقم 7\b/.test(listing.name) ? { same: 'unsure', why: 'cannot tell' } : { same: 'no', why: 'another line' }));
+
+  await indexDueWatches(s.ctx, { ids: [s.watch.id], now: t0 });
+  let w = await s.get();
+  let summary = valueWatchSummary(w);
+  eq([summary.unsure, summary.waiting], [1, 10], 'the first pass: 1 question for the owner, 10 not judged yet (budget 60)');
+  eq(summary.pending, 11, 'pending still counts both, for older readers');
+  eq(w.indexDueAt, new Date(t0.getTime() + 5 * 60 * 1000).toISOString(), 'a backlog brings the next pass in 5 minutes, not a week');
+
+  await indexDueWatches(s.ctx, { ids: [s.watch.id], now: at(0.1) });
+  w = await s.get();
+  summary = valueWatchSummary(w);
+  eq([summary.unsure, summary.waiting], [1, 0], 'the second pass judges the rest');
+  eq(w.indexDueAt, new Date(at(0.1).getTime() + 7 * 24 * 3600 * 1000).toISOString(), 'no backlog: the weekly refresh again');
+  eq(JSON.parse(w.indexJson).backlogPasses, 0, 'and the pass counter resets');
+
+  // A round that meets more new listings than its 20 pulls the index pass forward.
+  s.m.catalog.panda = [...others(0, 35), ...others(100, 15)];
+  s.m.catalog.tamimi = [...others(35, 35), ...others(115, 15)];
+  await checkValueWatch(s.ctx, await s.get(), { roundKey: 'backlog-r1', now: at(1) });
+  w = await s.get();
+  eq(w.indexDueAt, new Date(at(1).getTime() + 5 * 60 * 1000).toISOString(), 'a round with a backlog brings the index pass forward');
+  eq(valueWatchSummary(w).waiting, 10, '… 20 of the 30 new judged in the round, 10 left');
+
+  // Never a loop: the pass counter stops at 8 in a row …
+  await s.ctx.watchStore.updateValueState(s.watch.id, { indexJson: JSON.stringify({ ...JSON.parse(w.indexJson), backlogPasses: 7 }) });
+  s.m.catalog.panda = others(200, 50);
+  s.m.catalog.tamimi = others(250, 50);
+  await indexDueWatches(s.ctx, { ids: [s.watch.id], now: at(2) });
+  w = await s.get();
+  eq(JSON.parse(w.indexJson).backlogPasses, 8, 'the eighth pass in a row …');
+  eq(w.indexDueAt, new Date(at(2).getTime() + 7 * 24 * 3600 * 1000).toISOString(), '… is the last: back to weekly');
+
+  // … and a checker that fails makes no backlog pass at all.
+  s.ctx.watchJudge = async () => { throw new Error('checker down'); };
+  s.m.catalog.panda = others(300, 50);
+  await indexDueWatches(s.ctx, { ids: [s.watch.id], now: at(3) });
+  w = await s.get();
+  eq(w.indexDueAt, new Date(at(3).getTime() + 7 * 24 * 3600 * 1000).toISOString(), 'a failing checker does not bring passes forward');
+}
+
 console.log(`watchIndex.test: ${passed} passed, 0 failed`);

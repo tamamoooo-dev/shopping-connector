@@ -68,6 +68,14 @@ export const VALUE_UNIT_LABEL = 'per-item';
 const JUDGE_BATCHES = { round: 1, index: 3, observe: 3 };
 export const INDEX_REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
 export const INDEX_RETRY_MS = 3 * 60 * 1000;
+// The checker's per-pass budget (MAX_JUDGED_PER_SWEEP) can leave listings the
+// search returned unjudged: a broad watch ("Uno": tissues, wipes, a card game)
+// left 144 waiting after its first pass on 2026-11-03, and rounds judge only 20
+// more each. While a pass leaves such a backlog, the next index pass comes
+// BACKLOG_RETRY_MS later instead of a week, at most BACKLOG_MAX_PASSES in a row
+// and only while the checker answers, so it can never loop.
+export const BACKLOG_RETRY_MS = 5 * 60 * 1000;
+export const BACKLOG_MAX_PASSES = 8;
 export const INDEX_LEASE_MS = 5 * 60 * 1000;
 // Rejected and undecided listings nobody has returned for this long are
 // forgotten; verified matches are kept (they are the history of the watch).
@@ -712,6 +720,14 @@ export async function checkValueWatch(ctx, watch, {
   // only the stores that failed, so its own counts cover just those (the
   // 2026-11-03 07:00 round's Amazon retry read "1 verified" for 23).
   const verdictCount = (verdict) => [...allRows.values()].filter((r) => r.verdict === verdict).length;
+  // Undecided splits in two: `unsure` is the owner's to settle (the checker's
+  // unsure, an assortment), `waiting` has not been judged yet. Only `unsure`
+  // is a question for the owner ("N to confirm").
+  const waitingCount = [...allRows.values()].filter((r) => r.verdict === VERDICT.PENDING && !r.verdictBy).length;
+  // This sweep returned listings it could not judge within its budget, while
+  // the checker answered: another pass soon makes progress.
+  const backlog = !observe && sweep.counts.waiting > 0 && sweep.counts.judged > 0 && !sweep.counts.judgeErrors;
+  const backlogPasses = mode === 'index' ? (backlog ? (indexInfo.backlogPasses || 0) + 1 : 0) : indexInfo.backlogPasses || 0;
   // The connector's stores only; a browser check is reported apart (`browser`),
   // so Lulu still reads "blocks online checks" after the owner's browser read it.
   const storeStatus = Object.entries(status).filter(([s]) => !s.startsWith(`${BROWSER_SOURCE}:`));
@@ -724,14 +740,26 @@ export async function checkValueWatch(ctx, watch, {
       ...(observe ? indexInfo.counts : sweep.counts),
       matched: verdictCount(VERDICT.MATCH),
       pending: verdictCount(VERDICT.PENDING),
+      unsure: verdictCount(VERDICT.PENDING) - waitingCount,
+      waiting: waitingCount,
       rejected: verdictCount(VERDICT.REJECT),
     },
+    backlogPasses,
     stores: Object.fromEntries(storeStatus.map(([s, v]) => [s, v.state])),
     storeErrors: Object.fromEntries(storeStatus.filter(([, v]) => v.error).map(([s, v]) => [s, String(v.error).slice(0, 120)])),
     sizeChoices: observe ? indexInfo.sizeChoices ?? null : sweep.sizeChoices,
     round: roundInfo,
     ...(mode === 'index' ? { indexedAt: nowIso } : {}),
   };
+  line.backlog = { more: backlog && backlogPasses < BACKLOG_MAX_PASSES, waiting: waitingCount, passes: backlogPasses };
+  // A round that left a backlog brings the next index pass forward (never
+  // into a pass that is running: its lease is the due time).
+  if (mode === 'round' && backlog && watch.indexState !== 'indexing' && ctx.watchStore.updateValueState) {
+    const soon = new Date(now.getTime() + BACKLOG_RETRY_MS).toISOString();
+    if (!watch.indexDueAt || watch.indexDueAt > soon) {
+      await ctx.watchStore.updateValueState(watch.id, { indexDueAt: soon });
+    }
+  }
   if (observe) {
     const own = sweep.rows.filter((r) => r.source === BROWSER_SOURCE);
     const checked = {
@@ -936,7 +964,7 @@ export async function indexValueWatch(ctx, watch, { now = new Date() } = {}) {
     });
     await ctx.watchStore.updateValueState(watch.id, {
       indexState: line.resolution === 'unresolvable' ? 'failed' : 'ready',
-      indexDueAt: new Date(now.getTime() + INDEX_REFRESH_MS).toISOString(),
+      indexDueAt: new Date(now.getTime() + (line.backlog?.more ? BACKLOG_RETRY_MS : INDEX_REFRESH_MS)).toISOString(),
     });
     return { ...line, indexed: true };
   } catch (err) {
@@ -992,6 +1020,10 @@ export function valueWatchSummary(watch) {
     lastSweepAt: index.lastSweepAt || null,
     matched: index.counts?.matched ?? null,
     pending: index.counts?.pending ?? null,
+    // The owner's questions and the not-yet-judged, apart (null on an index
+    // written before 2026-11-03's split: the app then falls back to pending).
+    unsure: index.counts?.unsure ?? null,
+    waiting: index.counts?.waiting ?? null,
     storesAnswered: Object.entries(stores).filter(([s, v]) => s !== 'flyers' && v === 'ok').map(([s]) => s),
     storesFailed: Object.entries(stores).filter(([s, v]) => s !== 'flyers' && v === 'failed').map(([s]) => s),
     storesBlocked: Object.entries(stores).filter(([s, v]) => s !== 'flyers' && v === STATE_BLOCKED).map(([s]) => s),
