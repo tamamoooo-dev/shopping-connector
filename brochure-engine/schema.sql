@@ -462,7 +462,7 @@ CREATE TABLE IF NOT EXISTS watch_listings (
   item_unit       TEXT,
   pack_count      INTEGER,
   verdict         TEXT NOT NULL CHECK (verdict IN ('match', 'reject', 'pending')),
-  verdict_by      TEXT,                             -- anchor | barcode | rules | conflict | ai | ai+rules | user
+  verdict_by      TEXT,                             -- anchor | barcode | rules | conflict | assortment | ai | ai+rules | user
   verdict_reason  TEXT,
   ai_items        INTEGER,
   size_verified   INTEGER NOT NULL DEFAULT 0,

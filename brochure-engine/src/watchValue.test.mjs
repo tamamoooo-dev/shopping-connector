@@ -3,6 +3,7 @@
 // reply parser and the alert state machine. Pure; no stores, no network.
 import assert from 'node:assert/strict';
 import {
+  assortmentOf,
   buildJudgeRequest,
   buildValueReference,
   combineVotes,
@@ -218,6 +219,14 @@ eq(round(obs(6.2), 'seen-below', 6.6), null, 'and only once');
   ok(/chocolate/.test(conflictWith({ name: 'المراعي حليب بالشوكوﻻتة 360 مل' }, milk) || ''), 'nor is chocolate milk, written with the ligature ﻻ');
   eq(conflictWith({ name: 'قودي تونة تندرينا بالليمون والفلفل الأسود 80غرام' }, { name: 'تونة تندرينا بالليمون والفلفل', brand: tuna.brand }), null,
     'two flavoured titles are left to the judge');
+  const assorted = ruleVerdict({ id: 'offer:1', name: 'GOODY TUNA, ASSORTED ITEMS, 80 - 95 GRAMS' }, tuna, { store: 'tamimi' });
+  eq([assorted?.verdict, assorted?.by], ['pending', 'assortment'], 'an assortment price is unsure, never a match');
+  eq(assortmentOf({ name: 'KELLOGGS COCO POPS OR, FROSTIES CEREAL 625 GRAMS' }, tuna), 'or', 'a choice of products is an assortment');
+  eq(assortmentOf({ name: 'NADEC LONG LIFE MILK SKIMMED/LOW FAT 12X1 LTR' }, milk), '/', 'so is "SKIMMED/LOW FAT"');
+  eq(assortmentOf({ name: 'Castania Unsalted Mixed Nuts 450g' }, tuna), null, 'Mixed Nuts is one product');
+  eq(assortmentOf({ name: 'مكسرات مشكلة 1 كغ' }, tuna), null, '… and so is "مكسرات مشكلة"');
+  eq(assortmentOf({ name: 'ويسكاس تشكيلة التونا 12*70 جرام' }, { name: 'ويسكاس تشكيلة التونا 12*70 جرام' }), null,
+    'never when the watched product is itself the assortment');
   const sprite = { name: 'سبرايت مشروب غازي 330 مل', brand: { id: 'sprite', ar: 'سبرايت', en: 'Sprite' } };
   eq(conflictWith({ name: 'سبرايت مشروب غازي بنكهة الليمون والليمون الأخضر 1لتر' }, sprite), null,
     'no flavour rule for drinks: plain Sprite is titled "lemon and lime" (مشروب is not روب)');

@@ -55,4 +55,12 @@ The remaining two are kept as "unsure" (never rejected): Ninja's
 ## Rule checks (conflicts.mjs, 2026-11-03)
 
 220 flavour vetoes and 12 bundle vetoes on the candidates; **0** on the 60
-same, **0** on the 1,060 twin pairs.
+same, **0** on the 1,060 twin pairs. The assortment rule (unsure, not a veto)
+hits 11 online candidates, none of them same.
+
+## Limits
+
+Online listings only. Flyer offers are judged by the same path but are not
+labelled here. The first production index (2026-11-03) found one flyer false
+match this set could not see: Tamimi's "GOODY TUNA, ASSORTED ITEMS, 80 - 95
+GRAMS", judged "yes" twice for the 80 g watch. It led to the assortment rule.

@@ -11,6 +11,7 @@ import { buildWatch, checkWatch } from './monitor.js';
 import { createMemoryWatchStore } from './storage/local.js';
 import { createMemoryWatchListingStore } from './storage/watchListingStore.js';
 import { checkValueWatch, indexDueWatches, watchListingsView } from './watchIndex.js';
+import { normalizeText } from './matching.js';
 
 let passed = 0;
 const ok = (condition, message) => { assert.ok(condition, message); passed += 1; };
@@ -460,6 +461,29 @@ const sameLine = (listing) => {
   ok(!line.alerted, 'nothing alerts on one yes');
   await checkValueWatch(s.ctx, await s.get(), { roundKey: 'two-votes-r2', now: at(12) });
   eq(call, 2, 'and the unsure is not asked again');
+}
+
+// --- 11. An assortment price is unsure, even after a "yes" ---------------------------
+
+{
+  const s = await setup({
+    provider: 'danube', productId: '2674', query: 'تندرينا تونة',
+    label: 'تندرينا تونة قطع خفيفة بزيت دوار الشمس 80 جرام', targetPrice: 5,
+  }, {
+    danube: [{ id: '2674', name: 'تندرينا تونة قطع خفيفة بزيت دوار الشمس 80 جرام', price: 5.99 }],
+    tamimi: [{ id: 'g1', name: 'تونة قودي، أصناف متنوعة، 80 - 95 غرام', price: 8.5 }],
+  }, () => ({ same: 'yes', why: 'Goody tuna' }));
+  // The listing as an earlier engine left it: judged a match.
+  await s.ctx.watchListingStore.upsertMany(s.watch.id, [{
+    store: 'tamimi', listingId: 'g1', source: 'online', name: 'تونة قودي، أصناف متنوعة، 80 - 95 غرام',
+    nameKey: normalizeText('تونة قودي، أصناف متنوعة، 80 - 95 غرام'), verdict: 'match', verdictBy: 'ai', item: { value: 80, unit: 'g' },
+    pack: 2, sizeVerified: true, firstSeenAt: t0.toISOString(), lastSeenAt: t0.toISOString(), missingRounds: 0,
+  }]);
+  const line = (await indexDueWatches(s.ctx, { ids: [s.watch.id], now: t0 })).lines[0];
+  const row = (await watchListingsView(s.ctx, await s.get())).listings.find((l) => l.listingId === 'g1');
+  eq([row.verdict, row.verdictBy], ['pending', 'assortment'], 'an assortment is unsure, overriding the earlier "yes"');
+  eq(s.judgeCalls.length, 0, 'and never reaches the judge');
+  ok(!line.alerted, 'so its 4.25 a tin never alerts');
 }
 
 console.log(`watchIndex.test: ${passed} passed, 0 failed`);

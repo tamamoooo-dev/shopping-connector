@@ -603,6 +603,34 @@ export function conflictWith(listing, reference) {
   return null;
 }
 
+// An assortment price covers several products and cannot prove the watched
+// one is among them: "GOODY TUNA, ASSORTED ITEMS, 80 - 95 GRAMS", "COCO POPS
+// OR FROSTIES", "SKIMMED/LOW FAT" (2026-11-03: the judge passed Tamimi's
+// assorted Goody flyer twice for the 80 g Tendrina watch). Not bare "mixed" or
+// "مشكل": Mixed Nuts and "مكسرات مشكلة" are one product. The word that marks
+// it, or null; never when the reference itself says it.
+const ASSORTMENT_WORDS = [
+  'assorted', 'assortment', 'selected', 'all types', 'all flavours', 'all flavors', 'various', 'varieties',
+  'variety pack', 'combo', 'or', 'متنوع', 'متنوعه', 'منوع', 'منوعه', 'تشكيله', 'اصناف', 'مختاره', 'بانواعها',
+  'بانواعه', 'جميع الانواع', 'كل الانواع', 'او',
+].map((word) => [word, wordPattern(word)]);
+const CHOICE_SLASH = /\p{L}\s*\/\s*\p{L}/u;
+
+function assortmentWord(texts) {
+  for (const text of texts) {
+    if (typeof text !== 'string') continue;
+    const folded = foldPhrase(text);
+    for (const [word, pattern] of ASSORTMENT_WORDS) if (pattern.test(folded)) return word;
+    if (CHOICE_SLASH.test(text.normalize('NFKC'))) return '/';
+  }
+  return null;
+}
+
+export function assortmentOf(listing, reference) {
+  if (assortmentWord([reference.name, reference.nameEn])) return null;
+  return assortmentWord([listing.name, listing.nameEn, listing.fullName, listing.fullNameEn]);
+}
+
 // Rules settle what needs no judgement: the listing the user picked, a size
 // that contradicts the watched one, text with nothing in common, and the same
 // product title as the reference. Everything else goes to the judge.
@@ -642,7 +670,11 @@ export function ruleVerdict(listing, reference, { store, barcodes = null } = {})
   }
   const clash = conflictWith(listing, reference);
   if (clash) return { verdict: VERDICT.REJECT, by: 'conflict', reason: clash };
-  const refKeys = [reference.name, reference.nameEn].filter(Boolean).map(sizeFree);
+  const assortment = assortmentOf(listing, reference);
+  if (assortment) {
+    return { verdict: VERDICT.PENDING, by: 'assortment', reason: `an assortment price ("${assortment}"): confirm yours is included` };
+  }
+  const refKeys =[reference.name, reference.nameEn].filter(Boolean).map(sizeFree);
   const candKeys = [listing.name, listing.nameEn, listing.fullName, listing.fullNameEn]
     .filter(Boolean).map(sizeFree);
   // The same title still goes to the judge when its pack count needs the

@@ -344,8 +344,9 @@ export async function sweepValueWatch(ctx, watch, {
       continue;
     }
     const rule = ruleVerdict(entry.listing, reference, { store: entry.store, barcodes: barcodeSets });
-    // Deterministic identity outranks an earlier judgement.
-    if (rule && (rule.by === 'anchor' || rule.by === 'barcode' || rule.by === 'conflict')) {
+    // Deterministic identity outranks an earlier judgement (an assortment is
+    // deterministically unsure, whatever the judge said before).
+    if (rule && ['anchor', 'barcode', 'conflict', 'assortment'].includes(rule.by)) {
       decided.set(key, rule);
       continue;
     }

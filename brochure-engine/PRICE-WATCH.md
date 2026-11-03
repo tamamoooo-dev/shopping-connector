@@ -53,6 +53,11 @@ round 07:00/19:00 ──► the same sweep; only NEW listings are judged
    yogurt, cheese or labneh reference. The conflict also applies to every
    listing with that one's barcode (a store that omits "طويل الأجل" from the
    long-life carton).
+   **assortment** — a price for several products ("ASSORTED ITEMS",
+   "SELECTED", "X OR Y", "SKIMMED/LOW FAT", "أصناف متنوعة") is pending by
+   `assortment`: it cannot prove the watched product is included, so the owner
+   confirms. Found live on the first production index (Tamimi's assorted Goody
+   tuna flyer, judged "yes" twice).
 7. **kept** — a verdict already given for the same title is reused.
 8. **judge** — everything else, two votes (A3).
 9. **judged size** — a "yes" whose size per item contradicts is still a reject.
@@ -114,6 +119,11 @@ title plain Sprite "بنكهة الليمون والليمون الأخضر".
 6. A store that did not answer tells nothing; a store that never had the
    product cannot block a round.
 7. One deal, one alert.
+8. An assortment price is never a match by rule or by judge.
+
+The benchmark covers online listings only. Flyer offers (Vision names such as
+"NADEC LONG LIFE MILK 12X1 LTR") go through the same rules and judge but are
+not in the labelled set: check them on the live index after any change.
 
 # Part B — product-anchored (2026-07-29)
 
