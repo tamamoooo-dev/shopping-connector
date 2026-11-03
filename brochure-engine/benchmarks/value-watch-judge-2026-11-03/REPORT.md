@@ -56,7 +56,7 @@ The remaining two are kept as "unsure" (never rejected): Ninja's
 
 220 flavour vetoes and 12 bundle vetoes on the candidates; **0** on the 60
 same, **0** on the 1,060 twin pairs. The assortment rule (unsure, not a veto)
-hits 11 online candidates, none of them same.
+holds 11 online candidates, none of them same, and 0 twin pairs.
 
 ## Limits
 
