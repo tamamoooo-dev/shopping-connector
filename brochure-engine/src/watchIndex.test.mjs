@@ -12,6 +12,7 @@ import { createMemoryWatchStore } from './storage/local.js';
 import { createMemoryWatchListingStore } from './storage/watchListingStore.js';
 import { checkValueWatch, indexDueWatches, valueWatchSummary, watchListingsView } from './watchIndex.js';
 import { normalizeText } from './matching.js';
+import { readObservation } from './watchObserve.js';
 
 let passed = 0;
 const ok = (condition, message) => { assert.ok(condition, message); passed += 1; };
@@ -523,6 +524,150 @@ const sameLine = (listing) => {
   s.m.catalog.lulu = [{ id: 'l1', name: 'تندرينا تونة قطع خفيفة بزيت دوار الشمس 80 جرام', price: 5.5 }];
   await checkValueWatch(s.ctx, await s.get(), { roundKey: 'blocked-pm', now: at(12) });
   eq(JSON.parse((await s.get()).indexJson).stores.lulu, 'ok', 'a store that lets us back in is tracked again');
+}
+
+// --- 13. "Check with my browser": Lulu and Carrefour read in the owner's Chrome ---------
+// The owner's browser reads a store the connector cannot (Lulu's firewall;
+// Carrefour has no connector) and posts the listings. They are untrusted: the
+// same rules and judge decide identity, a price stands for 12 hours, and the
+// alert follows the same one-deal-one-alert machine.
+
+{
+  const catalog = tendrinaCatalog();
+  catalog.lulu = Object.assign(new Error('search lulu -> blocked by the store (HTTP 403)'), { blocked: true });
+  const s = await setup({
+    provider: 'danube', productId: '2674', query: 'تندرينا تونة',
+    label: 'تندرينا تونة قطع خفيفة بزيت دوار الشمس 80 جرام', targetPrice: 3.5,
+  }, catalog, sameLine);
+  const first = (await indexDueWatches(s.ctx, { ids: [s.watch.id], now: t0 })).lines[0];
+  ok(!first.alerted && first.price === 3.66, 'online the best is Panda 3.66, above the 3.50 target');
+
+  const TIN = 'تندرينا تونة قطع خفيفة بزيت دوار الشمس 80 جرام';
+  const luluTin = (price) => ({
+    id: '807168', name: TIN, nameEn: 'Goody Tenderina Tuna Light Chunks in Sunflower Oil 80 g', size: '80 g',
+    price: String(price), barcodes: ['6281014800471', 'nonsense'], inStock: true,
+    link: 'https://gcc.luluhypermarket.com/ar-sa/goody-tenderina-80-g/p/807168/', image: 'https://cdn.example/1.jpg',
+  });
+  const run = async (listings, when, { store = 'lulu', complete = true } = {}) => {
+    const supplied = readObservation({ store, complete, listings });
+    assert.equal(supplied.error, undefined, supplied.error);
+    return checkValueWatch(s.ctx, await s.get(), { mode: 'observe', supplied, acceptPartialSweep: true, now: when });
+  };
+
+  // The checked listings: the tin at 3.25, the 185 g tin far cheaper (a size
+  // the watch is not), and rows the reader must drop.
+  const supplied = readObservation({
+    store: 'lulu',
+    complete: true,
+    listings: [
+      luluTin(3.25),
+      { id: '807170', name: 'تندرينا تونة ناعمة 185 جم', price: 2, link: 'https://evil.example/p' },
+      { id: 'bad id', name: TIN, price: 1 },
+      { id: 'p3', name: TIN, price: -4 },
+      { id: 'p4', name: TIN, price: 3, currency: 'USD' },
+      luluTin(3.25),
+    ],
+  });
+  eq([supplied.listings.length, supplied.dropped], [2, 4], 'malformed, foreign-currency and duplicate rows are dropped');
+  eq(supplied.listings[0].barcodes, ['628101480047'], 'barcodes are keyed like the connector (12-digit body), nonsense dropped');
+  eq(supplied.listings[1].link, null, 'a link to another host is dropped');
+  ok(readObservation({ store: 'amazon', listings: [] }).error.includes('lulu'), 'only Lulu and Carrefour are accepted');
+
+  const line = await checkValueWatch(s.ctx, await s.get(), { mode: 'observe', supplied, acceptPartialSweep: true, now: at(1) });
+  ok(line.alerted && line.alertType === 'target', 'the browser finding Lulu at 3.25 alerts');
+  eq(line.price, 3.25, 'at the per-item value');
+  eq([line.observed.store, line.observed.matched, line.observed.rejected], ['lulu', 1, 1], 'the check reports what it verified');
+  eq(line.observed.matches[0].value, 3.25, '… cheapest first');
+  const alerts = await s.ctx.watchStore.listAlerts({ profileId: 'profile-value-1' });
+  eq([alerts[0].store, alerts[0].source], ['lulu', 'browser'], 'the alert says where the price came from');
+  const view = await watchListingsView(s.ctx, await s.get());
+  eq(view.listings.find((l) => l.listingId === '807170').verdict, 'reject',
+    'the 185 g tin at 2.00 is rejected on size, whatever the checker says');
+  const summary = valueWatchSummary(await s.get());
+  eq(summary.storesBlocked, ['lulu'], 'the connector is still blocked: the browser check is reported apart');
+  eq([summary.browser.lulu.matched, summary.browser.lulu.state], [1, 'ok'], 'the watch list carries the browser check');
+  ok(!Object.keys(JSON.parse((await s.get()).indexJson).stores).some((k) => k.startsWith('browser')),
+    'no browser key leaks into the store states');
+
+  const again = await run([luluTin(3.25)], at(1.5));
+  ok(!again.alerted, 'the same deal checked again is not alerted again');
+  const judged = s.judgeCalls.length;
+  await run([luluTin(3.25)], at(2));
+  eq(s.judgeCalls.length, judged, 'verdicts are kept: a re-check judges nothing new');
+
+  // A round 3 hours later: the browser's price still stands.
+  const round = await checkValueWatch(s.ctx, await s.get(), { roundKey: 'browser-r1', now: at(4) });
+  ok(!round.alerted && round.price === 3.25 && (await s.get()).isBelow, 'a round within 12 hours keeps the browser price');
+  // 15 hours after the last check, nobody re-checked: the price is no longer known.
+  const late = await checkValueWatch(s.ctx, await s.get(), { roundKey: 'browser-r2', now: at(17) });
+  ok(!late.alerted && late.price === 3.66, 'after 12 hours the browser price no longer counts');
+  ok(!(await s.get()).isBelow, '… and no longer holds the deal open');
+  const back = await run([luluTin(3.25)], at(18));
+  ok(!back.alerted && (await s.get()).isBelow, 'the same deal found again unchanged is not news');
+  const lower = await run([luluTin(2.9)], at(19));
+  eq([lower.alerted, lower.alertType], [true, 'lower'], 'a real drop on a re-check alerts as lower');
+
+  // A complete check that no longer lists the tin: once is unknown, twice gone.
+  const miss1 = await run([], at(20));
+  ok(!miss1.alerted && (await s.get()).isBelow, 'one complete check without the tin cannot end the deal');
+  eq(miss1.price, 3.66, '… but its price no longer counts');
+  await run([], at(20.5), { complete: false });
+  ok((await s.get()).isBelow, 'an incomplete check counts nothing missing');
+  await run([], at(21));
+  ok(!(await s.get()).isBelow, 'two complete checks without it end the deal');
+
+  // Carrefour: a store with no connector at all.
+  const carrefour = await run([{
+    id: '126318', name: 'قودي تونا تندرينا 80 جرام', nameEn: 'goody Tenderina Tuna 80g', price: 3.4,
+    inStock: true, link: 'https://www.carrefourksa.com/mafsau/ar/tuna/goody-tenderina-tuna-80g/p/126318',
+  }], at(22), { store: 'carrefour' });
+  eq(carrefour.observed.store, 'carrefour', 'Carrefour is checked the same way');
+  const both = valueWatchSummary(await s.get()).browser;
+  ok(both.lulu.at && both.carrefour.at, 'each store keeps its own last check');
+}
+
+// --- 14. The browser-check HTTP surface ------------------------------------------------
+
+{
+  const BASE = 'https://engine.test';
+  const P = 'profile-value-1';
+  const s = await setup({
+    provider: 'danube', productId: '2674', query: 'تندرينا تونة',
+    label: 'تندرينا تونة قطع خفيفة بزيت دوار الشمس 80 جرام', targetPrice: 3.5,
+  }, tendrinaCatalog(), sameLine);
+  await indexDueWatches(s.ctx, { ids: [s.watch.id], now: new Date() });
+  const call = (method, path, body) => handleRequest(new Request(`${BASE}${path}`, {
+    method,
+    headers: { 'Content-Type': 'application/json' },
+    body: body == null ? undefined : (typeof body === 'string' ? body : JSON.stringify(body)),
+  }), s.ctx);
+  const plan = await (await call('GET', `/watches/observe?profile=${P}`)).json();
+  eq(plan.stores, ['lulu', 'carrefour'], 'GET /watches/observe names the stores a browser may check');
+  const entry = plan.watches.find((w) => w.id === s.watch.id);
+  ok(entry && entry.queries.length >= 1 && entry.item?.value === 80, '… and each watch with its search wording and size');
+  eq((await call('GET', '/watches/observe')).status, 400, 'the plan needs a profile');
+  const path = `/watches/observe?profile=${P}&id=${s.watch.id}`;
+  eq((await call('POST', `/watches/observe?profile=other&id=${s.watch.id}`, { store: 'lulu', listings: [] })).status, 404,
+    'another profile cannot post to the watch');
+  eq((await call('POST', path, 'not json')).status, 400, 'a body that is not JSON is refused');
+  eq((await call('POST', path, { store: 'othaim', listings: [] })).status, 400, 'an unknown store is refused');
+  eq((await call('POST', path, { store: 'lulu', listings: new Array(301).fill({}) })).status, 400, 'at most 300 listings');
+  const res = await call('POST', path, {
+    store: 'lulu', complete: true,
+    listings: [{ id: '807168', name: 'تندرينا تونة قطع خفيفة بزيت دوار الشمس 80 جرام', price: 3.2, size: '80 g' }],
+  });
+  eq(res.status, 200, 'POST /watches/observe runs the check');
+  const out = await res.json();
+  eq([out.store, out.kept, out.alerted, out.price], ['lulu', 1, true, 3.2], '… and answers with the outcome');
+  ok(out.value?.browser?.lulu?.matched === 1, '… with the watch summary');
+
+  // The hand-off window a Lulu tab opens (Lulu's page policy blocks posting).
+  const relay = await call('GET', '/watches/observe/relay');
+  eq([relay.status, relay.headers.get('content-type')], [200, 'text/html; charset=utf-8'], 'the hand-off page is served');
+  const html = await relay.text();
+  ok(html.includes('https://gcc.luluhypermarket.com') && html.includes('lsa-relay-reply'),
+    '… answering only the store tabs');
+  ok(html.includes(String.raw`/^\/watches\/observe\?[\w=&%.~-]*$/`), '… and forwarding only the observe calls');
 }
 
 console.log(`watchIndex.test: ${passed} passed, 0 failed`);

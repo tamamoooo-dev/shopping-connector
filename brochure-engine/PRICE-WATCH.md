@@ -87,6 +87,60 @@ The verdict counts in `index_json.counts` (what the card's "Tracking N" reads)
 are counted over the whole index, not over the last sweep: a retry inside a
 round sweeps only the failed stores.
 
+### Browser checks: Lulu and Carrefour, on request (2026-11-03)
+
+Lulu blocks the Worker, and Carrefour has no connector, but both answer the
+owner's own Chrome. When the owner asks, Claude in Chrome runs
+`browser-check/check.js` in a tab of that store. The script reads the same
+search JSON the store's own pages read:
+- Lulu: Akinon `/ar-sa/list?format=json`, with Arabic and English names,
+  barcodes and size in one call.
+- Carrefour: the search page's Next.js payload, with Arabic and English pages
+  merged by product id. Carrefour gives no barcode and no brand field.
+
+The script then posts the listings to `POST /watches/observe?id=&profile=` (the
+plan is `GET /watches/observe?profile=`). It is **never scheduled**: a check runs
+only because the owner asked, and a challenge page stops it.
+
+**The Lulu hand-off window.** Lulu's page security policy (`connect-src`,
+`frame-src`) lets Lulu pages reach only Lulu's own and partner hosts, so a Lulu
+tab cannot call the engine. Measured 2026-11-03:
+- a script-opened window is blocked as a popup;
+- a window opened by a real click is allowed.
+
+So on Lulu the script adds a "Send to Price Watch" button. Its click opens
+`GET /watches/observe/relay`, a small page on the engine's own origin. That page
+forwards only the two observe calls, and only for the two store origins, using
+postMessage. Carrefour's page has no such policy and posts directly. This
+moves the owner's own data between the owner's own windows. It does not get
+around anything: an allowed partner host is never used as a way through.
+
+- **Untrusted input.** `watchObserve.js` accepts only:
+  - the two stores;
+  - ≤300 listings;
+  - SAR prices between 0 and 100,000;
+  - links on the store's own host.
+
+  Barcodes are re-keyed exactly like the connector's `gtin.js`. Identity is then
+  decided by the same sweep as every store: rules, two votes, the size check.
+- **Rows** are `source = 'browser'` under the store's own id (`lulu`, `carrefour`),
+  and their state is kept apart (`browser:<store>`). The connector's `lulu` stays
+  `blocked`. `index_json.browser[store]` holds `{ at, state, seen, matched, pending }`,
+  and the watch summary carries it.
+- **Evaluation** (`checkValueWatch` mode `observe`). The browser's store is swept,
+  then the round is evaluated over the index as the last round left it. The
+  alert is the one a round would give with that store added: one deal, one
+  alert.
+- **A browser price stands for 12 hours** (`BROWSER_FRESH_MS`, about one round).
+  - After that, nobody knows the price. It stops counting, and a deal it held
+    ends quietly. If a later check finds the deal unchanged, that is not news;
+    a real drop alerts as `lower`.
+  - A *complete* check that misses the listing works as in a round: one miss
+    leaves the deal unknown, two end it. An incomplete check counts nothing as
+    missing.
+- **One check at a time per watch.** The evaluation rewrites the deal state, so
+  the scripts post each watch and store in turn.
+
 ## A3. The judge
 
 - Model `ministral-14b-2512` (the one-model policy), temperature 0, batches of

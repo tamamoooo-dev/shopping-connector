@@ -54,6 +54,7 @@ import {
   tokenOverlap,
   watchQuantity,
 } from './watchValue.js';
+import { BROWSER_FRESH_MS, BROWSER_SOURCE, browserStateKey, stateKeyOf } from './watchObserve.js';
 
 export const VALUE_PROVIDERS = ['panda', 'tamimi', 'danube', 'lulu', 'ninja', 'amazon', 'noon'];
 // A store that refuses the connector outright (403 + blocked). Not retried
@@ -62,8 +63,9 @@ export const VALUE_PROVIDERS = ['panda', 'tamimi', 'danube', 'lulu', 'ninja', 'a
 const STATE_BLOCKED = 'blocked';
 export const VALUE_SEARCH_LIMIT = 50;
 export const VALUE_UNIT_LABEL = 'per-item';
-// Rounds judge at most one batch of new listings; the index pass up to three.
-const JUDGE_BATCHES = { round: 1, index: 3 };
+// Rounds judge at most one batch of new listings; the index pass and a browser
+// check (a whole store's results at once, asked for by the owner) up to three.
+const JUDGE_BATCHES = { round: 1, index: 3, observe: 3 };
 export const INDEX_REFRESH_MS = 7 * 24 * 60 * 60 * 1000;
 export const INDEX_RETRY_MS = 3 * 60 * 1000;
 export const INDEX_LEASE_MS = 5 * 60 * 1000;
@@ -271,24 +273,34 @@ async function searchFlyers(ctx, queries, notes) {
 // --- the sweep -------------------------------------------------------------------
 
 // One sweep. Writes the listing index; returns what the evaluation needs.
+// `supplied` = a browser check (watchObserve.js): `{ store, listings, complete }`
+// read in the owner's browser, swept INSTEAD of asking the stores.
 export async function sweepValueWatch(ctx, watch, {
   mode = 'round',
   reference = watchReference(watch),
   stores = VALUE_PROVIDERS,
   includeFlyers = true,
+  supplied = null,
   notes = [],
   now = new Date(),
 } = {}) {
   const nowIso = now.toISOString();
   const queries = (reference.queries || []).filter(Boolean);
-  if (!queries.length) {
+  if (!queries.length && !supplied) {
     return { error: 'This watch has no search wording to look for.', reference, status: {}, rows: [] };
   }
-  const [{ status, found }, flyers] = await Promise.all([
-    searchStores(ctx, stores, queries, notes),
-    includeFlyers ? searchFlyers(ctx, queries, notes) : Promise.resolve({ ok: false, found: [] }),
-  ]);
-  if (includeFlyers) status.flyers = { state: flyers.ok ? 'ok' : 'failed' };
+  const [{ status, found }, flyers] = supplied
+    ? [{
+      status: { [browserStateKey(supplied.store)]: { state: supplied.complete ? 'ok' : 'partial' } },
+      found: supplied.listings.map((listing) => ({
+        store: supplied.store, source: BROWSER_SOURCE, listing, query: listing.query || null,
+      })),
+    }, { ok: false, found: [] }]
+    : await Promise.all([
+      searchStores(ctx, stores, queries, notes),
+      includeFlyers ? searchFlyers(ctx, queries, notes) : Promise.resolve({ ok: false, found: [] }),
+    ]);
+  if (includeFlyers && !supplied) status.flyers = { state: flyers.ok ? 'ok' : 'failed' };
 
   // Dedupe: one candidate per (store, listing), remembering the first query.
   const candidates = new Map();
@@ -507,7 +519,7 @@ export async function sweepValueWatch(ctx, watch, {
   const forget = [];
   for (const [key, row] of existing) {
     if (seen.has(key)) continue;
-    const storeState = row.source === 'flyer' ? status.flyers?.state : status[row.store]?.state;
+    const storeState = status[stateKeyOf(row)]?.state;
     if (row.verdict !== VERDICT.MATCH && row.verdictBy !== 'user' && (row.lastSeenAt || row.firstSeenAt) < forgetBefore) {
       forget.push(row);
       continue;
@@ -542,6 +554,9 @@ export async function sweepValueWatch(ctx, watch, {
     sizeChoices,
     counts: {
       seen: candidates.size,
+      // Asked of the checker but not answered (no key, an error, the budget).
+      waiting: writes.filter((w) => seen.has(listingKeyOf(w.store, w.listingId))
+        && w.verdict === VERDICT.PENDING && !w.verdictBy).length,
       matched: writes.filter((w) => w.verdict === VERDICT.MATCH).length,
       pending: writes.filter((w) => w.verdict === VERDICT.PENDING).length,
       rejected: writes.filter((w) => w.verdict === VERDICT.REJECT).length,
@@ -554,12 +569,18 @@ export async function sweepValueWatch(ctx, watch, {
 
 // --- evaluation + alerting -------------------------------------------------------
 
-function observationOf(row, roundStartIso) {
+// A browser check's price stands for BROWSER_FRESH_MS and while no later
+// complete check of its store missed it; every other price only this round.
+const browserFresh = (row, freshIso) => Boolean(row.lastSeenAt) && row.lastSeenAt >= freshIso;
+
+function observationOf(row, roundStartIso, freshIso) {
   if (row.verdict !== VERDICT.MATCH || !row.sizeVerified) return null;
   // A price nobody can buy is not a deal.
   if (row.inStock === false) return null;
   if (row.lastValue == null || row.lastPrice == null) return null;
-  if (!row.lastSeenAt || row.lastSeenAt < roundStartIso) return null;
+  if (row.source === BROWSER_SOURCE) {
+    if (!browserFresh(row, freshIso) || (row.missingRounds || 0) > 0) return null;
+  } else if (!row.lastSeenAt || row.lastSeenAt < roundStartIso) return null;
   return {
     value: row.lastValue,
     purchasePrice: row.lastPrice,
@@ -575,11 +596,19 @@ function observationOf(row, roundStartIso) {
   };
 }
 
-function dealStatusOf(deal, rowsByKey, status, target, roundStartIso) {
+function dealStatusOf(deal, rowsByKey, status, target, roundStartIso, freshIso) {
   if (!deal) return null;
   const row = rowsByKey.get(listingKeyOf(deal.store, deal.listingId));
   if (!row || row.verdict !== VERDICT.MATCH) return 'gone';
-  const storeState = row.source === 'flyer' ? status.flyers?.state : status[row.store]?.state;
+  if (row.source === BROWSER_SOURCE) {
+    // Nobody re-checked within BROWSER_FRESH_MS: the price is no longer known,
+    // and an unknown price cannot hold a deal open (the next check that finds
+    // it unchanged is not news: decideAlert keeps lastAlert).
+    if (!browserFresh(row, freshIso) || (row.missingRounds || 0) >= MISSING_ROUNDS_GONE) return 'gone';
+    if (row.missingRounds > 0) return 'unknown';
+    return row.lastValue != null && row.lastValue > target + 1e-9 ? 'seen-above' : 'seen-below';
+  }
+  const storeState = status[stateKeyOf(row)]?.state;
   if (row.lastSeenAt && row.lastSeenAt >= roundStartIso) {
     return row.lastValue != null && row.lastValue > target + 1e-9 ? 'seen-above' : 'seen-below';
   }
@@ -593,12 +622,19 @@ const STATE_OK = 'ok';
 
 // A whole check for one Value Watch: sweep, evaluate, alert, record.
 // Returns the same `line` shape monitor.checkWatch returns.
+//
+// mode 'observe' = a browser check (`supplied`, watchObserve.js): only the
+// supplied store is swept, and the round is evaluated over the index as the
+// last round left it (every price seen this round, plus the browser's), so the
+// best price and the alert are what a round would give with that store added.
 export async function checkValueWatch(ctx, watch, {
   mode = 'round',
   roundKey = null,
   acceptPartialSweep = false,
+  supplied = null,
   now = new Date(),
 } = {}) {
+  const observe = mode === 'observe';
   const line = {
     id: watch.id, label: watch.label, status: 'no-data', price: null,
     alerted: false, alertType: null, resolution: null, notes: [],
@@ -611,9 +647,13 @@ export async function checkValueWatch(ctx, watch, {
 
   // A retry inside the same round re-asks only the stores that failed; the
   // listings the others returned are already in the index from this round.
-  const sameRound = roundKey && indexInfo.round?.key === roundKey;
-  const roundStartIso = sameRound ? indexInfo.round.startedAt : nowIso;
-  const priorStatus = sameRound ? indexInfo.round.status || {} : {};
+  const sameRound = observe || (roundKey && indexInfo.round?.key === roundKey);
+  const freshIso = new Date(now.getTime() - BROWSER_FRESH_MS).toISOString();
+  const lastRoundStart = indexInfo.round?.startedAt || null;
+  const roundStartIso = observe
+    ? (lastRoundStart && lastRoundStart >= freshIso ? lastRoundStart : freshIso)
+    : sameRound ? indexInfo.round.startedAt : nowIso;
+  const priorStatus = sameRound ? indexInfo.round?.status || {} : {};
   const retryStores = sameRound
     ? VALUE_PROVIDERS.filter((s) => ![STATE_OK, STATE_BLOCKED].includes(priorStatus[s]?.state))
     : VALUE_PROVIDERS;
@@ -621,8 +661,9 @@ export async function checkValueWatch(ctx, watch, {
   const sweep = await sweepValueWatch(ctx, watch, {
     mode,
     reference,
-    stores: retryStores,
-    includeFlyers: !sameRound || priorStatus.flyers?.state !== STATE_OK,
+    stores: observe ? [] : retryStores,
+    includeFlyers: !observe && (!sameRound || priorStatus.flyers?.state !== STATE_OK),
+    supplied: observe ? supplied : null,
     notes: line.notes,
     now,
   });
@@ -653,7 +694,7 @@ export async function checkValueWatch(ctx, watch, {
 
   const observations = [];
   for (const row of allRows.values()) {
-    const o = observationOf(row, roundStartIso);
+    const o = observationOf(row, roundStartIso, freshIso);
     if (o) observations.push(o);
   }
   const matchedStores = new Set([...allRows.values()]
@@ -663,30 +704,68 @@ export async function checkValueWatch(ctx, watch, {
   if (VALUE_PROVIDERS.every((s) => ['failed', STATE_BLOCKED].includes(status[s]?.state))) {
     for (const s of VALUE_PROVIDERS) if (!requiredFailed.includes(s)) requiredFailed.push(s);
   }
-  const roundInfo = { key: roundKey || `${mode}:${nowIso}`, startedAt: roundStartIso, status };
+  // A browser check joins the round it ran in (its key and start stay).
+  const roundInfo = observe && indexInfo.round
+    ? { ...indexInfo.round, status }
+    : { key: roundKey || `${mode}:${nowIso}`, startedAt: roundStartIso, status };
   // The verdict counts are the whole index's: a retry inside a round sweeps
   // only the stores that failed, so its own counts cover just those (the
   // 2026-11-03 07:00 round's Amazon retry read "1 verified" for 23).
   const verdictCount = (verdict) => [...allRows.values()].filter((r) => r.verdict === verdict).length;
+  // The connector's stores only; a browser check is reported apart (`browser`),
+  // so Lulu still reads "blocks online checks" after the owner's browser read it.
+  const storeStatus = Object.entries(status).filter(([s]) => !s.startsWith(`${BROWSER_SOURCE}:`));
   const indexJson = {
     ...indexInfo,
     v: reference.v,
-    lastSweepAt: nowIso,
-    mode,
+    lastSweepAt: observe ? indexInfo.lastSweepAt ?? null : nowIso,
+    mode: observe ? indexInfo.mode ?? null : mode,
     counts: {
-      ...sweep.counts,
+      ...(observe ? indexInfo.counts : sweep.counts),
       matched: verdictCount(VERDICT.MATCH),
       pending: verdictCount(VERDICT.PENDING),
       rejected: verdictCount(VERDICT.REJECT),
     },
-    stores: Object.fromEntries(Object.entries(status).map(([s, v]) => [s, v.state])),
-    storeErrors: Object.fromEntries(Object.entries(status).filter(([, v]) => v.error).map(([s, v]) => [s, String(v.error).slice(0, 120)])),
-    sizeChoices: sweep.sizeChoices,
+    stores: Object.fromEntries(storeStatus.map(([s, v]) => [s, v.state])),
+    storeErrors: Object.fromEntries(storeStatus.filter(([, v]) => v.error).map(([s, v]) => [s, String(v.error).slice(0, 120)])),
+    sizeChoices: observe ? indexInfo.sizeChoices ?? null : sweep.sizeChoices,
     round: roundInfo,
     ...(mode === 'index' ? { indexedAt: nowIso } : {}),
   };
+  if (observe) {
+    const own = sweep.rows.filter((r) => r.source === BROWSER_SOURCE);
+    const checked = {
+      at: nowIso,
+      state: sweep.status[browserStateKey(supplied.store)]?.state || 'partial',
+      seen: sweep.counts.seen,
+      matched: own.filter((r) => r.verdict === VERDICT.MATCH).length,
+      pending: own.filter((r) => r.verdict === VERDICT.PENDING).length,
+    };
+    indexJson.browser = { ...(indexInfo.browser || {}), [supplied.store]: checked };
+    line.observed = {
+      store: supplied.store,
+      ...checked,
+      rejected: own.filter((r) => r.verdict === VERDICT.REJECT).length,
+      judged: sweep.counts.judged,
+      waiting: sweep.counts.waiting,
+      // The verified listings this check found, cheapest per item first.
+      matches: own
+        .filter((r) => r.verdict === VERDICT.MATCH)
+        .sort((a, b) => (a.lastValue ?? Infinity) - (b.lastValue ?? Infinity))
+        .slice(0, 8)
+        .map((r) => ({
+          name: r.name, price: r.lastPrice, value: r.lastValue, pack: r.pack, item: r.item,
+          sizeVerified: r.sizeVerified, inStock: r.inStock, link: r.link,
+        })),
+      // What still waits for the owner ("is this my product?").
+      unsure: own
+        .filter((r) => r.verdict === VERDICT.PENDING)
+        .slice(0, 8)
+        .map((r) => ({ name: r.name, price: r.lastPrice, reason: r.verdictReason })),
+    };
+  }
 
-  if (requiredFailed.length && !acceptPartialSweep) {
+  if (requiredFailed.length && !acceptPartialSweep && !observe) {
     line.resolution = 'provider-error';
     const reason = `${requiredFailed.join(', ')} did not answer — retrying.`;
     line.notes.push(reason);
@@ -710,7 +789,7 @@ export async function checkValueWatch(ctx, watch, {
   }
 
   const closeBoundary = watch.closeThreshold ? target * (1 + Number(watch.closeThreshold) / 100) : null;
-  const dealStatus = dealStatusOf(deal.current, allRows, status, target, roundStartIso);
+  const dealStatus = dealStatusOf(deal.current, allRows, status, target, roundStartIso, freshIso);
   const prev = {
     isBelow: Boolean(watch.isBelow),
     isClose: Boolean(watch.isClose),
@@ -917,6 +996,8 @@ export function valueWatchSummary(watch) {
     storesFailed: Object.entries(stores).filter(([s, v]) => s !== 'flyers' && v === 'failed').map(([s]) => s),
     storesBlocked: Object.entries(stores).filter(([s, v]) => s !== 'flyers' && v === STATE_BLOCKED).map(([s]) => s),
     sizeChoices: index.sizeChoices || null,
+    // The owner's browser checks, per store: { at, state, seen, matched, pending }.
+    browser: index.browser || null,
     best: deal.best || null,
   };
 }

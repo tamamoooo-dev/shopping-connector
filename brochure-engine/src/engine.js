@@ -56,7 +56,8 @@ import { getBrowseSummaryDoc, getBrowseOffersDoc } from './browse/api.js';
 import { detectBrand } from './browse/brands.js';
 import { watchesWithSearchIdentity } from './watchSearchIdentity.js';
 import { processWatchRuns } from './watchSchedule.js';
-import { indexDueWatches, valueWatchSummary, watchListingsView, watchReference } from './watchIndex.js';
+import { checkValueWatch, indexDueWatches, valueWatchSummary, watchListingsView, watchReference } from './watchIndex.js';
+import { BROWSER_STORES, MAX_OBSERVED, RELAY_PATH, observePlan, readObservation, relayPage } from './watchObserve.js';
 import { referenceQueries } from './watchValue.js';
 import {
   collectD4dStore,
@@ -961,6 +962,61 @@ export async function handleRequest(request, ctx) {
     }
     await ctx.watchStore.updateValueState(id, { indexState: 'pending', indexDueAt: new Date().toISOString() });
     return json(await watchListingsView(ctx, await ctx.watchStore.get(id)));
+  }
+
+  // Value Watch "check with my browser" (watchObserve.js), run only when the
+  // owner asks. GET = what to look for: the profile's Value Watches and their
+  // search wording. POST ?id= = the listings the owner's browser read from ONE
+  // store (Lulu, Carrefour), swept through the same rules and two-vote judge as
+  // every store, then evaluated like a round: it may alert. One check at a
+  // time per watch: the evaluation rewrites the watch's deal state.
+  // The hand-off window a Lulu tab opens (watchObserve.js relayPage).
+  if (path === RELAY_PATH && request.method === 'GET') {
+    return new Response(relayPage(), {
+      headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+    });
+  }
+
+  if (path === '/watches/observe' && request.method === 'GET') {
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    const watches = await ctx.watchStore.list({ profileId: profileParam });
+    return json({ stores: BROWSER_STORES, max: MAX_OBSERVED, watches: observePlan(watches, watchReference) });
+  }
+
+  if (path === '/watches/observe' && request.method === 'POST') {
+    if (!ctx.watchStore || !ctx.watchListingStore) return json({ error: 'Watches unavailable.' }, 503);
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    const id = (url.searchParams.get('id') || '').trim();
+    const watch = id ? await ctx.watchStore.get(id) : null;
+    if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
+    if (watch.watchTrack !== 'indexed_value') return json({ error: 'This watch has no listing index.' }, 409);
+    if (!watch.active) return json({ error: 'This watch is paused.' }, 409);
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'Body must be JSON.' }, 400);
+    }
+    const observation = readObservation(body);
+    if (observation.error) return json({ error: observation.error }, 400);
+    const line = await checkValueWatch(ctx, watch, { mode: 'observe', supplied: observation, acceptPartialSweep: true });
+    const after = await ctx.watchStore.get(id);
+    return json({
+      watch: id,
+      store: observation.store,
+      received: body.listings.length,
+      kept: observation.listings.length,
+      complete: observation.complete,
+      status: line.status,
+      resolution: line.resolution,
+      price: line.price,
+      alerted: line.alerted,
+      alertType: line.alertType,
+      notes: line.notes.slice(0, 6),
+      observed: line.observed || null,
+      value: after ? valueWatchSummary(after) : null,
+    });
   }
 
   // Guarded Value Watch index pass (the minute tick's SELF child).
