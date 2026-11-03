@@ -28,16 +28,32 @@
 
   class Stop extends Error {}
   const looksBlocked = (text) => /attention required|just a moment|cf-chl|captcha|access denied/i.test(text || '');
+  // A refusal (403, 429) stops the whole check. A server error (5xx) is asked
+  // once more after a pause (Carrefour answered one phrase 500, 2026-11-03,
+  // and 200 a minute later); still failing, that phrase is unanswered and the
+  // check is reported incomplete.
+  const refused = (status) => status === 401 || status === 403 || status === 429;
+  async function storeFetch(url, init) {
+    let res = await fetch(url, init);
+    if (res.status >= 500) {
+      await sleep(2000);
+      res = await fetch(url, init);
+    }
+    return res;
+  }
 
   // --- store readers: one search phrase -> listings ---------------------------------
 
   async function readLulu(query) {
-    const res = await fetch(`/ar-sa/list?search_text=${enc(query)}&format=json&page_size=50`, {
+    const res = await storeFetch(`/ar-sa/list?search_text=${enc(query)}&format=json&page_size=50`, {
       headers: { Accept: 'application/json' },
       credentials: 'include',
     });
     const type = res.headers.get('content-type') || '';
-    if (!res.ok || !type.includes('json')) throw new Stop(`Lulu answered HTTP ${res.status} (${type.split(';')[0] || 'no type'})`);
+    if (refused(res.status) || (res.ok && !type.includes('json'))) {
+      throw new Stop(`Lulu answered HTTP ${res.status} (${type.split(';')[0] || 'no type'}): a block or challenge`);
+    }
+    if (!res.ok) throw new Error(`Lulu answered HTTP ${res.status}`);
     const body = await res.json();
     return (Array.isArray(body.products) ? body.products : []).map((p) => {
       const a = p.attributes || {};
@@ -103,9 +119,12 @@
   }
 
   async function carrefourPage(lang, query) {
-    const res = await fetch(`/mafsau/${lang}/search?keyword=${enc(query)}`, { credentials: 'include' });
+    const res = await storeFetch(`/mafsau/${lang}/search?keyword=${enc(query)}`, { credentials: 'include' });
     const html = await res.text();
-    if (!res.ok || looksBlocked(html.slice(0, 4000))) throw new Stop(`Carrefour answered HTTP ${res.status}${looksBlocked(html.slice(0, 4000)) ? ' with a challenge page' : ''}`);
+    if (refused(res.status) || looksBlocked(html.slice(0, 4000))) {
+      throw new Stop(`Carrefour answered HTTP ${res.status}: a block or challenge page`);
+    }
+    if (!res.ok) throw new Error(`Carrefour answered HTTP ${res.status}`);
     const { cards, payload } = carrefourProducts(html);
     if (!payload) throw new Stop('Carrefour sent a page without its product data (a challenge or a new page format)');
     return cards;
@@ -226,6 +245,7 @@
           } catch (err) {
             if (err instanceof Stop) throw err;
             cache.set(query, null); // a broken answer for this phrase: the check is incomplete
+            state.errors = [...(state.errors || []), `"${query}": ${err?.message || err}`];
           }
         }
         const listings = cache.get(query);
@@ -268,7 +288,7 @@
         unsureNames: (r.observed?.unsure || []).slice(0, 3).map((u) => `${u.price} SAR: ${u.name}`),
       });
     }
-    return { store: storeId, checked: report.length, storeRequests: cache.size, report };
+    return { store: storeId, checked: report.length, storeRequests: cache.size, phraseErrors: state.errors || [], report };
   }
 
   window.lsaCheck = function lsaCheck({ store, profile, ids = null, engine = ENGINE } = {}) {
