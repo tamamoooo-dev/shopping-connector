@@ -25,6 +25,7 @@ import {
   runFanOut,
   createServiceBindingDispatcher,
   createWatchRunDispatcher,
+  createWatchIndexDispatcher,
   runEnrichDrain,
   runDrainLanes,
   createEnrichDispatcher,
@@ -49,6 +50,8 @@ import { createD1HistoryStore } from './storage/historyStore.js';
 import { createD1OfferStore } from './storage/offerStore.js';
 import { createD1BrowseStore } from './storage/browseStore.js';
 import { createD1WatchStore } from './storage/watchStore.js';
+import { createD1WatchListingStore } from './storage/watchListingStore.js';
+import { claimDueIndexes } from './watchIndex.js';
 import { createD1WatchRunStore } from './storage/watchRunStore.js';
 import { createD1OpsStore } from './storage/opsStore.js';
 import { createD1EnrichStore } from './storage/enrichStore.js';
@@ -378,6 +381,9 @@ function buildContext(env) {
   // NTFY_PUSH="off" turns push off while keeping the secret (2026-10-09).
   const watchStore = createD1WatchStore(env.DB);
   const watchRunStore = createD1WatchRunStore(env.DB);
+  // The Value Watch listing index (watchIndex.js): one row per store listing a
+  // watch has seen, with its identity verdict and last price.
+  const watchListingStore = createD1WatchListingStore(env.DB);
   const pushDisabled = ntfyPushDisabled(env);
   const notifier = env.NTFY_TOPIC && !pushDisabled
     ? createNtfyNotifier({ topic: env.NTFY_TOPIC, server: env.NTFY_SERVER || 'https://ntfy.sh' })
@@ -431,6 +437,7 @@ function buildContext(env) {
     browseStore,
     watchStore,
     watchRunStore,
+    watchListingStore,
     notifier,
     pushDisabled,
     searchClient,
@@ -604,6 +611,33 @@ const worker = {
           }));
         })().catch((err) => {
           console.error('brochure-engine watch round dispatch', err?.message || String(err));
+        }),
+      );
+      // Value Watch background index: a new watch is indexed on the first
+      // tick after it is created, then weekly; a failed pass is due again in
+      // three minutes. Claims are D1 leases, so overlapping ticks never run
+      // the same watch twice.
+      if (!event.backgroundStage) ctx.waitUntil(
+        (async () => {
+          const context = buildContext(env);
+          const ids = await claimDueIndexes(context, {
+            now: new Date(event.scheduledTime || Date.now()),
+            limit: 2,
+          });
+          if (!ids.length) return;
+          const dispatch = createWatchIndexDispatcher({
+            self: env.SELF,
+            ingestSecret: env.INGEST_SECRET,
+          });
+          const results = await Promise.allSettled(ids.map((id) => dispatch(id)));
+          console.log('brochure-engine watch index', JSON.stringify(results.map((r, i) => ({
+            id: ids[i],
+            ok: r.status === 'fulfilled',
+            status: r.value?.lines?.[0]?.status ?? null,
+            error: r.status === 'rejected' ? String(r.reason?.message || r.reason).slice(0, 160) : null,
+          }))));
+        })().catch((err) => {
+          console.error('brochure-engine watch index dispatch', err?.message || String(err));
         }),
       );
       // Vision price fallback: `lanes` parallel SELF children per minute, on

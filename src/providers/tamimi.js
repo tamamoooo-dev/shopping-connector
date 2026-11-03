@@ -10,6 +10,12 @@
 //      product: { id, name, slug, brand.name, variants[] }
 //      variant: { name (size), images[], storeSpecificData[].{ mrp, discount } }
 //   price = mrp - discount ;  oldPrice = mrp (when discounted)
+//   A product holds every PACK SIZE as a variant (1 L, 4 x 1 L, 12 x 1 L …),
+//   each with its own price, stock and barcodes. The top-level result stays
+//   the first variant (unchanged for every consumer); `variants` carries them
+//   all, so Price Monitoring can price each pack per item.
+
+import { gtinKeys } from './gtin.js';
 
 const API_BASE = 'https://shop.tamimimarkets.com';
 const STORE_ID = 4;
@@ -34,13 +40,23 @@ function findProducts(json) {
   return [];
 }
 
-function normalize(product, lang) {
-  const variant = (product.variants && product.variants[0]) || {};
+function variantPrice(variant) {
   const ss = (variant.storeSpecificData && variant.storeSpecificData[0]) || {};
   const mrp = toNumber(ss.mrp);
   const discount = toNumber(ss.discount) || 0;
-  const price = mrp != null ? Math.round((mrp - discount) * 100) / 100 : null;
-  const oldPrice = mrp != null && discount > 0 ? mrp : null;
+  const stock = toNumber(ss.stock);
+  return {
+    price: mrp != null ? Math.round((mrp - discount) * 100) / 100 : null,
+    oldPrice: mrp != null && discount > 0 ? mrp : null,
+    inStock: stock == null ? null : stock > 0,
+  };
+}
+
+function normalize(product, lang) {
+  const variant = (product.variants && product.variants[0]) || {};
+  const { price, oldPrice, inStock } = variantPrice(variant);
+  const mrp = oldPrice ?? price;
+  const discount = oldPrice != null && price != null ? oldPrice - price : 0;
   const image =
     (variant.images && variant.images[0]) || (product.images && product.images[0]) || '';
 
@@ -55,6 +71,14 @@ function normalize(product, lang) {
     size: (variant.name || '').trim(),
     brand: product.brand && product.brand.name ? product.brand.name.trim() : '',
     discountLabel: discount > 0 && mrp ? `${Math.round((discount / mrp) * 100)}% Off` : '',
+    barcodes: gtinKeys(variant.barcodes),
+    inStock,
+    variants: (product.variants || []).map((v) => ({
+      id: v.id,
+      size: (v.name || '').trim(),
+      ...variantPrice(v),
+      barcodes: gtinKeys(v.barcodes),
+    })),
   };
 }
 

@@ -44,12 +44,12 @@ function json(body, status = 200, extraHeaders = {}) {
 // pages), so it yields 200 with `empty: true`. Only when every strategy threw
 // is the store unreachable (502). Treating "no match" as 502 made the watch
 // monitor read a missing product as a store outage and retry it all day.
-async function runProvider(provider, query) {
+async function runProvider(provider, query, options = {}) {
   const failures = [];
   let answered = null;
   for (const strategy of provider.strategies) {
     try {
-      const results = await strategy.run(query);
+      const results = await strategy.run(query, options);
       if (results && results.length) {
         return { strategy: strategy.name, results };
       }
@@ -116,6 +116,9 @@ export async function handleRequest(request, registry) {
   const providerId = (url.searchParams.get('provider') || '').trim();
   const query = (url.searchParams.get('q') || url.searchParams.get('query') || '').trim();
   const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 50, 50));
+  // `wide=1` (Price Monitoring's index): a provider that can widen a search
+  // runs every way it knows at once instead of stopping at the first answer.
+  const wide = url.searchParams.get('wide') === '1';
 
   if (!providerId) return json({ error: "Missing required parameter 'provider'." }, 400);
   if (!query) return json({ error: "Missing required parameter 'q'." }, 400);
@@ -129,7 +132,7 @@ export async function handleRequest(request, registry) {
   }
 
   try {
-    const { strategy, results, empty, failures } = await runProvider(provider, query);
+    const { strategy, results, empty, failures } = await runProvider(provider, query, { wide });
     // Envelope wraps the SAME normalized result objects the frontend expects.
     const window = results.slice(0, limit);
     if (empty) {

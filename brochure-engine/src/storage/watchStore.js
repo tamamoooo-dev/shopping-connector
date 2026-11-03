@@ -97,6 +97,13 @@ export function watchToRow(w) {
     last_resolution: w.lastResolution ?? null,
     last_resolution_reason: w.lastResolutionReason ?? null,
     resolved_at: w.resolvedAt ?? null,
+    // Value Watch (v4, watchValue.js): the value contract, the background
+    // index bookkeeping and the deal/alert state. JSON text, NULL on v3 rows.
+    reference_json: w.referenceJson ?? null,
+    index_state: w.indexState ?? null,
+    index_due_at: w.indexDueAt ?? null,
+    index_json: w.indexJson ?? null,
+    deal_json: w.dealJson ?? null,
   };
 }
 
@@ -169,6 +176,11 @@ export function rowToWatch(r) {
     lastResolution: r.last_resolution ?? null,
     lastResolutionReason: r.last_resolution_reason ?? null,
     resolvedAt: r.resolved_at ?? null,
+    referenceJson: r.reference_json ?? null,
+    indexState: r.index_state ?? null,
+    indexDueAt: r.index_due_at ?? null,
+    indexJson: r.index_json ?? null,
+    dealJson: r.deal_json ?? null,
   };
 }
 
@@ -239,8 +251,9 @@ export function createD1WatchStore(db) {
               anchor_confidence, anchor_margin, anchor_policy_version, candidate_snapshot,
               resolution_attempts, last_resolution_attempt_at, identity_resolution_reason,
               monitoring_health, monitoring_health_reason, last_resolution,
-              last_resolution_reason, resolved_at)
-           VALUES (${Array(53).fill('?').join(',')})`,
+              last_resolution_reason, resolved_at, reference_json, index_state,
+              index_due_at, index_json, deal_json)
+           VALUES (${Array(58).fill('?').join(',')})`,
         )
         .bind(
           r.id, r.profile_id, r.kind, r.label, r.query, r.watch_track,
@@ -255,7 +268,8 @@ export function createD1WatchStore(db) {
           r.anchor_margin, r.anchor_policy_version, r.candidate_snapshot,
           r.resolution_attempts, r.last_resolution_attempt_at, r.identity_resolution_reason,
           r.monitoring_health, r.monitoring_health_reason, r.last_resolution,
-          r.last_resolution_reason, r.resolved_at,
+          r.last_resolution_reason, r.resolved_at, r.reference_json, r.index_state,
+          r.index_due_at, r.index_json, r.deal_json,
         )
         .run();
       return watch;
@@ -287,6 +301,7 @@ export function createD1WatchStore(db) {
       if ((res?.meta?.changes || 0) === 0) return false;
       await db.prepare('DELETE FROM alerts WHERE watch_id = ?').bind(id).run();
       await db.prepare('DELETE FROM watch_runs WHERE watch_id = ?').bind(id).run();
+      await db.prepare('DELETE FROM watch_listings WHERE watch_id = ?').bind(id).run();
       return true;
     },
 
@@ -296,7 +311,7 @@ export function createD1WatchStore(db) {
     // not occupy a slot. Storage is bounded separately by countRows.
     async count(profileId = null) {
       const where = `active = 1 AND (
-        anchor_state IN ('anchored_registry','anchored_source','anchored_spec')
+        anchor_state IN ('anchored_registry','anchored_source','anchored_spec','anchored_value')
         OR (anchor_state IS NULL AND (registry_product_id IS NOT NULL OR spec IS NOT NULL))
       )`;
       const row = profileId
@@ -318,7 +333,7 @@ export function createD1WatchStore(db) {
     // pressure arrives with an explanation, not just a refusal.
     async countUnanchored(profileId = null) {
       const where = `active = 1 AND NOT (
-        anchor_state IN ('anchored_registry','anchored_source','anchored_spec')
+        anchor_state IN ('anchored_registry','anchored_source','anchored_spec','anchored_value')
         OR (anchor_state IS NULL AND (registry_product_id IS NOT NULL OR spec IS NOT NULL))
       )`;
       const row = profileId
@@ -331,7 +346,7 @@ export function createD1WatchStore(db) {
     async countActiveTotal() {
       const row = await db
         .prepare(`SELECT COUNT(*) AS n FROM watches WHERE active = 1 AND (
-          anchor_state IN ('anchored_registry','anchored_source','anchored_spec')
+          anchor_state IN ('anchored_registry','anchored_source','anchored_spec','anchored_value')
           OR (anchor_state IS NULL AND (registry_product_id IS NOT NULL OR spec IS NOT NULL))
         )`)
         .first();
@@ -399,6 +414,59 @@ export function createD1WatchStore(db) {
       if (!sets.length) return;
       binds.push(id);
       await db.prepare(`UPDATE watches SET ${sets.join(', ')} WHERE id = ?`).bind(...binds).run();
+    },
+
+    // The Value Watch columns (v4). Separate from updateState because these say
+    // what the watch IS (its value contract) and how its index stands, not how
+    // the last check went.
+    async updateValueState(id, fields) {
+      const cols = {
+        referenceJson: 'reference_json',
+        indexState: 'index_state',
+        indexDueAt: 'index_due_at',
+        indexJson: 'index_json',
+        dealJson: 'deal_json',
+        watchTrack: 'watch_track',
+        systemSearchQuery: 'system_search_query',
+        targetUnitPrice: 'target_unit_price',
+        unitLabel: 'unit_label',
+        isBelow: 'is_below',
+        isClose: 'is_close',
+      };
+      const sets = [];
+      const binds = [];
+      for (const [key, col] of Object.entries(cols)) {
+        if (!(key in fields)) continue;
+        sets.push(`${col} = ?`);
+        const v = fields[key];
+        binds.push(key === 'isBelow' || key === 'isClose' ? (v ? 1 : 0) : v ?? null);
+      }
+      if (!sets.length) return false;
+      binds.push(id);
+      const res = await db.prepare(`UPDATE watches SET ${sets.join(', ')} WHERE id = ?`).bind(...binds).run();
+      return (res?.meta?.changes || 0) > 0;
+    },
+
+    // Claim up to `limit` watches whose background index pass is due. The
+    // compare-and-set on index_due_at is the lease: a second minute tick that
+    // read the same row loses the UPDATE and skips it.
+    async claimIndexDue(nowIso, { limit = 2, leaseUntil } = {}) {
+      const { results } = await db
+        .prepare(`SELECT id, index_due_at FROM watches
+                   WHERE active = 1 AND index_due_at IS NOT NULL AND index_due_at <= ?
+                   ORDER BY index_due_at LIMIT ?`)
+        .bind(nowIso, Math.max(1, Math.min(Number(limit) || 2, 10)))
+        .all();
+      const claimed = [];
+      for (const row of results || []) {
+        const res = await db
+          .prepare(`UPDATE watches SET index_due_at = ?, index_state = 'indexing'
+                     WHERE id = ? AND index_due_at = ?`)
+          .bind(leaseUntil, row.id, row.index_due_at)
+          .run();
+        if ((res?.meta?.changes || 0) > 0) claimed.push(row.id);
+      }
+      return claimed;
     },
 
     async updateSettings(id, profileId, fields) {

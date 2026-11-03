@@ -651,7 +651,7 @@ export function createMemoryWatchStore() {
   const watches = new Map(); // id -> watch (doc shape, like rowToWatch output)
   const alerts = new Map(); // id -> alert (doc shape)
   const anchored = (w) => (
-    ['anchored_registry', 'anchored_source', 'anchored_spec'].includes(w.anchorState) ||
+    ['anchored_registry', 'anchored_source', 'anchored_spec', 'anchored_value'].includes(w.anchorState) ||
     (!w.anchorState && Boolean(w.registryProductId || w.spec))
   );
   return {
@@ -747,6 +747,31 @@ export function createMemoryWatchStore() {
           w[key] = key === 'isBelow' || key === 'isClose' ? !!fields[key] : fields[key] ?? null;
         }
       }
+    },
+    // Value Watch columns (v4) — same boundary as the D1 impl.
+    async updateValueState(id, fields) {
+      const w = watches.get(id);
+      if (!w) return false;
+      for (const key of [
+        'referenceJson', 'indexState', 'indexDueAt', 'indexJson', 'dealJson',
+        'watchTrack', 'systemSearchQuery', 'targetUnitPrice', 'unitLabel', 'isBelow', 'isClose',
+      ]) {
+        if (key in fields) {
+          w[key] = key === 'isBelow' || key === 'isClose' ? !!fields[key] : fields[key] ?? null;
+        }
+      }
+      return true;
+    },
+    async claimIndexDue(nowIso, { limit = 2, leaseUntil } = {}) {
+      const due = [...watches.values()]
+        .filter((w) => w.active && w.indexDueAt && w.indexDueAt <= nowIso)
+        .sort((a, b) => a.indexDueAt.localeCompare(b.indexDueAt))
+        .slice(0, limit);
+      for (const w of due) {
+        w.indexDueAt = leaseUntil;
+        w.indexState = 'indexing';
+      }
+      return due.map((w) => w.id);
     },
     // The anchor moved because the REGISTRY merged it — same boundary as D1.
     async rebindProduct(id, registryProductId) {

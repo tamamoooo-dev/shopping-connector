@@ -19,6 +19,7 @@ const listing = {
   link: `https://www.amazon.sa/dp/${ASIN}`,
 };
 const built = buildWatch({
+  watchTrack: 'amazon_exact',
   profileId: 'profile-schedule-1',
   kind: 'product',
   provider: 'amazon',

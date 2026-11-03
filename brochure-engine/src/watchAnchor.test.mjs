@@ -51,6 +51,7 @@ async function seededRegistry() {
 
 const baseWatch = (over = {}) => {
   const { watch, error } = buildWatch({
+    watchTrack: 'market_general',
     profileId: PROFILE, kind: 'product', provider: 'panda', productId: '12345',
     query: 'Sadia Chicken Breast', label: 'Sadia Chicken Breast 900 g', targetPrice: 20,
     ...over,
@@ -189,6 +190,7 @@ const baseWatch = (over = {}) => {
 {
   const watchStore = createMemoryWatchStore();
   const { watch, error } = buildWatch({
+    watchTrack: 'market_general',
     profileId: PROFILE, kind: 'grocery', query: 'chicken breast',
     label: 'Any chicken breast', targetPrice: 30,
     // A typed category watch has no reference pack — the target IS per kg.
@@ -224,6 +226,7 @@ const baseWatch = (over = {}) => {
 // A malformed spec is refused at the API, never silently dropped.
 {
   const bad = buildWatch({
+    watchTrack: 'market_general',
     profileId: PROFILE, kind: 'grocery', query: 'anything', targetPrice: 10,
     spec: { colour: 'red' },
   });

@@ -35,6 +35,7 @@ const listing = (over = {}) => ({
 
 const watchFrom = (over = {}) => {
   const watch = buildWatch({
+  watchTrack: 'market_general',
   profileId: PROFILE,
   kind: 'grocery',
   provider: 'panda',
@@ -76,6 +77,7 @@ const completeSearch = (results = {}) => searchClient({
 // Trusted Amazon identity anchors immediately and asks nothing.
 {
   const amazon = buildWatch({
+    watchTrack: 'amazon_exact',
     profileId: PROFILE,
     kind: 'product',
     provider: 'amazon',

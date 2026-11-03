@@ -11,6 +11,8 @@
 //
 // The connector framework knows none of this; it only sees `{ id, label, strategies }`.
 
+import { gtinKeys } from './gtin.js';
+
 const API_BASE = 'https://api.panda.sa/v3';
 const WEB_BASE = 'https://panda.sa';
 const IMG_BASE = 'https://images.todoorstep.com';
@@ -100,6 +102,9 @@ export function normalizeProduct(product, lang) {
     size: [variety.size, variety.unit].filter(Boolean).join(' ').trim(),
     brand: product.brand && product.brand.name ? product.brand.name.trim() : '',
     discountLabel: variety.discount_label || '',
+    // The pack's GS1 barcode (Panda zeroes the check digit; gtin.js keys the
+    // 12-digit body). Price Monitoring recognises the same pack across stores.
+    barcodes: gtinKeys([variety.barcode]),
   };
 }
 

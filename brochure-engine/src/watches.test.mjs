@@ -61,8 +61,8 @@ const monitoredBody = (profileId, query) => ({
 });
 
 // --- buildWatch validation ---
-ok('buildWatch rejects a missing profileId', !!buildWatch({ kind: 'grocery', query: 'milk', targetPrice: 5 }).error);
-ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('short', 'milk') }).error);
+ok('buildWatch rejects a missing profileId', !!buildWatch({ watchTrack: 'market_general', kind: 'grocery', query: 'milk', targetPrice: 5 }).error);
+ok('buildWatch rejects a too-short profileId', !!buildWatch({ watchTrack: 'market_general', ...watchBody('short', 'milk') }).error);
 {
   const { watch, error } = buildWatch(watchBody(A, 'milk'));
   ok('buildWatch accepts a valid profileId', !error && watch && watch.profileId === A);
@@ -251,9 +251,10 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
   const { createMemRegistryStore } = await import('./registry/memstore.js');
 
   ok('buildWatch rejects a registry watch without a pr_ id',
-    !!buildWatch({ kind: 'registry', query: 'halah oil', targetPrice: 20, profileId: A }).error &&
-    !!buildWatch({ kind: 'registry', query: 'halah oil', targetPrice: 20, profileId: A, productId: 'asin123' }).error);
+    !!buildWatch({ watchTrack: 'market_general', kind: 'registry', query: 'halah oil', targetPrice: 20, profileId: A }).error &&
+    !!buildWatch({ watchTrack: 'market_general', kind: 'registry', query: 'halah oil', targetPrice: 20, profileId: A, productId: 'asin123' }).error);
   const { watch, error } = buildWatch({
+    watchTrack: 'market_general',
     kind: 'registry', query: 'halah oil', label: 'Halah Sunflower Oil 1.5 L', targetPrice: 20,
     sizeText: '1.5 L', profileId: A, productId: 'pr_abc123',
     listing: { id: 'pr_abc123', name: 'Halah Sunflower Oil 1.5 L', size: '1.5 L' },
@@ -341,6 +342,7 @@ ok('buildWatch rejects a too-short profileId', !!buildWatch({ ...watchBody('shor
   // The watch is anchored to a CLASS (meat) — the vision read is what lets a
   // debris-named offer be classified at all, which is the point of this test.
   const { watch } = buildWatch({
+    watchTrack: 'market_general',
     ...watchBody(A, 'tanzanian mutton', 10),
     targetUnitPrice: 10, unitLabel: 'SAR/kg',
     spec: { family: 'meat' },

@@ -23,6 +23,7 @@ const listing = {
 
 async function setup({ targetPrice = 7, failing = ['danube'], answering = { panda: [listing] }, state = {} } = {}) {
   const built = buildWatch({
+    watchTrack: 'market_general',
     profileId: 'profile-partial-1',
     kind: 'grocery',
     provider: 'panda',

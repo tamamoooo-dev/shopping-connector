@@ -25,6 +25,7 @@ const listing = {
 
 function fixture({ price }) {
   const built = buildWatch({
+    watchTrack: 'amazon_exact',
     profileId: 'profile-alert-1',
     kind: 'product',
     provider: 'amazon',

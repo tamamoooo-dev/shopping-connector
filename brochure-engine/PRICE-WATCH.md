@@ -1,10 +1,121 @@
-# Price Watch — product-anchored
+# Price Watch
 
-Permanent technical reference. Supersedes `PRICE_WATCH_V2.md`, which described
-the attribute-tuple design replaced on 2026-07-29 and is retained only as
-history.
+Permanent technical reference. Part A is the current default, the **Value
+Watch** (v4, 2026-11-03). Part B is the product-anchored design of 2026-07-29,
+kept as written; the explicit `amazon_exact` and `market_general` tracks still
+follow it. `PRICE_WATCH_V2.md` is history only.
 
-Last validated: 2026-07-29
+Last validated: 2026-11-03
+
+# Part A — Value Watch (v4, `watch_track = 'indexed_value'`)
+
+## A1. What it promises
+
+The user picks ONE listing. The watch then means **this exact product** — same
+brand, product line, type, variant and **size per item** — in **any pack** at
+**any store** (online + this week's flyers), compared **per item**:
+
+- 12 cans at 50 SAR (4.17 a can) beats one can at 5 SAR.
+- The 80 g Tendrina tin and the 185 g Tendrina tin are two products.
+- An alert fires on time (07:00 / 19:00 Riyadh) and once per deal.
+
+## A2. How it works
+
+```
+create ──► background INDEX (minute tick, at creation, then weekly)
+              search ≤4 queries × 7 stores + flyers  (50 results / query, wide)
+              ├─ rules settle what needs no judgement
+              ├─ AI judge (ministral-14b, two votes) the rest
+              └─ watch_listings: one row per (store, listing) + verdict
+round 07:00/19:00 ──► the same sweep; only NEW listings are judged
+                      price the verified rows per item → decideAlert
+```
+
+`watchValue.js` is pure (quantities, rules, prompt, votes, alert state machine);
+`watchIndex.js` is the runtime (sweep, index pass, round, listings view);
+`storage/watchListingStore.js` keeps the index (`watch_listings`, migration
+`migrate-2026-11-03-value-watch.sql`).
+
+### Decision order, per listing
+
+1. **user** — the owner's verdict ("this is it" / "not this") always wins.
+2. **anchor** — the listing the watch was created from.
+3. **size** — a size per item the listing states that contradicts the watched
+   one rejects (`ITEM_SIZE_TOLERANCE` 6 %).
+4. **barcode** — a barcode of the reference, the anchor or a user verdict.
+   Never one learned from an AI verdict (stores file old and new codes on one
+   listing, so learning would chain).
+5. **no overlap** — no word in common rejects.
+6. **conflict** (`conflictWith`) — provably another product:
+   another known brand; a **bundle** of two sized products ("كيك 280 جم &
+   حليب 1 لتر"); a stated **fat / freshness / dairy type / oil-vs-brine / oil**
+   value that differs; a **flavour** on a plain tuna, sardine, milk, laban,
+   yogurt, cheese or labneh reference. The conflict also applies to every
+   listing with that one's barcode (a store that omits "طويل الأجل" from the
+   long-life carton).
+7. **kept** — a verdict already given for the same title is reused.
+8. **judge** — everything else, two votes (A3).
+9. **judged size** — a "yes" whose size per item contradicts is still a reject.
+
+Only `match` + size-verified + in stock + seen this round can price a watch or
+alert. A store that did not answer proves nothing: its listings are neither
+missing nor above target, and it cannot end a deal.
+
+## A3. The judge
+
+- Model `ministral-14b-2512` (the one-model policy), temperature 0, batches of
+  20, a few-shot prompt (`JUDGE_SYSTEM`) whose examples are deliberately not
+  benchmark products. Few-shot demonstrations are what lift small models on
+  entity matching (Peeters et al., arXiv 2310.11244); it raised recall from
+  41/60 to 59/60 here.
+- The reference is shown **without its pack count** (`withoutPackCount`): told
+  "Pack of 12", the judge answered "wrong pack size" to 4-packs.
+- One product, one judgement: a store's pack sizes of one product (Tamimi
+  variants) share it.
+- **Two votes** (`combineVotes`): each product is asked twice in one sweep, in
+  batches with other neighbours and order. At temperature 0 the model still
+  flips between batches. A match needs **both** yeses; a yes against a no or
+  an unsure becomes an **unsure**.
+- **An unsure is an answer**: kept for that title (pending, `verdict_by = 'ai'`),
+  never asked again, so re-asking is never another chance at a yes. The owner
+  sees it under "Not decided yet" and can confirm it. Only a listing with no
+  answer yet (`verdict_by` null: cut off, or the call failed) is asked again.
+
+## A4. Measured (2026-11-03)
+
+`benchmarks/value-watch-judge-2026-11-03/`: the 6 production watches plus 2
+more, 8 references, 2,505 store candidates, 60 hand-labelled true listings,
+1,060 cross-store same-barcode pairs (a rule may never veto a true twin).
+
+| Method | True listings found | False matches |
+|---|---|---|
+| Rules only | 25/60 | 0 |
+| Previous judge prompt (token cap fixed) | 41/60 | 10–12 |
+| Few-shot prompt, one vote (3 runs) | 59/60 | 1–2 |
+| **Production path: rules + two votes (3 runs)** | **58/60 every run; the other 2 kept as unsure, 0 rejected** | **0** |
+
+The two unsure are Ninja's "نادك حليب خالي الدسم 1 لتر" for a long-life
+watch: Nadec also sells a fresh skimmed 1 L, the title does not say which, and
+the watch's Amazon listing has no barcode to settle it — the owner confirms.
+
+Every conflict rule: 0 vetoes on the 60 true listings and 0 on the 1,060 twin
+pairs. Live probes (7Up, Sprite, Mirinda, Fanta, Lipton, Pepsi, Coca-Cola,
+tea, candy) showed why the flavour rule is limited to the types above: stores
+title plain Sprite "بنكهة الليمون والليمون الأخضر".
+
+## A5. Rules that must not be weakened
+
+1. Size per item is identity; pack count never is.
+2. Value is per item: price ÷ items in the pack.
+3. A match by AI needs two agreeing yeses; an unsure is kept, never re-asked.
+4. Barcodes settle identity only from the reference, the anchor or the user.
+5. A conflict rule ships only with 0 vetoes on the true listings and the twin
+   pairs of the benchmark.
+6. A store that did not answer tells nothing; a store that never had the
+   product cannot block a round.
+7. One deal, one alert.
+
+# Part B — product-anchored (2026-07-29)
 
 ## 1. What a watch is
 

@@ -27,6 +27,7 @@ const MIGRATIONS = [
   'migrate-2026-07-29-watch-product-anchor.sql',
   'migrate-2026-07-30-watch-identity-state.sql',
   'migrate-2026-08-25-watch-schedule-v3.sql',
+  'migrate-2026-11-03-value-watch.sql',
 ];
 
 const fixture = createSqliteD1(PRE);

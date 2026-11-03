@@ -17,6 +17,7 @@ const post = (ctx, path) =>
   handleRequest(new Request(`${BASE}${path}`, { method: 'POST' }), ctx);
 
 const { watch, error } = buildWatch({
+  watchTrack: 'amazon_exact',
   profileId: PROFILE,
   kind: 'product',
   provider: 'amazon',

@@ -17,6 +17,8 @@
 // Prices are in cents (÷100). Search is broad/fuzzy, so it is capped and the
 // client's ranking narrows it.
 
+import { gtinsFromUrls } from './gtin.js';
+
 const WEB_BASE = 'https://ananinja.com';
 const SEARCH_BASE = 'https://public.ananinja.com/fahras/search';
 const STORE_ID = 1; // Riyadh / Central
@@ -109,6 +111,9 @@ function normalize(p, lang) {
     size: '',
     brand: (p.brandCode || '').trim(),
     discountLabel: oldPrice ? `${Math.round((1 - price / oldPrice) * 100)}% Off` : '',
+    // Ninja's catalogue photos are often named by barcode (…/6281057007332_2.png).
+    barcodes: gtinsFromUrls((p.medias || []).map((m) => m && m.url)),
+    inStock: p.isAvailable === false ? false : p.isAvailable === true ? true : null,
   };
 }
 

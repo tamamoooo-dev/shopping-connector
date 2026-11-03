@@ -58,6 +58,7 @@ export async function processWatchRuns(ctx, { ids = [], nowMs = Date.now() } = {
           allowIdentityRebind: watchTrack(watch) !== WATCH_TRACK.AMAZON_EXACT,
           acceptPartialSweep: run.attempts >= MARKET_PARTIAL_SWEEP_AFTER_ATTEMPTS,
           alertKey: run.id,
+          roundKey: run.slotKey ? `${run.slotKey}:${run.watchId}` : run.id,
         });
         retryable = line.resolution === RESOLUTION.PROVIDER_ERROR;
       }

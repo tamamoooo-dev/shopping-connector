@@ -97,6 +97,8 @@ import {
   generalWatchSpec,
   watchTrack,
 } from './watchPlan.js';
+import { buildValueReference } from './watchValue.js';
+import { checkValueWatch, VALUE_UNIT_LABEL, watchReference } from './watchIndex.js';
 
 // The live search providers a grocery watch sweeps (search-connector ids),
 // most reliable first. Best-effort stores (amazon, noon) are included — a
@@ -164,6 +166,7 @@ const ANCHORED_STATES = new Set([
   WATCH_IDENTITY_STATE.ANCHORED_REGISTRY,
   WATCH_IDENTITY_STATE.ANCHORED_SOURCE,
   WATCH_IDENTITY_STATE.ANCHORED_SPEC,
+  WATCH_IDENTITY_STATE.ANCHORED_VALUE,
 ]);
 
 const isAnchoredState = (state) => ANCHORED_STATES.has(state);
@@ -253,7 +256,27 @@ export function buildWatch(body) {
     image: url(b.image),
     link: url(b.link),
   };
-  const track = watchTrack({ kind, provider, productId }) || WATCH_TRACK.MARKET_GENERAL;
+  const relaxedRequested =
+    b.matchBrand === false || b.matchSize === false || b.matchVariant === false;
+  // The default is the Value Watch: this exact product, any pack, any store,
+  // per item. A product CLASS (market_general) only when explicitly asked for:
+  // a spec, a relaxed match, or `watchTrack: 'market_general'`.
+  // An Amazon pick is a Value Watch too (its ASIN stays tracked by exact
+  // lookup, and the same product elsewhere counts); the Amazon-only v3 track
+  // only when asked for with `watchTrack: 'amazon_exact'`.
+  const classRequested = b.spec != null || relaxedRequested ||
+    b.watchTrack === WATCH_TRACK.MARKET_GENERAL;
+  const amazonOnly = b.watchTrack === WATCH_TRACK.AMAZON_EXACT &&
+    watchTrack({ kind, provider, productId }) === WATCH_TRACK.AMAZON_EXACT;
+  const track = amazonOnly
+    ? WATCH_TRACK.AMAZON_EXACT
+    : classRequested ? WATCH_TRACK.MARKET_GENERAL : WATCH_TRACK.INDEXED_VALUE;
+  if (track === WATCH_TRACK.INDEXED_VALUE) {
+    return buildValueWatch({
+      b, profileId, kind, query, label, targetPrice, closeThreshold, provider, productId,
+      listing, url,
+    });
+  }
   let specText = specFromBody(b);
   if (track === WATCH_TRACK.MARKET_GENERAL) {
     if (!specText) {
@@ -267,8 +290,6 @@ export function buildWatch(body) {
     // An Amazon-linked watch is the selected ASIN, never a product class.
     specText = null;
   }
-  const relaxedRequested =
-    b.matchBrand === false || b.matchSize === false || b.matchVariant === false;
   if (relaxedRequested && !specText) {
     return {
       error: 'This flexible watch does not contain enough identity evidence to define a product class.',
@@ -371,6 +392,89 @@ export function buildWatch(body) {
       isBelow: false,
       isClose: false,
       createdAt: new Date().toISOString(),
+    },
+  };
+}
+
+// A Value Watch row (v4). Its identity is the VALUE CONTRACT built from the
+// listing the user picked — brand, product line and variant (the title), size
+// per item and the pack they saw — and the target is converted to a price per
+// item from that pack ("50 SAR for 12 x 1 L" -> 4.17 per carton). Which store
+// listings are this product is decided by the background index
+// (watchIndex.js), not here.
+function buildValueWatch({
+  b, profileId, kind, query, label, targetPrice, closeThreshold, provider, productId, listing, url,
+}) {
+  const custom = customSearchQuery(b.customSearchQuery ?? b.searchQuery) || null;
+  const reference = buildValueReference({
+    listing: {
+      ...listing,
+      id: listing.id ?? productId,
+      provider: listing.provider ?? provider,
+      name: listing.name || label || query,
+    },
+    label,
+    query,
+    sizeText: String(b.sizeText || '').slice(0, 160) || null,
+    targetPrice,
+    customQuery: custom,
+  });
+  if (!reference.targetValue || !reference.queries.length) {
+    return { error: 'This product does not carry enough wording to be found in other stores.' };
+  }
+  const createdAt = new Date().toISOString();
+  const snapshot = sourceSnapshot(listing, {
+    id: productId, provider, label, query, brand: b.brand, sizeText: b.sizeText,
+    image: url(b.image), link: url(b.link),
+  });
+  return {
+    watch: {
+      id: newId('w'),
+      profileId,
+      kind,
+      label,
+      query,
+      watchTrack: WATCH_TRACK.INDEXED_VALUE,
+      systemSearchQuery: reference.queries[0],
+      customSearchQuery: custom,
+      provider,
+      productId,
+      scope: 'market',
+      registryProductId: null,
+      spec: null,
+      anchorState: WATCH_IDENTITY_STATE.ANCHORED_VALUE,
+      sourceSnapshot: JSON.stringify(snapshot),
+      anchorProvenance: JSON.stringify({ kind: 'value-contract', provider, productId }),
+      anchorConfidence: 1,
+      anchorMargin: 1,
+      anchorPolicyVersion: reference.v,
+      candidateSnapshot: null,
+      resolutionAttempts: 0,
+      lastResolutionAttemptAt: null,
+      identityResolutionReason: 'Indexing every store for this exact product.',
+      monitoringHealth: MONITORING_HEALTH.UNCHECKED,
+      monitoringHealthReason: null,
+      link: url(b.link),
+      image: url(b.image),
+      targetPrice: Math.round(targetPrice * 100) / 100,
+      currency: 'SAR',
+      sizeUnit: reference.item?.unit || null,
+      sizeTotal: reference.item ? reference.item.value * (reference.pack || 1) : null,
+      sizeSource: reference.item ? 'measure' : null,
+      targetUnitPrice: reference.targetValue,
+      unitLabel: VALUE_UNIT_LABEL,
+      closeThreshold: closeThreshold == null ? null : Math.round(closeThreshold * 100) / 100,
+      active: true,
+      isBelow: false,
+      isClose: false,
+      createdAt,
+      referenceJson: JSON.stringify(reference),
+      // The background index pass runs at the next minute tick (index.js),
+      // or at once when the request can wait for it (engine.js POST /watches).
+      indexState: 'pending',
+      indexDueAt: createdAt,
+      indexJson: null,
+      dealJson: null,
     },
   };
 }
@@ -1248,6 +1352,10 @@ export function parseSpec(value) {
 // The anchor a watch carries, or null. The single place that decides whether a
 // watch is monitorable — the cron, the caps and the UI all read this answer.
 export function watchAnchor(watch = {}) {
+  if (watchTrack(watch) === WATCH_TRACK.INDEXED_VALUE) {
+    const reference = watchReference(watch);
+    return reference?.queries?.length ? { kind: 'value', reference } : null;
+  }
   if (watchTrack(watch) === WATCH_TRACK.MARKET_GENERAL) {
     const stored = parseWatchJson(watch.sourceSnapshot) || {
       name: watch.label || watch.query,
@@ -1302,7 +1410,7 @@ export function manualRefreshReason(watch, now = Date.now()) {
 export function watchProviders(watch = {}) {
   const track = watchTrack(watch);
   if (track === WATCH_TRACK.AMAZON_EXACT) return ['amazon'];
-  if (track === WATCH_TRACK.MARKET_GENERAL) return MONITOR_PROVIDERS;
+  if (track === WATCH_TRACK.MARKET_GENERAL || track === WATCH_TRACK.INDEXED_VALUE) return MONITOR_PROVIDERS;
   const anchor = watchAnchor(watch);
   if (anchor?.kind === 'source') {
     return MONITOR_PROVIDERS.includes(anchor.provider) ? [anchor.provider] : [];
@@ -1848,7 +1956,17 @@ export async function checkWatch(ctx, watch, {
   // deterministic, so a round that re-runs (lease expired mid-check, a retried
   // child) can never record or push the same alert twice.
   alertKey = null,
+  // A scheduled round's slot key: a Value Watch retry inside the same round
+  // re-asks only the stores that failed (watchIndex.js).
+  roundKey = null,
 } = {}) {
+  if (watchTrack(watch) === WATCH_TRACK.INDEXED_VALUE) {
+    return checkValueWatch(ctx, watch, {
+      mode: 'round',
+      roundKey: roundKey || alertKey,
+      acceptPartialSweep,
+    });
+  }
   const line = {
     id: watch.id, label: watch.label, status: 'no-data', price: null,
     alerted: false, alertType: null, resolution: null, notes: [],

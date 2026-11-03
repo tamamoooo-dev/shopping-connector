@@ -1,9 +1,12 @@
 // watchPlan.js — the user-visible contract for price-monitoring v3.
 //
-// There are exactly two tracks:
-//   amazon_exact  — a selected Amazon ASIN, checked only on Amazon.
-//   market_general — anything else, generalized to brand + product class and
-//                    checked across every online source (including Amazon).
+// Tracks:
+//   indexed_value  — the default: this exact product (brand, line, variant,
+//                    size per item), any pack, every store + flyers, per item.
+//   amazon_exact   — a selected Amazon ASIN, checked only on Amazon.
+//   market_general — a product CLASS the caller asked for explicitly (brand +
+//                    family spec); no longer the default (it matched 125 ml
+//                    milk to a 12 x 1 L watch — see watchValue.js).
 //
 // This module is pure. Scheduling, D1 and network access live elsewhere.
 
@@ -15,6 +18,11 @@ import { stripSizes } from './matching.js';
 export const WATCH_TRACK = Object.freeze({
   AMAZON_EXACT: 'amazon_exact',
   MARKET_GENERAL: 'market_general',
+  // Value Watch (v4, 2026-11-03, the default): THIS exact product in any pack
+  // at any store, compared per item, over a verified listing index
+  // (watchValue.js / watchIndex.js). market_general remains only for an
+  // explicitly requested product CLASS (spec / relaxed toggles via the API).
+  INDEXED_VALUE: 'indexed_value',
 });
 
 export const RIYADH_OFFSET_MS = 3 * 60 * 60 * 1000;

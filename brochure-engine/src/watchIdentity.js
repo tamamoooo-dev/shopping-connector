@@ -19,6 +19,8 @@ export const WATCH_IDENTITY_STATE = Object.freeze({
   ANCHORED_REGISTRY: 'anchored_registry',
   ANCHORED_SOURCE: 'anchored_source',
   ANCHORED_SPEC: 'anchored_spec',
+  // Value Watch (v4): anchored by its value contract + verified listing index.
+  ANCHORED_VALUE: 'anchored_value',
   CONFIRMATION_REQUIRED: 'confirmation_required',
   UNRESOLVABLE: 'unresolvable',
   INACTIVE: 'inactive',
@@ -388,7 +390,8 @@ export function inferIdentityState(watch = {}) {
 export function inferMonitoringHealth(watch = {}) {
   if (watch.monitoringHealth) return watch.monitoringHealth;
   if (![WATCH_IDENTITY_STATE.ANCHORED_REGISTRY, WATCH_IDENTITY_STATE.ANCHORED_SOURCE,
-    WATCH_IDENTITY_STATE.ANCHORED_SPEC].includes(inferIdentityState(watch))) return null;
+    WATCH_IDENTITY_STATE.ANCHORED_SPEC, WATCH_IDENTITY_STATE.ANCHORED_VALUE]
+    .includes(inferIdentityState(watch))) return null;
   const legacy = {
     ok: MONITORING_HEALTH.OK,
     'not-found': MONITORING_HEALTH.NOT_FOUND,

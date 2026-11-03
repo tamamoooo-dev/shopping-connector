@@ -56,6 +56,8 @@ import { getBrowseSummaryDoc, getBrowseOffersDoc } from './browse/api.js';
 import { detectBrand } from './browse/brands.js';
 import { watchesWithSearchIdentity } from './watchSearchIdentity.js';
 import { processWatchRuns } from './watchSchedule.js';
+import { indexDueWatches, valueWatchSummary, watchListingsView, watchReference } from './watchIndex.js';
+import { referenceQueries } from './watchValue.js';
 import {
   collectD4dStore,
   isD4dRegion,
@@ -780,6 +782,7 @@ export async function handleRequest(request, ctx) {
     const watches = enrichedWatches.map((watch) => ({
       ...watch,
       run: latestRuns.get(watch.id) || null,
+      value: watch.watchTrack === 'indexed_value' ? valueWatchSummary(watch) : null,
     }));
     return json({
       count: watches.length,
@@ -886,7 +889,89 @@ export async function handleRequest(request, ctx) {
     const { fields, error } = buildWatchSettingsUpdate(body, watch);
     if (error) return json({ error }, 400);
     await ctx.watchStore.updateSettings(id, profileParam, fields);
+    if (watch.watchTrack === 'indexed_value' && 'customSearchQuery' in fields) {
+      // New search wording: the value contract's queries follow it and the
+      // index runs again at the next minute tick.
+      const reference = watchReference(watch);
+      const queries = referenceQueries({
+        name: reference.name,
+        nameEn: reference.nameEn,
+        brand: reference.brand ? { display_ar: reference.brand.ar, display_en: reference.brand.en } : null,
+        customQuery: fields.customSearchQuery,
+        userQuery: watch.query,
+      });
+      await ctx.watchStore.updateValueState(id, {
+        referenceJson: JSON.stringify({ ...reference, queries }),
+        systemSearchQuery: queries[0] || watch.systemSearchQuery,
+        indexState: 'pending',
+        indexDueAt: new Date().toISOString(),
+      });
+    }
     return json({ watch: await ctx.watchStore.get(id) });
+  }
+
+  // Value Watch: what the watch is tracking — the value contract, the last
+  // index pass per store, and every listing with its verdict.
+  if (path === '/watches/listings' && request.method === 'GET') {
+    if (!ctx.watchStore) return json({ error: 'Watches unavailable.' }, 503);
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    const id = (url.searchParams.get('id') || '').trim();
+    const watch = id ? await ctx.watchStore.get(id) : null;
+    if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
+    if (watch.watchTrack !== 'indexed_value') return json({ error: 'This watch has no listing index.' }, 409);
+    return json(await watchListingsView(ctx, watch));
+  }
+
+  // Value Watch: the owner's own answer. `{ store, listingId, verdict }` says
+  // "this listing is / is not my product" (never overwritten by the checker);
+  // `{ item: { value, unit } }` picks the size per item when the stores list
+  // several and the picked listing did not say. Either re-runs the index.
+  if (path === '/watches/listings' && request.method === 'PATCH') {
+    if (!ctx.watchStore || !ctx.watchListingStore) return json({ error: 'Watches unavailable.' }, 503);
+    if (!profileParam) return json({ error: "Missing required parameter 'profile'." }, 400);
+    const id = (url.searchParams.get('id') || '').trim();
+    const watch = id ? await ctx.watchStore.get(id) : null;
+    if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
+    if (watch.watchTrack !== 'indexed_value') return json({ error: 'This watch has no listing index.' }, 409);
+    let body;
+    try {
+      body = await request.json();
+    } catch {
+      return json({ error: 'Body must be JSON.' }, 400);
+    }
+    if (body?.item) {
+      const value = Number(body.item.value);
+      const unit = String(body.item.unit || '');
+      if (!(value > 0 && value < 100000) || !['g', 'ml', 'pcs'].includes(unit)) {
+        return json({ error: 'item must be { value > 0, unit: g | ml | pcs }' }, 400);
+      }
+      const reference = watchReference(watch);
+      await ctx.watchStore.updateValueState(id, {
+        referenceJson: JSON.stringify({ ...reference, item: { value, unit }, itemLearned: false, itemChosen: true }),
+      });
+    } else {
+      const verdict = String(body?.verdict || '');
+      if (!['match', 'reject'].includes(verdict)) return json({ error: "verdict must be 'match' or 'reject'" }, 400);
+      const ok = await ctx.watchListingStore.setVerdict(id, String(body.store || ''), String(body.listingId || ''), {
+        verdict,
+        by: 'user',
+        reason: verdict === 'match' ? 'confirmed by you' : 'rejected by you',
+      });
+      if (!ok) return json({ error: 'Listing not found in this watch.' }, 404);
+    }
+    await ctx.watchStore.updateValueState(id, { indexState: 'pending', indexDueAt: new Date().toISOString() });
+    return json(await watchListingsView(ctx, await ctx.watchStore.get(id)));
+  }
+
+  // Guarded Value Watch index pass (the minute tick's SELF child).
+  if (path === '/watches/index' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.watchStore || !ctx.watchListingStore) return json({ error: 'Watches unavailable.' }, 503);
+    const ids = (url.searchParams.get('ids') || '').split(',').map((v) => v.trim()).filter(Boolean).slice(0, 5);
+    if (!ids.length) return json({ error: "Missing required parameter 'ids'." }, 400);
+    return json(await indexDueWatches(ctx, { ids }));
   }
 
   // The products a user may choose from when confirming an ambiguous watch.
@@ -923,7 +1008,7 @@ export async function handleRequest(request, ctx) {
     const id = (url.searchParams.get('id') || '').trim();
     const watch = id ? await ctx.watchStore.get(id) : null;
     if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
-    if (watch.watchTrack === 'amazon_exact' || watch.watchTrack === 'market_general') {
+    if (['amazon_exact', 'market_general', 'indexed_value'].includes(watch.watchTrack)) {
       return json({ error: 'This scheduled watch has a fixed identity.' }, 409);
     }
     const result = await repairWatch(ctx, watch);
@@ -940,6 +1025,17 @@ export async function handleRequest(request, ctx) {
     if (!id) return json({ error: "Missing required parameter 'id'." }, 400);
     const watch = await ctx.watchStore.get(id);
     if (!watch || watch.profileId !== profileParam) return json({ error: 'Watch not found.' }, 404);
+    if (watch.watchTrack === 'indexed_value') {
+      // "Check every store again now": the next minute tick re-indexes, at
+      // most once per 10 minutes per watch.
+      let last = NaN;
+      try { last = Date.parse(JSON.parse(watch.indexJson || 'null')?.lastSweepAt || ''); } catch { /* none yet */ }
+      if (watch.indexState === 'indexing' || (Number.isFinite(last) && Date.now() - last < 10 * 60 * 1000)) {
+        return json({ error: 'This watch was checked in the last 10 minutes.' }, 409);
+      }
+      await ctx.watchStore.updateValueState(id, { indexState: 'pending', indexDueAt: new Date().toISOString() });
+      return json({ reason: 'reindex', queued: true, watch: await ctx.watchStore.get(id) });
+    }
     if (watch.watchTrack === 'amazon_exact' || watch.watchTrack === 'market_general') {
       return json({ error: 'Scheduled watch results stay fixed until the next 07:00/19:00 round.' }, 409);
     }

@@ -413,6 +413,27 @@ export function createWatchRunDispatcher({ self, ingestSecret, origin = 'https:/
   };
 }
 
+// Value Watch index passes (watchIndex.js): one SELF child per claimed watch,
+// so each pass gets its own subrequest budget.
+export function createWatchIndexDispatcher({ self, ingestSecret, origin = 'https://brochure-engine.internal' }) {
+  if (!self || typeof self.fetch !== 'function') {
+    throw new Error('scheduler: a SELF service binding is required for the watch-index dispatcher');
+  }
+  return async function dispatchIndex(id) {
+    const res = await self.fetch(`${origin}/watches/index?ids=${encodeURIComponent(id)}`, {
+      method: 'POST',
+      headers: { 'X-Ingest-Secret': ingestSecret || '' },
+    });
+    const body = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const err = new Error(`watch index ${id} -> HTTP ${res.status}`);
+      err.body = body;
+      throw err;
+    }
+    return body;
+  };
+}
+
 // Stage-two copies of the stage-one live/background drain. Keep the pacing,
 // batch sizing, sequential children, stop-on-failure behavior, and report
 // contract aligned with runEnrichDrain/createEnrichDispatcher.

@@ -9,6 +9,7 @@ let passed = 0;
 const ok = (condition, message) => { assert.ok(condition, message); passed += 1; };
 
 const built = buildWatch({
+  watchTrack: 'market_general',
   profileId: 'profile-tracks-1',
   kind: 'grocery',
   provider: 'panda',
@@ -64,6 +65,7 @@ ok(customSearchDecision(advanced, {
 }).matched, 'an online product slug may supply missing size evidence');
 
 const tenderina = buildWatch({
+  watchTrack: 'market_general',
   profileId: 'profile-tracks-3',
   kind: 'product', provider: 'danube', productId: '2669',
   query: 'تندرينا تونه ناعمه', label: 'تندرينا تونه ناعمه',
@@ -94,6 +96,7 @@ ok(checkedTenderina.lastStore === 'tamimi' && checkedTenderina.lastPurchasePrice
   'only the candidate matching the advanced name and size can become the result');
 
 const generic = buildWatch({
+  watchTrack: 'market_general',
   profileId: 'profile-tracks-2', kind: 'grocery', query: 'حليب طويل الأجل',
   label: 'حليب طويل الأجل', targetPrice: 50,
   listing: { name: 'حليب طويل الأجل' },
