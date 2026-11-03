@@ -722,8 +722,12 @@ export async function checkValueWatch(ctx, watch, {
   const verdictCount = (verdict) => [...allRows.values()].filter((r) => r.verdict === verdict).length;
   // Undecided splits in two: `unsure` is the owner's to settle (the checker's
   // unsure, an assortment), `waiting` has not been judged yet. Only `unsure`
-  // is a question for the owner ("N to confirm").
-  const waitingCount = [...allRows.values()].filter((r) => r.verdict === VERDICT.PENDING && !r.verdictBy).length;
+  // is a question for the owner ("N to confirm"). A listing the search stopped
+  // returning is judged only if it comes back, so it is not counted waiting
+  // (Uno, 2026-11-03: 10 Amazon card games gone from the results).
+  const undecided = [...allRows.values()].filter((r) => r.verdict === VERDICT.PENDING);
+  const unsureCount = undecided.filter((r) => r.verdictBy).length;
+  const waitingCount = undecided.filter((r) => !r.verdictBy && (r.missingRounds || 0) < MISSING_ROUNDS_GONE).length;
   // This sweep returned listings it could not judge within its budget, while
   // the checker answered: another pass soon makes progress.
   const backlog = !observe && sweep.counts.waiting > 0 && sweep.counts.judged > 0 && !sweep.counts.judgeErrors;
@@ -740,7 +744,7 @@ export async function checkValueWatch(ctx, watch, {
       ...(observe ? indexInfo.counts : sweep.counts),
       matched: verdictCount(VERDICT.MATCH),
       pending: verdictCount(VERDICT.PENDING),
-      unsure: verdictCount(VERDICT.PENDING) - waitingCount,
+      unsure: unsureCount,
       waiting: waitingCount,
       rejected: verdictCount(VERDICT.REJECT),
     },

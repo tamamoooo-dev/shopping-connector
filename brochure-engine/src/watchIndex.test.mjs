@@ -725,6 +725,15 @@ const sameLine = (listing) => {
   await indexDueWatches(s.ctx, { ids: [s.watch.id], now: at(3) });
   w = await s.get();
   eq(w.indexDueAt, new Date(at(3).getTime() + 7 * 24 * 3600 * 1000).toISOString(), 'a failing checker does not bring passes forward');
+
+  // A listing the search stopped returning is judged only if it comes back:
+  // gone, it is not "waiting to be checked".
+  await indexDueWatches(s.ctx, { ids: [s.watch.id], now: at(4) });
+  const rows = await s.ctx.watchListingStore.list(s.watch.id);
+  const unjudged = rows.filter((r) => r.verdict === 'pending' && !r.verdictBy);
+  const gone = unjudged.filter((r) => r.missingRounds >= 2);
+  ok(gone.length > 0, 'some unjudged listings are gone from the search');
+  eq(valueWatchSummary(await s.get()).waiting, unjudged.length - gone.length, 'and only the ones still returned count as waiting');
 }
 
 console.log(`watchIndex.test: ${passed} passed, 0 failed`);
