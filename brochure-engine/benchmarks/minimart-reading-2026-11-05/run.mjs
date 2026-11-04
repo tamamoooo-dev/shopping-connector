@@ -33,11 +33,17 @@ async function ask(text, image, temperature) {
   });
   for (let attempt = 0; attempt < keys.length * 3; attempt += 1) {
     const key = keys[turn++ % keys.length];
-    const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
-      body,
-    });
+    let res;
+    try {
+      res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${key}` },
+        body,
+        signal: AbortSignal.timeout(90_000),
+      });
+    } catch {
+      continue; // a hung or dropped call: try the next key
+    }
     if (res.ok) return (await res.json()).choices?.[0]?.message?.content ?? null;
     if (res.status === 429 || res.status >= 500) {
       await new Promise((r) => setTimeout(r, 1500));

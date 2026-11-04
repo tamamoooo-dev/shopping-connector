@@ -150,7 +150,7 @@ export function createMinimartStore(db) {
     async pendingSnaps(limit) {
       const { results } = await db
         .prepare(
-          `SELECT s.* FROM minimart_snaps s
+          `SELECT s.*, m.title AS shop_title FROM minimart_snaps s
            JOIN minimart_shops m ON m.username = s.username AND m.active = 1
            WHERE s.status = 'new'
            ORDER BY COALESCE(s.posted_at, s.seen_at) LIMIT ?`,
@@ -164,6 +164,7 @@ export function createMinimartStore(db) {
         mediaType: r.media_type,
         mediaUrl: r.media_url,
         previewUrl: r.preview_url,
+        shopTitle: r.shop_title ?? null,
         attempts: Number(r.attempts) || 0,
       }));
     },

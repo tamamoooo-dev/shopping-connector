@@ -237,6 +237,12 @@ export async function sha256Hex(bytes) {
 }
 
 // --- reading -------------------------------------------------------------------------------
+// The reading prompt, v4 (2026-11-05): the 2026-11-04 prompt with two
+// changes. Its "copy the digits (6.90, 11.5, 20.70)" list is gone: the reader
+// put 20.7 on a tea poster that prints only "3 كرتون ب 10". And a one-digit
+// price is named: "1 ريال" was read as 0 or 3. Rewriting the count and size
+// rules too (v2, v3) made pack counts worse on the bench, so they stay as
+// they were, examples included; the blind check stands behind any number.
 export const SNAP_READ_PROMPT = `This picture is one snap (a photo or one frame of a video) from a shop's Snapchat story. List every product whose PRICE is printed in the picture.
 
 Rules:
@@ -244,21 +250,22 @@ Rules:
 - Ignore the phone and app interface: status bar, clock, battery, "منذ" or "ago" times, dates, view counts, usernames, buttons, phone numbers, QR codes, discount percentages.
 - A crossed-out price is the OLD price ("was_price") of the product it belongs to. It is never a product of its own.
 - "count" is how many units the price buys, as printed: "4 حبات بـ 11.5" is count 4, "2 كراتين بـ 15" is count 2, a single item is count 1. "unit" is the unit word as printed (حبة, كرتون, علبة, كيس) or null.
-- "size" is the size of ONE unit only when printed (for example "400 جرام", "4 كيلو", "2.75 كجم"), otherwise null. "24 حبة" inside one carton is the size of the carton, not the count.
-- "name": the product name as printed in the caption, tag or poster, in the same language. If none is printed, name the product from its package in a few Arabic words. Never invent a brand.
+- "size" is the size of ONE unit only when printed (for example "400 جرام", "4 كيلو", "2.75 كجم"), otherwise null. "24 حبة" inside one carton is the size of the carton, not the count. A number with a weight or volume word is a size, never the price or the count.
+- "name": the product name as printed in the caption, tag or poster, in the same language. If none is printed, name the product from its package in a few Arabic words. Never use the shop's name or slogan as the name. Never invent a brand.
 - "brand" only when printed on the package or poster, otherwise null.
-- Prices are Saudi riyals. Copy the digits exactly as printed (6.90, 11.5, 20.70).
+- Prices are Saudi riyals. Copy every digit of the price exactly as printed, with its decimals. A price can be a single digit: "فقط ب 1 ريال" is price 1.
 
-Return JSON only:
-{"offers":[{"name":"...","brand":null,"size":null,"count":1,"unit":null,"price":0,"was_price":null}]}
+Return JSON only, with numbers for count, price and was_price:
+{"offers":[{"name":"...","brand":null,"size":null,"count":1,"unit":null,"price":P,"was_price":null}]}
 If no price is printed, return {"offers":[]}.`;
 
-export function confirmPrompt(price) {
-  return `Look at this picture from a shop's Snapchat story.
-Question: is the price ${price} (Saudi riyals) printed in this picture as the CURRENT selling price of a product (in a caption, price tag, sticker or poster)?
-Answer "no" if that number is not printed at all, is only a weight, size, count, time, date, phone number or app text, or is a crossed-out old price.
-Return JSON only: {"printed": true or false, "words": "the exact printed words that show this price, or empty"}`;
-}
+// The check, blind (v2): it lists the prices printed in the picture without
+// being told which one is being checked. Told the number, the old check
+// agreed with the reader's made-up 20.7 three times out of three.
+export const PRICES_PROMPT = `Look at this picture from a shop's Snapchat story. List every SELLING price printed in it (in a caption, price tag, sticker or poster), with the exact printed words around each price.
+Do not list weights or sizes (a number followed by جرام, جم, كيلو, كجم, مل, لتر, g, kg, ml), counts, dates, times, phone numbers, percentages, app text, or crossed-out old prices.
+Return JSON only: {"prices":[{"price":P,"words":"the printed words that show it"}]}
+If no selling price is printed, return {"prices":[]}.`;
 
 function visionRequest(model, text, base64, contentType, temperature) {
   return {
@@ -303,23 +310,34 @@ const PIECES_IN_A_PACK = 12;
 
 // One model reply -> valid offers. A price must be a number in range; an old
 // price is kept only when it is higher; count is a small positive integer.
+// A weight, volume or money word given as the unit: the "count" is a size
+// (measured: Loacker 2.5 read as "45 جرام", chicken 37.5 as "2.5 ريال").
+const SIZE_UNIT = /^(?:ال)?(?:جرام|غرام|جم|غم|كيلو(?:\s?جرام)?|كجم|كغ|كلغ|ملي(?:\s?لتر)?|مل|لتر|g|gm|gr|grams?|kg|ml|l|ltr|ريال|sar)$/iu;
+
 export function parseSnapReading(raw) {
   const parsed = typeof raw === 'string' ? parseJson(raw) : raw;
   if (!parsed || !Array.isArray(parsed.offers)) return null;
   const offers = [];
   for (const item of parsed.offers) {
     if (!item || typeof item !== 'object') continue;
-    const price = Number(item.price);
+    const price = numberIn(item.price);
     if (!Number.isFinite(price) || price < MIN_PRICE || price > MAX_PRICE) continue;
-    const was = Number(item.was_price);
-    const rounded = Math.round(Number(item.count));
-    const count = Number.isFinite(rounded) && rounded >= 1 && rounded <= 100 ? rounded : 1;
+    const was = numberIn(item.was_price);
+    let size = cleanText(item.size, 40);
     let unit = cleanText(item.unit, 20);
+    let count = Number(item.count);
+    if (unit && SIZE_UNIT.test(unit)) {
+      if (!size && unit !== 'ريال' && Number.isFinite(count)) size = `${count} ${unit}`;
+      unit = null;
+      count = 1;
+    }
+    // Units are whole: "2.5" is a weight, not two and a half packs.
+    if (!Number.isInteger(count) || count < 1 || count > 100) count = 1;
     if (unit && count >= PIECES_IN_A_PACK && PACK_UNIT.test(unit)) unit = null;
     offers.push({
       name: cleanText(item.name),
       brand: cleanText(item.brand, 60),
-      size: cleanText(item.size, 40),
+      size,
       count,
       unit,
       price: round2(price),
@@ -338,30 +356,71 @@ export function normalizeDigits(text) {
     .replace(/[٫,]/g, '.');
 }
 
-// App text the confirmation sometimes quotes as a "price" (measured: "منذ ٢٣",
-// the story's "23 hours ago").
+// App text the check sometimes quotes as a "price" (measured: "منذ ٢٣", the
+// story's "23 hours ago").
 const INTERFACE_WORDS = /منذ|ago|ساعة|ساعات|دقيقة|دقائق|\bmin\b|\bhrs?\b|\d{1,2}:\d{2}/i;
+// A weight or volume word right after a number makes it a size ("2,5 كجم").
+const WEIGHT_AFTER = /^\s*(?:جرام|جم|غرام|غم|كيلو|كجم|كغ|كلغ|ملي|مل|لتر|g|gm|gr|kg|ml|l)(?![\p{L}])/iu;
 
-// The confirmation reply -> true only for an explicit yes whose quoted words
-// contain the price and are not app text.
-export function confirmed(reply, price) {
-  const parsed = typeof reply === 'string' ? parseJson(reply) : reply;
-  if (!parsed || parsed.printed !== true) return false;
-  const words = normalizeDigits(parsed.words);
-  if (!words.trim() || INTERFACE_WORDS.test(words)) return false;
-  for (const m of words.matchAll(/\d+(?:\.\d+)?/g)) {
-    if (samePrice(Number(m[0]), price)) return true;
+// The first number in a value: 11.5, "6,90", "15 ريال", "١١٫٥" -> a number.
+// The check often gives its price as text (measured: "15 ريال", "6,90").
+function numberIn(value) {
+  if (typeof value === 'number') return value;
+  const m = /\d+(?:\.\d+)?/.exec(normalizeDigits(value));
+  return m ? Number(m[0]) : NaN;
+}
+
+// The text shows this number, and every time with a weight word after it.
+function shownAsSize(text, price) {
+  let seen = false;
+  for (const m of text.matchAll(/\d+(?:\.\d+)?/g)) {
+    if (!samePrice(Number(m[0]), price)) continue;
+    if (!WEIGHT_AFTER.test(text.slice(m.index + m[0].length))) return false;
+    seen = true;
   }
-  return false;
+  return seen;
+}
+
+// The blind check's reply -> true when it lists this price, unless what it
+// quotes is app text or shows the number only as a weight. The quoted words
+// may miss the price itself (measured: 34.95 quoted as "السعر 5 ريال فقط"):
+// not being told the price, the listing is the evidence.
+export function priceListed(reply, price) {
+  const parsed = typeof reply === 'string' ? parseJson(reply) : reply;
+  if (!parsed || !Array.isArray(parsed.prices)) return false;
+  return parsed.prices.some((p) => {
+    if (!p || !samePrice(numberIn(p.price), price)) return false;
+    const said = normalizeDigits(p.price);
+    const words = normalizeDigits(p.words);
+    if (INTERFACE_WORDS.test(said) || INTERFACE_WORDS.test(words)) return false;
+    return !shownAsSize(said, price) && !shownAsSize(words, price);
+  });
+}
+
+// A price that is a size printed in the same snap ("2,5 كجم ب 37,5" read as
+// a second offer at 2.5) is that size, never a product of its own.
+export function dropSizeTwins(offers) {
+  return offers.filter((o) => !offers.some((other) => {
+    if (other === o) return false; // "10 كيلو بصل بـ 10" is a price
+    const size = normalizeDigits(other.size || '');
+    for (const m of size.matchAll(/\d+(?:\.\d+)?/g)) {
+      if (samePrice(Number(m[0]), o.price) && WEIGHT_AFTER.test(size.slice(m.index + m[0].length))) return true;
+    }
+    return false;
+  }));
 }
 
 // --- names: telling one deal from another ---------------------------------------------
-// Words every caption carries ("عرض", "ريال", "حبة"): they say nothing about
-// which product it is.
+// Words every caption carries ("عرض", "ريال", "حبة") and the shops' slogan
+// words ("للحلويات والمواد الغذائية"): they say nothing about which product
+// it is. Measured 2026-11-05: two readings named after the shop's slogan made
+// a TUC poster a "repeat" of a Pillsbury one.
 const FILLER = new Set(['عرض', 'عروض', 'سعر', 'ريال', 'رس', 'فقط', 'حبه', 'حبات', 'حبتين', 'كرتون', 'كراتين',
-  'علبه', 'علب', 'كيس', 'اكياس', 'جديد', 'وصل', 'متوفر', 'offer', 'sar', 'sr', 'only', 'new', 'pcs', 'pc']);
+  'علبه', 'علب', 'كيس', 'اكياس', 'جديد', 'وصل', 'متوفر', 'offer', 'sar', 'sr', 'only', 'new', 'pcs', 'pc',
+  'حلويات', 'مواد', 'غذائيه', 'مخفضه', 'مستورده']);
 
-export function nameTokens(name) {
+// `ignore`: more words to leave out, e.g. the shop's own name (shopWords).
+export function nameTokens(name, ignore = null) {
   const tokens = String(name || '')
     .toLowerCase()
     .replace(/[ً-ْـ]/g, '')
@@ -369,34 +428,42 @@ export function nameTokens(name) {
     .replace(/ى/g, 'ي')
     .replace(/ة/g, 'ه')
     .split(/[^\p{L}\p{N}]+/u)
-    .map((t) => t.replace(/^(?:بال|وال|ال)(?=\p{L}{2})/u, ''))
-    .filter((t) => t.length >= 2 && !/^\p{N}+$/u.test(t) && !FILLER.has(t));
+    .map((t) => t.replace(/^(?:بال|وال|لل|ال)(?=\p{L}{2})/u, ''))
+    .filter((t) => t.length >= 2 && !/^\p{N}+$/u.test(t) && !FILLER.has(t) && !ignore?.has(t));
   return new Set(tokens);
+}
+
+// A shop's own name never tells two of its products apart.
+export function shopWords(title) {
+  return nameTokens(title);
 }
 
 // Two readings name the same product when half the shorter name's words are
 // in the other (readings of one picture vary: "لبنة تركية" / "لبنة").
-export function similarNames(a, b) {
-  const ta = nameTokens(a);
-  const tb = nameTokens(b);
+export function similarNames(a, b, ignore = null) {
+  const ta = nameTokens(a, ignore);
+  const tb = nameTokens(b, ignore);
   if (!ta.size || !tb.size) return !ta.size && !tb.size;
   let common = 0;
   for (const t of ta) if (tb.has(t)) common += 1;
   return common / Math.min(ta.size, tb.size) >= 0.5;
 }
 
-// The same deal: same price, same count, similar name.
-export function sameDeal(a, b) {
-  return samePrice(a.price, b.price) && (a.count || 1) === (b.count || 1) && similarNames(a.name, b.name);
+// The same deal: same price, same count, similar name. Two names with no
+// product word left (only the shop's slogan) can't say it is the same product,
+// so they are two offers: a hidden offer is worse than a second card.
+export function sameDeal(a, b, ignore = null) {
+  return samePrice(a.price, b.price) && (a.count || 1) === (b.count || 1)
+    && nameTokens(a.name, ignore).size > 0 && similarNames(a.name, b.name, ignore);
 }
 
 const sameTokens = (a, b) => a.size === b.size && [...a].every((t) => b.has(t));
 const digitsOf = (text) => String(text || '').replace(/\D/g, '');
 
 // The same product, priced again: identical name words, count and size.
-export function sameProduct(a, b) {
-  const ta = nameTokens(a.name);
-  if (!ta.size || !sameTokens(ta, nameTokens(b.name))) return false;
+export function sameProduct(a, b, ignore = null) {
+  const ta = nameTokens(a.name, ignore);
+  if (!ta.size || !sameTokens(ta, nameTokens(b.name, ignore))) return false;
   return (a.count || 1) === (b.count || 1)
     && sameTokens(nameTokens(a.size), nameTokens(b.size))
     && digitsOf(a.size) === digitsOf(b.size);
@@ -512,9 +579,14 @@ export async function readSnap(snap, { ask, media = null, framesAllowed = MAX_FR
     report.readings += 1;
     return parseSnapReading(await ask(SNAP_READ_PROMPT, image, READ_TEMPERATURE));
   };
-  const confirm = async (image, price) => {
-    report.readings += 1;
-    return confirmed(await ask(confirmPrompt(price), image, 0), price);
+  // One blind check per picture, however many prices it carries.
+  const checks = new Map();
+  const confirm = async (frame, price) => {
+    if (!checks.has(frame)) {
+      report.readings += 1;
+      checks.set(frame, await ask(PRICES_PROMPT, pictures[frame], 0));
+    }
+    return priceListed(checks.get(frame), price);
   };
 
   const video = snap.mediaType === 'video';
@@ -546,7 +618,7 @@ export async function readSnap(snap, { ask, media = null, framesAllowed = MAX_FR
       const again = await read(pictures[offer.frame]);
       if (again?.some((o) => samePrice(o.price, offer.price))) candidates.push({ ...offer, votes: 2 });
     }
-    candidates = dropOldPriceTwins(dedupeDeals(candidates));
+    candidates = dropSizeTwins(dropOldPriceTwins(dedupeDeals(candidates)));
   } else {
     // A photo, or a video read from its cover (no binding, or the month's
     // frame allowance is spent).
@@ -554,13 +626,16 @@ export async function readSnap(snap, { ask, media = null, framesAllowed = MAX_FR
     const first = await read(pictures[0]);
     // No price in the first reading: an ad (owner's rule) — no second call.
     if (!first?.length) return { offers: [], repeatOf: null };
-    candidates = agreePhoto(first, await read(pictures[0])).map((o) => ({ ...o, frame: 0 }));
+    let second = await read(pictures[0]);
+    // An empty second reading of a priced photo is a slip: one more look.
+    if (!second?.length) second = await read(pictures[0]);
+    candidates = dropSizeTwins(agreePhoto(first, second)).map((o) => ({ ...o, frame: 0 }));
   }
 
   const offers = [];
   for (const offer of candidates) {
     const picture = pictures[offer.frame];
-    if (!picture || !(await confirm(picture, offer.price))) continue;
+    if (!picture || !(await confirm(offer.frame, offer.price))) continue;
     offers.push({ ...offer, image: picture });
   }
   return { offers, repeatOf: null };
@@ -642,13 +717,14 @@ async function saveOffers({ store, bucket, snap, offers, at }) {
   const posted = snap.postedAt || nowIso;
   const expiresAt = new Date(Date.parse(posted) + OFFER_TTL_MS).toISOString();
   const history = await store.recentOffers(snap.username, new Date(at.getTime() - REPEAT_LOOKBACK_MS).toISOString());
+  const ignore = shopWords(snap.shopTitle);
   const shown = [];
   const fresh = [];
   const stored = new Set();
   let n = 0;
   for (const offer of offers) {
     n += 1;
-    const earlier = history.find((o) => sameDeal(o, offer));
+    const earlier = history.find((o) => sameDeal(o, offer, ignore));
     if (earlier) {
       if (!shown.includes(earlier.id)) {
         await store.repostOffer(earlier.id, { postedAt: posted, expiresAt });
@@ -657,7 +733,7 @@ async function saveOffers({ store, bucket, snap, offers, at }) {
       continue;
     }
     for (const older of history) {
-      if (older.expiresAt > nowIso && (older.lastPostedAt || older.postedAt || '') <= posted && sameProduct(older, offer)) {
+      if (older.expiresAt > nowIso && (older.lastPostedAt || older.postedAt || '') <= posted && sameProduct(older, offer, ignore)) {
         await store.retireOffer(older.id, nowIso);
         older.expiresAt = nowIso;
       }

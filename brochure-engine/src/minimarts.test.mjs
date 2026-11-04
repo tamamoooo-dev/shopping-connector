@@ -5,18 +5,22 @@ import {
   mp4DurationSec,
   frameTimes,
   parseSnapReading,
-  confirmed,
+  priceListed,
+  dropSizeTwins,
   agreePhoto,
   groupFrames,
   dropOldPriceTwins,
   similarNames,
   sameDeal,
   sameProduct,
+  shopWords,
   runMinimartTick,
   readSnap,
   parsePictureKind,
   largePicture,
   PICTURE_PROMPT,
+  PRICES_PROMPT,
+  SNAP_READ_PROMPT,
   BLOCKED_RETRY_MS,
   OFFER_TTL_MS,
 } from './minimarts.js';
@@ -107,18 +111,41 @@ assert.deepEqual(frameTimes(10, 0), []);
     { name: 'جبنة شيدر', price: 15, count: 2, unit: 'كراتين' },
   ] });
   assert.deepEqual(packs.map((o) => [o.count, o.unit]), [[24, null], [2, 'كراتين']]);
+  // A weight or money word as the unit: the "count" was a size (measured).
+  const sizes = parseSnapReading({ offers: [
+    { name: 'Loacker', price: 2.5, count: 45, unit: 'جرام' },
+    { name: 'tenders', price: '37,5', count: 2.5, unit: 'ريال', size: '2.5 كجم' },
+    { name: 'x', price: '١١٫٥', count: 2.5, unit: null },
+  ] });
+  assert.deepEqual(sizes.map((o) => [o.price, o.count, o.unit, o.size]), [[2.5, 1, null, '45 جرام'], [37.5, 1, null, '2.5 كجم'], [11.5, 1, null, null]]);
   assert.equal(parseSnapReading('not json'), null);
   assert.deepEqual(parseSnapReading('```json\n{"offers":[]}\n```'), []);
 }
 
-// The confirmation: an explicit yes whose quoted words hold the price.
-assert.equal(confirmed('{"printed":true,"words":"لبنة ١١٫٥ ريال"}', 11.5), true);
-assert.equal(confirmed({ printed: true, words: '٢٠٫٧٠ ريال' }, 20.7), true);
-assert.equal(confirmed({ printed: true, words: 'منذ ٢٣' }, 23), false); // the story's "23 h ago" (measured)
-assert.equal(confirmed({ printed: true, words: '9.99' }, 21.99), false); // words without the price (measured)
-assert.equal(confirmed({ printed: false, words: '6.9' }, 6.9), false);
-assert.equal(confirmed({ printed: true, words: '' }, 6.9), false);
-assert.equal(confirmed('garbage', 6.9), false);
+// No list of example prices: the reader copied "20.70" from one (measured).
+assert.ok(!SNAP_READ_PROMPT.includes('20.70'));
+assert.ok(!/\d/.test(PRICES_PROMPT), 'a number in the blind check');
+
+// The blind check is not told the price: it lists what it sees, and a price
+// counts only when the check lists it with words that show it.
+assert.equal(priceListed('{"prices":[{"price":11.5,"words":"لبنة ١١٫٥ ريال"}]}', 11.5), true);
+assert.equal(priceListed({ prices: [{ price: 20.7, words: '٢٠٫٧٠ ريال' }] }, 20.7), true);
+assert.equal(priceListed({ prices: [{ price: 1, words: '1 ريال' }] }, 1), true);
+assert.equal(priceListed({ prices: [{ price: 23, words: 'منذ ٢٣' }] }, 23), false); // the story's "23 h ago" (measured)
+assert.equal(priceListed({ prices: [{ price: '15 ريال', words: 'ب 15 ريال فقط' }] }, 15), true); // a price as text (measured)
+assert.equal(priceListed({ prices: [{ price: '6,90', words: 'ب 6,90 ريال فقط' }] }, 6.9), true);
+assert.equal(priceListed({ prices: [{ price: '11.50', words: 'ريال فقط' }] }, 11.5), true); // listed, words miss it (measured)
+assert.equal(priceListed({ prices: [{ price: '2.5 كجم', words: '' }] }, 2.5), false);
+assert.equal(priceListed({ prices: [{ price: 9.99, words: '9.99 ريال' }] }, 6.9), false); // another price
+assert.equal(priceListed({ prices: [{ price: 2.5, words: '2,5 كجم ب 37,5' }] }, 2.5), false); // a weight (measured)
+assert.equal(priceListed({ prices: [{ price: 37.5, words: '2,5 كجم ب 37,5' }] }, 37.5), true);
+assert.equal(priceListed({ prices: [] }, 6.9), false);
+assert.equal(priceListed('{"printed":true,"words":"6.9"}', 6.9), false);
+assert.equal(priceListed('garbage', 6.9), false);
+// A price that is another offer's printed size is that size (measured: 2.5 from "2,5 كجم").
+assert.deepEqual(dropSizeTwins([{ price: 37.5, size: '2,5 كجم' }, { price: 2.5, size: null }]).map((o) => o.price), [37.5]);
+assert.deepEqual(dropSizeTwins([{ price: 10, size: '10 كيلو' }]).map((o) => o.price), [10]); // its own size
+assert.deepEqual(dropSizeTwins([{ price: 5, size: '5 حبات' }, { price: 5, size: null }]).length, 2); // pieces, not a weight
 
 // Two readings of a photo agree on a price; an old price needs both.
 {
@@ -164,6 +191,16 @@ assert.equal(sameDeal({ name: 'لبنة', price: 11.5, count: 1 }, { name: 'لب
 assert.equal(sameProduct({ name: 'لبنة تركية', count: 1, size: '400 جرام' }, { name: 'اللبنة التركيه', count: 1, size: '400 جرام' }), true);
 assert.equal(sameProduct({ name: 'لبنة تركية', count: 1, size: '400 جرام' }, { name: 'لبنة', count: 1, size: '400 جرام' }), false);
 assert.equal(sameProduct({ name: 'لبنة تركية', count: 1, size: '400 جرام' }, { name: 'لبنة تركية', count: 1, size: '800 جرام' }), false);
+// A shop's slogan and its own name say nothing about the product (TUC merged into Pillsbury, measured).
+assert.equal(similarNames('عروض للحلويات والمواد الغذائية بيلسبري', 'بسكويت تك عروض للحلويات والمواد الغذائية'), false);
+assert.equal(sameDeal({ name: 'عروض للحلويات والمواد الغذائية', price: 11.5, count: 3 }, { name: 'عروض للحلويات', price: 11.5, count: 3 }), false);
+{
+  const shop = shopWords('بشائر العروض للمواد الغذائية');
+  assert.deepEqual([...shop], ['بشائر']);
+  assert.equal(similarNames('بشائر لبنة', 'بشائر زيتون'), true);
+  assert.equal(similarNames('بشائر لبنة', 'بشائر زيتون', shop), false);
+  assert.equal(sameDeal({ name: 'لبنة بشائر', price: 9, count: 1 }, { name: 'لبنة', price: 9, count: 1 }, shop), true);
+}
 
 // --- the shop's picture: its logo, or not ----------------------------------------------------
 assert.equal(parsePictureKind('{"kind": "logo"}'), 'logo');
@@ -178,7 +215,7 @@ const enc = (text) => new TextEncoder().encode(text);
 const dec = (bytes) => new TextDecoder().decode(bytes);
 
 // What each picture shows, keyed by its bytes. `reads` = the reading prompt's
-// replies (in turn), `printed` = prices the confirmation says yes to.
+// replies (in turn), `printed` = the prices the blind check lists, with their words.
 const PICTURES = {
   'IMG:labneh': { reads: [[{ name: 'لبنة تركية', price: 11.5, count: 1 }]], printed: { 11.5: 'لبنة تركية ١١٫٥' } },
   'IMG:labneh-again': { reads: [[{ name: 'لبنه تركيه', price: 11.5, count: 1 }]], printed: { 11.5: '11.5 ريال' } },
@@ -199,7 +236,7 @@ function createAsk({ rateLimitOn = null } = {}) {
   const calls = [];
   const ask = async (text, image) => {
     const key = dec(image.bytes);
-    calls.push({ key, kind: text === PICTURE_PROMPT ? 'picture' : text.startsWith('Look at this picture') ? 'confirm' : 'read' });
+    calls.push({ key, kind: text === PICTURE_PROMPT ? 'picture' : text === PRICES_PROMPT ? 'confirm' : 'read' });
     if (rateLimitOn && key === rateLimitOn) {
       const err = new Error('mistral 429: rate limit exceeded');
       err.status = 429;
@@ -208,10 +245,8 @@ function createAsk({ rateLimitOn = null } = {}) {
     const picture = PICTURES[key];
     assert.ok(picture, `unexpected picture ${key}`);
     if (text === PICTURE_PROMPT) return JSON.stringify({ kind: picture.kind });
-    if (text.startsWith('Look at this picture')) {
-      const price = Number(/price ([\d.]+)/.exec(text)[1]);
-      const words = picture.printed[price];
-      return JSON.stringify(words ? { printed: true, words } : { printed: false, words: '' });
+    if (text === PRICES_PROMPT) {
+      return JSON.stringify({ prices: Object.entries(picture.printed).map(([price, words]) => ({ price: Number(price), words })) });
     }
     return JSON.stringify({ offers: picture.reads[0] });
   };
@@ -398,8 +433,8 @@ try {
     {
       ask: async (text, image) => {
         calls.push(dec(image.bytes));
-        return text.startsWith('Look at this picture')
-          ? '{"printed":true,"words":"12.5"}'
+        return text === PRICES_PROMPT
+          ? '{"prices":[{"price":12.5,"words":"12.5"}]}'
           : '{"offers":[{"name":"شوكولاتة","price":12.5,"count":1}]}';
       },
       media: null,
