@@ -61,6 +61,8 @@ import { createRecoveryQueue } from './storage/recoveryQueue.js';
 import { recoveryRegistry } from './recovery/processors/index.js';
 import { createD1VisionJobStore } from './storage/visionJobStore.js';
 import { createD1RegistryStore } from './storage/registryStore.js';
+import { createMinimartStore } from './storage/minimartStore.js';
+import { runMinimartTick, createSnapAsker } from './minimarts.js';
 import { builtArabicNamesEnabled } from './lexicon/arabicRollout.js';
 import { createNtfyNotifier, ntfyPushDisabled } from './monitor.js';
 import { claimScheduledWatchRuns } from './watchSchedule.js';
@@ -79,7 +81,7 @@ import { danubeProvider } from './providers/danube.js';
 import { tamimiProvider } from './providers/tamimi.js';
 import { nestoProvider } from './providers/nesto.js';
 import { d4dStoreProviders } from './providers/d4dStores.js';
-import { buildMistralPools, isTerminalMistralLimit, MISTRAL_POOL_DEFINITIONS } from './offers/mistralKeys.js';
+import { buildMistralPools, createKeyChain, isTerminalMistralLimit, MISTRAL_POOL_DEFINITIONS } from './offers/mistralKeys.js';
 import { PRICE_FALLBACK_DEFAULTS } from './offers/priceFallback.js';
 import { readRejudgeSweepState, runRejudgeSweep } from './offers/visionVerification.js';
 import { BUSINESS_ACCEPTANCE_VERSION } from './offers/businessAcceptance.js';
@@ -242,6 +244,60 @@ async function runRejudgeSweepTick(env, { scheduledTime = Date.now() } = {}) {
         skipped: sweep.skipped, staleClaims: sweep.staleClaims, cutShort: sweep.cutShort,
         samples: sweep.samples, state: sweep.state,
       },
+    }).catch(() => {});
+  } finally {
+    await lease.update({ lease_until: null }).catch(() => {});
+  }
+}
+
+// Mini marts (minimarts.js) on the */2 tick: the shops that are due (every
+// 2 h) are checked, then queued snaps are read until the deadline. One D1
+// lease, so overlapping fires never read the same snap twice. The reader
+// leaves MINIMART_KEY_RESERVE requests per key per minute for everyone else
+// on the shared Mistral keys. A quiet fire (nothing due, nothing queued)
+// costs two D1 reads and records nothing.
+const MINIMART_DEADLINE_MS = 80 * 1000;
+const MINIMART_LEASE_MS = 4 * 60 * 1000;
+const MINIMART_KEY_RESERVE = 2;
+
+async function runMinimartsTick(env, { scheduledTime = Date.now() } = {}) {
+  const context = buildContext(env);
+  const store = context.minimartStore;
+  if (!store) return;
+  const nowIso = new Date(scheduledTime).toISOString();
+  const due = await store.dueShops(nowIso, 1);
+  const queued = await store.pendingSnaps(1);
+  if (!due.length && !queued.length) return;
+  const lease = createD1VisionJobStore(env.DB, { id: 'minimarts' });
+  await lease.ensureRunning({ scope: 'all', origin: 'cron' });
+  if (!(await lease.tryLease({ nowMs: Date.now(), leaseMs: MINIMART_LEASE_MS }))) return;
+  const startedAt = new Date();
+  try {
+    const pool = context.mistralPools.ministral14;
+    const ask = pool.some((slot) => slot.key)
+      ? createSnapAsker({
+        keyChain: createKeyChain(pool, { label: 'mistral-minimarts', balance: true, reserve: MINIMART_KEY_RESERVE }),
+        model: MISTRAL_POOL_DEFINITIONS.ministral14.model,
+      })
+      : null;
+    const report = await runMinimartTick({
+      store,
+      bucket: env.BROCHURES || null,
+      media: env.MEDIA || null,
+      ask,
+      deadlineMs: MINIMART_DEADLINE_MS,
+    }).catch((err) => ({ checked: [], read: 0, offers: 0, failed: 1, errors: [String(err?.message || err).slice(0, 200)] }));
+    console.log('brochure-engine minimarts', JSON.stringify(report));
+    await context.opsStore.record({
+      ts: startedAt.toISOString(),
+      action: 'cron:minimarts',
+      origin: 'cron',
+      ok: !report.errors?.length,
+      offers: report.offers ?? 0,
+      failed: report.failed ?? 0,
+      elapsed_ms: Date.now() - startedAt.getTime(),
+      error: report.errors?.[0] || null,
+      detail: report,
     }).catch(() => {});
   } finally {
     await lease.update({ lease_until: null }).catch(() => {});
@@ -483,6 +539,8 @@ function buildContext(env) {
     builtArabicNamesEnabled: useBuiltArabicNames,
     isDevelopment: env.ENVIRONMENT === 'development',
     registryStore,
+    // Mini marts (minimarts.js): shops' public Snapchat stories.
+    minimartStore: env.DB ? createMinimartStore(env.DB) : null,
     self: env.SELF,
     crons: CRONS,
   };
@@ -552,6 +610,11 @@ const worker = {
       ctx.waitUntil(
         runRejudgeSweepTick(env, { scheduledTime: event.scheduledTime || Date.now() }).catch((err) => {
           console.error('brochure-engine vision rejudge sweep unavailable', err?.message || String(err));
+        }),
+      );
+      ctx.waitUntil(
+        runMinimartsTick(env, { scheduledTime: event.scheduledTime || Date.now() }).catch((err) => {
+          console.error('brochure-engine minimarts unavailable', err?.message || String(err));
         }),
       );
       return;

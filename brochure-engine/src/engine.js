@@ -65,6 +65,7 @@ import {
   publishD4dCollection,
   summarizeD4dResult,
 } from './collectors/d4dResumable.js';
+import { fetchProfile, resolveShopLink, MAX_SHOPS } from './minimarts.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
 // extracts prices from flyer images; the flyer prevails on any mismatch).
@@ -360,6 +361,88 @@ export async function handleRequest(request, ctx) {
       usage:
         '/brochures?store=<id>&region=<key>  ·  /offers?q=<query>  ·  /prices?q=<query>',
     });
+  }
+
+  // --- Mini marts (minimarts.js): offers shops post on their public Snapchat
+  // story, shown on the Brochures page. The shop list is shared by every
+  // profile (the owner's list); no account or login anywhere. Reads are a
+  // couple of D1 queries, so nothing here is edge-cached.
+  if (path === '/minimarts' && request.method === 'GET') {
+    if (!ctx.minimartStore) return json({ error: 'Mini marts unavailable.' }, 503);
+    const nowIso = new Date().toISOString();
+    const [shops, offers] = await Promise.all([ctx.minimartStore.listShops(), ctx.minimartStore.liveOffers(nowIso)]);
+    return json({
+      shops,
+      offers: offers.map((o) => ({
+        ...o,
+        perUnit: o.count > 1 ? Math.round((o.price / o.count) * 100) / 100 : null,
+        image: o.imageKey ? `/minimarts/image?key=${encodeURIComponent(o.imageKey)}` : null,
+        imageKey: undefined,
+      })),
+      generatedAt: nowIso,
+    });
+  }
+
+  if (path === '/minimarts/image' && request.method === 'GET') {
+    const key = url.searchParams.get('key') || '';
+    if (!/^minimarts\/[a-z0-9._-]+\/[A-Za-z0-9._:-]+\.jpg$/.test(key) || !ctx.storageBucket) {
+      return json({ error: 'Not found.' }, 404);
+    }
+    const object = await ctx.storageBucket.get(key);
+    if (!object) return json({ error: 'Not found.' }, 404);
+    return new Response(object.body, {
+      headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=604800, immutable', ...CORS },
+    });
+  }
+
+  // Add a shop by its Snapchat link (or username). Its public page is read
+  // once here so the owner learns at once whether it can be followed; its
+  // story snaps are queued for the next */2 tick.
+  if (path === '/minimarts/shops' && request.method === 'POST') {
+    if (!ctx.minimartStore) return json({ error: 'Mini marts unavailable.' }, 503);
+    let body = {};
+    try { body = await request.json(); } catch { body = {}; }
+    let username = null;
+    try {
+      username = await resolveShopLink(body.link ?? body.username);
+    } catch {
+      username = null;
+    }
+    if (!username) return json({ error: 'bad_link' }, 400);
+    const existing = await ctx.minimartStore.listShops();
+    if (!existing.some((s) => s.username === username) && existing.length >= MAX_SHOPS) {
+      return json({ error: 'too_many_shops', max: MAX_SHOPS }, 409);
+    }
+    const page = await fetchProfile(username);
+    if (page.status === 'not_found') return json({ error: 'not_found', username }, 404);
+    if (page.status === 'not_public') return json({ error: 'not_public', username }, 422);
+    const now = new Date();
+    const nowIso = now.toISOString();
+    await ctx.minimartStore.addShop(username, nowIso);
+    if (page.status === 'ok') {
+      const added = await ctx.minimartStore.addSnaps(username, page.snaps, nowIso);
+      await ctx.minimartStore.recordCheck(username, {
+        status: 'ok',
+        error: null,
+        profile: page.profile,
+        lastPostAt: page.snaps.map((s) => s.postedAt).filter(Boolean).sort().pop() || null,
+        checkedAt: nowIso,
+        nextCheckAt: new Date(now.getTime() + 2 * 60 * 60 * 1000).toISOString(),
+      });
+      const shop = (await ctx.minimartStore.listShops()).find((s) => s.username === username);
+      return json({ shop, queued: added }, 201);
+    }
+    // blocked / error: kept, and the */2 tick checks it again.
+    const shop = (await ctx.minimartStore.listShops()).find((s) => s.username === username);
+    return json({ shop, queued: 0, status: page.status }, 202);
+  }
+
+  if (path === '/minimarts/shops' && request.method === 'DELETE') {
+    if (!ctx.minimartStore) return json({ error: 'Mini marts unavailable.' }, 503);
+    const username = String(url.searchParams.get('username') || '').toLowerCase();
+    if (!username) return json({ error: 'username required' }, 400);
+    const removed = await ctx.minimartStore.removeShop(username);
+    return json({ removed }, removed ? 200 : 404);
   }
 
   // --- Browse (the product-discovery pillar; BROWSE-DESIGN.md) ---------------

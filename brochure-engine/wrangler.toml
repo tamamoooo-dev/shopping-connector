@@ -160,6 +160,13 @@ database_id = "50bbe1ea-aca0-4f1d-abfd-c586335d82ba"
 binding = "BROCHURES"
 bucket_name = "brochure-engine"
 
+# --- Media Transformations (Mini marts, minimarts.js) -------------------------
+# Cuts one frame per second from a shop's Snapchat video story so each frame
+# can be read. 5,000 frames a month are free (the code caps itself there);
+# without this binding a video is read from its cover picture only.
+[media]
+binding = "MEDIA"
+
 # --- ObjectStore: KV (fallback used when R2 is not available) -----------------
 # The storage interface (§5) makes this a drop-in for R2. Create once:
 #   npx wrangler kv namespace create BROCHURES_KV
