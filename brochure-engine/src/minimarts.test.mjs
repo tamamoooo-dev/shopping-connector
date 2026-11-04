@@ -14,6 +14,9 @@ import {
   sameProduct,
   runMinimartTick,
   readSnap,
+  parsePictureKind,
+  largePicture,
+  PICTURE_PROMPT,
   BLOCKED_RETRY_MS,
   OFFER_TTL_MS,
 } from './minimarts.js';
@@ -44,8 +47,8 @@ function snapEntry(id, kind, seconds, url, extra = {}) {
     ...extra,
   };
 }
-const publicProfile = (snaps) => ({
-  userProfile: { $case: 'publicProfileInfo', publicProfileInfo: { title: 'وقت التحليهـ', address: 'الروابي', profilePictureUrl: 'https://p/pic.jpg' } },
+const publicProfile = (snaps, picture = 'https://p/pic.jpg') => ({
+  userProfile: { $case: 'publicProfileInfo', publicProfileInfo: { title: 'وقت التحليهـ', address: 'الروابي', profilePictureUrl: picture } },
   story: { snapList: snaps },
 });
 
@@ -162,6 +165,14 @@ assert.equal(sameProduct({ name: 'لبنة تركية', count: 1, size: '400 ج�
 assert.equal(sameProduct({ name: 'لبنة تركية', count: 1, size: '400 جرام' }, { name: 'لبنة', count: 1, size: '400 جرام' }), false);
 assert.equal(sameProduct({ name: 'لبنة تركية', count: 1, size: '400 جرام' }, { name: 'لبنة تركية', count: 1, size: '800 جرام' }), false);
 
+// --- the shop's picture: its logo, or not ----------------------------------------------------
+assert.equal(parsePictureKind('{"kind": "logo"}'), 'logo');
+assert.equal(parsePictureKind('{"kind":"Snapchat"}'), 'snapchat');
+assert.equal(parsePictureKind('{"kind":"banner"}'), null);
+assert.equal(parsePictureKind('no json'), null);
+assert.equal(largePicture('https://cf-st.sc-cdn.net/aps/bolt/aHR0c._RS0,90_FMjpeg'), 'https://cf-st.sc-cdn.net/aps/bolt/aHR0c._RS0,400_FMjpeg');
+assert.equal(largePicture('https://p/pic.jpg'), 'https://p/pic.jpg');
+
 // --- the tick, end to end on the real schema ---------------------------------------------------
 const enc = (text) => new TextEncoder().encode(text);
 const dec = (bytes) => new TextDecoder().decode(bytes);
@@ -179,13 +190,16 @@ const PICTURES = {
   'FRAME:0.5': { reads: [[{ name: 'شوكولاتة', price: 12.5, count: 1 }]], printed: { 12.5: '12.5' } },
   'FRAME:1.5': { reads: [[{ name: 'شوكولاته جالكسي', price: 12.5, count: 1 }]], printed: { 12.5: '12.5' } },
   'FRAME:2.5': { reads: [[{ name: 'قهوة', price: 30, count: 2, unit: 'علبة' }]], printed: { 30: '2 علبة بـ 30' } },
+  // Shop pictures: the logo-or-name call.
+  'PIC:logo': { kind: 'logo' },
+  'PIC:snapcode': { kind: 'snapchat' },
 };
 
 function createAsk({ rateLimitOn = null } = {}) {
   const calls = [];
   const ask = async (text, image) => {
     const key = dec(image.bytes);
-    calls.push({ key, kind: text.startsWith('Look at this picture') ? 'confirm' : 'read' });
+    calls.push({ key, kind: text === PICTURE_PROMPT ? 'picture' : text.startsWith('Look at this picture') ? 'confirm' : 'read' });
     if (rateLimitOn && key === rateLimitOn) {
       const err = new Error('mistral 429: rate limit exceeded');
       err.status = 429;
@@ -193,6 +207,7 @@ function createAsk({ rateLimitOn = null } = {}) {
     }
     const picture = PICTURES[key];
     assert.ok(picture, `unexpected picture ${key}`);
+    if (text === PICTURE_PROMPT) return JSON.stringify({ kind: picture.kind });
     if (text.startsWith('Look at this picture')) {
       const price = Number(/price ([\d.]+)/.exec(text)[1]);
       const words = picture.printed[price];
@@ -208,7 +223,7 @@ function createFetch(state) {
     if (url.startsWith('https://www.snapchat.com/add/')) {
       const username = decodeURIComponent(url.split('/add/')[1]);
       if (state.blocked?.has(username)) return new Response('', { status: 403 });
-      return new Response(pageHtml(publicProfile(state.stories[username] || [])), { status: 200 });
+      return new Response(pageHtml(publicProfile(state.stories[username] || [], state.picture)), { status: 200 });
     }
     const body = state.media[url];
     if (!body) return new Response('', { status: 404 });
@@ -259,6 +274,8 @@ try {
       'https://cdn/ad': enc('IMG:ad'),
       'https://cdn/mozz': enc('IMG:mozzarella'),
       'https://cdn/video': video,
+      'https://p/pic.jpg': enc('PIC:logo'),
+      'https://p/snapcode.jpg': enc('PIC:snapcode'),
     },
   };
   await store.addShop('t.sshoco', now().toISOString());
@@ -266,7 +283,9 @@ try {
   // Day 1: the story is read; the ad and the made-up price leave nothing.
   const day1 = createAsk();
   let report = await runMinimartTick({ store, bucket, media: fakeMedia, ask: day1.ask, fetchImpl: createFetch(state), now });
-  assert.deepEqual(report.checked, [{ shop: 't.sshoco', status: 'ok', snaps: 4, added: 4 }]);
+  assert.deepEqual(report.checked, [{ shop: 't.sshoco', status: 'ok', snaps: 4, added: 4, picture: 'logo' }]);
+  let [shop] = await store.listShops();
+  assert.equal(shop.logo, 'https://p/pic.jpg'); // the tile shows the logo
   assert.equal(report.read, 4);
   assert.equal(report.frames, 3);
   let live = await store.liveOffers(now().toISOString());
@@ -297,7 +316,9 @@ try {
   const day3 = createAsk();
   report = await runMinimartTick({ store, bucket, media: fakeMedia, ask: day3.ask, fetchImpl: createFetch(state), now });
   assert.equal(report.repeats, 1);
-  assert.equal(day3.calls.length, 0);
+  assert.equal(day3.calls.length, 0); // nor the same picture again
+  [shop] = await store.listShops();
+  assert.equal(shop.logo, 'https://p/pic.jpg');
   live = await store.liveOffers(now().toISOString());
   let again = live.find((o) => o.price === 11.5);
   assert.equal(live.filter((o) => o.price === 11.5).length, 1);
@@ -321,8 +342,13 @@ try {
   nowMs = Date.parse('2026-11-17T09:00:00Z');
   state.stories['t.sshoco'] = [snapEntry('s-labneh-4', 0, sec('2026-11-17T08:00:00Z'), 'https://cdn/labneh-4')];
   state.media['https://cdn/labneh-4'] = enc('IMG:labneh-cheaper');
+  state.picture = 'https://p/snapcode.jpg'; // the shop swapped its logo for its Snapcode
   report = await runMinimartTick({ store, bucket, media: fakeMedia, ask: createAsk().ask, fetchImpl: createFetch(state), now });
   assert.equal(report.offers, 1);
+  [shop] = await store.listShops();
+  assert.equal(report.checked[0].picture, 'snapchat');
+  assert.equal(shop.logo, null); // the tile shows the shop's name
+  assert.equal(shop.pictureKind, 'snapchat');
   live = await store.liveOffers(now().toISOString());
   assert.deepEqual(live.map((o) => [o.name, o.price, o.reposts]), [['لبنة تركية', 9.99, 0]]);
 
@@ -343,7 +369,7 @@ try {
   state.blocked = new Set(['t.sshoco']);
   report = await runMinimartTick({ store, bucket, media: fakeMedia, ask: createAsk().ask, fetchImpl: createFetch(state), now });
   assert.deepEqual(report.checked.map((c) => c.status), ['blocked']);
-  let [shop] = await store.listShops();
+  [shop] = await store.listShops();
   assert.equal(shop.status, 'blocked');
   assert.equal(shop.nextCheckAt, new Date(nowMs + BLOCKED_RETRY_MS).toISOString());
 

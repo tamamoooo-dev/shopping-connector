@@ -4,6 +4,7 @@
 // Interface (used by runMinimartTick and the /minimarts routes):
 //   listShops() / addShop(username, nowIso) / removeShop(username)
 //   dueShops(nowIso, limit) / recordCheck(username, patch)
+//   setPictureKind(username, kind, pictureUrl) -> the tile's logo-or-name call
 //   addSnaps(username, snaps, seenAt) -> number added (a snap id is queued once)
 //   pendingSnaps(limit) / finishSnap(snapId, patch) / noteUsage(snapId, usage)
 //   findReadSnapByHash(username, hash, exceptSnapId) -> { snapId, offerIds } | null
@@ -40,6 +41,10 @@ function shopOut(r) {
     title: r.title,
     address: r.address,
     picture: r.picture,
+    // The picture, only when it was found to be the shop's own logo (and is
+    // still the picture that was looked at).
+    logo: r.picture_kind === 'logo' && r.picture_kind_of === r.picture ? r.picture : null,
+    pictureKind: r.picture_kind ?? null,
     addedAt: r.added_at,
     lastCheckedAt: r.last_checked_at,
     nextCheckAt: r.next_check_at,
@@ -98,13 +103,20 @@ export function createMinimartStore(db) {
     async dueShops(nowIso, limit) {
       const { results } = await db
         .prepare(
-          `SELECT username FROM minimart_shops
+          `SELECT username, picture_kind_of FROM minimart_shops
            WHERE active = 1 AND (next_check_at IS NULL OR next_check_at <= ?)
            ORDER BY next_check_at LIMIT ?`,
         )
         .bind(nowIso, limit)
         .all();
-      return results || [];
+      return (results || []).map((r) => ({ username: r.username, pictureKindOf: r.picture_kind_of }));
+    },
+
+    async setPictureKind(username, kind, pictureUrl) {
+      await db
+        .prepare('UPDATE minimart_shops SET picture_kind = ?2, picture_kind_of = ?3 WHERE username = ?1')
+        .bind(username, kind, pictureUrl)
+        .run();
     },
 
     async recordCheck(username, { status, error, profile, lastPostAt, checkedAt, nextCheckAt }) {

@@ -856,7 +856,9 @@ CREATE TABLE IF NOT EXISTS minimart_shops (
   last_checked_at TEXT,
   last_status     TEXT,                             -- ok | blocked | not_public | not_found | error
   last_error      TEXT,
-  last_post_at    TEXT                              -- newest snap seen
+  last_post_at    TEXT,                             -- newest snap seen
+  picture_kind    TEXT,                             -- logo | photo | snapchat (2026-11-05)
+  picture_kind_of TEXT                              -- the picture URL that kind is for
 );
 
 CREATE INDEX IF NOT EXISTS ix_minimart_shops_due

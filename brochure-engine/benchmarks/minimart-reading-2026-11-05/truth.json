@@ -1,0 +1,668 @@
+[
+ {
+  "n": 1,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgZ2FkdGxtZ2tzAaGjXqOaAaGjXpmeAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 2.5,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 2,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgbWJmdW9nbmZ1AaGjfIY1AaGjfH0JAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 5,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 3,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgemJ1anl6aGhyAaGjlbszAaGjlbS8AAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     1,
+     5
+    ]
+   }
+  ]
+ },
+ {
+  "n": 4,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgZWJydWV5ZHJ3AaGjlj4cAaGjljXDAAAAAA",
+  "shop": "bshaaral",
+  "expected": []
+ },
+ {
+  "n": 5,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgcXl0cW5rZHpuAaGjmDlxAaGjmDNfAAAAAA",
+  "shop": "bshaaral",
+  "expected": []
+ },
+ {
+  "n": 6,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgcnhndXlxY2hrAaGjqF5XAaGjqFtgAAAAAA",
+  "shop": "bshaaral",
+  "expected": []
+ },
+ {
+  "n": 7,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgbmJiZ3dqYWdiAaGjrIf_AaGjrIQGAAAAAA",
+  "shop": "bshaaral",
+  "expected": []
+ },
+ {
+  "n": 8,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgdGtuaWx2bHJzAaGj3Xo1AaGj3XaVAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 9,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgcWdmY2Z5ZmZ4AaGl_IBMAaGl_IA9AAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 6.9,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 10,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgbmpibnJjY3llAaGmF3TrAaGmF3TXAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 5.75,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 11,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgcmV4cnRwcGFwAaGmHVlQAaGmHVk-AAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 12,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgaGluZ2NsZXJyAaGmHVtnAaGmHVtYAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 13,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgd3Zid2J1aGlzAaGmHV0CAaGmHVzyAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 10,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 14,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgeGlmemdtenZsAaGmHWH9AaGmHWHvAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 1,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 15,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgeHNkb29nendsAaGmHV_GAaGmHV-xAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 9.95,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 16,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgemZtenFjbWh4AaGmHWS-AaGmHWSTAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 17,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgdG95YW5oc2RyAaGmHWaeAaGmHWaIAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 9.95,
+    "counts": [
+     1,
+     5
+    ]
+   }
+  ]
+ },
+ {
+  "n": 18,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgamhzZWR5cGl0AaGmHWidAaGmHWiJAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 37.5,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 19,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgZXJ3aGJlenplAaGmHWxcAaGmHWxMAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 22.95,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 20,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgZHdma2FrZ2ZoAaGmHW7MAaGmHW65AAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 5.75,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 21,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgcnltdXJ6b29kAaGmHXIUAaGmHXICAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 5.95,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 22,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgbHNuZWpydHl4AaGmHXRwAaGmHXRcAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 5.75,
+    "counts": [
+     1,
+     5
+    ]
+   }
+  ]
+ },
+ {
+  "n": 23,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgdmRsZ2d5Z3JlAaGmHXYfAaGmHXYPAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 34.95,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 24,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgeXh5Y3ltbGJzAaGmHXgDAaGmHXfyAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 24.9,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 25,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgZ3V2bW9kdmNyAaGmHXxHAaGmHXwVAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 1,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 26,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgaXpjc3Bmc3J5AaGmHXogAaGmHXoOAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     1,
+     18
+    ]
+   }
+  ]
+ },
+ {
+  "n": 27,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgdm9hamZ0d3V2AaGmHYEsAaGmHYEYAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 16.95,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 28,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgYWRoanVucWJwAaGmHX3zAaGmHX3jAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 5.95,
+    "counts": [
+     1,
+     10
+    ]
+   }
+  ]
+ },
+ {
+  "n": 29,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgZ3dhZWtyaWtmAaGmHX-XAaGmHX-FAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 5.75,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 30,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgaHJuamNyZGRsAaGmHYRwAaGmHYRcAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 5.75,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 31,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgdHFxZXpvb3dpAaGmHYdAAaGmHYctAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 5.75,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 32,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgbWZ6cmF0eGF1AaGmHYtPAaGmHYs-AAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 33,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgdHN0ZnZxc2tmAaGmHY1cAaGmHY1EAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 34,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgZXZidXhtZHlrAaGmHY9tAaGmHY9dAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 10,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 35,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgenRobm5paGp2AaGmHZNqAaGmHZNOAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 5.75,
+    "counts": [
+     1,
+     12
+    ]
+   }
+  ]
+ },
+ {
+  "n": 36,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgbmNkdWxxa2F4AaGmHZGCAaGmHZFyAAAAAA",
+  "shop": "bshaaral",
+  "expected": []
+ },
+ {
+  "n": 37,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgZGZ1c3FyeG5jAaGmHZVSAaGmHZU9AAAAAA",
+  "shop": "bshaaral",
+  "expected": []
+ },
+ {
+  "n": 38,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgZ2lkcWNraXV0AaGmHi5zAaGmHi5gAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 1,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 39,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgd2J0dWZrcHRzAaGmKKz7AaGmKKzbAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 10,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 40,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgaGFsYXVqdmlsAaGmKLKcAaGmKLKNAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 41,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgZWF4c3ZvYXpoAaGmO7PkAaGmO7PTAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 15,
+    "counts": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "n": 42,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAga3F4YWRvcnJ6AaGmT1aMAaGmT1Z4AAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 15,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 43,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgb2lneXluanhoAaGmUlM0AaGmUlMeAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 9.8,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 44,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgc3Nsc3NvbHFhAaGmVBwNAaGmVBv9AAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 10,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 45,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgbXJ5eG9mYWlpAaGm2uAwAaGm2uAaAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 15,
+    "counts": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "n": 46,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgcXR3emtlZnNxAaGm3OTYAaGm3OTFAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 5.75,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 47,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgcGl1bmxmb3ZpAaGoRA7nAaGoRAmfAAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 7.5,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 48,
+  "snapId": "7xhoIWtYSAm8gEFWHC2kcwAAgc3VsZm5vdHB3AaGoSHd_AaGoSHL5AAAAAA",
+  "shop": "bshaaral",
+  "expected": [
+   {
+    "price": 6.9,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 49,
+  "snapId": "R38XrLDwQ5SH2jq-2SFujQAAgYnZsYWN1YXZkAaGjXb04AaGjQrJ-AAAAAA",
+  "shop": "t.sshoco",
+  "expected": [
+   {
+    "price": 15,
+    "counts": [
+     2
+    ]
+   }
+  ]
+ },
+ {
+  "n": 50,
+  "snapId": "R38XrLDwQ5SH2jq-2SFujQAAgeHN4Z3BkendtAaGjXeBiAaGjQ0E6AAAAAA",
+  "shop": "t.sshoco",
+  "expected": []
+ },
+ {
+  "n": 51,
+  "snapId": "R38XrLDwQ5SH2jq-2SFujQAAgdGtqeG5wamtqAaGjXe0SAaGjRK0bAAAAAA",
+  "shop": "t.sshoco",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 52,
+  "snapId": "R38XrLDwQ5SH2jq-2SFujQAAgdHhka2xvYmNkAaGjXfryAaGjRUINAAAAAA",
+  "shop": "t.sshoco",
+  "expected": []
+ },
+ {
+  "n": 53,
+  "snapId": "R38XrLDwQ5SH2jq-2SFujQAAgc296d3FoZ2dlAaGjXg37AaGjR-H7AAAAAA",
+  "shop": "t.sshoco",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     3
+    ]
+   }
+  ]
+ },
+ {
+  "n": 54,
+  "snapId": "R38XrLDwQ5SH2jq-2SFujQAAgcnBwdmd0dmx4AaGjaDUcAaGjaDEUAAAAAA",
+  "shop": "t.sshoco",
+  "expected": [
+   {
+    "price": 11.5,
+    "counts": [
+     1
+    ]
+   }
+  ]
+ },
+ {
+  "n": 55,
+  "snapId": "R38XrLDwQ5SH2jq-2SFujQAAgYmRxZHNzbG94AaGoASnoAaGoARoxAAAAAA",
+  "shop": "t.sshoco",
+  "expected": [
+   {
+    "price": 20.7,
+    "counts": [
+     1,
+     24
+    ]
+   }
+  ]
+ }
+]

@@ -566,8 +566,40 @@ export async function readSnap(snap, { ask, media = null, framesAllowed = MAX_FR
   return { offers, repeatOf: null };
 }
 
+// --- the shop's picture: its logo, or not -----------------------------------------------------
+// The Brochures tile shows a shop's picture only when it is the shop's own
+// logo, and the shop's name otherwise (owner, 2026-11-05: "if you dont have a
+// logo write the name of the shop dont show the snapchat logo"). Snapchat's
+// own pictures (a Snapcode, the default silhouette) and photos of shelves or a
+// storefront are not logos. Measured on the 5 shops, 3 runs each: 15/15 right
+// at 400 px; at Snapchat's 90 px the same model was wrong on 2 of 5.
+export const PICTURE_PROMPT = `This is a shop's Snapchat profile picture. Classify the MAIN content of the picture (ignore small icons in a corner).
+- "logo": the shop's own logo: designed lettering of the shop's name, or a graphic emblem, usually on a plain background.
+- "photo": a camera photograph of a real scene: shelves, products, a storefront or sign on a building, a street, people.
+- "snapchat": the whole picture is a Snapchat graphic: a Snapcode (yellow square with a ghost and dots) or the default avatar (a plain yellow silhouette of a person).
+Return JSON only: {"kind": "logo" or "photo" or "snapchat"}`;
+
+const PICTURE_KINDS = new Set(['logo', 'photo', 'snapchat']);
+
+export function parsePictureKind(raw) {
+  const parsed = typeof raw === 'string' ? parseJson(raw) : raw;
+  const kind = String(parsed?.kind || '').trim().toLowerCase();
+  return PICTURE_KINDS.has(kind) ? kind : null;
+}
+
+// Snapchat serves profile pictures at 90 px ("_RS0,90_"); the same address
+// gives 400 px.
+export function largePicture(url) {
+  return String(url).replace(/_RS0,\d+_/, '_RS0,400_');
+}
+
+async function pictureKind(url, { ask, fetchImpl }) {
+  const file = await fetchMedia(largePicture(url), fetchImpl);
+  return parsePictureKind(await ask(PICTURE_PROMPT, file, 0));
+}
+
 // --- the tick ---------------------------------------------------------------------------------
-async function checkShops({ store, fetchImpl, now, report }) {
+async function checkShops({ store, ask, fetchImpl, now, report }) {
   for (const shop of await store.dueShops(now().toISOString(), SHOPS_PER_TICK)) {
     const page = await fetchProfile(shop.username, { fetchImpl });
     const at = now();
@@ -582,7 +614,23 @@ async function checkShops({ store, fetchImpl, now, report }) {
       checkedAt: at.toISOString(),
       nextCheckAt: new Date(at.getTime() + retryMs).toISOString(),
     });
-    report.checked.push({ shop: shop.username, status: page.status, snaps: page.snaps.length, added });
+    const entry = { shop: shop.username, status: page.status, snaps: page.snaps.length, added };
+    // Once per picture: a shop that changes its picture is looked at again,
+    // and a failed look is tried again at the next check.
+    const picture = page.status === 'ok' ? page.profile?.picture : null;
+    if (ask && picture && picture !== shop.pictureKindOf) {
+      try {
+        const kind = await pictureKind(picture, { ask, fetchImpl });
+        report.readings += 1;
+        if (kind) {
+          await store.setPictureKind(shop.username, kind, picture);
+          entry.picture = kind;
+        }
+      } catch {
+        /* the next check tries again */
+      }
+    }
+    report.checked.push(entry);
   }
 }
 
@@ -650,7 +698,7 @@ async function saveOffers({ store, bucket, snap, offers, at }) {
 export async function runMinimartTick({ store, bucket = null, media = null, ask = null, fetchImpl = fetch, now = () => new Date(), clock = () => Date.now(), deadlineMs = TICK_DEADLINE_MS }) {
   const started = clock();
   const report = { checked: [], read: 0, offers: 0, reposted: 0, repeats: 0, frames: 0, readings: 0, deferred: 0, failed: 0, errors: [] };
-  await checkShops({ store, fetchImpl, now, report });
+  await checkShops({ store, ask, fetchImpl, now, report });
 
   if (!ask) {
     report.skipped = 'no_model';
