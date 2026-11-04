@@ -98,6 +98,12 @@ assert.deepEqual(frameTimes(10, 0), []);
   ] }));
   assert.deepEqual(offers.map((o) => [o.price, o.wasPrice, o.count]), [[11.5, 27.75, 1], [6.9, null, 4], [3, null, 1]]);
   assert.equal(offers[2].brand, null);
+  // 24 cans in one carton (7up, measured): pieces, not 24 cartons; 2 cartons stay cartons.
+  const packs = parseSnapReading({ offers: [
+    { name: '7up', price: 20.7, count: 24, unit: 'كرتون' },
+    { name: 'جبنة شيدر', price: 15, count: 2, unit: 'كراتين' },
+  ] });
+  assert.deepEqual(packs.map((o) => [o.count, o.unit]), [[24, null], [2, 'كراتين']]);
   assert.equal(parseSnapReading('not json'), null);
   assert.deepEqual(parseSnapReading('```json\n{"offers":[]}\n```'), []);
 }

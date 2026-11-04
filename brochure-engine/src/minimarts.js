@@ -294,6 +294,13 @@ function cleanText(value, max = 120) {
   return text && text.toLowerCase() !== 'null' ? text.slice(0, max) : null;
 }
 
+// Pack words. "الكرتون 24 حبة بـ 20.70" is 24 pieces in ONE carton; the
+// reader has returned it as count 24, unit "كرتون" (measured on 7up,
+// 2026-11-04). A deal on 12 or more cartons is not a mini-mart offer, so such
+// a count is pieces: the unit is dropped and the per-piece price stands.
+const PACK_UNIT = /^(?:ال)?(?:كرتون[ةه]?|كراتين|صندوق|صناديق|شد|كيس|اكياس|أكياس|باكيت|بكت|carton|cartons|box|boxes|case|pack)$/i;
+const PIECES_IN_A_PACK = 12;
+
 // One model reply -> valid offers. A price must be a number in range; an old
 // price is kept only when it is higher; count is a small positive integer.
 export function parseSnapReading(raw) {
@@ -305,13 +312,16 @@ export function parseSnapReading(raw) {
     const price = Number(item.price);
     if (!Number.isFinite(price) || price < MIN_PRICE || price > MAX_PRICE) continue;
     const was = Number(item.was_price);
-    const count = Math.round(Number(item.count));
+    const rounded = Math.round(Number(item.count));
+    const count = Number.isFinite(rounded) && rounded >= 1 && rounded <= 100 ? rounded : 1;
+    let unit = cleanText(item.unit, 20);
+    if (unit && count >= PIECES_IN_A_PACK && PACK_UNIT.test(unit)) unit = null;
     offers.push({
       name: cleanText(item.name),
       brand: cleanText(item.brand, 60),
       size: cleanText(item.size, 40),
-      count: Number.isFinite(count) && count >= 1 && count <= 100 ? count : 1,
-      unit: cleanText(item.unit, 20),
+      count,
+      unit,
       price: round2(price),
       wasPrice: Number.isFinite(was) && was > price && was <= MAX_PRICE ? round2(was) : null,
     });
