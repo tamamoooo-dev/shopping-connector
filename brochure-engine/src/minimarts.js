@@ -1128,6 +1128,11 @@ async function prepareSnap({ store, bucket, media, snap, fetchImpl, now, report 
       report: usage,
     });
     const at = now();
+    if (snap.reread && !loaded.pictures.length) {
+      // Nothing to read again (a video with no cover): it keeps what it was read as.
+      await store.endReread(snap.snapId, 'reread: nothing to read');
+      return;
+    }
     if (loaded.repeatOf || !loaded.pictures.length) {
       const saved = loaded.repeatOf ? await repostRepeat(store, snap, loaded.repeatOf, at) : { shown: [], added: 0 };
       await store.finishSnap(snap.snapId, {

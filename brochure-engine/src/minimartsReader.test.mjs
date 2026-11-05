@@ -269,6 +269,17 @@ try {
   results = await saveReaderReadings({ store, bucket, now, readings: [answer(third, {})] });
   assert.equal(results[0].retired, 2);
   assert.equal((await store.liveOffers(now().toISOString())).filter((o) => o.snapId === 's-labneh').length, 0);
+  // A video with nothing to read again (no frames allowed, no cover) keeps its reading.
+  const videoOffers = (await store.liveOffers(now().toISOString())).filter((o) => o.snapId === 's-video').length;
+  assert.ok(videoOffers > 0);
+  await fixture.db.prepare("UPDATE minimart_snaps SET preview_url = NULL WHERE snap_id = 's-video'").run();
+  assert.equal(await queueReread({ store, snapIds: ['s-video'] }), 1);
+  report = await runMinimartTick({ store, bucket, media: null, ask: mistral({ reads: false }).ask, fetchImpl: fetchFor(state), now });
+  assert.equal(report.prepared, 0);
+  assert.equal((await store.liveOffers(now().toISOString())).filter((o) => o.snapId === 's-video').length, videoOffers);
+  assert.equal((await store.offersOfSnap('s-video')).length, videoOffers);
+  const ended = await fixture.db.prepare("SELECT status, reread, offer_ids, error FROM minimart_snaps WHERE snap_id = 's-video'").first();
+  assert.deepEqual([ended.status, ended.reread, JSON.parse(ended.offer_ids).length, ended.error], ['read', 0, videoOffers, 'reread: nothing to read']);
   assert.deepEqual(await store.readerQueueCounts(), { fresh: 0, reread: 0, prepared: 0, claimed: 0, mistral: 0, saving: 0 });
 } finally {
   fixture.close();
