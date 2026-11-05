@@ -662,7 +662,7 @@ function frameOffer(frames, entries) {
   return {
     ...entries[0],
     count: mode(entries.map((e) => e.count)) || 1,
-    names: entries.slice(1).map((e) => e.name),
+    names: [...new Set(entries.flatMap((e, i) => [...(i ? [e.name] : []), ...(e.names || [])]))],
     wasPrice: wasVotes >= 2 ? was : null,
     frame: Math.min(...frames),
     votes: frames.size,
@@ -693,6 +693,23 @@ export function groupFrames(frameReadings) {
       cluster.entries.push(offer);
     }
   });
+  // One offer whose two copies named it differently (the caption in one, the
+  // package in the other: agreeCopies keeps the other copy's in `names`) is
+  // one product: its clusters become one.
+  const readAs = (o) => [o.name, ...(o.names || [])].filter((n) => nameTokens(n).size);
+  const aliases = (a, b) => [[a, b], [b, a]].some(([x, y]) => (x.names || []).some((n) => nameTokens(n).size
+    && readAs(y).some((m) => similarNames(n, m))));
+  for (const g of groups) {
+    for (let i = 0; i < g.clusters.length; i += 1) {
+      for (let j = g.clusters.length - 1; j > i; j -= 1) {
+        if (!g.clusters[i].entries.some((a) => g.clusters[j].entries.some((b) => aliases(a, b)))) continue;
+        const [other] = g.clusters.splice(j, 1);
+        other.frames.forEach((f) => g.clusters[i].frames.add(f));
+        g.clusters[i].entries.push(...other.entries);
+        j = g.clusters.length;
+      }
+    }
+  }
   const accepted = [];
   const single = [];
   for (const g of groups) {

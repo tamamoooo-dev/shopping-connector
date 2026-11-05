@@ -182,6 +182,17 @@ assert.deepEqual(dropOldPriceTwins([{ price: 10, wasPrice: 15 }, { price: 15, wa
   ]);
   assert.deepEqual(accepted.map((o) => o.name), ['لبنة', 'زيتون']);
 }
+// One product the two copies named differently (the caption, the jar) stays one offer.
+{
+  const { accepted } = groupFrames([
+    [{ name: 'شو شو عصار', names: ['شو شو عصار'], price: 5.9, count: 1 }],
+    [{ name: 'Chocolate Paste', names: ['Chocolate Paste'], price: 5.9, count: 1 }],
+    [{ name: 'Chocolate Paste', names: ['شو شو عصار'], price: 5.9, count: 1 }],
+    [{ name: 'شو شو عصار', names: ['شو شو عصار'], price: 5.9, count: 1 }],
+  ]);
+  assert.deepEqual(accepted.map((o) => [o.name, o.price, o.votes]), [['شو شو عصار', 5.9, 4]]);
+  assert.ok(accepted[0].names.includes('Chocolate Paste'));
+}
 
 // --- names: one deal or two ------------------------------------------------------------------
 assert.equal(similarNames('لبنة تركية', 'لبنة'), true);
