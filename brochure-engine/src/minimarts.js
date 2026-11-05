@@ -308,7 +308,7 @@ const READ_RULES = SNAP_READ_PROMPT.slice(SNAP_READ_PROMPT.indexOf('Rules:'), SN
   .replace(/- "name":[^\n]*\n/, '- "name": the product name in the words printed for it (caption, tag, poster or package), in the language printed. Never use the shop\'s name or slogan as the name. Never invent a brand or a word that is not printed.\n');
 export const BATCH_READ_PROMPT = `Each picture above is one snap (a photo or one frame of a video) from a shop's Snapchat story, labelled "Picture 1", "Picture 2", and so on. Read every picture on its own: never move text or offers from one picture to another.
 For each picture, first "lines": copy the text printed in it, word for word: captions, stickers, banners, price tags and the writing on the packages. Copy only what is actually written. Never add a word, never translate. Keep each piece of text in its own script.
-Then "offers": every product whose PRICE is printed in that picture.
+Then "offers": every product whose PRICE is printed in that picture. A price written as a word counts: "بريال" (for a riyal, often drawn out "بريااال") is price 1.
 
 ${READ_RULES}
 Return JSON only: one entry for every picture, in order, with numbers for count, price and was_price:
@@ -409,6 +409,9 @@ export function normalizeDigits(text) {
 const INTERFACE_WORDS = /منذ|ago|ساعة|ساعات|دقيقة|دقائق|\bmin\b|\bhrs?\b|\d{1,2}:\d{2}/i;
 // A weight or volume word right after a number makes it a size ("2,5 كجم").
 const WEIGHT_AFTER = /^\s*(?:جرام|جم|غرام|غم|كيلو|كجم|كغ|كلغ|ملي|مل|لتر|g|gm|gr|kg|ml|l)(?![\p{L}])/iu;
+// "بريال" — for a riyal, the letters often drawn out ("العبوة بريااال") — is
+// the price 1 written as a word (never "ريالين", never "بـ 5 ريال").
+const ONE_RIYAL_WORD = /(?:^|[^\p{L}])بـ?\s?ر[يى]ا+ل(?![\p{L}])/u;
 
 // The first number in a value: 11.5, "6,90", "15 ريال", "١١٫٥" -> a number.
 // The check often gives its price as text (measured: "15 ريال", "6,90").
@@ -729,11 +732,12 @@ export function dropOldPriceTwins(offers) {
 
 // --- the PC reader's copies -------------------------------------------------------------
 // A price counts only when a copied line prints it: not in the app's own text
-// ("منذ ٢٣", a clock) and at least once not as a weight.
+// ("منذ ٢٣", a clock) and at least once not as a weight; "بريال" prints 1.
 export function pricePrinted(lines, price) {
   return [].concat(lines || []).some((line) => {
     const text = normalizeDigits(line);
     if (INTERFACE_WORDS.test(text)) return false;
+    if (samePrice(price, 1) && ONE_RIYAL_WORD.test(text)) return true;
     return [...text.matchAll(/\d+(?:\.\d+)?/g)].some((m) => samePrice(Number(m[0]), price)
       && !WEIGHT_AFTER.test(text.slice(m.index + m[0].length)));
   });

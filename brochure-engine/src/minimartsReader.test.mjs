@@ -31,6 +31,11 @@ assert.equal(pricePrinted(['الحبة بـ ٢٫٥ ريال فقط'], 2.5), true
 assert.equal(pricePrinted(['الوزن 45 جرام'], 45), false); // a weight
 assert.equal(pricePrinted(['منذ 23 ساعة'], 23), false); // app text
 assert.equal(pricePrinted(['3 كرتون ب 10'], 10), true);
+assert.equal(pricePrinted(['شوفان سريع التحضير ٥٠٠ جم العبوة بريااال ش.ض'], 1), true); // the price as a word
+assert.equal(pricePrinted(['3 حبات ب ريال'], 1), true);
+assert.equal(pricePrinted(['العبوة بريالين'], 1), false);
+assert.equal(pricePrinted(['العبوة بـ 5 ريال'], 1), false);
+assert.equal(pricePrinted(['العبوة بريال'], 5), false);
 
 const copy = (lines, offers) => ({ lines, offers });
 assert.deepEqual(copyOfPicture(copy(['جبنة 15 ريال'], [{ name: 'جبنة', price: 15, count: 1 }, { name: 'شاي', price: 9, count: 1 }])).offers.map((o) => o.price), [15]);
