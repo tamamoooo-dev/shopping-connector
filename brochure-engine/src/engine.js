@@ -65,7 +65,10 @@ import {
   publishD4dCollection,
   summarizeD4dResult,
 } from './collectors/d4dResumable.js';
-import { fetchProfile, resolveShopLink, MAX_SHOPS } from './minimarts.js';
+import {
+  fetchProfile, resolveShopLink, MAX_SHOPS, BATCH_READ_PROMPT, READER_MAX_PICTURES,
+  claimForReader, saveReaderReadings, queueReread,
+} from './minimarts.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
 // extracts prices from flyer images; the flyer prevails on any mismatch).
@@ -396,6 +399,85 @@ export async function handleRequest(request, ctx) {
     return new Response(object.body, {
       headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=604800, immutable', ...CORS },
     });
+  }
+
+  // The PC reader (pc-reader/: Claude Haiku 5.5 on the owner's PC, through
+  // the Agent SDK): it claims prepared snaps and posts its two copies of every
+  // picture back; the engine turns them into offers (minimarts.js). Guarded by
+  // the ingest secret.
+  if (path.startsWith('/minimarts/reader/')) {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.minimartStore || !ctx.storageBucket) return json({ error: 'Mini marts unavailable.' }, 503);
+    const store = ctx.minimartStore;
+
+    if (path === '/minimarts/reader/queue' && request.method === 'GET') {
+      const asked = Number(url.searchParams.get('pictures'));
+      const maxPictures = Number.isFinite(asked) && asked >= 1 ? Math.min(READER_MAX_PICTURES, Math.floor(asked)) : READER_MAX_PICTURES;
+      const snaps = await claimForReader({ store, maxPictures });
+      return json({
+        prompt: BATCH_READ_PROMPT,
+        snaps: snaps.map((snap) => ({
+          ...snap,
+          pictures: snap.pictures.map((p) => ({ ref: p.ref, url: `/minimarts/image?key=${encodeURIComponent(p.key)}` })),
+        })),
+      });
+    }
+
+    if (path === '/minimarts/reader/readings' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: 'Body must be JSON.' }, 400);
+      }
+      if (!Array.isArray(body?.snaps)) return json({ error: "Missing 'snaps'." }, 400);
+      const started = new Date();
+      const results = await saveReaderReadings({ store, bucket: ctx.storageBucket, readings: body.snaps });
+      const read = results.filter((r) => r.status === 'read');
+      const run = {
+        ...(body.run && typeof body.run === 'object' ? body.run : {}),
+        snaps: results.length,
+        read: read.length,
+        offers: read.reduce((n, r) => n + (r.offers || 0), 0),
+        rewritten: read.reduce((n, r) => n + (r.rewritten || 0), 0),
+        retired: read.reduce((n, r) => n + (r.retired || 0), 0),
+        refused: results.length - read.length,
+      };
+      await store.noteReaderRun(started.toISOString(), run).catch(() => {});
+      await ctx.opsStore?.record({
+        ts: started.toISOString(),
+        action: 'reader:minimarts',
+        origin: 'pc',
+        ok: run.refused === 0 && !run.errors?.length,
+        offers: run.offers,
+        failed: run.refused,
+        elapsed_ms: Number(run.ms) || null,
+        error: results.find((r) => r.error)?.error || run.errors?.[0] || null,
+        detail: { run, results },
+      }).catch(() => {});
+      return json({ results, run });
+    }
+
+    // The owner's one-time Haiku re-read (2026-11-05): { all: true } or { snapIds: [...] }.
+    if (path === '/minimarts/reader/reread' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: 'Body must be JSON.' }, 400);
+      }
+      const snapIds = Array.isArray(body?.snapIds) ? body.snapIds.filter(Boolean).map(String) : [];
+      if (body?.all !== true && !snapIds.length) return json({ error: "Send { all: true } or { snapIds: [...] }." }, 400);
+      const queued = await queueReread({ store, snapIds: body.all === true ? null : snapIds });
+      return json({ queued });
+    }
+
+    if (path === '/minimarts/reader/status' && request.method === 'GET') {
+      return json({ reader: await store.readerStatus(), snaps: await store.readerQueueCounts() });
+    }
+    return json({ error: 'Not found.' }, 404);
   }
 
   // Add a shop by its Snapchat link (or username). Its public page is read

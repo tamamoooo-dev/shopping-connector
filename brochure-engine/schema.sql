@@ -871,7 +871,7 @@ CREATE TABLE IF NOT EXISTS minimart_snaps (
   media_type  TEXT NOT NULL,                        -- image | video
   media_url   TEXT NOT NULL,
   preview_url TEXT,
-  status      TEXT NOT NULL DEFAULT 'new',          -- new | read | failed
+  status      TEXT NOT NULL DEFAULT 'new',          -- new | prepared | saving | read | failed
   attempts    INTEGER NOT NULL DEFAULT 0,
   frames      INTEGER NOT NULL DEFAULT 0,           -- video frames cut (Media Transformations)
   readings    INTEGER NOT NULL DEFAULT 0,           -- model calls
@@ -881,7 +881,21 @@ CREATE TABLE IF NOT EXISTS minimart_snaps (
   offer_ids   TEXT,                                 -- JSON: the offers this snap showed (new or re-posted)
   error       TEXT,
   seen_at     TEXT NOT NULL,
-  read_at     TEXT
+  read_at     TEXT,
+  -- The PC reader (2026-11-05, migrate-2026-11-05-minimart-reader.sql):
+  pictures    TEXT,                                 -- JSON: refs of the pictures prepared in R2
+  prepared_at TEXT,
+  reader      TEXT,                                 -- haiku | mistral: who holds or read it
+  claimed_at  TEXT,
+  reread      INTEGER NOT NULL DEFAULT 0            -- 1 = queued to be read again by the PC reader
+);
+
+-- The PC reader's heartbeat and last run (one row, name 'pc').
+CREATE TABLE IF NOT EXISTS minimart_reader (
+  name        TEXT PRIMARY KEY,
+  seen_at     TEXT,
+  last_run_at TEXT,
+  last_run    TEXT
 );
 
 CREATE INDEX IF NOT EXISTS ix_minimart_snaps_status

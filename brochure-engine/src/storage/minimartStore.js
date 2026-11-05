@@ -6,7 +6,12 @@
 //   dueShops(nowIso, limit) / recordCheck(username, patch)
 //   setPictureKind(username, kind, pictureUrl) -> the tile's logo-or-name call
 //   addSnaps(username, snaps, seenAt) -> number added (a snap id is queued once)
-//   pendingSnaps(limit) / finishSnap(snapId, patch) / noteUsage(snapId, usage)
+//   pendingSnaps(limit, { reread }) / finishSnap(snapId, patch) / noteUsage(snapId, usage)
+//   The PC reader (minimarts.js): noteReader(nowIso) / readerSeenSince(iso) /
+//   noteReaderRun(nowIso, run) / readerStatus(); prepareSnap(snapId, patch);
+//   claimForReader(opts) / heldSnap(snapId, reader) / startSaving / stopSaving;
+//   lateSnaps(opts) / claimForMistral(snapId, opts); requeueForReread(snapIds);
+//   offersOfSnap(snapId) / rewriteOffer(id, fields)
 //   findReadSnapByHash(username, hash, exceptSnapId) -> { snapId, offerIds } | null
 //   framesSince(iso) -> frames cut since then (the monthly allowance)
 //   recentOffers(username, sinceIso) / insertOffers(rows)
@@ -57,6 +62,28 @@ function shopOut(r) {
     lastPostAt: r.last_post_at,
   };
 }
+
+function snapOut(r) {
+  return {
+    snapId: r.snap_id,
+    username: r.username,
+    postedAt: r.posted_at,
+    mediaType: r.media_type,
+    mediaUrl: r.media_url,
+    previewUrl: r.preview_url,
+    shopTitle: r.shop_title ?? null,
+    status: r.status,
+    attempts: Number(r.attempts) || 0,
+    // Prepared for the PC reader: the pictures' refs in R2, who holds it.
+    pictures: parseIds(r.pictures),
+    preparedAt: r.prepared_at ?? null,
+    reader: r.reader ?? null,
+    reread: Number(r.reread) === 1,
+  };
+}
+
+const SNAP_COLUMNS = 's.*, m.title AS shop_title';
+const changed = (res) => Number(res?.meta?.changes) > 0;
 
 function parseIds(text) {
   try {
@@ -151,40 +178,239 @@ export function createMinimartStore(db) {
     },
 
     // Oldest posting first, so a shop's offers land in the order it posted.
-    async pendingSnaps(limit) {
+    // A snap queued to be read again by the PC reader (reread) is left out
+    // unless asked for: Mistral never reads it.
+    async pendingSnaps(limit, { reread = false } = {}) {
       const { results } = await db
         .prepare(
-          `SELECT s.*, m.title AS shop_title FROM minimart_snaps s
+          `SELECT ${SNAP_COLUMNS} FROM minimart_snaps s
            JOIN minimart_shops m ON m.username = s.username AND m.active = 1
-           WHERE s.status = 'new'
-           ORDER BY COALESCE(s.posted_at, s.seen_at) LIMIT ?`,
+           WHERE s.status = 'new' AND (?2 = 1 OR COALESCE(s.reread, 0) = 0)
+           ORDER BY COALESCE(s.posted_at, s.seen_at) LIMIT ?1`,
         )
-        .bind(limit)
+        .bind(limit, reread ? 1 : 0)
         .all();
-      return (results || []).map((r) => ({
-        snapId: r.snap_id,
-        username: r.username,
-        postedAt: r.posted_at,
-        mediaType: r.media_type,
-        mediaUrl: r.media_url,
-        previewUrl: r.preview_url,
-        shopTitle: r.shop_title ?? null,
-        attempts: Number(r.attempts) || 0,
-      }));
+      return (results || []).map(snapOut);
+    },
+
+    // --- the PC reader -------------------------------------------------------
+    async noteReader(nowIso) {
+      await db
+        .prepare(
+          `INSERT INTO minimart_reader (name, seen_at) VALUES ('pc', ?1)
+           ON CONFLICT(name) DO UPDATE SET seen_at = ?1`,
+        )
+        .bind(nowIso)
+        .run();
+    },
+
+    async readerSeenSince(iso) {
+      const row = await db.prepare("SELECT 1 AS seen FROM minimart_reader WHERE name = 'pc' AND seen_at >= ?").bind(iso).first();
+      return Boolean(row);
+    },
+
+    async noteReaderRun(nowIso, run) {
+      await db
+        .prepare(
+          `INSERT INTO minimart_reader (name, seen_at, last_run_at, last_run) VALUES ('pc', ?1, ?1, ?2)
+           ON CONFLICT(name) DO UPDATE SET seen_at = ?1, last_run_at = ?1, last_run = ?2`,
+        )
+        .bind(nowIso, JSON.stringify(run ?? null).slice(0, 4000))
+        .run();
+    },
+
+    async readerStatus() {
+      const row = await db.prepare("SELECT * FROM minimart_reader WHERE name = 'pc'").first();
+      if (!row) return null;
+      let lastRun = null;
+      try {
+        lastRun = JSON.parse(row.last_run || 'null');
+      } catch {
+        /* unreadable: left out */
+      }
+      return { seenAt: row.seen_at, lastRunAt: row.last_run_at ?? null, lastRun };
+    },
+
+    // Ready for the PC reader: its pictures are in R2 under these refs.
+    async prepareSnap(snapId, { pictures, frames = 0, mediaHash = null, preparedAt }) {
+      await db
+        .prepare(
+          `UPDATE minimart_snaps SET
+             status = 'prepared', pictures = ?2, prepared_at = ?3, frames = frames + ?4,
+             media_hash = COALESCE(?5, media_hash), reader = NULL, claimed_at = NULL, error = NULL
+           WHERE snap_id = ?1`,
+        )
+        .bind(snapId, JSON.stringify(pictures), preparedAt, frames, mediaHash)
+        .run();
+    },
+
+    // The oldest prepared snaps the reader may take (unclaimed, or a claim
+    // that expired; not yet Mistral's unless queued to be read again), up to
+    // maxPictures pictures and always one snap; each claimed atomically.
+    async claimForReader({ nowIso, claimBefore, waitBefore, maxPictures, reader, limit = 60 }) {
+      const { results } = await db
+        .prepare(
+          `SELECT ${SNAP_COLUMNS} FROM minimart_snaps s
+           JOIN minimart_shops m ON m.username = s.username AND m.active = 1
+           WHERE s.status = 'prepared' AND (s.prepared_at >= ?1 OR COALESCE(s.reread, 0) = 1)
+             AND (s.reader IS NULL OR s.claimed_at < ?2)
+           ORDER BY COALESCE(s.posted_at, s.seen_at) LIMIT ?3`,
+        )
+        .bind(waitBefore, claimBefore, limit)
+        .all();
+      const chosen = [];
+      let pictures = 0;
+      for (const snap of (results || []).map(snapOut)) {
+        if (chosen.length && pictures + snap.pictures.length > maxPictures) break;
+        chosen.push(snap);
+        pictures += snap.pictures.length;
+      }
+      if (!chosen.length) return [];
+      const claims = await db.batch(chosen.map((snap) => db
+        .prepare(
+          `UPDATE minimart_snaps SET reader = ?2, claimed_at = ?3
+           WHERE snap_id = ?1 AND status = 'prepared' AND (reader IS NULL OR claimed_at < ?4)`,
+        )
+        .bind(snap.snapId, reader, nowIso, claimBefore)));
+      return chosen.filter((_, i) => changed(claims[i]));
+    },
+
+    async heldSnap(snapId, reader) {
+      const row = await db
+        .prepare(
+          `SELECT ${SNAP_COLUMNS} FROM minimart_snaps s
+           LEFT JOIN minimart_shops m ON m.username = s.username
+           WHERE s.snap_id = ? AND s.status = 'prepared' AND s.reader = ?`,
+        )
+        .bind(snapId, reader)
+        .first();
+      return row ? snapOut(row) : null;
+    },
+
+    // Saving is one writer's: the reader's answer and Mistral never both land.
+    async startSaving(snapId, reader) {
+      return changed(await db
+        .prepare("UPDATE minimart_snaps SET status = 'saving' WHERE snap_id = ? AND status = 'prepared' AND reader = ?")
+        .bind(snapId, reader)
+        .run());
+    },
+
+    async stopSaving(snapId) {
+      await db.prepare("UPDATE minimart_snaps SET status = 'prepared' WHERE snap_id = ? AND status = 'saving'").bind(snapId).run();
+    },
+
+    // Prepared snaps that are Mistral's: the reader is off, or the snap waited
+    // too long; never one claimed by the reader within the claim time, never
+    // one queued to be read again.
+    async lateSnaps({ onSince, claimBefore, waitBefore, limit }) {
+      if (limit <= 0) return [];
+      const { results } = await db
+        .prepare(
+          `SELECT ${SNAP_COLUMNS} FROM minimart_snaps s
+           JOIN minimart_shops m ON m.username = s.username AND m.active = 1
+           WHERE s.status = 'prepared' AND COALESCE(s.reread, 0) = 0
+             AND (s.reader IS NULL OR s.reader = 'mistral' OR s.claimed_at < ?2)
+             AND (s.prepared_at < ?3 OR NOT EXISTS (SELECT 1 FROM minimart_reader r WHERE r.name = 'pc' AND r.seen_at >= ?1))
+           ORDER BY COALESCE(s.posted_at, s.seen_at) LIMIT ?4`,
+        )
+        .bind(onSince, claimBefore, waitBefore, limit)
+        .all();
+      return (results || []).map(snapOut);
+    },
+
+    async claimForMistral(snapId, { nowIso, claimBefore }) {
+      return changed(await db
+        .prepare(
+          `UPDATE minimart_snaps SET reader = 'mistral', claimed_at = ?2
+           WHERE snap_id = ?1 AND status = 'prepared' AND (reader IS NULL OR reader = 'mistral' OR claimed_at < ?3)`,
+        )
+        .bind(snapId, nowIso, claimBefore)
+        .run());
+    },
+
+    // Read snaps queued to be read again by the PC reader (the owner's
+    // one-time Haiku re-read, 2026-11-05). A re-posted file (repeat_of) is
+    // left alone: it shows its first posting's offers. -> how many queued.
+    async requeueForReread(snapIds) {
+      if (!snapIds.length) return 0;
+      const results = await db.batch(snapIds.map((id) => db
+        .prepare(
+          `UPDATE minimart_snaps SET status = 'new', reread = 1, attempts = 0, error = NULL,
+             reader = NULL, claimed_at = NULL, pictures = NULL, prepared_at = NULL
+           WHERE snap_id = ? AND status = 'read' AND repeat_of IS NULL`,
+        )
+        .bind(id)));
+      return results.filter(changed).length;
+    },
+
+    async readSnapIds() {
+      const { results } = await db
+        .prepare(
+          `SELECT s.snap_id FROM minimart_snaps s
+           JOIN minimart_shops m ON m.username = s.username AND m.active = 1
+           WHERE s.status = 'read' AND s.repeat_of IS NULL ORDER BY COALESCE(s.posted_at, s.seen_at)`,
+        )
+        .all();
+      return (results || []).map((r) => r.snap_id);
+    },
+
+    // A re-read that could not be prepared: the snap stays as it was read.
+    async endReread(snapId, error) {
+      await db
+        .prepare("UPDATE minimart_snaps SET status = 'read', reread = 0, error = ? WHERE snap_id = ?")
+        .bind(error, snapId)
+        .run();
+    },
+
+    async readerQueueCounts() {
+      const row = await db
+        .prepare(
+          `SELECT COALESCE(SUM(status = 'new' AND COALESCE(reread, 0) = 0), 0) AS fresh,
+                  COALESCE(SUM(status = 'new' AND reread = 1), 0) AS reread,
+                  COALESCE(SUM(status = 'prepared' AND reader IS NULL), 0) AS prepared,
+                  COALESCE(SUM(status = 'prepared' AND reader = 'haiku'), 0) AS claimed,
+                  COALESCE(SUM(status = 'prepared' AND reader = 'mistral'), 0) AS mistral,
+                  COALESCE(SUM(status = 'saving'), 0) AS saving
+           FROM minimart_snaps`,
+        )
+        .first();
+      return Object.fromEntries(Object.entries(row || {}).map(([k, v]) => [k, Number(v) || 0]));
+    },
+
+    async offersOfSnap(snapId) {
+      const { results } = await db.prepare('SELECT * FROM minimart_offers WHERE snap_id = ? ORDER BY id').bind(snapId).all();
+      return (results || []).map(offerOut);
+    },
+
+    // A re-read corrects an offer in place: its id, first-seen time, postings
+    // and showing time stay.
+    async rewriteOffer(id, o) {
+      await db
+        .prepare(
+          `UPDATE minimart_offers SET
+             name = ?2, shown_name = ?3, brand = ?4, size = ?5, size_printed = ?6, count = ?7, unit = ?8,
+             price = ?9, was_price = ?10, image_key = COALESCE(?11, image_key), votes = ?12
+           WHERE id = ?1`,
+        )
+        .bind(id, o.name, o.shownName ?? null, o.brand ?? null, o.size ?? null, o.sizePrinted ?? null, o.count || 1,
+          o.unit ?? null, o.price, o.wasPrice ?? null, o.imageKey ?? null, o.votes || 2)
+        .run();
     },
 
     // frames/readings ADD to what earlier attempts spent.
-    async finishSnap(snapId, { status, attempts, frames = 0, readings = 0, offers = 0, offerIds = null, mediaHash = null, repeatOf = null, error = null, readAt = null }) {
+    // A read snap is no longer queued to be read again.
+    async finishSnap(snapId, { status, attempts, frames = 0, readings = 0, offers = 0, offerIds = null, mediaHash = null, repeatOf = null, error = null, readAt = null, reader = null }) {
       await db
         .prepare(
           `UPDATE minimart_snaps SET
              status = ?2, attempts = ?3, frames = frames + ?4, readings = readings + ?5,
              offers = ?6, offer_ids = ?7, media_hash = COALESCE(?8, media_hash),
-             repeat_of = ?9, error = ?10, read_at = ?11
+             repeat_of = ?9, error = ?10, read_at = ?11, reader = COALESCE(?12, reader),
+             reread = CASE WHEN ?2 = 'read' THEN 0 ELSE reread END
            WHERE snap_id = ?1`,
         )
         .bind(snapId, status, attempts, frames, readings, offers,
-          offerIds ? JSON.stringify(offerIds) : null, mediaHash, repeatOf, error, readAt)
+          offerIds ? JSON.stringify(offerIds) : null, mediaHash, repeatOf, error, readAt, reader)
         .run();
     },
 

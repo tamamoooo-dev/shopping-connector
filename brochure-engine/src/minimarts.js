@@ -37,6 +37,18 @@
 //     and is never worked around (the Lulu rule).
 //   • Frames are capped at FRAME_MONTHLY_CAP a month (Cloudflare's free
 //     allowance); past it a video is read from its cover picture only.
+//   • THE PC READER (2026-11-05, owner: "Build PC reader"): Claude Haiku 5.5
+//     on the owner's PC (pc-reader/, the Agent SDK on the owner's Claude
+//     login) reads the snaps instead of Mistral while it is on. A reader that
+//     asked for work within READER_ON_MS is on: the tick then only PREPARES
+//     new snaps (the file fetched, a repeat caught by its hash, a video cut
+//     into frames, the pictures put in R2) and the reader claims them, reads
+//     every picture twice in batches and posts both copies back
+//     (offersFromCopies: an offer stands when both copies list it, a name or
+//     size only when printed in both). Mistral reads as before whenever the
+//     reader is off, and takes any prepared snap the reader left for
+//     READER_WAIT_MS. Bench, 55 snaps / 47 printed prices: Haiku 47/0/1/0,
+//     Mistral 43/2/0/2 (HISTORY §69 addendum 5).
 
 import { MISTRAL_URL, postMistral, toBase64, fetchWithTimeout } from './offers/enrich.js';
 import { withFailover, classifyMistralError } from './offers/mistralKeys.js';
@@ -55,6 +67,15 @@ export const SHOPS_PER_TICK = 3;
 export const SNAPS_PER_TICK = 4;
 export const TICK_DEADLINE_MS = 100 * 1000;
 export const READ_TEMPERATURE = 0.3;
+// The PC reader: on when it asked within READER_ON_MS (it asks every 15 min);
+// a claim it leaves unanswered expires after READER_CLAIM_MS; a prepared snap
+// still unread after READER_WAIT_MS is Mistral's.
+export const READER = 'haiku';
+export const READER_ON_MS = 25 * 60 * 1000;
+export const READER_CLAIM_MS = 20 * 60 * 1000;
+export const READER_WAIT_MS = 60 * 60 * 1000;
+export const READER_MAX_PICTURES = 112;
+export const PREPARE_PER_TICK = 12;
 const PAGE_TIMEOUT_MS = 20 * 1000;
 const MEDIA_TIMEOUT_MS = 30 * 1000;
 const MAX_PRICE = 20000;
@@ -276,6 +297,23 @@ If no selling price is printed, return {"prices":[]}.`;
 // did not.
 export const TEXT_PROMPT = `Copy the text printed in this picture, word for word: captions, stickers, banners, price tags and the writing on the packages. Copy only what is actually written. Never add a word that is not printed, never name or describe the product yourself, never translate. Keep each piece of text in its own script.
 Return JSON only: {"lines":["..."]}`;
+
+// The PC reader's prompt (Claude Haiku 5.5, several pictures per call, each
+// labelled "Picture n"): the reading prompt's Rules word for word, except the
+// name, which is the words printed for the product; each picture's printed
+// lines come first, so a price and a name can be checked against them.
+// Measured on the bench at 28 pictures a call: no text or offer moved from one
+// picture to another.
+const READ_RULES = SNAP_READ_PROMPT.slice(SNAP_READ_PROMPT.indexOf('Rules:'), SNAP_READ_PROMPT.indexOf('Return JSON only'))
+  .replace(/- "name":[^\n]*\n/, '- "name": the product name in the words printed for it (caption, tag, poster or package), in the language printed. Never use the shop\'s name or slogan as the name. Never invent a brand or a word that is not printed.\n');
+export const BATCH_READ_PROMPT = `Each picture above is one snap (a photo or one frame of a video) from a shop's Snapchat story, labelled "Picture 1", "Picture 2", and so on. Read every picture on its own: never move text or offers from one picture to another.
+For each picture, first "lines": copy the text printed in it, word for word: captions, stickers, banners, price tags and the writing on the packages. Copy only what is actually written. Never add a word, never translate. Keep each piece of text in its own script.
+Then "offers": every product whose PRICE is printed in that picture.
+
+${READ_RULES}
+Return JSON only: one entry for every picture, in order, with numbers for count, price and was_price:
+{"pictures":[{"picture":1,"lines":["..."],"offers":[{"name":"...","brand":null,"size":null,"count":1,"unit":null,"price":P,"was_price":null}]}]}
+A picture with no printed price has "offers": [].`;
 
 function visionRequest(model, text, base64, contentType, temperature) {
   return {
@@ -672,6 +710,80 @@ export function dropOldPriceTwins(offers) {
   return offers.filter((o) => !offers.some((other) => other !== o && samePrice(other.wasPrice, o.price)));
 }
 
+// --- the PC reader's copies -------------------------------------------------------------
+// A price counts only when a copied line prints it: not in the app's own text
+// ("منذ ٢٣", a clock) and at least once not as a weight.
+export function pricePrinted(lines, price) {
+  return [].concat(lines || []).some((line) => {
+    const text = normalizeDigits(line);
+    if (INTERFACE_WORDS.test(text)) return false;
+    return [...text.matchAll(/\d+(?:\.\d+)?/g)].some((m) => samePrice(Number(m[0]), price)
+      && !WEIGHT_AFTER.test(text.slice(m.index + m[0].length)));
+  });
+}
+
+// One copy of one picture ({ lines, offers } as the reader answered) -> its
+// printed lines and the offers whose price those lines print.
+export function copyOfPicture(entry) {
+  const lines = Array.isArray(entry?.lines) ? entry.lines.map((l) => String(l ?? '')) : [];
+  const read = parseSnapReading(entry) || [];
+  const offers = dropSizeTwins(dropOldPriceTwins(dedupeDeals(read))).filter((o) => pricePrinted(lines, o.price));
+  return { lines, offers };
+}
+
+// Two copies of one picture -> the offers both list, ONE TO ONE: an offer of
+// the second copy vouches for one offer of the first (the same name first,
+// else the same price), so a second flavour only one copy saw does not stand.
+export function agreeCopies(first, second) {
+  const left = [...second];
+  const out = [];
+  for (const a of first) {
+    let k = left.findIndex((o) => samePrice(o.price, a.price) && similarNames(o.name, a.name));
+    if (k < 0) k = left.findIndex((o) => samePrice(o.price, a.price));
+    if (k < 0) continue;
+    const [b] = left.splice(k, 1);
+    out.push({ ...a, wasPrice: samePrice(a.wasPrice, b.wasPrice) ? a.wasPrice : null, votes: 2, names: [b.name] });
+  }
+  return dropOldPriceTwins(dedupeDeals(out));
+}
+
+// The reader's copies of one snap -> its offers, by readSnap's rules.
+// pictures: [{ ref, copies: [entry, entry] }] in frame order; framed: a
+// video's frames (a price in two frames, or in one frame by both copies,
+// stands). A name shows only its words printed in both copies of its
+// picture, a size only when its numbers are. -> [{ …offer, frame }]
+export function offersFromCopies(pictures, { framed = false, ignore = null } = {}) {
+  const read = pictures.map((p) => {
+    const copies = (p.copies || []).slice(0, 2).map(copyOfPicture);
+    return {
+      texts: copies.map((c) => c.lines.join('\n')),
+      offers: copies.length === 2 ? agreeCopies(copies[0].offers, copies[1].offers) : [],
+    };
+  });
+  let candidates;
+  if (framed) {
+    const { accepted, single } = groupFrames(read.map((r) => r.offers));
+    candidates = dropSizeTwins(dropOldPriceTwins(dedupeDeals([...accepted, ...single])));
+  } else {
+    candidates = dropSizeTwins(read[0]?.offers || []).map((o) => ({ ...o, frame: 0 }));
+  }
+  return candidates.map((offer) => {
+    const { texts } = read[offer.frame];
+    const { names = [], ...rest } = offer;
+    let best = { name: offer.name, shown: '' };
+    for (const name of [offer.name, ...names]) {
+      const shown = printedName(name, texts, ignore);
+      if (shown && shown.length > best.shown.length) best = { name, shown };
+    }
+    return {
+      ...rest,
+      name: best.name,
+      shownName: best.shown,
+      sizePrinted: offer.size ? Number(sizePrintedIn(offer.size, texts)) : null,
+    };
+  });
+}
+
 // --- one snap ----------------------------------------------------------------------------
 async function fetchMedia(url, fetchImpl) {
   let res;
@@ -690,11 +802,44 @@ async function fetchMedia(url, fetchImpl) {
   return { bytes: new Uint8Array(await res.arrayBuffer()), contentType: res.headers.get('content-type') || 'image/jpeg' };
 }
 
-// Reads one snap. `ask(text, image, temperature)` returns the model's raw
-// reply; `findRepeat(hash)` returns an earlier read snap of the same file (or
-// null). `report` collects { frames, readings, hash } even when this throws.
+// The pictures of one snap: a photo; a video's frames (`framed`), or its
+// cover when frames can't be cut. A file posted before (the same SHA-256) is
+// not cut or read: -> { repeatOf }. `report` collects { frames, hash }.
+// -> { pictures: [{ bytes, contentType, ref }], framed, repeatOf }
+export async function loadSnapPictures(snap, { media = null, framesAllowed = MAX_FRAMES_PER_VIDEO, fetchImpl = fetch, findRepeat = null, report = {} }) {
+  report.frames ??= 0;
+  const video = snap.mediaType === 'video';
+  const framed = Boolean(video && media && framesAllowed > 0);
+  const url = video && !framed ? snap.previewUrl : snap.mediaUrl;
+  if (!url) return { pictures: [], framed, repeatOf: null };
+  const file = await fetchMedia(url, fetchImpl);
+  report.hash = await sha256Hex(file.bytes);
+  const earlier = findRepeat ? await findRepeat(report.hash) : null;
+  if (earlier) return { pictures: [], framed, repeatOf: earlier };
+  if (!framed) return { pictures: [{ ...file, ref: video ? 'cover' : 'photo' }], framed, repeatOf: null };
+  const pictures = [];
+  for (const t of frameTimes(mp4DurationSec(file.bytes), framesAllowed)) {
+    report.frames += 1; // a refused cut still counts against the monthly allowance
+    try {
+      pictures.push({ bytes: await cutFrame(media, file.bytes, t), contentType: 'image/jpeg', ref: `f${Math.round(t * 10)}` });
+    } catch (err) {
+      if (/exceeds media duration/i.test(String(err?.message))) break;
+      throw err;
+    }
+  }
+  return { pictures, framed, repeatOf: null };
+}
+
+// A prepared picture's ref says what it is: "f15" a frame (1.5 s).
+export const isFrameRef = (ref) => /^f\d+$/.test(String(ref));
+
+// Reads one snap with Mistral. `ask(text, image, temperature)` returns the
+// model's raw reply; `findRepeat(hash)` returns an earlier read snap of the
+// same file (or null). `prepared`: the snap's pictures, already loaded
+// ({ pictures, framed }), for a snap the PC reader left. `report` collects
+// { frames, readings, hash } even when this throws.
 // -> { offers: [{…, image: {bytes, contentType, ref}}], repeatOf }
-export async function readSnap(snap, { ask, media = null, framesAllowed = MAX_FRAMES_PER_VIDEO, fetchImpl = fetch, findRepeat = null, report = {} }) {
+export async function readSnap(snap, { ask, media = null, framesAllowed = MAX_FRAMES_PER_VIDEO, fetchImpl = fetch, findRepeat = null, prepared = null, report = {} }) {
   report.frames ??= 0;
   report.readings ??= 0;
   const read = async (image) => {
@@ -711,27 +856,13 @@ export async function readSnap(snap, { ask, media = null, framesAllowed = MAX_FR
     return priceListed(checks.get(frame), price);
   };
 
-  const video = snap.mediaType === 'video';
-  const useFrames = Boolean(video && media && framesAllowed > 0);
-  const url = video && !useFrames ? snap.previewUrl : snap.mediaUrl;
-  if (!url) return { offers: [], repeatOf: null };
-  const file = await fetchMedia(url, fetchImpl);
-  report.hash = await sha256Hex(file.bytes);
-  const earlier = findRepeat ? await findRepeat(report.hash) : null;
-  if (earlier) return { offers: [], repeatOf: earlier };
+  const loaded = prepared || await loadSnapPictures(snap, { media, framesAllowed, fetchImpl, findRepeat, report });
+  if (loaded.repeatOf) return { offers: [], repeatOf: loaded.repeatOf };
+  const { pictures, framed } = loaded;
+  if (!pictures.length) return { offers: [], repeatOf: null };
 
   let candidates;
-  let pictures = [];
-  if (useFrames) {
-    for (const t of frameTimes(mp4DurationSec(file.bytes), framesAllowed)) {
-      report.frames += 1; // a refused cut still counts against the monthly allowance
-      try {
-        pictures.push({ bytes: await cutFrame(media, file.bytes, t), contentType: 'image/jpeg', ref: `f${Math.round(t * 10)}` });
-      } catch (err) {
-        if (/exceeds media duration/i.test(String(err?.message))) break;
-        throw err;
-      }
-    }
+  if (framed) {
     const readings = [];
     for (const picture of pictures) readings.push(await read(picture));
     const { accepted, single } = groupFrames(readings);
@@ -744,7 +875,6 @@ export async function readSnap(snap, { ask, media = null, framesAllowed = MAX_FR
   } else {
     // A photo, or a video read from its cover (no binding, or the month's
     // frame allowance is spent).
-    pictures = [{ ...file, ref: video ? 'cover' : 'photo' }];
     const first = await read(pictures[0]);
     // No price in the first reading: an ad (owner's rule) — no second call.
     if (!first?.length) return { offers: [], repeatOf: null };
@@ -869,18 +999,45 @@ async function checkShops({ store, ask, fetchImpl, now, report }) {
 // Saves what one snap showed: a deal the shop posted before (within the
 // lookback, live or expired) is re-posted; the same product at a new price
 // replaces the older offer; anything else is a new offer.
+// A snap READ AGAIN (snap.reread) corrects its own earlier offers instead:
+// an offer at the same price (the same count first) is rewritten in place
+// (its id, first-seen time and postings stay), an earlier offer the new
+// reading doesn't show is retired, and a new one is saved as above.
 async function saveOffers({ store, bucket, snap, offers, at }) {
   const nowIso = at.toISOString();
   const posted = snap.postedAt || nowIso;
   const expiresAt = new Date(Date.parse(posted) + OFFER_TTL_MS).toISOString();
-  const history = await store.recentOffers(snap.username, new Date(at.getTime() - REPEAT_LOOKBACK_MS).toISOString());
+  let history = await store.recentOffers(snap.username, new Date(at.getTime() - REPEAT_LOOKBACK_MS).toISOString());
+  const own = snap.reread ? await store.offersOfSnap(snap.snapId) : [];
+  if (snap.reread) history = history.filter((o) => o.snapId !== snap.snapId);
   const ignore = shopWords(snap.shopTitle);
   const shown = [];
   const fresh = [];
   const stored = new Set();
-  let n = 0;
+  const keep = async (offer) => {
+    const imageKey = pictureKey(snap, offer.image.ref);
+    if (bucket && !stored.has(imageKey)) {
+      // A prepared picture is in R2 already.
+      if (offer.image.bytes) await bucket.put(imageKey, offer.image.bytes, { httpMetadata: { contentType: offer.image.contentType || 'image/jpeg' } });
+      stored.add(imageKey);
+    }
+    return bucket ? imageKey : null;
+  };
+  let n = snap.reread ? 100 : 0; // a re-read's new offers never take an earlier id
+  let rewritten = 0;
   for (const offer of offers) {
     n += 1;
+    if (snap.reread) {
+      let k = own.findIndex((o) => !o.used && samePrice(o.price, offer.price) && (o.count || 1) === (offer.count || 1));
+      if (k < 0) k = own.findIndex((o) => !o.used && samePrice(o.price, offer.price));
+      if (k >= 0) {
+        own[k].used = true;
+        await store.rewriteOffer(own[k].id, { ...offer, imageKey: await keep(offer) });
+        if (!shown.includes(own[k].id)) shown.push(own[k].id);
+        rewritten += 1;
+        continue;
+      }
+    }
     const earlier = history.find((o) => sameDeal(o, offer, ignore));
     if (earlier) {
       if (!shown.includes(earlier.id)) {
@@ -895,11 +1052,7 @@ async function saveOffers({ store, bucket, snap, offers, at }) {
         older.expiresAt = nowIso;
       }
     }
-    const imageKey = `minimarts/${snap.username}/${snap.snapId}-${offer.image.ref}.jpg`;
-    if (bucket && !stored.has(imageKey)) {
-      await bucket.put(imageKey, offer.image.bytes, { httpMetadata: { contentType: offer.image.contentType || 'image/jpeg' } });
-      stored.add(imageKey);
-    }
+    const imageKey = await keep(offer);
     const row = {
       id: `${snap.snapId}:${n}`,
       username: snap.username,
@@ -913,7 +1066,7 @@ async function saveOffers({ store, bucket, snap, offers, at }) {
       unit: offer.unit,
       price: offer.price,
       wasPrice: offer.wasPrice,
-      imageKey: bucket ? imageKey : null,
+      imageKey,
       postedAt: posted,
       lastPostedAt: posted,
       expiresAt,
@@ -925,33 +1078,157 @@ async function saveOffers({ store, bucket, snap, offers, at }) {
     shown.push(row.id);
   }
   await store.insertOffers(fresh);
-  return { shown, added: fresh.length };
+  let retired = 0;
+  for (const old of own) {
+    if (old.used || old.expiresAt <= nowIso) continue;
+    await store.retireOffer(old.id, nowIso);
+    retired += 1;
+  }
+  return { shown, added: fresh.length, rewritten, retired, keys: stored };
 }
 
-// One */2 fire: check the shops that are due, then read queued snaps until the
-// deadline. deps: { store, bucket, media, ask, fetchImpl, now, clock, deadlineMs }.
+// Where a snap's picture lives in R2 (served by GET /minimarts/image).
+export function pictureKey(snap, ref) {
+  return `minimarts/${snap.username}/${snap.snapId}-${ref}.jpg`;
+}
+
+// The same file posted again: what it showed the first time is re-posted.
+async function repostRepeat(store, snap, repeatOf, at) {
+  const posted = snap.postedAt || at.toISOString();
+  const expiresAt = new Date(Date.parse(posted) + OFFER_TTL_MS).toISOString();
+  const ids = repeatOf.offerIds || [];
+  for (const id of ids) await store.repostOffer(id, { postedAt: posted, expiresAt });
+  return { shown: ids, added: 0 };
+}
+
+// A read prepared snap: its pictures no offer shows (an ad, frames without a
+// price) leave R2.
+async function dropUnusedPictures(bucket, snap, used) {
+  const unused = (snap.pictures || []).map((ref) => pictureKey(snap, ref)).filter((key) => !used.has(key));
+  if (bucket && unused.length) await bucket.delete(unused).catch(() => {});
+}
+
+// The month's frame allowance left for one video.
+async function framesAllowedNow(store, media, now) {
+  if (!media) return 0;
+  const used = await store.framesSince(`${now().toISOString().slice(0, 7)}-01T00:00:00.000Z`);
+  return Math.max(0, Math.min(MAX_FRAMES_PER_VIDEO, FRAME_MONTHLY_CAP - used));
+}
+
+// Readies one new snap for the PC reader: the file fetched (a repeat is
+// re-posted at once), a video cut into frames, every picture put in R2.
+async function prepareSnap({ store, bucket, media, snap, fetchImpl, now, report }) {
+  const usage = {};
+  try {
+    const loaded = await loadSnapPictures(snap, {
+      media,
+      framesAllowed: await framesAllowedNow(store, media, now),
+      fetchImpl,
+      findRepeat: snap.reread ? null : (hash) => store.findReadSnapByHash(snap.username, hash, snap.snapId),
+      report: usage,
+    });
+    const at = now();
+    if (loaded.repeatOf || !loaded.pictures.length) {
+      const saved = loaded.repeatOf ? await repostRepeat(store, snap, loaded.repeatOf, at) : { shown: [], added: 0 };
+      await store.finishSnap(snap.snapId, {
+        status: 'read', attempts: snap.attempts + 1, frames: usage.frames || 0, offerIds: saved.shown,
+        mediaHash: usage.hash || null, repeatOf: loaded.repeatOf?.snapId || null, readAt: at.toISOString(),
+      });
+      if (loaded.repeatOf) report.repeats += 1;
+      report.reposted += saved.shown.length;
+      report.frames += usage.frames || 0;
+      return;
+    }
+    for (const p of loaded.pictures) {
+      await bucket.put(pictureKey(snap, p.ref), p.bytes, { httpMetadata: { contentType: p.contentType || 'image/jpeg' } });
+    }
+    await store.prepareSnap(snap.snapId, {
+      pictures: loaded.pictures.map((p) => p.ref), frames: usage.frames || 0, mediaHash: usage.hash || null, preparedAt: at.toISOString(),
+    });
+    report.prepared += 1;
+    report.frames += usage.frames || 0;
+  } catch (err) {
+    const gone = err?.stage === 'media' && [403, 404, 410].includes(err.status);
+    const attempts = snap.attempts + 1;
+    const failed = gone || attempts >= SNAP_MAX_ATTEMPTS;
+    report.errors.push(String(err?.message || err).slice(0, 160));
+    if (failed && snap.reread) {
+      // Its file is gone: the snap keeps what it was read as.
+      await store.endReread(snap.snapId, `reread: ${String(err?.message || err).slice(0, 160)}`);
+      return;
+    }
+    await store.finishSnap(snap.snapId, {
+      status: failed ? 'failed' : 'new', attempts, frames: usage.frames || 0, mediaHash: usage.hash || null,
+      error: `${gone ? 'media_gone' : err?.stage || 'prepare'}: ${String(err?.message || err).slice(0, 160)}`,
+      readAt: failed ? now().toISOString() : null,
+    });
+    if (failed) report.failed += 1;
+    report.frames += usage.frames || 0;
+  }
+}
+
+// A prepared snap's pictures back from R2, for Mistral -> { pictures, framed } | null.
+async function loadPrepared(bucket, snap) {
+  const pictures = [];
+  for (const ref of snap.pictures || []) {
+    const object = await bucket.get(pictureKey(snap, ref));
+    if (!object) return null;
+    pictures.push({ bytes: new Uint8Array(await object.arrayBuffer()), contentType: 'image/jpeg', ref });
+  }
+  return { pictures, framed: pictures.some((p) => isFrameRef(p.ref)), repeatOf: null };
+}
+
+// One */2 fire: check the shops that are due, then, while the PC reader is
+// on, prepare new snaps for it; Mistral reads new snaps while it is off, and
+// prepared snaps it left (READER_WAIT_MS), until the deadline.
+// deps: { store, bucket, media, ask, fetchImpl, now, clock, deadlineMs }.
 export async function runMinimartTick({ store, bucket = null, media = null, ask = null, fetchImpl = fetch, now = () => new Date(), clock = () => Date.now(), deadlineMs = TICK_DEADLINE_MS }) {
   const started = clock();
-  const report = { checked: [], read: 0, offers: 0, reposted: 0, repeats: 0, frames: 0, readings: 0, deferred: 0, failed: 0, errors: [] };
+  const report = { checked: [], read: 0, offers: 0, reposted: 0, repeats: 0, frames: 0, readings: 0, deferred: 0, failed: 0, prepared: 0, errors: [] };
   await checkShops({ store, ask, fetchImpl, now, report });
+  const late = () => clock() - started >= deadlineMs;
+
+  const cutoffs = readerCutoffs(now());
+  const readerOn = Boolean(bucket) && await store.readerSeenSince(cutoffs.onSince);
+  report.reader = readerOn ? 'on' : 'off';
+  if (readerOn) {
+    for (const snap of await store.pendingSnaps(PREPARE_PER_TICK, { reread: true })) {
+      if (late()) {
+        report.yielded = 'deadline';
+        return report;
+      }
+      await prepareSnap({ store, bucket, media, snap, fetchImpl, now, report });
+    }
+  }
 
   if (!ask) {
     report.skipped = 'no_model';
     return report;
   }
-  const monthStart = `${now().toISOString().slice(0, 7)}-01T00:00:00.000Z`;
-  for (const snap of await store.pendingSnaps(SNAPS_PER_TICK)) {
-    if (clock() - started >= deadlineMs) {
+  const queue = readerOn ? [] : await store.pendingSnaps(SNAPS_PER_TICK);
+  if (bucket && queue.length < SNAPS_PER_TICK) queue.push(...await store.lateSnaps({ ...cutoffs, limit: SNAPS_PER_TICK - queue.length }));
+  for (const snap of queue) {
+    if (late()) {
       report.yielded = 'deadline';
       break;
     }
-    const framesUsed = await store.framesSince(monthStart);
-    const framesAllowed = media ? Math.max(0, Math.min(MAX_FRAMES_PER_VIDEO, FRAME_MONTHLY_CAP - framesUsed)) : 0;
     const usage = {};
+    let prepared = null;
+    if (snap.status === 'prepared') {
+      if (!(await store.claimForMistral(snap.snapId, { nowIso: now().toISOString(), claimBefore: cutoffs.claimBefore }))) continue;
+      prepared = await loadPrepared(bucket, snap);
+      if (!prepared) {
+        // Its pictures are gone from R2: fetched and read again from Snapchat.
+        await store.finishSnap(snap.snapId, { status: 'new', attempts: snap.attempts, error: 'prepared pictures missing' });
+        snap.status = 'new';
+      }
+    }
+    const back = snap.status === 'prepared' ? 'prepared' : 'new';
     const findRepeat = (hash) => store.findReadSnapByHash(snap.username, hash, snap.snapId);
     let result;
     try {
-      result = await readSnap(snap, { ask, media, framesAllowed, fetchImpl, findRepeat, report: usage });
+      const framesAllowed = prepared ? 0 : await framesAllowedNow(store, media, now);
+      result = await readSnap(snap, { ask, media, framesAllowed, fetchImpl, findRepeat, prepared, report: usage });
     } catch (err) {
       report.frames += usage.frames || 0;
       report.readings += usage.readings || 0;
@@ -967,7 +1244,7 @@ export async function runMinimartTick({ store, bucket = null, media = null, ask 
       const attempts = Number(snap.attempts || 0) + 1;
       const failed = gone || attempts >= SNAP_MAX_ATTEMPTS || kind === 'auth' || kind === 'restriction';
       await store.finishSnap(snap.snapId, {
-        status: failed ? 'failed' : 'new',
+        status: failed ? 'failed' : back,
         attempts,
         frames: usage.frames || 0,
         readings: usage.readings || 0,
@@ -975,7 +1252,10 @@ export async function runMinimartTick({ store, bucket = null, media = null, ask 
         error: `${gone ? 'media_gone' : kind}: ${String(err?.message || err).slice(0, 160)}`,
         readAt: failed ? now().toISOString() : null,
       });
-      if (failed) report.failed += 1;
+      if (failed) {
+        report.failed += 1;
+        if (prepared) await dropUnusedPictures(bucket, snap, new Set());
+      }
       report.errors.push(String(err?.message || err).slice(0, 160));
       if (kind === 'auth' || kind === 'restriction' || /no API key available|all API keys exhausted/.test(String(err?.message))) {
         report.stopped = 'keys_unavailable';
@@ -986,12 +1266,7 @@ export async function runMinimartTick({ store, bucket = null, media = null, ask 
     const at = now();
     let saved;
     if (result.repeatOf) {
-      // The same file posted again: what it showed the first time is re-posted.
-      const posted = snap.postedAt || at.toISOString();
-      const expiresAt = new Date(Date.parse(posted) + OFFER_TTL_MS).toISOString();
-      const ids = result.repeatOf.offerIds || [];
-      for (const id of ids) await store.repostOffer(id, { postedAt: posted, expiresAt });
-      saved = { shown: ids, added: 0 };
+      saved = await repostRepeat(store, snap, result.repeatOf, at);
       report.repeats += 1;
     } else {
       saved = await saveOffers({ store, bucket, snap, offers: result.offers, at });
@@ -1005,8 +1280,10 @@ export async function runMinimartTick({ store, bucket = null, media = null, ask 
       offerIds: saved.shown,
       mediaHash: usage.hash || null,
       repeatOf: result.repeatOf?.snapId || null,
+      reader: 'mistral',
       readAt: at.toISOString(),
     });
+    if (prepared) await dropUnusedPictures(bucket, snap, saved.keys || new Set());
     report.read += 1;
     report.offers += saved.added;
     report.reposted += saved.shown.length - saved.added;
@@ -1014,6 +1291,103 @@ export async function runMinimartTick({ store, bucket = null, media = null, ask 
     report.readings += usage.readings || 0;
   }
   return report;
+}
+
+// The PC reader's clock: on when it asked since `onSince`; a claim older than
+// `claimBefore` has expired; a snap prepared before `waitBefore` is Mistral's.
+export function readerCutoffs(at) {
+  const ms = at.getTime();
+  return {
+    onSince: new Date(ms - READER_ON_MS).toISOString(),
+    claimBefore: new Date(ms - READER_CLAIM_MS).toISOString(),
+    waitBefore: new Date(ms - READER_WAIT_MS).toISOString(),
+  };
+}
+
+// POST /minimarts/reader/reread: read snaps queued to be read again by the PC
+// reader (owner, 2026-11-05: "for one time only re read the mini mart offers
+// using haiku"). Mistral never reads them; each corrects its own offers when
+// saved (saveOffers). snapIds: the snaps, or null for every read snap of the
+// shops followed. -> how many were queued.
+export async function queueReread({ store, snapIds = null }) {
+  const ids = snapIds?.length ? snapIds.map(String) : await store.readSnapIds();
+  let queued = 0;
+  for (let i = 0; i < ids.length; i += 50) queued += await store.requeueForReread(ids.slice(i, i + 50));
+  return queued;
+}
+
+// GET /minimarts/reader/queue: the reader asked (so it is on), and claims the
+// oldest prepared snaps, up to `maxPictures` pictures (always one snap).
+// -> [{ snapId, username, shopTitle, mediaType, framed, pictures: [{ ref, key }] }]
+export async function claimForReader({ store, now = () => new Date(), maxPictures = READER_MAX_PICTURES }) {
+  const at = now();
+  await store.noteReader(at.toISOString());
+  const { claimBefore, waitBefore } = readerCutoffs(at);
+  const snaps = await store.claimForReader({ nowIso: at.toISOString(), claimBefore, waitBefore, maxPictures, reader: READER });
+  return snaps.map((s) => ({
+    snapId: s.snapId,
+    username: s.username,
+    shopTitle: s.shopTitle,
+    mediaType: s.mediaType,
+    framed: s.pictures.some(isFrameRef),
+    pictures: s.pictures.map((ref) => ({ ref, key: pictureKey(s, ref) })),
+  }));
+}
+
+// POST /minimarts/reader/readings: the reader's two copies of every picture
+// of each snap it claimed -> offers saved like Mistral's. A snap the reader no
+// longer holds (Mistral took it, or it was read) is a conflict and changes
+// nothing. readings: [{ snapId, pictures: [{ ref, copies: [entry, entry] }] }]
+// -> [{ snapId, status: read | conflict | invalid | error, offers, reposted }]
+export async function saveReaderReadings({ store, bucket = null, readings, now = () => new Date() }) {
+  const results = [];
+  for (const reading of [].concat(readings || [])) {
+    const snapId = String(reading?.snapId || '');
+    const snap = snapId ? await store.heldSnap(snapId, READER) : null;
+    if (!snap) {
+      results.push({ snapId, status: 'conflict' });
+      continue;
+    }
+    const byRef = new Map((Array.isArray(reading.pictures) ? reading.pictures : []).map((p) => [String(p?.ref), p]));
+    if (snap.pictures.some((ref) => !byRef.has(ref))) {
+      results.push({ snapId, status: 'invalid', error: 'a picture is missing' });
+      continue;
+    }
+    const pictures = snap.pictures.map((ref) => ({ ref, copies: Array.isArray(byRef.get(ref).copies) ? byRef.get(ref).copies : [] }));
+    const offers = offersFromCopies(pictures, { framed: snap.pictures.some(isFrameRef), ignore: shopWords(snap.shopTitle) })
+      .map((o) => ({ ...o, image: { ref: pictures[o.frame].ref } }));
+    if (!(await store.startSaving(snapId, READER))) {
+      results.push({ snapId, status: 'conflict' });
+      continue;
+    }
+    const at = now();
+    let saved;
+    try {
+      saved = await saveOffers({ store, bucket, snap, offers, at });
+    } catch (err) {
+      await store.stopSaving(snapId);
+      results.push({ snapId, status: 'error', error: String(err?.message || err).slice(0, 160) });
+      continue;
+    }
+    await store.finishSnap(snapId, {
+      status: 'read',
+      attempts: snap.attempts + 1,
+      readings: 2,
+      offers: saved.added + saved.rewritten,
+      offerIds: saved.shown,
+      reader: READER,
+      readAt: at.toISOString(),
+    });
+    await dropUnusedPictures(bucket, snap, saved.keys);
+    results.push({
+      snapId,
+      status: 'read',
+      offers: saved.added,
+      reposted: saved.shown.length - saved.added - saved.rewritten,
+      ...(snap.reread ? { reread: true, rewritten: saved.rewritten, retired: saved.retired } : {}),
+    });
+  }
+  return results;
 }
 
 // The model call, bound to the shared Mistral pool (createKeyChain + failover),

@@ -62,7 +62,7 @@ import { recoveryRegistry } from './recovery/processors/index.js';
 import { createD1VisionJobStore } from './storage/visionJobStore.js';
 import { createD1RegistryStore } from './storage/registryStore.js';
 import { createMinimartStore } from './storage/minimartStore.js';
-import { runMinimartTick, createSnapAsker } from './minimarts.js';
+import { runMinimartTick, createSnapAsker, readerCutoffs } from './minimarts.js';
 import { builtArabicNamesEnabled } from './lexicon/arabicRollout.js';
 import { createNtfyNotifier, ntfyPushDisabled } from './monitor.js';
 import { claimScheduledWatchRuns } from './watchSchedule.js';
@@ -251,7 +251,8 @@ async function runRejudgeSweepTick(env, { scheduledTime = Date.now() } = {}) {
 }
 
 // Mini marts (minimarts.js) on the */2 tick: the shops that are due (every
-// 2 h) are checked, then queued snaps are read until the deadline. One D1
+// 2 h) are checked, then queued snaps are prepared for the PC reader (while it
+// is on) or read by Mistral until the deadline. One D1
 // lease, so overlapping fires never read the same snap twice. The reader
 // leaves MINIMART_KEY_RESERVE requests per key per minute for everyone else
 // on the shared Mistral keys. A quiet fire (nothing due, nothing queued)
@@ -266,8 +267,10 @@ async function runMinimartsTick(env, { scheduledTime = Date.now() } = {}) {
   if (!store) return;
   const nowIso = new Date(scheduledTime).toISOString();
   const due = await store.dueShops(nowIso, 1);
-  const queued = await store.pendingSnaps(1);
-  if (!due.length && !queued.length) return;
+  const queued = await store.pendingSnaps(1, { reread: true });
+  // Prepared snaps the PC reader left (or it is off): Mistral's.
+  const late = due.length || queued.length ? [] : await store.lateSnaps({ ...readerCutoffs(new Date(scheduledTime)), limit: 1 });
+  if (!due.length && !queued.length && !late.length) return;
   const lease = createD1VisionJobStore(env.DB, { id: 'minimarts' });
   await lease.ensureRunning({ scope: 'all', origin: 'cron' });
   if (!(await lease.tryLease({ nowMs: Date.now(), leaseMs: MINIMART_LEASE_MS }))) return;

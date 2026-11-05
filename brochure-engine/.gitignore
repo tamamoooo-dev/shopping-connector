@@ -16,3 +16,7 @@ calibration/
 
 # Benchmark results hold readings of third-party pictures; never committed
 benchmarks/**/result-*.json
+
+# The Mini marts PC reader: its packages and logs stay on the PC
+pc-reader/node_modules/
+pc-reader/logs/

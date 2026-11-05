@@ -1,0 +1,14 @@
+{
+  "name": "minimarts-pc-reader",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Mini marts PC reader: Claude Haiku 5.5 reads shops' Snapchat offer pictures on the owner's PC (Agent SDK, the owner's Claude login) and posts them to the brochure engine.",
+  "scripts": {
+    "read": "node reader.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.3.309",
+    "sharp": "0.35.5"
+  }
+}

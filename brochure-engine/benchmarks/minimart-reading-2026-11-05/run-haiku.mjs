@@ -9,9 +9,10 @@
 // mode "batch" (the study's pick): BATCH pictures in one call (default 28),
 //   each labelled "Picture n"; the reply copies each picture's printed lines
 //   and lists its offers. COPIES=2 (default) reads everything twice, grouped
-//   differently: an offer stands only when both copies list its price, and a
-//   name or size is shown only when its words are printed in both copies of
-//   the text. BATCH=1 is one call a picture. The study passed the pictures
+//   differently, and the engine's offersFromCopies decides (the PC reader's
+//   rules): an offer stands only when both copies list its price, and a name
+//   or size is shown only when its words are printed in both copies of the
+//   text. BATCH=1 is one call a picture. The study passed the pictures
 //   shrunk to 1092 px on the long edge.
 // mode "pipeline": the engine's readSnap as is, Haiku in Mistral's place.
 //
@@ -35,65 +36,18 @@ const truth = JSON.parse(readFileSync(new URL('truth.json', HERE), 'utf8'));
 const samePrice = (a, b) => a != null && b != null && Math.abs(a - b) <= 0.005;
 const picture = (snap) => new Uint8Array(readFileSync(`${mediaDir}/${snap.snapId}.jpg`));
 
-// The reading prompt's Rules, word for word, except the name: the words
-// printed for the product, never the shop's own.
-const RULES = mm.SNAP_READ_PROMPT.slice(mm.SNAP_READ_PROMPT.indexOf('Rules:'), mm.SNAP_READ_PROMPT.indexOf('Return JSON only'))
-  .replace(/- "name":[^\n]*\n/, '- "name": the product name in the words printed for it (caption, tag, poster or package), in the language printed. Never use the shop\'s name or slogan as the name. Never invent a brand or a word that is not printed.\n');
-const BATCH_PROMPT = `Each picture above is one snap (a photo or one frame of a video) from a shop's Snapchat story, labelled "Picture 1", "Picture 2", and so on. Read every picture on its own: never move text or offers from one picture to another.
-For each picture, first "lines": copy the text printed in it, word for word: captions, stickers, banners, price tags and the writing on the packages. Copy only what is actually written. Never add a word, never translate. Keep each piece of text in its own script.
-Then "offers": every product whose PRICE is printed in that picture.
+// The engine's own batch prompt and rules (minimarts.js BATCH_READ_PROMPT,
+// offersFromCopies), so the bench measures what the PC reader runs: a price
+// counts only when the copy's lines print it, both copies must list it (one to
+// one), and a name or size shows only when its words are printed in both.
+const BATCH_PROMPT = mm.BATCH_READ_PROMPT;
+const entryOf = (entry) => ({ lines: Array.isArray(entry?.lines) ? entry.lines : [], offers: Array.isArray(entry?.offers) ? entry.offers : [] });
 
-${RULES}
-Return JSON only: one entry for every picture, in order, with numbers for count, price and was_price:
-{"pictures":[{"picture":1,"lines":["..."],"offers":[{"name":"...","brand":null,"size":null,"count":1,"unit":null,"price":P,"was_price":null}]}]}
-A picture with no printed price has "offers": [].`;
-
-// A price counts only when a copied line prints it: not in the app's own text
-// ("3 hrs ago", a clock) and at least once not as a weight.
-const INTERFACE = /منذ|ago|ساعة|ساعات|دقيقة|دقائق|\bmin\b|\bhrs?\b|\d{1,2}:\d{2}/i;
-const WEIGHT_AFTER = /^\s*(?:جرام|جم|غرام|غم|كيلو|كجم|كغ|كلغ|ملي|مل|لتر|g|gm|gr|kg|ml|l)(?![\p{L}])/iu;
-function pricePrinted(lines, price) {
-  return lines.some((line) => {
-    const text = mm.normalizeDigits(line);
-    if (INTERFACE.test(text)) return false;
-    return [...text.matchAll(/\d+(?:\.\d+)?/g)].some((m) => Math.abs(Number(m[0]) - price) <= 0.005
-      && !WEIGHT_AFTER.test(text.slice(m.index + m[0].length)));
-  });
-}
-
-// One copy of one picture -> { offers, lines }.
-function copyOf(entry) {
-  const lines = Array.isArray(entry?.lines) ? entry.lines.map(String) : [];
-  const read = mm.parseSnapReading(entry) || [];
-  const offers = mm.dropSizeTwins(mm.dropOldPriceTwins(mm.dedupeDeals(read))).filter((o) => pricePrinted(lines, o.price));
-  return { offers, lines };
-}
-
-// Two copies -> the offers both list, one to one: an offer of the second copy
-// vouches for one offer of the first (the same name first, else the same
-// price), so one copy's second flavour at the same price doesn't stand alone.
-function agree(first, second) {
-  const left = [...second];
-  const out = [];
-  for (const a of first) {
-    let k = left.findIndex((o) => samePrice(o.price, a.price) && mm.similarNames(o.name, a.name));
-    if (k < 0) k = left.findIndex((o) => samePrice(o.price, a.price));
-    if (k < 0) continue;
-    const [b] = left.splice(k, 1);
-    out.push({ ...a, wasPrice: samePrice(a.wasPrice, b.wasPrice) ? a.wasPrice : null, votes: 2, names: [b.name] });
-  }
-  return mm.dropOldPriceTwins(mm.dedupeDeals(out));
-}
-
-// Every copy of one picture -> the offers shown.
+// Every copy of one picture -> the offers shown (one copy agrees with itself).
 function shown(copies) {
-  const texts = copies.map((c) => c.lines.join('\n'));
-  const offers = copies.length === 1 ? copies[0].offers : agree(copies[0].offers, copies[1].offers);
-  return offers.map((o) => ({
-    ...o,
-    shownName: mm.printedName(o.name, texts) || '',
-    shownSize: o.size && mm.sizePrintedIn(o.size, texts) ? o.size : '',
-  }));
+  const two = copies.length === 1 ? [copies[0], copies[0]] : copies;
+  return mm.offersFromCopies([{ ref: 'photo', copies: two }])
+    .map((o) => ({ ...o, shownSize: o.sizePrinted ? o.size : '' }));
 }
 
 const usage = { calls: 0, failed: 0, input: 0, output: 0, thinking: 0, cacheRead: 0, cacheWrite: 0, costUSD: 0 };
@@ -171,7 +125,7 @@ async function readBatches() {
       const entries = jsonOf(raw)?.pictures;
       job.snaps.forEach((s, i) => {
         const entry = Array.isArray(entries) ? entries.find((e) => Number(e?.picture) === i + 1) : null;
-        copies.get(s.n)[job.copy] = copyOf(entry);
+        copies.get(s.n)[job.copy] = entryOf(entry);
       });
       process.stderr.write('.');
     }

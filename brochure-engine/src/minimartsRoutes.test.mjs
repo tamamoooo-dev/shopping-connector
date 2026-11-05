@@ -84,6 +84,25 @@ try {
   res = await call(ctx, '/minimarts/image?key=brochures/secret.json');
   assert.equal(res.status, 404);
 
+  // The PC reader's routes need the ingest secret.
+  const reader = { ...ctx, ingestSecret: 's3cret' };
+  const key = { 'X-Ingest-Secret': 's3cret' };
+  res = await call(reader, '/minimarts/reader/queue');
+  assert.equal(res.status, 403);
+  res = await call(reader, '/minimarts/reader/queue?pictures=10', { headers: key });
+  out = await res.json();
+  assert.deepEqual(out.snaps, []); // the queued snap is new, not yet prepared
+  assert.ok(out.prompt.includes('"Picture 1"'));
+  assert.equal((await (await call(reader, '/minimarts/reader/status', { headers: key })).json()).reader.lastRunAt, null);
+  res = await call(reader, '/minimarts/reader/reread', { method: 'POST', headers: key, body: '{}' });
+  assert.equal(res.status, 400);
+  res = await call(reader, '/minimarts/reader/reread', { method: 'POST', headers: key, body: '{"all":true}' });
+  assert.deepEqual(await res.json(), { queued: 0 }); // nothing read yet
+  res = await call(reader, '/minimarts/reader/readings', { method: 'POST', headers: key, body: JSON.stringify({ snaps: [{ snapId: 'x', pictures: [] }], run: { calls: 0 } }) });
+  out = await res.json();
+  assert.deepEqual(out.results, [{ snapId: 'x', status: 'conflict' }]);
+  assert.equal(out.run.refused, 1);
+
   res = await call(ctx, '/minimarts/shops?username=t.sshoco', { method: 'DELETE' });
   assert.equal(res.status, 200);
   out = await (await call(ctx, '/minimarts')).json();
