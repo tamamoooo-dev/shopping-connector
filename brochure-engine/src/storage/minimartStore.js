@@ -14,6 +14,7 @@
 //   offersOfSnap(snapId) / rewriteOffer(id, fields)
 //   findReadSnapByHash(username, hash, exceptSnapId) -> { snapId, offerIds } | null
 //   framesSince(iso) -> frames cut since then (the monthly allowance)
+//   videoPace(iso) -> { videos: new videos seen since then, firstSeen: the first snap ever seen }
 //   recentOffers(username, sinceIso) / insertOffers(rows)
 //   repostOffer(id, { postedAt, expiresAt }) / retireOffer(id, nowIso)
 //   liveOffers(nowIso) -> offers on show, newest posting first
@@ -431,6 +432,19 @@ export function createMinimartStore(db) {
         .bind(username, hash, exceptSnapId)
         .first();
       return row ? { snapId: row.snap_id, offerIds: parseIds(row.offer_ids) } : null;
+    },
+
+    // How fast videos arrive (to pace the month's frames): repeats are never cut.
+    async videoPace(sinceIso) {
+      const row = await db
+        .prepare(
+          `SELECT SUM(CASE WHEN media_type = 'video' AND repeat_of IS NULL AND seen_at >= ?1 THEN 1 ELSE 0 END) AS videos,
+                  MIN(seen_at) AS first
+           FROM minimart_snaps`,
+        )
+        .bind(sinceIso)
+        .first();
+      return { videos: Number(row?.videos) || 0, firstSeen: row?.first || null };
     },
 
     async framesSince(iso) {

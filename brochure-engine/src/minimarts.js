@@ -36,7 +36,9 @@
 //   • 403/429 or a challenge page = `blocked`: the shop waits BLOCKED_RETRY_MS
 //     and is never worked around (the Lulu rule).
 //   • Frames are capped at FRAME_MONTHLY_CAP a month (Cloudflare's free
-//     allowance); past it a video is read from its cover picture only.
+//     allowance) and PACED to last the month (pacedFrames): a video gets
+//     what is left shared over the videos expected before the month ends,
+//     3 to 15 frames. Past the cap a video is read from its cover only.
 //   • THE PC READER (2026-11-05, owner: "Build PC reader"): Claude Haiku 5.5
 //     on the owner's PC (pc-reader/, the Agent SDK on the owner's Claude
 //     login) reads the snaps instead of Mistral while it is on. A reader that
@@ -61,6 +63,8 @@ export const OFFER_TTL_MS = 7 * DAY_MS;
 export const REPEAT_LOOKBACK_MS = 90 * DAY_MS;
 export const FRAME_MONTHLY_CAP = 5000;
 export const MAX_FRAMES_PER_VIDEO = 15;
+export const MIN_FRAMES_PER_VIDEO = 3;
+export const PACE_LOOKBACK_MS = 7 * DAY_MS;
 export const MAX_SHOPS = 30;
 export const SNAP_MAX_ATTEMPTS = 3;
 export const SHOPS_PER_TICK = 3;
@@ -1129,11 +1133,31 @@ async function dropUnusedPictures(bucket, snap, used) {
   if (bucket && unused.length) await bucket.delete(unused).catch(() => {});
 }
 
-// The month's frame allowance left for one video.
+// The month's frames, PACED so they last to its end (owner, 2026-11-06; at
+// one shop's 48 videos a day the 5,000 would be gone by the 17th): what is
+// left is shared over the videos expected before the month ends (the last
+// week's videos a day × the days left). A video gets that share, never more
+// than MAX_FRAMES_PER_VIDEO or than is left, and never fewer than
+// MIN_FRAMES_PER_VIDEO: measured 2026-11-06, 33 of 35 video prices showed in
+// every frame and the least in 5 of 9, and three spread frames always put
+// one inside any stretch longer than a third of the video.
+export function pacedFrames({ used, videosPerDay, at }) {
+  const left = FRAME_MONTHLY_CAP - used;
+  if (left <= 0) return 0;
+  const monthEnd = Date.UTC(at.getUTCFullYear(), at.getUTCMonth() + 1, 1);
+  const expected = Math.max(1, videosPerDay * Math.max(0, (monthEnd - at.getTime()) / DAY_MS));
+  return Math.min(left, MAX_FRAMES_PER_VIDEO, Math.max(MIN_FRAMES_PER_VIDEO, Math.floor(left / expected)));
+}
+
+// The frames one video may be cut into now. Videos a day are counted over
+// the last week, or since the first snap seen when that is later.
 async function framesAllowedNow(store, media, now) {
   if (!media) return 0;
-  const used = await store.framesSince(`${now().toISOString().slice(0, 7)}-01T00:00:00.000Z`);
-  return Math.max(0, Math.min(MAX_FRAMES_PER_VIDEO, FRAME_MONTHLY_CAP - used));
+  const at = now();
+  const used = await store.framesSince(`${at.toISOString().slice(0, 7)}-01T00:00:00.000Z`);
+  const pace = await store.videoPace(new Date(at.getTime() - PACE_LOOKBACK_MS).toISOString());
+  const since = Math.max(at.getTime() - PACE_LOOKBACK_MS, Date.parse(pace.firstSeen || at.toISOString()));
+  return pacedFrames({ used, videosPerDay: pace.videos / Math.max(1, (at.getTime() - since) / DAY_MS), at });
 }
 
 // Readies one new snap for the PC reader: the file fetched (a repeat is
@@ -1143,7 +1167,7 @@ async function prepareSnap({ store, bucket, media, snap, fetchImpl, now, report 
   try {
     const loaded = await loadSnapPictures(snap, {
       media,
-      framesAllowed: await framesAllowedNow(store, media, now),
+      framesAllowed: snap.mediaType === 'video' ? await framesAllowedNow(store, media, now) : 0,
       fetchImpl,
       findRepeat: snap.reread ? null : (hash) => store.findReadSnapByHash(snap.username, hash, snap.snapId),
       report: usage,
@@ -1253,7 +1277,7 @@ export async function runMinimartTick({ store, bucket = null, media = null, ask 
     const findRepeat = (hash) => store.findReadSnapByHash(snap.username, hash, snap.snapId);
     let result;
     try {
-      const framesAllowed = prepared ? 0 : await framesAllowedNow(store, media, now);
+      const framesAllowed = prepared || snap.mediaType !== 'video' ? 0 : await framesAllowedNow(store, media, now);
       result = await readSnap(snap, { ask, media, framesAllowed, fetchImpl, findRepeat, prepared, report: usage });
     } catch (err) {
       report.frames += usage.frames || 0;

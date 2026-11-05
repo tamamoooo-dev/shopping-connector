@@ -4,6 +4,7 @@ import {
   parseProfilePage,
   mp4DurationSec,
   frameTimes,
+  pacedFrames,
   parseSnapReading,
   priceListed,
   dropSizeTwins,
@@ -173,6 +174,18 @@ assert.deepEqual(dropOldPriceTwins([{ price: 10, wasPrice: 15 }, { price: 15, wa
   ]);
   assert.deepEqual(accepted.map((o) => [o.price, o.frame, o.votes, o.wasPrice]), [[12.5, 0, 2, 20]]);
   assert.deepEqual(single.map((o) => [o.price, o.frame, o.count]), [[30, 2, 2]]);
+}
+// The month's frames, paced to last it.
+{
+  const at = new Date('2026-11-06T00:00:00Z'); // 25 days left
+  assert.equal(pacedFrames({ used: 789, videosPerDay: 48, at }), 3); // 4,211 left / 1,200 videos
+  assert.equal(pacedFrames({ used: 789, videosPerDay: 4, at }), 15); // few videos: the full 15
+  assert.equal(pacedFrames({ used: 789, videosPerDay: 20, at }), 8);
+  assert.equal(pacedFrames({ used: 789, videosPerDay: 500, at }), 3); // never fewer than 3 …
+  assert.equal(pacedFrames({ used: 4998, videosPerDay: 1, at }), 2); // … unless that is all that is left
+  assert.equal(pacedFrames({ used: 5000, videosPerDay: 0, at }), 0);
+  assert.equal(pacedFrames({ used: 0, videosPerDay: 0, at }), 15); // no videos yet
+  assert.equal(pacedFrames({ used: 4900, videosPerDay: 48, at: new Date('2026-11-30T23:00:00Z') }), 15); // the last hour
 }
 // Two products at one price, each seen in two frames, stay two offers.
 {
@@ -479,6 +492,9 @@ try {
   assert.equal((await store.listShops()).length, 0);
   // The month's frames: the one video's three cuts.
   assert.equal(await store.framesSince('2026-11-01T00:00:00.000Z'), 3);
+  const pace = await store.videoPace('2026-11-01T00:00:00.000Z');
+  assert.equal(pace.videos, 1);
+  assert.ok(pace.firstSeen.startsWith('2026-11-'));
 } finally {
   fixture.close();
 }
