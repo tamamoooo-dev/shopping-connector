@@ -13,3 +13,6 @@ Thumbs.db
 *.key
 *.secret
 calibration/
+
+# Benchmark results hold readings of third-party pictures; never committed
+benchmarks/**/result-*.json
