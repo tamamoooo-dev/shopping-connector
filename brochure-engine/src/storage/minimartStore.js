@@ -19,8 +19,12 @@ function offerOut(r) {
     username: r.username,
     snapId: r.snap_id,
     name: r.name,
+    // The name's words printed in the picture ('' = none: a guess, never
+    // shown); null = read before the check (2026-11-05).
+    shownName: r.shown_name ?? null,
     brand: r.brand,
     size: r.size,
+    sizePrinted: r.size_printed ?? null,
     count: Number(r.count) || 1,
     unit: r.unit,
     price: Number(r.price),
@@ -229,11 +233,12 @@ export function createMinimartStore(db) {
         .prepare(
           `INSERT OR IGNORE INTO minimart_offers
              (id, username, snap_id, name, brand, size, count, unit, price, was_price, image_key,
-              posted_at, last_posted_at, reposts, expires_at, votes, created_at)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?)`,
+              posted_at, last_posted_at, reposts, expires_at, votes, created_at, shown_name, size_printed)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, ?, ?, ?)`,
         )
         .bind(o.id, o.username, o.snapId, o.name, o.brand, o.size, o.count || 1, o.unit, o.price, o.wasPrice,
-          o.imageKey, o.postedAt, o.lastPostedAt || o.postedAt, o.expiresAt, o.votes || 0, o.createdAt)));
+          o.imageKey, o.postedAt, o.lastPostedAt || o.postedAt, o.expiresAt, o.votes || 0, o.createdAt,
+          o.shownName ?? null, o.sizePrinted ?? null)));
     },
 
     // The shop posted this deal again: one more posting, shown longer. The

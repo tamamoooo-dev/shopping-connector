@@ -60,10 +60,20 @@ try {
     size: null, count: 4, unit: 'حبات', price: 11.5, wasPrice: 14, imageKey: 'minimarts/t.sshoco/R38XrLDwQ5SH2jq-2SFujQ-photo.jpg',
     postedAt: new Date().toISOString(), expiresAt: new Date(Date.now() + 86400000).toISOString(), votes: 2, createdAt: new Date().toISOString(),
   }]);
+  // A name and size the picture does not print are never served.
+  await minimartStore.insertOffers([{
+    id: 'R38XrLDwQ5SH2jq-2SFujQ:2', username: 't.sshoco', snapId: 'R38XrLDwQ5SH2jq-2SFujQ', name: 'مربى الفراولة', shownName: '',
+    brand: null, size: '400 جرام', sizePrinted: 0, count: 1, unit: null, price: 37.5, wasPrice: null, imageKey: null,
+    postedAt: new Date(Date.now() - 60000).toISOString(), expiresAt: new Date(Date.now() + 86400000).toISOString(), votes: 2, createdAt: new Date().toISOString(),
+  }]);
   res = await call(ctx, '/minimarts');
   out = await res.json();
   assert.deepEqual(out.shops.map((s) => s.username), ['t.sshoco']);
+  const guessed = out.offers.find((o) => o.price === 37.5);
+  assert.deepEqual([guessed.name, guessed.size, guessed.shownName], [null, null, undefined]);
+  out.offers = out.offers.filter((o) => o !== guessed);
   assert.equal(out.offers.length, 1);
+  assert.equal(out.offers[0].name, 'لبنة تركية');
   assert.equal(out.offers[0].perUnit, 2.88);
   assert.equal(out.offers[0].imageKey, undefined);
   assert.equal(out.offers[0].image, '/minimarts/image?key=minimarts%2Ft.sshoco%2FR38XrLDwQ5SH2jq-2SFujQ-photo.jpg');

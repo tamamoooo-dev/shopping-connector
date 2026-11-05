@@ -267,6 +267,16 @@ Do not list weights or sizes (a number followed by جرام, جم, كيلو, ك�
 Return JSON only: {"prices":[{"price":P,"words":"the printed words that show it"}]}
 If no selling price is printed, return {"prices":[]}.`;
 
+// What the picture prints, copied (2026-11-05). A name or size is shown only
+// when its words are printed there (owner: "if the system is not sure it must
+// not guess"): the reader once called Almarai chicken strips "مربى الفراولة"
+// under a caption that says "استربس المراعي". Asked for one "text", the copy
+// ended with a line of its own, "مربى الطماطم", under a poster that prints
+// "معجون الطماطم"; line by line, with "never name the product yourself", it
+// did not.
+export const TEXT_PROMPT = `Copy the text printed in this picture, word for word: captions, stickers, banners, price tags and the writing on the packages. Copy only what is actually written. Never add a word that is not printed, never name or describe the product yourself, never translate. Keep each piece of text in its own script.
+Return JSON only: {"lines":["..."]}`;
+
 function visionRequest(model, text, base64, contentType, temperature) {
   return {
     model,
@@ -410,6 +420,115 @@ export function dropSizeTwins(offers) {
   }));
 }
 
+// --- names and sizes: printed, or not shown -------------------------------------
+// Every string in the reply, whatever its shape: the model answers {"text":
+// "..."}, but also lists of lines or of {"text": ...} objects (measured).
+function strings(value) {
+  if (typeof value === 'string') return [value];
+  if (typeof value === 'number') return [String(value)];
+  if (Array.isArray(value)) return value.flatMap(strings);
+  if (value && typeof value === 'object') return Object.values(value).flatMap(strings);
+  return [];
+}
+
+export function parseText(raw) {
+  const parsed = typeof raw === 'string' ? parseJson(raw) : raw;
+  if (parsed == null) return typeof raw === 'string' ? raw : '';
+  return strings(parsed).join('\n');
+}
+
+function editDistance(a, b) {
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j);
+  for (let i = 1; i <= a.length; i += 1) {
+    const row = [i];
+    for (let j = 1; j <= b.length; j += 1) {
+      row[j] = Math.min(prev[j] + 1, row[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    }
+    prev = row;
+  }
+  return prev[b.length];
+}
+
+// Arabic letters as Latin sounds, so a brand written in either script
+// compares: "كادبوري" and "Cadbury" are both k-d-b-r (vowels left out).
+const AR_SOUNDS = {
+  ب: 'b', ت: 't', ث: 't', ج: 'j', ح: 'h', خ: 'k', د: 'd', ذ: 'd', ر: 'r', ز: 's', س: 's', ش: 'S', ص: 's', ض: 'd',
+  ط: 't', ظ: 's', غ: 'j', ف: 'f', ق: 'k', ك: 'k', ل: 'l', م: 'm', ن: 'n', ه: 'h', پ: 'b', ڤ: 'f', چ: 'S', گ: 'j',
+};
+const ARABIC = /[؀-ۿ]/;
+function sounds(word) {
+  const out = ARABIC.test(word)
+    ? [...word.replace(/ه$/, '')].map((c) => AR_SOUNDS[c] || '').join('')
+    : word.replace(/tion/g, 'Sn').replace(/sh|ch/g, 'S').replace(/th/g, 't').replace(/ph/g, 'f')
+      .replace(/c(?=[eiy])/g, 's').replace(/ck|c|q/g, 'k').replace(/x/g, 'ks').replace(/p/g, 'b')
+      .replace(/v/g, 'f').replace(/g/g, 'j').replace(/z/g, 's').replace(/[^bdfhjklmnrstS]/g, '');
+  return out.replace(/(.)\1+/g, '$1');
+}
+
+// One word as printed: allowing a copying slip ("بابل" for "بابلي",
+// "شوكلاته" for "شوكولاته"), or the same word in the other script
+// ("شيتوس" over "Cheetos").
+function sameWord(a, b) {
+  if (a === b) return true;
+  if (ARABIC.test(a) !== ARABIC.test(b)) {
+    const sa = sounds(a);
+    const sb = sounds(b);
+    const short = Math.min(sa.length, sb.length);
+    if (short < 2) return false;
+    if (short < 3) return sa === sb;
+    return editDistance(sa, sb) <= Math.floor(Math.max(sa.length, sb.length) / 4);
+  }
+  if (Math.min(a.length, b.length) < 4) return false;
+  if (a.startsWith(b) || b.startsWith(a)) return true;
+  return editDistance(a, b) <= (Math.max(a.length, b.length) >= 7 ? 2 : 1);
+}
+
+// The name as shown: only its words that are printed in the picture, in
+// their order (owner, 2026-11-05: "if the system is not sure it must not
+// guess"). Null when fewer than half are printed: the name is mostly the
+// reader's own ("مربى الفراولة" under a caption that says "استربس المراعي").
+// `ignore`: the shop's own words, never part of a product's name, even
+// misspelt ("بشار" for "بشائر"). A bare number is left out: it is the price
+// or a count as often as part of the name ("5 منتجات من هانتيرز").
+// `texts`: one copy of the picture's text, or several; a word counts only
+// when every copy has it.
+export const MIN_PRINTED_SHARE = 0.5;
+export function printedName(name, texts, ignore = null) {
+  const copies = [].concat(texts).map((text) => [...nameTokens(text)]);
+  const shop = [...(ignore || [])];
+  const kept = [];
+  let words = 0;
+  let printed = 0;
+  for (const word of String(name || '').split(/\s+/)) {
+    const tokens = [...nameTokens(word)].filter((t) => !shop.some((u) => sameWord(t, u)));
+    if (!tokens.length) continue;
+    words += 1;
+    if (tokens.every((t) => copies.every((seen) => seen.some((u) => sameWord(t, u))))) {
+      printed += 1;
+      kept.push(word);
+    }
+  }
+  if (!words || printed / words < MIN_PRINTED_SHARE) return null;
+  return tidyName(kept.join(' ')) || null;
+}
+
+// Brackets and dashes a dropped word left open.
+function tidyName(text) {
+  let out = text.replace(/\(\s*\)/g, ' ');
+  if ((out.match(/\(/g) || []).length !== (out.match(/\)/g) || []).length) out = out.replace(/[()]/g, ' ');
+  return out.replace(/\s+[-–&,،/]+(?=\s|$)/g, ' ').replace(/^[\s\-–&,،/]+|[\s\-–&,،/]+$/g, '').replace(/\s{2,}/g, ' ').trim();
+}
+
+// A size is printed when its numbers are ("45 جرام" over "45g").
+export function sizePrintedIn(size, texts) {
+  const numbers = normalizeDigits(size).match(/\d+(?:\.\d+)?/g);
+  if (!numbers) return false;
+  return [].concat(texts).every((text) => {
+    const seen = (normalizeDigits(text).match(/\d+(?:\.\d+)?/g) || []).map(Number);
+    return numbers.every((n) => seen.some((m) => samePrice(m, Number(n))));
+  });
+}
+
 // --- names: telling one deal from another ---------------------------------------------
 // Words every caption carries ("عرض", "ريال", "حبة") and the shops' slogan
 // words ("للحلويات والمواد الغذائية"): they say nothing about which product
@@ -417,7 +536,9 @@ export function dropSizeTwins(offers) {
 // a TUC poster a "repeat" of a Pillsbury one.
 const FILLER = new Set(['عرض', 'عروض', 'سعر', 'ريال', 'رس', 'فقط', 'حبه', 'حبات', 'حبتين', 'كرتون', 'كراتين',
   'علبه', 'علب', 'كيس', 'اكياس', 'جديد', 'وصل', 'متوفر', 'offer', 'sar', 'sr', 'only', 'new', 'pcs', 'pc',
-  'حلويات', 'مواد', 'غذائيه', 'مخفضه', 'مستورده']);
+  'حلويات', 'مواد', 'غذائيه', 'مخفضه', 'مستورده', 'مع', 'من', 'في', 'with', 'and', 'of', 'the',
+  // Weights say which size, never which product ("الحلوى 45 جرام" is not "جرام").
+  'وزن', 'جرام', 'جم', 'غرام', 'غم', 'كيلو', 'كجم', 'كغ', 'كغم', 'مل', 'لتر', 'gm', 'gr', 'kg', 'ml']);
 
 // `ignore`: more words to leave out, e.g. the shop's own name (shopWords).
 export function nameTokens(name, ignore = null) {
@@ -484,7 +605,7 @@ export function agreePhoto(first, second) {
     const b = second.find((o) => samePrice(o.price, a.price) && similarNames(o.name, a.name))
       || second.find((o) => samePrice(o.price, a.price));
     if (!b) continue;
-    out.push({ ...a, wasPrice: samePrice(a.wasPrice, b.wasPrice) ? a.wasPrice : null, votes: 2 });
+    out.push({ ...a, wasPrice: samePrice(a.wasPrice, b.wasPrice) ? a.wasPrice : null, votes: 2, names: [b.name] });
   }
   return dropOldPriceTwins(dedupeDeals(out));
 }
@@ -503,6 +624,7 @@ function frameOffer(frames, entries) {
   return {
     ...entries[0],
     count: mode(entries.map((e) => e.count)) || 1,
+    names: entries.slice(1).map((e) => e.name),
     wasPrice: wasVotes >= 2 ? was : null,
     frame: Math.min(...frames),
     votes: frames.size,
@@ -632,11 +754,46 @@ export async function readSnap(snap, { ask, media = null, framesAllowed = MAX_FR
     candidates = dropSizeTwins(agreePhoto(first, second)).map((o) => ({ ...o, frame: 0 }));
   }
 
+  // What each picture prints, copied twice: a name shows only its words both
+  // copies have, and a size only when printed. One copy in five added a line
+  // of its own, "مربى الطماطم", under a poster that prints "معجون الطماطم"
+  // (measured); words truly printed were in 5 copies of 5. The reading with
+  // the most printed words wins; a guess is kept for telling repeats apart,
+  // never shown.
+  const ignore = shopWords(snap.shopTitle);
+  const texts = new Map();
+  const printed = async (frame) => {
+    if (!texts.has(frame)) {
+      const copies = [];
+      for (let i = 0; i < 2; i += 1) {
+        report.readings += 1;
+        copies.push(parseText(await ask(TEXT_PROMPT, pictures[frame], 0)));
+      }
+      texts.set(frame, copies);
+    }
+    return texts.get(frame);
+  };
+
   const offers = [];
   for (const offer of candidates) {
     const picture = pictures[offer.frame];
     if (!picture || !(await confirm(offer.frame, offer.price))) continue;
-    offers.push({ ...offer, image: picture });
+    // The price check quotes printed words too.
+    const quoted = parseText(checks.get(offer.frame));
+    const copies = (await printed(offer.frame)).map((text) => `${text}\n${quoted}`);
+    const { names = [], ...rest } = offer;
+    let best = { name: offer.name, shown: '' };
+    for (const name of [offer.name, ...names]) {
+      const shown = printedName(name, copies, ignore);
+      if (shown && shown.length > best.shown.length) best = { name, shown };
+    }
+    offers.push({
+      ...rest,
+      name: best.name,
+      shownName: best.shown,
+      sizePrinted: offer.size ? Number(sizePrintedIn(offer.size, copies)) : null,
+      image: picture,
+    });
   }
   return { offers, repeatOf: null };
 }
@@ -748,8 +905,10 @@ async function saveOffers({ store, bucket, snap, offers, at }) {
       username: snap.username,
       snapId: snap.snapId,
       name: offer.name,
+      shownName: offer.shownName ?? null,
       brand: offer.brand,
       size: offer.size,
+      sizePrinted: offer.sizePrinted ?? null,
       count: offer.count || 1,
       unit: offer.unit,
       price: offer.price,

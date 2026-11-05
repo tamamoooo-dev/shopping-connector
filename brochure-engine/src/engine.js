@@ -373,8 +373,11 @@ export async function handleRequest(request, ctx) {
     const [shops, offers] = await Promise.all([ctx.minimartStore.listShops(), ctx.minimartStore.liveOffers(nowIso)]);
     return json({
       shops,
-      offers: offers.map((o) => ({
+      offers: offers.map(({ shownName, sizePrinted, ...o }) => ({
         ...o,
+        // Only words printed in the picture; a guess is never shown (owner, 2026-11-05).
+        name: shownName == null ? o.name : shownName || null,
+        size: sizePrinted === 0 ? null : o.size,
         perUnit: o.count > 1 ? Math.round((o.price / o.count) * 100) / 100 : null,
         image: o.imageKey ? `/minimarts/image?key=${encodeURIComponent(o.imageKey)}` : null,
         imageKey: undefined,

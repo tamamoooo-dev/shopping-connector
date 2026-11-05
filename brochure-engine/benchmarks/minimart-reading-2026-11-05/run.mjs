@@ -7,9 +7,11 @@
 //
 // Scores: right = a printed price with a printed count; count = right price,
 // wrong count; false = a price the picture does not print as a selling price;
-// missed = a printed price no offer carries.
+// missed = a printed price no offer carries. Names: how many are shown
+// (printed in the picture) and how many hidden as guesses; result-<label>.json
+// lists each for checking by eye.
 import { readFileSync, writeFileSync } from 'node:fs';
-import { readSnap, SNAP_READ_PROMPT } from '../../src/minimarts.js';
+import { readSnap, SNAP_READ_PROMPT, PRICES_PROMPT, TEXT_PROMPT } from '../../src/minimarts.js';
 import { loadMistralKeys } from '../../local-secrets.mjs';
 
 const [, , mediaDir, label = 'run'] = process.argv;
@@ -64,7 +66,7 @@ async function worker() {
     const calls = [];
     const logged = async (text, image, temperature) => {
       const raw = await ask(text, image, temperature);
-      calls.push({ kind: text === SNAP_READ_PROMPT ? 'read' : 'check', raw });
+      calls.push({ kind: text === SNAP_READ_PROMPT ? 'read' : text === PRICES_PROMPT ? 'check' : text === TEXT_PROMPT ? 'text' : 'other', raw });
       return raw;
     };
     const fetchImpl = async () => new Response(bytes, { headers: { 'Content-Type': 'image/jpeg' } });
@@ -76,7 +78,7 @@ async function worker() {
 await Promise.all([worker(), worker(), worker()]);
 results.sort((a, b) => a.n - b.n);
 
-const score = { right: 0, count: 0, false: 0, missed: 0, priced: 0, calls: 0 };
+const score = { right: 0, count: 0, false: 0, missed: 0, priced: 0, calls: 0, namesShown: 0, namesHidden: 0 };
 const lines = [];
 for (const r of results) {
   score.calls += r.calls.length;
@@ -84,6 +86,8 @@ for (const r of results) {
   const used = new Set();
   const marks = [];
   for (const o of r.offers) {
+    if (o.shownName) score.namesShown += 1;
+    else score.namesHidden += 1;
     const i = r.expected.findIndex((e, k) => !used.has(k) && samePrice(e.price, o.price));
     if (i < 0) {
       score.false += 1;

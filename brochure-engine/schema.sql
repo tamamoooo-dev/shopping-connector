@@ -907,7 +907,9 @@ CREATE TABLE IF NOT EXISTS minimart_offers (
   reposts        INTEGER NOT NULL DEFAULT 0,        -- times posted again after the first
   expires_at     TEXT NOT NULL,
   votes          INTEGER NOT NULL DEFAULT 0,        -- readings that agreed on the price
-  created_at     TEXT NOT NULL                      -- first seen (the "new" badge)
+  created_at     TEXT NOT NULL,                     -- first seen (the "new" badge)
+  shown_name     TEXT,                              -- the name's printed words; '' = a guess (not shown), NULL unchecked
+  size_printed   INTEGER                            -- the same for size (2026-11-05)
 );
 
 CREATE INDEX IF NOT EXISTS ix_minimart_offers_live

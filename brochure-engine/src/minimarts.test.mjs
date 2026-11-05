@@ -21,6 +21,10 @@ import {
   PICTURE_PROMPT,
   PRICES_PROMPT,
   SNAP_READ_PROMPT,
+  TEXT_PROMPT,
+  parseText,
+  printedName,
+  sizePrintedIn,
   BLOCKED_RETRY_MS,
   OFFER_TTL_MS,
 } from './minimarts.js';
@@ -202,6 +206,47 @@ assert.equal(sameDeal({ name: 'عروض للحلويات والمواد الغذ
   assert.equal(sameDeal({ name: 'لبنة بشائر', price: 9, count: 1 }, { name: 'لبنة', price: 9, count: 1 }, shop), true);
 }
 
+// --- names and sizes: printed, or not shown ------------------------------------------------
+{
+  // Measured 2026-11-05: Almarai chicken strips read as strawberry jam.
+  const strips = 'استربس المراعي وزن 2,5 كجم ب 37,5 ريال فقط\nPremier Chef Coated Chicken Tenders';
+  assert.equal(printedName('مربى الفراولة', strips), null);
+  assert.equal(printedName('استربس المراعي', strips), 'استربس المراعي');
+  assert.equal(printedName('Coated Chicken Tenders', strips), 'Coated Chicken Tenders');
+  assert.equal(printedName('شوكلاتة كادبوري بابل', 'فقط ب 1 ريال شوكولاته كادبوري بابلي'), 'شوكلاتة كادبوري بابل'); // copying slips
+  // Only the printed words are shown (measured: "حلوى" = candy, on onion rings).
+  assert.equal(printedName('حلوى حلقات البصل (Onion Rings)', 'حلقات بصل مقرمشة Onion Rings'), 'حلقات البصل (Onion Rings)');
+  assert.equal(printedName('عصير الليمون', 'خليط الكيك بنكهة الليمون'), 'الليمون');
+  assert.equal(printedName('مكعبات الغسيل', 'علكة تريدا الأصلية 3 كراتين ب 11.50'), null); // gum, read as washing cubes
+  // The same word in the other script (measured: Cheetos, Cadbury, Davidoff).
+  assert.equal(printedName('شيتوس جبن شيدر جالابينو', 'Cheetos REAL CHEESE! cheddar jalapeño'), 'شيتوس شيدر جالابينو');
+  assert.equal(printedName('كادبوري سيليكشنز', 'Cadbury Selections 40 PREMIUM MINIATURES'), 'كادبوري سيليكشنز');
+  assert.equal(printedName('قهوة دافيدوف - Davidoff - The Espresso 57', 'قهوة دافيدوف DAVIDOFF THE ESPRESSO 57'), 'قهوة دافيدوف Davidoff Espresso');
+  // The shop's own name, even misspelt, and bare numbers are never the product.
+  const shop = shopWords('بشائر العروض للمواد الغذائية');
+  assert.equal(printedName('بشار العروض دبس فليفلة حار', 'بشار العروض دبس فليفلة حار 9.8 ريال', shop), 'دبس فليفلة حار');
+  assert.equal(printedName('5 منتجات من هانتيرز', 'HUNTER’S Gourmet الحبه ب 5 ريال فقط'), 'هانتيرز');
+  assert.equal(printedName('الحلوى 45 جرام', 'للحبة 2.5 ريال 45 جرام Loacker'), null); // a weight is not a name (measured)
+  assert.equal(printedName('', 'anything'), null);
+  assert.equal(printedName('لبنة', ''), null);
+  assert.equal(sizePrintedIn('2.5 كجم', strips), true);
+  assert.equal(sizePrintedIn('45 جرام', 'Loacker 45g'), true);
+  assert.equal(sizePrintedIn('100 جرام', strips), false);
+  // Two copies: a word one copy added on its own is not printed (measured:
+  // "مربى الطماطم" in one copy of five, under "معجون الطماطم").
+  const paste = ['مربى الطماطم\nمعجون الطماطم 3 ريال', 'معجون الطماطم 3 ريال'];
+  assert.equal(printedName('مربى الطماطم', paste), 'الطماطم');
+  assert.equal(printedName('معجون الطماطم', paste), 'معجون الطماطم');
+  assert.equal(printedName('مربى', paste), null);
+  assert.equal(sizePrintedIn('3 كجم', ['3 كجم', 'ريال']), false);
+  assert.equal(sizePrintedIn('3 كجم', ['3 كجم', '3 ريال']), true);
+  assert.equal(parseText('{"text":"a\\nb"}'), 'a\nb');
+  assert.equal(parseText({ text: ['a', 'b'] }), 'a\nb');
+  assert.equal(parseText({ text: [{ line: 'a' }, { text: 'b', lang: 'ar' }] }), 'a\nb\nar');
+  assert.equal(parseText({ lines: ['a'] }), 'a');
+  assert.equal(parseText('nope'), 'nope');
+}
+
 // --- the shop's picture: its logo, or not ----------------------------------------------------
 assert.equal(parsePictureKind('{"kind": "logo"}'), 'logo');
 assert.equal(parsePictureKind('{"kind":"Snapchat"}'), 'snapchat');
@@ -218,6 +263,7 @@ const dec = (bytes) => new TextDecoder().decode(bytes);
 // replies (in turn), `printed` = the prices the blind check lists, with their words.
 const PICTURES = {
   'IMG:labneh': { reads: [[{ name: 'لبنة تركية', price: 11.5, count: 1 }]], printed: { 11.5: 'لبنة تركية ١١٫٥' } },
+  // The name is the reader's guess: nothing in the picture prints it.
   'IMG:labneh-again': { reads: [[{ name: 'لبنه تركيه', price: 11.5, count: 1 }]], printed: { 11.5: '11.5 ريال' } },
   'IMG:labneh-cheaper': { reads: [[{ name: 'لبنة تركية', price: 9.99, count: 1 }]], printed: { 9.99: '9.99' } },
   'IMG:labneh-cheaper-2': { reads: [[{ name: 'لبنة تركية', price: 9.99, count: 1 }]], printed: { 9.99: '9.99 ريال' } },
@@ -236,7 +282,7 @@ function createAsk({ rateLimitOn = null } = {}) {
   const calls = [];
   const ask = async (text, image) => {
     const key = dec(image.bytes);
-    calls.push({ key, kind: text === PICTURE_PROMPT ? 'picture' : text === PRICES_PROMPT ? 'confirm' : 'read' });
+    calls.push({ key, kind: text === PICTURE_PROMPT ? 'picture' : text === PRICES_PROMPT ? 'confirm' : text === TEXT_PROMPT ? 'text' : 'read' });
     if (rateLimitOn && key === rateLimitOn) {
       const err = new Error('mistral 429: rate limit exceeded');
       err.status = 429;
@@ -245,6 +291,7 @@ function createAsk({ rateLimitOn = null } = {}) {
     const picture = PICTURES[key];
     assert.ok(picture, `unexpected picture ${key}`);
     if (text === PICTURE_PROMPT) return JSON.stringify({ kind: picture.kind });
+    if (text === TEXT_PROMPT) return JSON.stringify({ text: picture.text ?? Object.values(picture.printed || {}).join('\n') });
     if (text === PRICES_PROMPT) {
       return JSON.stringify({ prices: Object.entries(picture.printed).map(([price, words]) => ({ price: Number(price), words })) });
     }
@@ -433,6 +480,7 @@ try {
     {
       ask: async (text, image) => {
         calls.push(dec(image.bytes));
+        if (text === TEXT_PROMPT) return '{"text":"12.5 ريال"}';
         return text === PRICES_PROMPT
           ? '{"prices":[{"price":12.5,"words":"12.5"}]}'
           : '{"offers":[{"name":"شوكولاتة","price":12.5,"count":1}]}';
@@ -442,7 +490,29 @@ try {
     },
   );
   assert.deepEqual(result.offers.map((o) => [o.price, o.image.ref]), [[12.5, 'cover']]);
-  assert.deepEqual(calls, ['COVER', 'COVER', 'COVER']);
+  // Two readings, the price check, two copies of the text: the name is not printed.
+  assert.deepEqual(calls, ['COVER', 'COVER', 'COVER', 'COVER', 'COVER']);
+  assert.deepEqual([result.offers[0].name, result.offers[0].shownName], ['شوكولاتة', '']);
+}
+
+// The first reading's name is a guess, the second's is printed: the printed one.
+{
+  const reads = [
+    '{"offers":[{"name":"مربى الفراولة","price":37.5,"count":1,"size":"2.5 كجم"}]}',
+    '{"offers":[{"name":"استربس المراعي","price":37.5,"count":1,"size":"100 جرام"}]}',
+  ];
+  const result = await readSnap(
+    { snapId: 'p', mediaType: 'image', mediaUrl: 'https://cdn/strips' },
+    {
+      ask: async (text) => {
+        if (text === TEXT_PROMPT) return JSON.stringify({ text: 'استربس المراعي وزن 2,5 كجم ب 37,5 ريال فقط' });
+        if (text === PRICES_PROMPT) return '{"prices":[{"price":"37,5","words":"ب 37,5 ريال فقط"}]}';
+        return reads.shift();
+      },
+      fetchImpl: async () => new Response(enc('STRIPS'), { status: 200 }),
+    },
+  );
+  assert.deepEqual(result.offers.map((o) => [o.name, o.shownName, o.size, o.sizePrinted, o.names]), [['استربس المراعي', 'استربس المراعي', '2.5 كجم', 1, undefined]]);
 }
 
 console.log('minimarts.test.mjs OK');
