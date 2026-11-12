@@ -103,6 +103,19 @@ try {
   assert.deepEqual(out.results, [{ snapId: 'x', status: 'conflict' }]);
   assert.equal(out.run.refused, 1);
 
+  // Both Claude accounts at their limit: a short wait is the reader's, a long one Mistral's.
+  res = await call(reader, '/minimarts/reader/limit', { method: 'POST', headers: key, body: '{}' });
+  assert.equal(res.status, 400);
+  const soon = new Date(Date.now() + 30 * 60 * 1000).toISOString();
+  res = await call(reader, '/minimarts/reader/limit', { method: 'POST', headers: key, body: JSON.stringify({ until: soon, accounts: { main: soon, backup: soon } }) });
+  assert.deepEqual(await res.json(), { limitedUntil: soon, reads: 'reader' });
+  const far = new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString();
+  res = await call(reader, '/minimarts/reader/limit', { method: 'POST', headers: key, body: JSON.stringify({ until: far }) });
+  assert.equal((await res.json()).reads, 'mistral');
+  out = await (await call(reader, '/minimarts/reader/status', { headers: key })).json();
+  assert.equal(out.reader.limitedUntil, far);
+  assert.deepEqual(out.checkProblems, []);
+
   res = await call(ctx, '/minimarts/shops?username=t.sshoco', { method: 'DELETE' });
   assert.equal(res.status, 200);
   out = await (await call(ctx, '/minimarts')).json();

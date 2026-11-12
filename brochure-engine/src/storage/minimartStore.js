@@ -14,6 +14,10 @@
 //   offersOfSnap(snapId) / rewriteOffer(id, fields)
 //   findReadSnapByHash(username, hash, exceptSnapId) -> { snapId, offerIds } | null
 //   framesSince(iso) -> frames cut since then (the monthly allowance)
+//   videoYield(username, sinceIso) -> { videos, priced }: a shop's read videos, and those with a price
+//   logCheck(username, row) / checkProblems(sinceIso) / pruneChecks(beforeIso): the story checks' history
+//   noteReaderLimit(nowIso, untilIso, note) / readerLimitedUntil(): every Claude account at its limit
+//   unusedPictureKeys(beforeIso, limit) / clearPictures(keys) / picturelessOffers(ids) / setOfferImage(id, key)
 //   videoPace(iso) -> { videos: new videos seen since then, firstSeen: the first snap ever seen }
 //   recentOffers(username, sinceIso) / insertOffers(rows)
 //   repostOffer(id, { postedAt, expiresAt }) / retireOffer(id, nowIso)
@@ -84,6 +88,8 @@ function snapOut(r) {
 }
 
 const SNAP_COLUMNS = 's.*, m.title AS shop_title';
+// A time no limit reaches: `limited_until > NEVER` is never true.
+const NEVER = '9999-12-31T00:00:00.000Z';
 const changed = (res) => Number(res?.meta?.changes) > 0;
 
 function parseIds(text) {
@@ -135,13 +141,13 @@ export function createMinimartStore(db) {
     async dueShops(nowIso, limit) {
       const { results } = await db
         .prepare(
-          `SELECT username, picture_kind_of FROM minimart_shops
+          `SELECT username, picture_kind_of, last_post_at, added_at FROM minimart_shops
            WHERE active = 1 AND (next_check_at IS NULL OR next_check_at <= ?)
            ORDER BY next_check_at LIMIT ?`,
         )
         .bind(nowIso, limit)
         .all();
-      return (results || []).map((r) => ({ username: r.username, pictureKindOf: r.picture_kind_of }));
+      return (results || []).map((r) => ({ username: r.username, pictureKindOf: r.picture_kind_of, lastPostAt: r.last_post_at ?? null, addedAt: r.added_at ?? null }));
     },
 
     async setPictureKind(username, kind, pictureUrl) {
@@ -163,6 +169,31 @@ export function createMinimartStore(db) {
         .bind(username, status, error, checkedAt, nextCheckAt,
           profile?.title ?? null, profile?.address ?? null, profile?.picture ?? null, lastPostAt ?? null)
         .run();
+    },
+
+    // Every story check, kept: a block that cleared by itself still shows.
+    async logCheck(username, { status, error = null, snaps = 0, added = 0, checkedAt }) {
+      await db
+        .prepare('INSERT INTO minimart_checks (username, checked_at, status, error, snaps, added) VALUES (?, ?, ?, ?, ?, ?)')
+        .bind(username, checkedAt, status, error, snaps, added)
+        .run();
+    },
+
+    // The checks that did not answer "ok" since then, per shop and status.
+    async checkProblems(sinceIso) {
+      const { results } = await db
+        .prepare(
+          `SELECT username, status, COUNT(*) AS n, MAX(checked_at) AS last, MAX(error) AS error
+           FROM minimart_checks WHERE checked_at >= ? AND status <> 'ok'
+           GROUP BY username, status ORDER BY last DESC`,
+        )
+        .bind(sinceIso)
+        .all();
+      return (results || []).map((r) => ({ username: r.username, status: r.status, checks: Number(r.n) || 0, last: r.last, error: r.error ?? null }));
+    },
+
+    async pruneChecks(beforeIso) {
+      await db.prepare('DELETE FROM minimart_checks WHERE checked_at < ?').bind(beforeIso).run();
     },
 
     async addSnaps(username, snaps, seenAt) {
@@ -205,6 +236,26 @@ export function createMinimartStore(db) {
         .run();
     },
 
+    // The reader said every Claude account is at its limit until `untilIso`
+    // (a time already past = it reads again). Saying so is asking: it stays
+    // on. The snaps it held are let go, for Mistral or its own next round.
+    async noteReaderLimit(nowIso, untilIso, note = null) {
+      await db.batch([
+        db
+          .prepare(
+            `INSERT INTO minimart_reader (name, seen_at, limited_until, limit_note) VALUES ('pc', ?1, ?2, ?3)
+             ON CONFLICT(name) DO UPDATE SET seen_at = ?1, limited_until = ?2, limit_note = ?3`,
+          )
+          .bind(nowIso, untilIso, note == null ? null : JSON.stringify(note).slice(0, 1000)),
+        db.prepare("UPDATE minimart_snaps SET reader = NULL, claimed_at = NULL WHERE status = 'prepared' AND reader = 'haiku'"),
+      ]);
+    },
+
+    async readerLimitedUntil() {
+      const row = await db.prepare("SELECT limited_until FROM minimart_reader WHERE name = 'pc'").first();
+      return row?.limited_until ?? null;
+    },
+
     async readerSeenSince(iso) {
       const row = await db.prepare("SELECT 1 AS seen FROM minimart_reader WHERE name = 'pc' AND seen_at >= ?").bind(iso).first();
       return Boolean(row);
@@ -229,7 +280,13 @@ export function createMinimartStore(db) {
       } catch {
         /* unreadable: left out */
       }
-      return { seenAt: row.seen_at, lastRunAt: row.last_run_at ?? null, lastRun };
+      let limitNote = null;
+      try {
+        limitNote = JSON.parse(row.limit_note || 'null');
+      } catch {
+        /* unreadable: left out */
+      }
+      return { seenAt: row.seen_at, lastRunAt: row.last_run_at ?? null, lastRun, limitedUntil: row.limited_until ?? null, limitNote };
     },
 
     // Ready for the PC reader: its pictures are in R2 under these refs.
@@ -248,16 +305,20 @@ export function createMinimartStore(db) {
     // The oldest prepared snaps the reader may take (unclaimed, or a claim
     // that expired; not yet Mistral's unless queued to be read again), up to
     // maxPictures pictures and always one snap; each claimed atomically.
-    async claimForReader({ nowIso, claimBefore, waitBefore, maxPictures, reader, limit = 60 }) {
+    // Snaps held through a limit (limited_until after `holdSince`) are still
+    // the reader's however long they waited.
+    async claimForReader({ nowIso, claimBefore, waitBefore, holdSince = NEVER, maxPictures, reader, limit = 60 }) {
       const { results } = await db
         .prepare(
           `SELECT ${SNAP_COLUMNS} FROM minimart_snaps s
            JOIN minimart_shops m ON m.username = s.username AND m.active = 1
-           WHERE s.status = 'prepared' AND (s.prepared_at >= ?1 OR COALESCE(s.reread, 0) = 1)
+           WHERE s.status = 'prepared'
+             AND (s.prepared_at >= ?1 OR COALESCE(s.reread, 0) = 1
+                  OR EXISTS (SELECT 1 FROM minimart_reader r WHERE r.name = 'pc' AND r.limited_until > ?4))
              AND (s.reader IS NULL OR s.claimed_at < ?2)
            ORDER BY COALESCE(s.posted_at, s.seen_at) LIMIT ?3`,
         )
-        .bind(waitBefore, claimBefore, limit)
+        .bind(waitBefore, claimBefore, limit, holdSince)
         .all();
       const chosen = [];
       let pictures = 0;
@@ -300,10 +361,13 @@ export function createMinimartStore(db) {
       await db.prepare("UPDATE minimart_snaps SET status = 'prepared' WHERE snap_id = ? AND status = 'saving'").bind(snapId).run();
     },
 
-    // Prepared snaps that are Mistral's: the reader is off, or the snap waited
-    // too long; never one claimed by the reader within the claim time, never
-    // one queued to be read again.
-    async lateSnaps({ onSince, claimBefore, waitBefore, limit }) {
+    // Prepared snaps that are Mistral's: the reader is off, or every Claude
+    // account is at its limit until after `holdOver` (too long to wait), or
+    // the snap waited too long. A snap that waited is NOT Mistral's while the
+    // reader holds it for a limit that resets soon (limited_until after
+    // `holdSince`). Never one claimed by the reader within the claim time,
+    // never one queued to be read again.
+    async lateSnaps({ onSince, claimBefore, waitBefore, holdOver = NEVER, holdSince = NEVER, limit }) {
       if (limit <= 0) return [];
       const { results } = await db
         .prepare(
@@ -311,10 +375,13 @@ export function createMinimartStore(db) {
            JOIN minimart_shops m ON m.username = s.username AND m.active = 1
            WHERE s.status = 'prepared' AND COALESCE(s.reread, 0) = 0
              AND (s.reader IS NULL OR s.reader = 'mistral' OR s.claimed_at < ?2)
-             AND (s.prepared_at < ?3 OR NOT EXISTS (SELECT 1 FROM minimart_reader r WHERE r.name = 'pc' AND r.seen_at >= ?1))
+             AND (NOT EXISTS (SELECT 1 FROM minimart_reader r WHERE r.name = 'pc' AND r.seen_at >= ?1)
+                  OR EXISTS (SELECT 1 FROM minimart_reader r WHERE r.name = 'pc' AND r.limited_until > ?5)
+                  OR (s.prepared_at < ?3
+                      AND NOT EXISTS (SELECT 1 FROM minimart_reader r WHERE r.name = 'pc' AND r.limited_until > ?6)))
            ORDER BY COALESCE(s.posted_at, s.seen_at) LIMIT ?4`,
         )
-        .bind(onSince, claimBefore, waitBefore, limit)
+        .bind(onSince, claimBefore, waitBefore, limit, holdOver, holdSince)
         .all();
       return (results || []).map(snapOut);
     },
@@ -447,6 +514,21 @@ export function createMinimartStore(db) {
       return { videos: Number(row?.videos) || 0, firstSeen: row?.first || null };
     },
 
+    // A shop's read videos since then, and how many of them showed a price
+    // (a new offer or a re-posted one).
+    async videoYield(username, sinceIso) {
+      const row = await db
+        .prepare(
+          `SELECT COUNT(*) AS videos,
+                  COALESCE(SUM(CASE WHEN offer_ids IS NOT NULL AND offer_ids <> '[]' THEN 1 ELSE 0 END), 0) AS priced
+           FROM minimart_snaps
+           WHERE username = ?1 AND media_type = 'video' AND status = 'read' AND repeat_of IS NULL AND seen_at >= ?2`,
+        )
+        .bind(username, sinceIso)
+        .first();
+      return { videos: Number(row?.videos) || 0, priced: Number(row?.priced) || 0 };
+    },
+
     async framesSince(iso) {
       const row = await db
         .prepare('SELECT COALESCE(SUM(frames), 0) AS n FROM minimart_snaps WHERE COALESCE(read_at, seen_at) >= ?')
@@ -501,6 +583,49 @@ export function createMinimartStore(db) {
         .prepare('UPDATE minimart_offers SET expires_at = ?2 WHERE id = ?1 AND expires_at > ?2')
         .bind(id, nowIso)
         .run();
+    },
+
+    // Pictures no offer has needed since `beforeIso`: every offer that shows
+    // the picture expired before then (several offers can share one picture).
+    async unusedPictureKeys(beforeIso, limit) {
+      const { results } = await db
+        .prepare(
+          `SELECT image_key FROM minimart_offers WHERE image_key IS NOT NULL
+           GROUP BY image_key HAVING MAX(expires_at) < ?1 LIMIT ?2`,
+        )
+        .bind(beforeIso, limit)
+        .all();
+      return (results || []).map((r) => r.image_key);
+    },
+
+    // Their pictures left R2: the offers stay (the repeat history) without one.
+    async clearPictures(keys) {
+      for (let i = 0; i < keys.length; i += 50) {
+        const part = keys.slice(i, i + 50);
+        await db
+          .prepare(`UPDATE minimart_offers SET image_key = NULL WHERE image_key IN (${part.map(() => '?').join(', ')})`)
+          .bind(...part)
+          .run();
+      }
+    },
+
+    // Of these offers, the ones whose picture left R2.
+    async picturelessOffers(ids) {
+      const bare = [];
+      for (let i = 0; i < ids.length; i += 50) {
+        const part = ids.slice(i, i + 50);
+        const { results } = await db
+          .prepare(`SELECT id FROM minimart_offers WHERE image_key IS NULL AND id IN (${part.map(() => '?').join(', ')})`)
+          .bind(...part)
+          .all();
+        bare.push(...(results || []).map((r) => r.id));
+      }
+      return bare;
+    },
+
+    // A deal posted again after its picture left R2 takes the new posting's.
+    async setOfferImage(id, imageKey) {
+      await db.prepare('UPDATE minimart_offers SET image_key = ?2 WHERE id = ?1 AND image_key IS NULL').bind(id, imageKey).run();
     },
 
     async liveOffers(nowIso) {

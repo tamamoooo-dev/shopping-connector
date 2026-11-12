@@ -51,6 +51,22 @@
 //     reader is off, and takes any prepared snap the reader left for
 //     READER_WAIT_MS. Bench, 55 snaps / 47 printed prices: Haiku 47/0/1/0,
 //     Mistral 43/2/0/2 (HISTORY §69 addendum 5).
+//   • AFTER THE FIRST WEEK (2026-11-11, owner: "go with your recommendations"):
+//       – THE READER'S LIMITS. The reader has two Claude accounts (the main
+//         one, then the backup). When BOTH are at their limit it says until
+//         when (setReaderLimit). Owner: "if the waiting period for both
+//         accounts + 2 hours it could use mistral instead": Mistral reads at
+//         once when that is more than READER_HOLD_MAX_MS away; otherwise the
+//         prepared snaps WAIT for the reader (held until the reset and
+//         READER_RESUME_MS after it), since Haiku reads better (47/0/0/0).
+//       – A QUIET SHOP (no story snap for QUIET_AFTER_MS) is checked every
+//         QUIET_CHECK_MS: a story stays up 24 h, so nothing is missed.
+//       – A shop whose videos rarely carry a price (under LOW_YIELD_SHARE of
+//         LOW_YIELD_MIN_VIDEOS or more in a week) gets MIN_FRAMES_PER_VIDEO.
+//       – Every story check is kept (minimart_checks, CHECKS_KEPT_MS).
+//       – A picture no offer has needed for PICTURE_KEEP_MS after the last
+//         offer showing it expired leaves R2; a deal posted again later takes
+//         the new posting's picture.
 
 import { MISTRAL_URL, postMistral, toBase64, fetchWithTimeout } from './offers/enrich.js';
 import { withFailover, classifyMistralError } from './offers/mistralKeys.js';
@@ -80,6 +96,19 @@ export const READER_CLAIM_MS = 20 * 60 * 1000;
 export const READER_WAIT_MS = 60 * 60 * 1000;
 export const READER_MAX_PICTURES = 112;
 export const PREPARE_PER_TICK = 12;
+// Both Claude accounts at their limit: the snaps wait for the reader when the
+// reset is at most this far away; Mistral reads at once when it is further.
+export const READER_HOLD_MAX_MS = 2 * 60 * 60 * 1000;
+// After the reset the held snaps stay the reader's this long (its next rounds).
+export const READER_RESUME_MS = 30 * 60 * 1000;
+export const READER_LIMIT_MAX_MS = 8 * DAY_MS;
+export const QUIET_AFTER_MS = 3 * DAY_MS;
+export const QUIET_CHECK_MS = 6 * 60 * 60 * 1000;
+export const LOW_YIELD_MIN_VIDEOS = 20;
+export const LOW_YIELD_SHARE = 0.25;
+export const CHECKS_KEPT_MS = 90 * DAY_MS;
+export const PICTURE_KEEP_MS = 7 * DAY_MS;
+export const PICTURES_PER_TICK = 50;
 const PAGE_TIMEOUT_MS = 20 * 1000;
 const MEDIA_TIMEOUT_MS = 30 * 1000;
 const MAX_PRICE = 20000;
@@ -829,7 +858,8 @@ async function fetchMedia(url, fetchImpl) {
 
 // The pictures of one snap: a photo; a video's frames (`framed`), or its
 // cover when frames can't be cut. A file posted before (the same SHA-256) is
-// not cut or read: -> { repeatOf }. `report` collects { frames, hash }.
+// not cut or read: -> { repeatOf }, with the file as `repeatOf.picture` when
+// it is a picture (a photo, a cover). `report` collects { frames, hash }.
 // -> { pictures: [{ bytes, contentType, ref }], framed, repeatOf }
 export async function loadSnapPictures(snap, { media = null, framesAllowed = MAX_FRAMES_PER_VIDEO, fetchImpl = fetch, findRepeat = null, report = {} }) {
   report.frames ??= 0;
@@ -840,7 +870,7 @@ export async function loadSnapPictures(snap, { media = null, framesAllowed = MAX
   const file = await fetchMedia(url, fetchImpl);
   report.hash = await sha256Hex(file.bytes);
   const earlier = findRepeat ? await findRepeat(report.hash) : null;
-  if (earlier) return { pictures: [], framed, repeatOf: earlier };
+  if (earlier) return { pictures: [], framed, repeatOf: framed ? earlier : { ...earlier, picture: { ...file, ref: video ? 'cover' : 'photo' } } };
   if (!framed) return { pictures: [{ ...file, ref: video ? 'cover' : 'photo' }], framed, repeatOf: null };
   const pictures = [];
   for (const t of frameTimes(mp4DurationSec(file.bytes), framesAllowed)) {
@@ -986,13 +1016,22 @@ async function pictureKind(url, { ask, fetchImpl }) {
 }
 
 // --- the tick ---------------------------------------------------------------------------------
+// A shop with no story snap for QUIET_AFTER_MS (or none ever, that long after
+// it was added) is quiet: checked every QUIET_CHECK_MS. A story stays up
+// 24 h, so its first snap back is still caught, and the 2 h checks resume.
+export function isQuietShop({ lastPostAt = null, addedAt = null }, at) {
+  const last = Date.parse(lastPostAt || addedAt || '');
+  return Number.isFinite(last) && at.getTime() - last >= QUIET_AFTER_MS;
+}
+
 async function checkShops({ store, ask, fetchImpl, now, report }) {
   for (const shop of await store.dueShops(now().toISOString(), SHOPS_PER_TICK)) {
     const page = await fetchProfile(shop.username, { fetchImpl });
     const at = now();
-    const retryMs = page.status === 'blocked' ? BLOCKED_RETRY_MS : page.status === 'error' ? ERROR_RETRY_MS : SHOP_CHECK_MS;
     const added = page.status === 'ok' ? await store.addSnaps(shop.username, page.snaps, at.toISOString()) : 0;
     const newest = page.snaps.map((s) => s.postedAt).filter(Boolean).sort().pop() || null;
+    const quiet = page.status === 'ok' && isQuietShop({ lastPostAt: newest || shop.lastPostAt, addedAt: shop.addedAt }, at);
+    const retryMs = page.status === 'blocked' ? BLOCKED_RETRY_MS : page.status === 'error' ? ERROR_RETRY_MS : quiet ? QUIET_CHECK_MS : SHOP_CHECK_MS;
     await store.recordCheck(shop.username, {
       status: page.status,
       error: page.error || null,
@@ -1001,7 +1040,10 @@ async function checkShops({ store, ask, fetchImpl, now, report }) {
       checkedAt: at.toISOString(),
       nextCheckAt: new Date(at.getTime() + retryMs).toISOString(),
     });
-    const entry = { shop: shop.username, status: page.status, snaps: page.snaps.length, added };
+    await store.logCheck(shop.username, {
+      status: page.status, error: page.error || null, snaps: page.snaps.length, added, checkedAt: at.toISOString(),
+    }).catch(() => {}); // the history never stops a check
+    const entry = { shop: shop.username, status: page.status, snaps: page.snaps.length, added, ...(quiet ? { quiet: true } : {}) };
     // Once per picture: a shop that changes its picture is looked at again,
     // and a failed look is tried again at the next check.
     const picture = page.status === 'ok' ? page.profile?.picture : null;
@@ -1067,6 +1109,11 @@ async function saveOffers({ store, bucket, snap, offers, at }) {
     if (earlier) {
       if (!shown.includes(earlier.id)) {
         await store.repostOffer(earlier.id, { postedAt: posted, expiresAt });
+        if (bucket && !earlier.imageKey) {
+          // Its picture left R2 (PICTURE_KEEP_MS): it takes this posting's.
+          earlier.imageKey = await keep(offer);
+          await store.setOfferImage(earlier.id, earlier.imageKey);
+        }
         shown.push(earlier.id);
       }
       continue;
@@ -1118,11 +1165,19 @@ export function pictureKey(snap, ref) {
 }
 
 // The same file posted again: what it showed the first time is re-posted.
-async function repostRepeat(store, snap, repeatOf, at) {
+// An offer whose picture left R2 (PICTURE_KEEP_MS) takes this posting's.
+async function repostRepeat(store, snap, repeatOf, at, bucket = null) {
   const posted = snap.postedAt || at.toISOString();
   const expiresAt = new Date(Date.parse(posted) + OFFER_TTL_MS).toISOString();
   const ids = repeatOf.offerIds || [];
   for (const id of ids) await store.repostOffer(id, { postedAt: posted, expiresAt });
+  const picture = bucket && ids.length ? repeatOf.picture : null;
+  const bare = picture ? await store.picturelessOffers(ids) : [];
+  if (bare.length) {
+    const key = pictureKey(snap, picture.ref);
+    await bucket.put(key, picture.bytes, { httpMetadata: { contentType: picture.contentType || 'image/jpeg' } });
+    for (const id of bare) await store.setOfferImage(id, key);
+  }
   return { shown: ids, added: 0 };
 }
 
@@ -1151,13 +1206,33 @@ export function pacedFrames({ used, videosPerDay, at }) {
 
 // The frames one video may be cut into now. Videos a day are counted over
 // the last week, or since the first snap seen when that is later.
-async function framesAllowedNow(store, media, now) {
+async function framesAllowedNow(store, media, now, username = null) {
   if (!media) return 0;
   const at = now();
+  const weekAgo = new Date(at.getTime() - PACE_LOOKBACK_MS).toISOString();
   const used = await store.framesSince(`${at.toISOString().slice(0, 7)}-01T00:00:00.000Z`);
-  const pace = await store.videoPace(new Date(at.getTime() - PACE_LOOKBACK_MS).toISOString());
+  const pace = await store.videoPace(weekAgo);
   const since = Math.max(at.getTime() - PACE_LOOKBACK_MS, Date.parse(pace.firstSeen || at.toISOString()));
-  return pacedFrames({ used, videosPerDay: pace.videos / Math.max(1, (at.getTime() - since) / DAY_MS), at });
+  const paced = pacedFrames({ used, videosPerDay: pace.videos / Math.max(1, (at.getTime() - since) / DAY_MS), at });
+  if (paced <= MIN_FRAMES_PER_VIDEO || !username) return paced;
+  return lowYield(await store.videoYield(username, weekAgo)) ? MIN_FRAMES_PER_VIDEO : paced;
+}
+
+// A shop whose videos rarely carry a price (measured 2026-11-11: one shop's
+// 172 videos in a week, 31 with a price, took 39% of the frames): each of its
+// videos gets the fewest frames.
+export function lowYield({ videos, priced }) {
+  return videos >= LOW_YIELD_MIN_VIDEOS && priced / videos < LOW_YIELD_SHARE;
+}
+
+// Pictures of offers that expired PICTURE_KEEP_MS ago leave R2 (their offers
+// stay, as the repeat history, without a picture). -> how many left.
+async function dropOldPictures({ store, bucket, now }) {
+  const keys = await store.unusedPictureKeys(new Date(now().getTime() - PICTURE_KEEP_MS).toISOString(), PICTURES_PER_TICK);
+  if (!keys.length) return 0;
+  await bucket.delete(keys);
+  await store.clearPictures(keys);
+  return keys.length;
 }
 
 // Readies one new snap for the PC reader: the file fetched (a repeat is
@@ -1167,7 +1242,7 @@ async function prepareSnap({ store, bucket, media, snap, fetchImpl, now, report 
   try {
     const loaded = await loadSnapPictures(snap, {
       media,
-      framesAllowed: snap.mediaType === 'video' ? await framesAllowedNow(store, media, now) : 0,
+      framesAllowed: snap.mediaType === 'video' ? await framesAllowedNow(store, media, now, snap.username) : 0,
       fetchImpl,
       findRepeat: snap.reread ? null : (hash) => store.findReadSnapByHash(snap.username, hash, snap.snapId),
       report: usage,
@@ -1179,7 +1254,7 @@ async function prepareSnap({ store, bucket, media, snap, fetchImpl, now, report 
       return;
     }
     if (loaded.repeatOf || !loaded.pictures.length) {
-      const saved = loaded.repeatOf ? await repostRepeat(store, snap, loaded.repeatOf, at) : { shown: [], added: 0 };
+      const saved = loaded.repeatOf ? await repostRepeat(store, snap, loaded.repeatOf, at, bucket) : { shown: [], added: 0 };
       await store.finishSnap(snap.snapId, {
         status: 'read', attempts: snap.attempts + 1, frames: usage.frames || 0, offerIds: saved.shown,
         mediaHash: usage.hash || null, repeatOf: loaded.repeatOf?.snapId || null, readAt: at.toISOString(),
@@ -1230,17 +1305,35 @@ async function loadPrepared(bucket, snap) {
 
 // One */2 fire: check the shops that are due, then, while the PC reader is
 // on, prepare new snaps for it; Mistral reads new snaps while it is off, and
-// prepared snaps it left (READER_WAIT_MS), until the deadline.
+// prepared snaps it left (READER_WAIT_MS), until the deadline. A reader whose
+// Claude accounts are all at their limit: 'limited' (the reset is more than
+// READER_HOLD_MAX_MS away) reads like off; 'holding' keeps preparing, and the
+// snaps wait for it.
 // deps: { store, bucket, media, ask, fetchImpl, now, clock, deadlineMs }.
 export async function runMinimartTick({ store, bucket = null, media = null, ask = null, fetchImpl = fetch, now = () => new Date(), clock = () => Date.now(), deadlineMs = TICK_DEADLINE_MS }) {
   const started = clock();
   const report = { checked: [], read: 0, offers: 0, reposted: 0, repeats: 0, frames: 0, readings: 0, deferred: 0, failed: 0, prepared: 0, errors: [] };
   await checkShops({ store, ask, fetchImpl, now, report });
   const late = () => clock() - started >= deadlineMs;
+  if (report.checked.length) {
+    // Housekeeping, on the fires that checked a shop (every 2 h at most).
+    await store.pruneChecks(new Date(now().getTime() - CHECKS_KEPT_MS).toISOString()).catch(() => {});
+    if (bucket) {
+      const dropped = await dropOldPictures({ store, bucket, now }).catch((err) => {
+        report.errors.push(`pictures: ${String(err?.message || err).slice(0, 120)}`);
+        return 0;
+      });
+      if (dropped) report.picturesDropped = dropped;
+    }
+  }
 
   const cutoffs = readerCutoffs(now());
-  const readerOn = Boolean(bucket) && await store.readerSeenSince(cutoffs.onSince);
-  report.reader = readerOn ? 'on' : 'off';
+  const asking = Boolean(bucket) && await store.readerSeenSince(cutoffs.onSince);
+  const limitedUntil = asking ? await store.readerLimitedUntil() : null;
+  const limited = Boolean(limitedUntil) && limitedUntil > cutoffs.holdOver;
+  const readerOn = asking && !limited;
+  report.reader = !asking ? 'off' : limited ? 'limited' : limitedUntil && limitedUntil > now().toISOString() ? 'holding' : 'on';
+  if (limitedUntil && limitedUntil > cutoffs.holdSince) report.limitedUntil = limitedUntil;
   if (readerOn) {
     for (const snap of await store.pendingSnaps(PREPARE_PER_TICK, { reread: true })) {
       if (late()) {
@@ -1277,7 +1370,7 @@ export async function runMinimartTick({ store, bucket = null, media = null, ask 
     const findRepeat = (hash) => store.findReadSnapByHash(snap.username, hash, snap.snapId);
     let result;
     try {
-      const framesAllowed = prepared || snap.mediaType !== 'video' ? 0 : await framesAllowedNow(store, media, now);
+      const framesAllowed = prepared || snap.mediaType !== 'video' ? 0 : await framesAllowedNow(store, media, now, snap.username);
       result = await readSnap(snap, { ask, media, framesAllowed, fetchImpl, findRepeat, prepared, report: usage });
     } catch (err) {
       report.frames += usage.frames || 0;
@@ -1316,7 +1409,7 @@ export async function runMinimartTick({ store, bucket = null, media = null, ask 
     const at = now();
     let saved;
     if (result.repeatOf) {
-      saved = await repostRepeat(store, snap, result.repeatOf, at);
+      saved = await repostRepeat(store, snap, result.repeatOf, at, bucket);
       report.repeats += 1;
     } else {
       saved = await saveOffers({ store, bucket, snap, offers: result.offers, at });
@@ -1345,13 +1438,31 @@ export async function runMinimartTick({ store, bucket = null, media = null, ask 
 
 // The PC reader's clock: on when it asked since `onSince`; a claim older than
 // `claimBefore` has expired; a snap prepared before `waitBefore` is Mistral's.
+// Its limit: one that lasts past `holdOver` is too long to wait (Mistral
+// reads); one that ends after `holdSince` still holds the waiting snaps.
 export function readerCutoffs(at) {
   const ms = at.getTime();
   return {
     onSince: new Date(ms - READER_ON_MS).toISOString(),
     claimBefore: new Date(ms - READER_CLAIM_MS).toISOString(),
     waitBefore: new Date(ms - READER_WAIT_MS).toISOString(),
+    holdOver: new Date(ms + READER_HOLD_MAX_MS).toISOString(),
+    holdSince: new Date(ms - READER_RESUME_MS).toISOString(),
   };
+}
+
+// POST /minimarts/reader/limit: the reader says every Claude account it has
+// is at its limit until `until` (it asks no model before then), or, with a
+// time already past, that it reads again. -> { limitedUntil, reads }: who
+// reads meanwhile ('mistral' when the wait is over READER_HOLD_MAX_MS, else
+// 'reader': the snaps wait for it).
+export async function setReaderLimit({ store, until, note = null, now = () => new Date() }) {
+  const at = now();
+  const ms = Date.parse(until);
+  if (!Number.isFinite(ms)) return null;
+  const limitedUntil = new Date(Math.min(ms, at.getTime() + READER_LIMIT_MAX_MS)).toISOString();
+  await store.noteReaderLimit(at.toISOString(), limitedUntil, note);
+  return { limitedUntil, reads: Date.parse(limitedUntil) - at.getTime() > READER_HOLD_MAX_MS ? 'mistral' : 'reader' };
 }
 
 // POST /minimarts/reader/reread: read snaps queued to be read again by the PC
@@ -1372,8 +1483,8 @@ export async function queueReread({ store, snapIds = null }) {
 export async function claimForReader({ store, now = () => new Date(), maxPictures = READER_MAX_PICTURES }) {
   const at = now();
   await store.noteReader(at.toISOString());
-  const { claimBefore, waitBefore } = readerCutoffs(at);
-  const snaps = await store.claimForReader({ nowIso: at.toISOString(), claimBefore, waitBefore, maxPictures, reader: READER });
+  const { claimBefore, waitBefore, holdSince } = readerCutoffs(at);
+  const snaps = await store.claimForReader({ nowIso: at.toISOString(), claimBefore, waitBefore, holdSince, maxPictures, reader: READER });
   return snaps.map((s) => ({
     snapId: s.snapId,
     username: s.username,

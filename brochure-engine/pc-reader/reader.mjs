@@ -22,11 +22,26 @@
 // Mistral's 43/2/0/2, ~$0.0007 a picture at list price. Claude Code's own
 // prompt, tools, MCP servers, settings and prompt cache are turned off, so a
 // call carries only the pictures, the prompt and the answer.
-import { appendFileSync, mkdirSync, renameSync, statSync } from 'node:fs';
+//
+// TWO CLAUDE ACCOUNTS (2026-11-12, owner: "use the back up account"; the
+// rules are src/readerLimits.js). The main account is the PC's own Claude
+// login. The backup is a second Claude Code sign-in kept in its own folder
+// (%USERPROFILE%\.claude-backup, or READER_BACKUP_DIR): run login-backup.cmd
+// once to sign it in. An account that answers "You've hit your … limit ·
+// resets …" is not asked again before that time, and the other one reads
+// meanwhile. With every account at its limit the reader asks no model: it
+// tells the engine when the first one resets (POST /minimarts/reader/limit)
+// on each 15-minute run, and the engine keeps the snaps for it when that is
+// at most 2 h away, or gives them to Mistral when it is further. What each
+// account is waiting for is kept in logs/accounts.json.
+import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { query } from '@anthropic-ai/claude-agent-sdk';
 import sharp from 'sharp';
 import { loadIngestSecret } from '../local-secrets.mjs';
+import { limitOf, limitedEntry, reportUntil, usableAccount } from '../src/readerLimits.js';
 
 const ENGINE = process.env.ENGINE_URL || 'https://brochure-engine.tamamoooo.workers.dev';
 const MODEL = 'claude-haiku-5-5';
@@ -37,6 +52,14 @@ const MAX_ROUNDS = process.argv.includes('--once') ? 1 : 10;
 const CALL_TIMEOUT_MS = 5 * 60 * 1000;
 const LOG_DIR = fileURLToPath(new URL('./logs/', import.meta.url));
 const LOG_MAX_BYTES = 1024 * 1024;
+const STATE_FILE = `${LOG_DIR}accounts.json`;
+const BACKUP_DIR = process.env.READER_BACKUP_DIR || join(homedir(), '.claude-backup');
+// The accounts, in the order they are used. The backup counts once it is signed in.
+const ACCOUNTS = [
+  { name: 'main', configDir: null },
+  ...(existsSync(join(BACKUP_DIR, '.credentials.json')) ? [{ name: 'backup', configDir: BACKUP_DIR }] : []),
+];
+const NAMES = ACCOUNTS.map((a) => a.name);
 
 const secret = loadIngestSecret();
 if (!secret) throw new Error('no ingest secret (.ingest.secret)');
@@ -78,9 +101,47 @@ async function picture(url) {
   return small.toString('base64');
 }
 
-const usage = { calls: 0, failed: 0, input: 0, output: 0, thinking: 0, costUSD: 0 };
+const usage = { calls: 0, failed: 0, input: 0, output: 0, thinking: 0, costUSD: 0, by: {} };
 
-async function askOnce(content) {
+// What each account is waiting for: { [name]: { until, kind, since, said }, reported }.
+function loadState() {
+  try {
+    const state = JSON.parse(readFileSync(STATE_FILE, 'utf8'));
+    return state && typeof state === 'object' ? state : {};
+  } catch {
+    return {};
+  }
+}
+const state = loadState();
+function saveState() {
+  try {
+    mkdirSync(LOG_DIR, { recursive: true });
+    writeFileSync(STATE_FILE, JSON.stringify(state, null, 2));
+  } catch {
+    /* the next run finds the limit again */
+  }
+}
+// The account to ask now (the main one first), or null: every one is at its limit.
+const usable = () => ACCOUNTS.find((a) => a.name === usableAccount(NAMES, state, Date.now())) || null;
+
+function markLimited(account, limit, said) {
+  state[account.name] = { ...limitedEntry(state[account.name], limit), said: said.slice(0, 160) };
+  saveState();
+  log({ account: account.name, limit: limit.kind, until: limit.until, said: said.slice(0, 160) });
+}
+
+// Every account is at its limit: the engine is told when the first one
+// resets (this is also the heartbeat: the reader is still on).
+async function reportLimit() {
+  const until = reportUntil(NAMES.map((name) => state[name]), Date.now());
+  const accounts = Object.fromEntries(NAMES.map((name) => [name, { until: state[name].until, kind: state[name].kind }]));
+  const out = await engine('/minimarts/reader/limit', { method: 'POST', body: JSON.stringify({ until, accounts }) });
+  if (state.reported !== until) log({ limited: true, until, reads: out.reads, accounts });
+  state.reported = until;
+  saveState();
+}
+
+async function askOnce(content, account) {
   async function* message() {
     yield { type: 'user', parent_tool_use_id: null, message: { role: 'user', content } };
   }
@@ -103,7 +164,10 @@ async function askOnce(content) {
         // Asked for; through the SDK ~300 thinking tokens a picture still come back.
         thinking: { type: 'disabled' },
         abortController,
-        env: { ...process.env, DISABLE_PROMPT_CACHING: '1', CLAUDE_CODE_DISABLE_THINKING: '1' },
+        env: {
+          ...process.env, DISABLE_PROMPT_CACHING: '1', CLAUDE_CODE_DISABLE_THINKING: '1',
+          ...(account.configDir ? { CLAUDE_CONFIG_DIR: account.configDir } : {}),
+        },
       },
     })) {
       if (m.type !== 'result') continue;
@@ -113,7 +177,10 @@ async function askOnce(content) {
       usage.output += u.outputTokens || 0;
       usage.thinking += u.thinkingTokens || 0;
       usage.costUSD += m.total_cost_usd || 0;
-      if (m.subtype !== 'success') throw new Error(`haiku ${m.subtype}: ${String(m.result || '').slice(0, 160)}`);
+      if (m.subtype !== 'success' || m.is_error) throw new Error(`haiku ${m.subtype}: ${String(m.result || '').slice(0, 160)}`);
+      // A limit can come back as the answer itself: it is not a reading.
+      if (!String(m.result || '').includes('{') && limitOf(m.result)) throw new Error(String(m.result).slice(0, 200));
+      usage.by[account.name] = (usage.by[account.name] || 0) + 1;
       reply = m.result;
     }
   } finally {
@@ -122,14 +189,26 @@ async function askOnce(content) {
   return reply;
 }
 
+// One call, on the first account that is not at its limit. An account found
+// at its limit is set aside until its reset and the next one is asked at
+// once; with none left the answer is null (the round ends, nothing is asked).
 async function ask(content, errors) {
-  for (let attempt = 1; attempt <= 3; attempt += 1) {
+  for (let failures = 0; failures < 3;) {
+    const account = usable();
+    if (!account) return null;
     try {
-      return await askOnce(content);
+      return await askOnce(content, account);
     } catch (err) {
+      const said = String(err?.message || err);
+      const limit = limitOf(said);
+      if (limit) {
+        markLimited(account, limit, said);
+        continue;
+      }
+      failures += 1;
       usage.failed += 1;
-      errors.push(String(err?.message || err).slice(0, 200));
-      await new Promise((r) => setTimeout(r, 5000 * attempt));
+      errors.push(said.slice(0, 200));
+      await new Promise((r) => setTimeout(r, 5000 * failures));
     }
   }
   return null;
@@ -220,13 +299,25 @@ async function round() {
   };
   const out = await engine('/minimarts/reader/readings', { method: 'POST', body: JSON.stringify({ snaps, run }) });
   log({ ...out.run, results: out.results.filter((r) => r.status !== 'read' || r.reread).slice(0, 20) });
-  Object.assign(usage, { calls: 0, failed: 0, input: 0, output: 0, thinking: 0, costUSD: 0 });
+  Object.assign(usage, { calls: 0, failed: 0, input: 0, output: 0, thinking: 0, costUSD: 0, by: {} });
   return queue.snaps.length;
 }
 
 try {
-  for (let i = 0; i < MAX_ROUNDS; i += 1) {
-    if (!(await round())) break;
+  if (!usable()) {
+    await reportLimit(); // no model is asked before a reset
+  } else {
+    if (state.reported) {
+      // An account is past its reset: the engine is told the reader reads again.
+      await engine('/minimarts/reader/limit', { method: 'POST', body: JSON.stringify({ until: new Date().toISOString() }) });
+      log({ limited: false, account: usable().name });
+      state.reported = null;
+      saveState();
+    }
+    for (let i = 0; i < MAX_ROUNDS; i += 1) {
+      if (!(await round()) || !usable()) break;
+    }
+    if (!usable()) await reportLimit();
   }
 } catch (err) {
   log({ error: String(err?.message || err).slice(0, 300) });

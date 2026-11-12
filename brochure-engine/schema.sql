@@ -895,8 +895,28 @@ CREATE TABLE IF NOT EXISTS minimart_reader (
   name        TEXT PRIMARY KEY,
   seen_at     TEXT,
   last_run_at TEXT,
-  last_run    TEXT
+  last_run    TEXT,
+  -- Every Claude account at its limit until then (2026-11-11,
+  -- migrate-2026-11-11-minimart-limits.sql): Mistral reads at once when that
+  -- is more than 2 h away, otherwise the snaps wait for the reader.
+  limited_until TEXT,
+  limit_note    TEXT                                -- JSON: each account's reset time
 );
+
+-- Every story check (2026-11-11), so a block that cleared by itself still
+-- shows. Kept 90 days.
+CREATE TABLE IF NOT EXISTS minimart_checks (
+  id         INTEGER PRIMARY KEY AUTOINCREMENT,
+  username   TEXT NOT NULL,
+  checked_at TEXT NOT NULL,
+  status     TEXT NOT NULL,                         -- ok | blocked | not_public | not_found | error
+  error      TEXT,
+  snaps      INTEGER NOT NULL DEFAULT 0,            -- snaps on the story
+  added      INTEGER NOT NULL DEFAULT 0             -- of them, new
+);
+
+CREATE INDEX IF NOT EXISTS ix_minimart_checks_at
+  ON minimart_checks(checked_at);
 
 CREATE INDEX IF NOT EXISTS ix_minimart_snaps_status
   ON minimart_snaps(status, seen_at);

@@ -67,7 +67,7 @@ import {
 } from './collectors/d4dResumable.js';
 import {
   fetchProfile, resolveShopLink, MAX_SHOPS, BATCH_READ_PROMPT, READER_MAX_PICTURES,
-  claimForReader, saveReaderReadings, queueReread,
+  claimForReader, saveReaderReadings, queueReread, setReaderLimit,
 } from './minimarts.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
@@ -474,8 +474,35 @@ export async function handleRequest(request, ctx) {
       return json({ queued });
     }
 
+    // Every Claude account the reader has is at its limit until { until }
+    // (a time already past: it reads again). { accounts } is kept as a note.
+    if (path === '/minimarts/reader/limit' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: 'Body must be JSON.' }, 400);
+      }
+      const set = await setReaderLimit({ store, until: body?.until, note: body?.accounts ?? null });
+      if (!set) return json({ error: "Missing 'until' (a time)." }, 400);
+      await ctx.opsStore?.record({
+        ts: new Date().toISOString(),
+        action: 'reader:minimarts-limit',
+        origin: 'pc',
+        ok: true,
+        detail: { ...set, accounts: body?.accounts ?? null },
+      }).catch(() => {});
+      return json(set);
+    }
+
     if (path === '/minimarts/reader/status' && request.method === 'GET') {
-      return json({ reader: await store.readerStatus(), snaps: await store.readerQueueCounts() });
+      const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      return json({
+        reader: await store.readerStatus(),
+        snaps: await store.readerQueueCounts(),
+        // Story checks that did not answer "ok" in the last 7 days.
+        checkProblems: await store.checkProblems(weekAgo),
+      });
     }
     return json({ error: 'Not found.' }, 404);
   }
