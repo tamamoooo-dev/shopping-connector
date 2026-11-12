@@ -346,6 +346,26 @@ console.log('review isolation:');
     broken.enabled === true && broken.source === 'unreadable');
 
   check('no object store bound = enabled', (await readMergeSetting(null)).enabled === true);
+
+  // Regression 2026-11-11: with merges frozen, runMaintenance returned before
+  // its audit row, so the sweep and the healing ran with no trace and the Ops
+  // Cron Monitor showed maintenance as never having run.
+  objects.clear();
+  await writeMergeSetting(store, false, { reason: 'bulk rebuild' });
+  const recorded = [];
+  const frozenRun = await runMaintenance({
+    registryStore: createMemRegistryStore(),
+    enrichStore: null,
+    objectStore: store,
+    opsStore: { record: async (row) => recorded.push(row) },
+  }, { today: '2026-07-18', origin: 'ops' });
+  check('a frozen merge is skipped, the rest of maintenance still runs',
+    frozenRun.consolidation.skipped === true && 'dormant' in frozenRun);
+  check('…and the run is still audited, under the origin that started it',
+    recorded.length === 1 && recorded[0].action === 'registry:maintain' &&
+      recorded[0].origin === 'ops' && recorded[0].detail.mergeSkipped === true &&
+      recorded[0].detail.merges === 0,
+    JSON.stringify(recorded));
 }
 
 if (failures) {

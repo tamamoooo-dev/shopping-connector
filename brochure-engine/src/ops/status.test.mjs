@@ -496,11 +496,193 @@ async function buildFixture() {
   check('Vision stage reflects the backlog as warn', ph.stages.find((s) => s.name === 'Vision').status === 'warn');
   check('Registry stage warns on a flagged product', ph.stages.find((s) => s.name === 'Registry').status === 'warn');
 
+  // The three grid-mirrored stages are judged without building the grid: no
+  // store sweep, and the same verdict and wording the grid gives.
+  {
+    const listCurrent = ctx.metadataStore.listCurrent.bind(ctx.metadataStore);
+    let sweeps = 0;
+    ctx.metadataStore.listCurrent = async (...args) => { sweeps += 1; return listCurrent(...args); };
+    const again = await pipelineHealth(ctx, { now: NOW });
+    check('pipelineHealth does not sweep the stores', sweeps === 0, String(sweeps));
+    const grid = await subsystemChecks(ctx, { now: NOW });
+    const verdict = { PASS: 'healthy', FAIL: 'fail' };
+    for (const [stage, name] of [['OCR', 'Offers Engine'], ['Price History', 'Price History'], ['Search', 'Search']]) {
+      const check_ = grid.find((c) => c.name === name);
+      const got = again.stages.find((s) => s.name === stage);
+      check(`pipeline ${stage} agrees with the grid's ${name}`,
+        got.status === (verdict[check_.status] || 'warn') && (stage === 'OCR' || got.detail === check_.detail),
+        `${got.status}/${got.detail} vs ${check_.status}/${check_.detail}`);
+    }
+    ctx.metadataStore.listCurrent = listCurrent;
+
+    const counts = ctx.offerStore.counts;
+    ctx.offerStore.counts = async () => { throw new Error('D1 unavailable'); };
+    const broken = await pipelineHealth(ctx, { now: NOW });
+    check('a failed offer count fails the OCR stage, not the whole card',
+      broken.stages.find((s) => s.name === 'OCR').status === 'fail' && broken.stages.length === 7);
+    ctx.offerStore.counts = counts;
+  }
+
   const ls = await latencyStats(ctx, { now: NOW });
   // ingest group = delta's ok ingest (900) + the cron:fanout (9000) -> 4950.
   check('latencyStats: D1 probe + ingest latency + queue age', typeof ls.probes.d1 === 'number' && ls.latency.ingest === 4950 && ls.queueAgeMs === 3 * 3600000, `${ls.latency.ingest}/${ls.queueAgeMs}`);
   check('latencyStats names the 3 un-instrumented metrics', ls.notInstrumented.length === 3);
   console.log('pipeline health + diagnostics ✅');
+}
+
+// --- Regression 2026-11-11: the readers that still shared a newest-N window ------
+// The price lanes write three audit rows a minute, so a "newest 200 rows of
+// every action" read holds about one hour. The enrich rate summed that hour and
+// divided by 24; "Last enrich cron" read a newest-30 window and said "never";
+// the latency averages found no ingest row at all. Each must survive the flood.
+{
+  const ctx = await buildFixture();
+  ctx.crons = { ...ctx.crons, enrich: '10,30,50 * * * *' };
+  ctx.enrichStore = {
+    async coverage() { return { withCrop: 500, attempted: 400, enriched: 350, servable: 300, declined: 5, remaining: 100, coverage: 80 }; },
+  };
+  // Six fires over the last six hours, 20 offers each, then a busy price drain.
+  for (let h = 6; h >= 1; h -= 1) {
+    await ctx.opsStore.record({
+      ts: new Date(NOW.getTime() - h * 3600000).toISOString(),
+      action: 'cron:enrich', origin: 'cron', ok: true, elapsed_ms: 4000, detail: { enriched: 20 },
+    });
+  }
+  await ctx.opsStore.record({ ts: '2026-07-10T11:00:00Z', action: 'ops:resolve', origin: 'ops', ok: true, elapsed_ms: 600 });
+  for (let i = 0; i < 450; i += 1) {
+    await ctx.opsStore.record({ ts: '2026-07-10T11:59:00Z', action: 'price-fallback', origin: 'cron', ok: true, elapsed_ms: 50000 });
+  }
+  const rate = await enrichRate(ctx, { now: NOW });
+  check('enrichRate counts the whole day behind 450 newer rows', rate.enriched === 120 && rate.perHour === 5, JSON.stringify(rate));
+  const prog = await visionProgress(ctx, { now: NOW });
+  check('visionProgress still finds the last enrich cron',
+    prog.lastCron && prog.lastCron.ts === '2026-07-10T11:00:00.000Z' && prog.rate === 5 && prog.etaHours === 20,
+    JSON.stringify({ last: prog.lastCron && prog.lastCron.ts, rate: prog.rate, eta: prog.etaHours }));
+  const ls = await latencyStats(ctx, { now: NOW });
+  check('latency averages are read per action, not from the flooded window',
+    ls.latency.ingest === 900 && ls.latency.vision === 4000 && ls.latency.resolve === 600,
+    JSON.stringify(ls.latency));
+  check('probes are timed without the full health grid', typeof ls.probes.d1 === 'number' && typeof ls.probes.kv === 'number');
+
+  // A read that comes back FULL before the window starts (a background job
+  // writes a row a minute): the rate is over the hours the rows really cover.
+  const busy = await buildFixture();
+  for (let m = 500; m >= 1; m -= 1) {
+    await busy.opsStore.record({
+      ts: new Date(NOW.getTime() - m * 60000).toISOString(),
+      action: 'enrich', origin: 'ops', ok: true, detail: { job: 'vision', enriched: 3 },
+    });
+  }
+  const busyRate = await enrichRate(busy, { now: NOW });
+  check('a truncated read is rated over the span it covers, not over 24 h',
+    busyRate.enriched === 1200 && busyRate.perHour === 180, JSON.stringify(busyRate));
+  console.log('per-action audit reads ✅');
+}
+
+// --- Regression 2026-11-11: the Cron Monitor read actions nothing writes ---------
+// `watches` -> cron:watches, `maintenance` -> cron:maintenance and `visionDrain`
+// -> cron:visionDrain are not written by any code path, so those three rows
+// said "no runs" forever. Watch rounds live in watch_runs (real SQL, real schema).
+{
+  const { createSqliteD1 } = await import('../storage/testSqliteD1.mjs');
+  const { watchSlots } = await import('./status.js');
+  const { db, raw, close } = createSqliteD1([new URL('../../schema.sql', import.meta.url)]);
+  const run = raw.prepare(
+    `INSERT INTO watch_runs (id, watch_id, slot_key, slot_period, scheduled_at, status,
+       next_attempt_at, completed_at, created_at, updated_at) VALUES (?,?,?,?,?,?,?,?,?,?)`,
+  );
+  const slot = (key, period, at, rows) => rows.forEach(([status, done], i) =>
+    run.run(`${key}-${i}`, `w${i}`, key, period, at, status, at, done, at, at));
+  slot('2026-07-09-PM', 'PM', '2026-07-09T16:00:00.000Z', [
+    ['completed', '2026-07-09T16:01:00.000Z'], ['completed', '2026-07-09T16:04:00.000Z'], ['incomplete', null],
+  ]);
+  slot('2026-07-10-AM', 'AM', '2026-07-10T04:00:00.000Z', [
+    ['completed', '2026-07-10T04:02:00.000Z'], ['completed', '2026-07-10T04:03:00.000Z'],
+  ]);
+  slot('2026-07-10-NOW', 'PM', '2026-07-10T11:45:00.000Z', [['completed', '2026-07-10T11:46:00.000Z'], ['retrying', null]]);
+
+  const slots = await watchSlots(db, { now: NOW, limit: 8 });
+  check('watchSlots lists rounds newest first with their counts',
+    slots.map((s) => s.slot).join(',') === '2026-07-10-NOW,2026-07-10-AM,2026-07-09-PM' &&
+      slots[0].open === 1 && slots[0].elapsedMs === null &&
+      slots[1].completed === 2 && slots[1].elapsedMs === 180000 &&
+      slots[2].incomplete === 1 && slots[2].elapsedMs === 240000,
+    JSON.stringify(slots));
+  const settled = await watchSlots(db, { now: NOW, minAgeMs: 3600000, limit: 1 });
+  check('minAgeMs skips the round still inside its first hour (the digest read)',
+    settled.length === 1 && settled[0].slot === '2026-07-10-AM', JSON.stringify(settled));
+  check('no database bound -> no rounds, no throw', (await watchSlots(null, { now: NOW })).length === 0);
+
+  const ctx = await buildFixture();
+  ctx.db = db;
+  ctx.crons = {
+    watches: '* * * * *', maintenance: '45 5 * * *', visionDrain: '* * * * *',
+    digest: '0 5 * * *', priceFallback: '* * * * *', minimarts: '*/2 * * * *',
+  };
+  await ctx.opsStore.record({ ts: '2026-07-06T05:45:00Z', action: 'registry:maintain', origin: 'cron', ok: true, detail: { dormant: 2 } });
+  // An ops-tagged CHILD failure and a background-job fire share action+origin:
+  // only the job's fire (detail.job) is the visionDrain schedule's run.
+  await ctx.opsStore.record({ ts: '2026-07-10T09:00:00Z', action: 'enrich', origin: 'ops', ok: true, detail: { job: 'vision', enriched: 12 } });
+  await ctx.opsStore.record({ ts: '2026-07-10T09:30:00Z', action: 'enrich', origin: 'ops', ok: false, error: 'child failed', detail: { scanned: 1 } });
+  await ctx.opsStore.record({ ts: '2026-07-10T05:00:00Z', action: 'cron:digest', origin: 'cron', ok: true });
+  await ctx.opsStore.record({ ts: '2026-07-10T11:58:00Z', action: 'cron:minimarts', origin: 'cron', ok: true });
+  await ctx.opsStore.record({ ts: '2026-07-10T11:59:00Z', action: 'price-fallback', origin: 'cron', ok: true });
+  const cm = await cronMonitor(ctx, { now: NOW });
+  const row = (name) => cm.crons.find((c) => c.name === name);
+  check('watches: last round from watch_runs, judged on what settled',
+    row('watches').last && row('watches').last.ts === '2026-07-10T11:45:00.000Z' && row('watches').last.ok === true &&
+      row('watches').runs.length === 3 && row('watches').runs[2].ok === false &&
+      row('watches').runs[2].error === '1 of 3 watch(es) incomplete',
+    JSON.stringify(row('watches')));
+  check('maintenance reads registry:maintain',
+    row('maintenance').action === 'registry:maintain' && row('maintenance').last?.detail.dormant === 2,
+    JSON.stringify(row('maintenance').last));
+  check('visionDrain reads the background job fires only',
+    row('visionDrain').runs.length === 1 && row('visionDrain').last.detail.enriched === 12,
+    JSON.stringify(row('visionDrain').runs));
+  check('digest, minimarts and the price lanes each show their own last run',
+    row('digest').last?.ts === '2026-07-10T05:00:00Z' && row('minimarts').last?.ts === '2026-07-10T11:58:00Z' &&
+      row('priceFallback').last?.ts === '2026-07-10T11:59:00Z');
+  const lsw = await latencyStats(ctx, { now: NOW });
+  check('watch-round latency averages the settled rounds', lsw.latency.watches === 210000, String(lsw.latency.watches));
+  close();
+  console.log('cron monitor sources ✅');
+}
+
+// --- Regression 2026-11-11: the Scheduler check could not see a missed pipeline --
+// Any cron row inside 30 h passed it, and the minute tick writes rows all day,
+// so it stayed PASS while the pipeline fired on the wrong days (2026-10-09).
+{
+  const { cronPrev } = await import('./status.js');
+  check('cronPrev: the latest scheduled minute at or before now',
+    cronPrev('0 6 * * MON,TUE,WED,THU', NOW).toISOString() === '2026-07-09T06:00:00.000Z' &&
+      cronPrev('0 6 * * 2,3,5', new Date('2026-07-10T06:00:30Z')).toISOString() === '2026-07-10T06:00:00.000Z' &&
+      cronPrev('nonsense', NOW) === null);
+
+  const sched = async (ctx) => (await subsystemChecks(ctx, { now: NOW })).find((c) => c.name === 'Scheduler');
+  // The fixture's pipeline is Tue/Wed/Fri 06:00; NOW is Friday 12:00.
+  const missed = await buildFixture();
+  await missed.opsStore.record({ ts: '2026-07-08T06:00:05Z', action: 'cron:fanout', origin: 'cron', ok: true });
+  await missed.opsStore.record({ ts: '2026-07-10T11:59:00Z', action: 'price-fallback', origin: 'cron', ok: true });
+  const m = await sched(missed);
+  check('a fresh heartbeat no longer hides a missed pipeline fire',
+    m.status === 'FAIL' && /pipeline missed its 2026-07-10 06:00Z fire/.test(m.detail), m.detail);
+
+  const fired = await buildFixture();
+  await fired.opsStore.record({ ts: '2026-07-10T06:00:05Z', action: 'cron:fanout', origin: 'cron', ok: true });
+  check('the fire that ran on time passes', (await sched(fired)).status === 'PASS');
+
+  // 06:10 on a fire day: the coordinator has not written its row yet.
+  const early = await buildFixture();
+  await early.opsStore.record({ ts: '2026-07-08T06:00:05Z', action: 'cron:fanout', origin: 'cron', ok: true });
+  await early.opsStore.record({ ts: '2026-07-10T06:09:00Z', action: 'price-fallback', origin: 'cron', ok: true });
+  const e = (await subsystemChecks(early, { now: new Date('2026-07-10T06:10:00Z') })).find((c) => c.name === 'Scheduler');
+  check('inside the grace after a fire, the run in flight is not "missed"', e.status === 'PASS', e.detail);
+
+  const never = await buildFixture();
+  await never.opsStore.record({ ts: '2026-07-10T11:59:00Z', action: 'price-fallback', origin: 'cron', ok: true });
+  check('a pipeline that never recorded a fan-out is not judged', (await sched(never)).status === 'PASS');
+  console.log('scheduler pipeline check ✅');
 }
 
 if (failures) {

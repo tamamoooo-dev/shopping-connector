@@ -39,6 +39,9 @@ const ctx = {
   historyStore: {
     pruneStale: async (cutoff) => { calls.push(['history', cutoff]); return 0; },
   },
+  watchRunStore: {
+    pruneBefore: async (cutoff, options) => { calls.push(['watch-runs', cutoff, options.limit]); return 9; },
+  },
 };
 
 const report = await pruneStoredBytes(ctx, {
@@ -60,7 +63,18 @@ assert.equal(calls.some((entry) => entry[0] === 'orphans'), false);
 assert.deepEqual(calls.find((entry) => entry[0] === 'compact'), ['compact', '2026-08-13', 4321]);
 assert.ok(calls.findIndex((entry) => entry[0] === 'expired-offers')
   < calls.findIndex((entry) => entry[0] === 'compact'));
+// Watch rounds: 30 days back from the run's own clock.
+assert.equal(report.watchRunsPruned, 9);
+assert.deepEqual(calls.find((entry) => entry[0] === 'watch-runs'), ['watch-runs', '2026-07-14T12:00:00.000Z', 2000]);
 assert.equal(report.errors.length, 0);
+
+// One failing step is reported and does not stop the ones after it.
+const failing = await pruneStoredBytes({
+  ...ctx,
+  watchRunStore: { pruneBefore: async () => { throw new Error('D1 busy'); } },
+}, { now: new Date('2026-08-13T12:00:00.000Z') });
+assert.deepEqual(failing.errors, ['watch runs: D1 busy']);
+assert.ok(failing.finishedAt);
 assert.equal(isD1RetentionTick('2026-08-13T03:00:00.000Z'), true);
 assert.equal(isD1RetentionTick('2026-08-13T03:01:00.000Z'), false);
 assert.equal(isD1RetentionTick('not-a-date'), false);

@@ -205,6 +205,12 @@ id = "38b0639256a34d1ebd7d96dcb55d0a9b"
 # secret for HUMAN operators; INGEST_SECRET stays machine-only. Make it long
 # and random. Until it is set, /__ops answers 503 (console locked):
 #   npx wrangler secret put OPS_TOKEN
+#
+# OPS_READ_TOKEN (optional, 2026-11-12) is a second, READ-ONLY console token
+# for automated health checks: it is accepted as a Bearer header on the GET
+# routes of /__ops/api and refused everywhere else (no login, no cookie, no
+# POST). It must differ from OPS_TOKEN. Unset = no read-only access.
+#   npx wrangler secret put OPS_READ_TOKEN
 
 # --- Migrations ----------------------------------------------------------------
 # schema.sql is the FULL current schema and is what a fresh database is built

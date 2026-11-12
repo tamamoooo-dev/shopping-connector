@@ -318,25 +318,21 @@ await test('a price-only block still offers editable fields — so Approve must 
   assert.ok(plan.advanced.length > 0, 'Advanced is editable in exactly this state');
 });
 
-await test('the console renders Approve UNCONDITIONALLY', async () => {
+// The review SCREEN left the console on 2026-11-12 with the retired Recovery
+// Queue card it lived in (hidden and never loaded since recovery was retired).
+// The rule it obeyed still stands for any screen that returns: Approve is
+// rendered UNCONDITIONALLY, next to Send back and Reject, because `advanced`
+// is never empty (the test above). What is held here is that the page carries
+// the whole screen or none of it — never the actions without Approve.
+await test('the console carries no partial review screen', async () => {
   const { CONSOLE_HTML } = await import('../ops/ui.js');
-  const approve = CONSOLE_HTML.match(/id="rvApprove"/g) || [];
-  assert.equal(approve.length, 1, 'exactly one Approve button');
-  // It must not sit behind a render-time branch: the three primary actions are
-  // emitted as one contiguous run, so no plan shape can drop Approve alone.
-  assert.match(
-    CONSOLE_HTML,
-    /id="rvApprove">Approve<\/button>' \+\s*'<button class="ghost" id="rvSend">/,
-    'Approve is emitted alongside Send back, not conditionally',
-  );
+  const present = ['rvApprove', 'rvSend', 'rvReject'].filter((id) => CONSOLE_HTML.includes(`id="${id}"`));
+  assert.ok(present.length === 0 || present.length === 3, `review actions on the page: ${present.join(', ')}`);
   assert.doesNotMatch(
     CONSOLE_HTML,
     /Nothing here can make this servable/,
     'the old branch that replaced Approve with a dead-end note is gone',
   );
-  for (const id of ['rvApprove', 'rvSend', 'rvReject']) {
-    assert.ok(CONSOLE_HTML.includes(`id="${id}"`), `${id} is always present`);
-  }
 });
 
 console.log(`\nS7 Human Review: ${tests} tests OK`);

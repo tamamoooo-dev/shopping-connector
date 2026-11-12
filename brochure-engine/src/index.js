@@ -18,6 +18,7 @@ import { marketDate } from './marketDate.js';
 import { handleRequest } from './engine.js';
 import { enqueueBackground, consumeBackground } from './backgroundContinuation.js';
 import { handleOps } from './ops/console.js';
+import { CRONS, CRON_TRIGGERS } from './crons.js';
 import { handleIdentityBuilderDebug } from './offers/identityDebug.js';
 import { handleArabicBuilderDebug } from './offers/arabicBuilderDebug.js';
 import { handleRegistryCandidateDebug } from './registry/debug.js';
@@ -105,19 +106,38 @@ const registry = Object.fromEntries(
   ].map((p) => [p.id, p]),
 );
 
-// The deployed cron schedules — MUST mirror wrangler.toml [triggers] (the
-// runtime can't read its own config, and the Ops Console shows next-run times
-// computed from these).
-const CRONS = {
-  pipeline: '0 6 * * MON,TUE,WED,THU', // brochure/offers fan-out (day NAMES: Cloudflare counts Sunday = 1)
-  watches: '* * * * *', // durable 07:00/19:00 Riyadh rounds + minute retries
-  maintenance: '45 5 * * *', // Monday registry maintenance
-  enrich: '10,30,50 * * * *', // steady-state vision drain (yields to a background job)
-  // Logical schedule serviced by the shared one-minute trigger below.
-  verification: '5,25,45 * * * *', // stage-two repeated Vision verification
-  visionDrain: '* * * * *', // Background Manual Vision: near-continuous drain while a job runs
-  brochureResume: '*/2 * * * *', // one safe page batch per pending D4D store
-};
+// The weekly D1 export's audit row (`cron:backup`): one when a set finishes,
+// one when a step throws. A failing export retries every minute, so a repeat
+// of the same failure inside six hours is not written again.
+const BACKUP_FAILURE_REPEAT_MS = 6 * 60 * 60 * 1000;
+export async function recordBackupRun(context, step, err = null, { now = new Date() } = {}) {
+  if (!context?.opsStore) return false;
+  if (err) {
+    const error = String(err?.message || err).slice(0, 300);
+    const [last] = (await context.opsStore.list({ origin: 'cron', action: 'cron:backup', limit: 1 }).catch(() => []))
+      .filter((row) => row.action === 'cron:backup');
+    if (last && !last.ok && last.error === error
+        && now.getTime() - Date.parse(last.ts) < BACKUP_FAILURE_REPEAT_MS) return false;
+    await context.opsStore.record({
+      ts: now.toISOString(), action: 'cron:backup', origin: 'cron', ok: false, failed: 1, error,
+    });
+    return true;
+  }
+  const started = Date.parse(step.startedAt || '');
+  const finished = Date.parse(step.finishedAt || '') || now.getTime();
+  await context.opsStore.record({
+    ts: new Date(finished).toISOString(),
+    action: 'cron:backup',
+    origin: 'cron',
+    ok: true,
+    elapsed_ms: Number.isFinite(started) ? Math.max(0, finished - started) : null,
+    detail: {
+      id: step.id, rows: step.rows, tables: step.tables,
+      rotated: step.rotated || [], startedAt: step.startedAt || null,
+    },
+  });
+  return true;
+}
 
 // --- Background Manual Vision (continuous cron-driven drain) --------------------
 // The one-minute tick drains an operator-started job to empty. Every SELF child
@@ -503,6 +523,7 @@ function buildContext(env) {
     ingestSecret: env.INGEST_SECRET,
     opsStore,
     opsToken: env.OPS_TOKEN,
+    opsReadToken: env.OPS_READ_TOKEN || null, // optional: GET-only console access
     enrichStore,
     visionVerificationStore,
     visionVerificationHistoryStore,
@@ -582,7 +603,7 @@ const worker = {
     // hops (Workers Paid — usually the whole store). At most 20 SELF calls stay
     // below the scheduled-event invocation cap; each child has its own external
     // subrequest budget. Failed/interrupted jobs remain pending automatically.
-    if (event.cron === '*/2 * * * *') {
+    if (event.cron === CRON_TRIGGERS.brochureResume) {
       ctx.waitUntil(
         (async () => {
           const context = buildContext(env);
@@ -636,7 +657,7 @@ const worker = {
     // Shared one-minute background tick. Manual Vision has first priority while
     // its job runs. Otherwise armed Recovery drains through fresh SELF children.
     // Both paths hold their own D1 lease so cron fires cannot overlap.
-    if (event.cron === '* * * * *') {
+    if (event.cron === CRON_TRIGGERS.minute) {
       // Price monitoring shares this minute trigger but has an independent
       // durable D1 queue. At 07:00/19:00 Riyadh a round is created once; failed
       // retrievals become due again one minute later, while completed results
@@ -756,11 +777,15 @@ const worker = {
           try {
             const step = await runBackupStep(env.DB, env.BROCHURES, { now: new Date() });
             console.log('brochure-engine d1 backup step', JSON.stringify(step));
+            // One audit row per finished export: the Worker log was its only
+            // record, and that is gone within days.
+            if (step.done) await recordBackupRun(buildContext(env), step);
           } finally {
             await lease.update({ lease_until: null }).catch(() => {});
           }
-        })().catch((err) => {
+        })().catch(async (err) => {
           console.error('brochure-engine d1 backup unavailable', err?.message || String(err));
+          await recordBackupRun(buildContext(env), null, err).catch(() => {});
         }),
       );
       // Daily health digest (ops/digest.js) at 05:00 UTC: recorded as a
@@ -800,17 +825,38 @@ const worker = {
           // retention indefinitely; it resumes on the next minute tick.
           const scheduledAt = event.scheduledTime || Date.now();
           if (!event.backgroundStage && isD1RetentionTick(scheduledAt)) {
-            const pruneReport = await pruneStoredBytes(context);
-            console.log('brochure-engine daily D1 retention', JSON.stringify({
-              brochures: pruneReport.pruned,
-              brochureFiles: pruneReport.deletes,
-              brochuresHeld: pruneReport.skipped,
+            const retentionStarted = Date.now();
+            const pruneReport = await pruneStoredBytes(context).catch((err) => ({
+              errors: [`retention: ${err?.message || String(err)}`],
+            }));
+            const retentionCounts = {
+              brochures: pruneReport.pruned || 0,
+              brochureFiles: pruneReport.deletes || 0,
+              brochuresHeld: pruneReport.skipped || 0,
               ops: pruneReport.ops?.deleted || 0,
               offers: pruneReport.offersPruned || 0,
               sidecars: pruneReport.offerSidecarsPruned || 0,
               evidence: pruneReport.evidenceCompacted || 0,
-              errors: pruneReport.errors,
-            }));
+              pricePending: pruneReport.pricePendingPruned || 0,
+              history: pruneReport.historyPruned || 0,
+              watchRuns: pruneReport.watchRunsPruned || 0,
+            };
+            const retentionErrors = pruneReport.errors || [];
+            console.log('brochure-engine daily D1 retention', JSON.stringify({ ...retentionCounts, errors: retentionErrors }));
+            // The audit row is what the Cron Monitor and the daily digest
+            // read: retention used to leave its result in the Worker log only.
+            await context.opsStore.record({
+              ts: new Date(retentionStarted).toISOString(),
+              action: 'cron:retention',
+              origin: 'cron',
+              ok: retentionErrors.length === 0,
+              failed: retentionErrors.length,
+              elapsed_ms: Date.now() - retentionStarted,
+              error: retentionErrors[0] ? String(retentionErrors[0]).slice(0, 300) : null,
+              detail: { ...retentionCounts, errors: retentionErrors.slice(0, 10) },
+            }).catch((err) => {
+              console.error('brochure-engine retention audit unavailable', err?.message || String(err));
+            });
             return;
           }
           const today = marketDate();
@@ -1084,7 +1130,7 @@ const worker = {
     // the 05:45 Monday maintenance this is the registry-
     // writing set — and it YIELDS to a running Background Vision job (below) so
     // there is never more than one resolution writer (§2 single-writer discipline).
-    if (event.cron === '10,30,50 * * * *') {
+    if (event.cron === CRON_TRIGGERS.enrich) {
       // Shadow-mode rollout backfill: bounded, D1-only, and idempotent. It
       // populates the existing extraction_json carrier without a schema
       // migration. The conditional UPDATE cannot overwrite a concurrent fresh
@@ -1133,7 +1179,7 @@ const worker = {
       return;
     }
 
-    if (event.cron === '45 5 * * *') {
+    if (event.cron === CRON_TRIGGERS.maintenance) {
       ctx.waitUntil(
         (async () => {
           const context = buildContext(env);

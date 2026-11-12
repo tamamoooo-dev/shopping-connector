@@ -24,6 +24,10 @@ import { flyerRefFromUrl } from '../hotspots.js';
 // never goes a full day+ without a cron row.
 export const COVERAGE_THRESHOLD = 70;
 export const SCHEDULER_MAX_GAP_H = 30;
+// The pipeline coordinator writes its audit row when the fan-out ENDS (a few
+// minutes after the scheduled minute); only past this is a fire "missed".
+export const PIPELINE_FIRE_GRACE_MS = 30 * 60 * 1000;
+const PIPELINE_ACTION = 'cron:fanout'; // the pipeline coordinator's audit row
 // The resume cron advances a pending brochure every two minutes. A job that has
 // not moved for five minutes is stalled, not an indefinitely healthy publish.
 export const PUBLICATION_PROGRESS_MAX_GAP_MS = 5 * 60 * 1000;
@@ -425,18 +429,40 @@ export async function subsystemChecks(ctx, { storeRows, now = new Date() } = {})
   return checks;
 }
 
-async function schedulerCheck(ctx, { now = new Date() } = {}) {
+// Two questions, both must hold. (1) Heartbeat: some cron wrote a row lately.
+// (2) The pipeline fired when it was scheduled. The heartbeat alone cannot
+// answer the second: the minute tick's price lanes write rows all day, so it
+// stayed green through the weeks the pipeline fired on the wrong days
+// (2026-10-09, day NUMBERS read differently by Cloudflare). A pipeline that
+// has never recorded a fan-out is not judged (a fresh deployment).
+export async function schedulerCheck(ctx, { now = new Date() } = {}) {
   if (!ctx.opsStore) return { name: 'Scheduler', status: 'UNKNOWN', detail: 'no audit store' };
   const cronRuns = await ctx.opsStore.list({ origin: 'cron', limit: 1 });
   if (!cronRuns.length) {
     return { name: 'Scheduler', status: 'UNKNOWN', detail: 'no cron run recorded yet' };
   }
   const ageH = (now.getTime() - Date.parse(cronRuns[0].ts)) / 3600000;
-  return {
-    name: 'Scheduler',
-    status: ageH <= SCHEDULER_MAX_GAP_H ? 'PASS' : 'FAIL',
-    detail: `last cron run ${ageH.toFixed(1)}h ago (${cronRuns[0].action})`,
-  };
+  const heartbeat = `last cron run ${ageH.toFixed(1)}h ago (${cronRuns[0].action})`;
+  if (ageH > SCHEDULER_MAX_GAP_H) return { name: 'Scheduler', status: 'FAIL', detail: heartbeat };
+
+  const due = ctx.crons?.pipeline ? cronPrev(ctx.crons.pipeline, now) : null;
+  if (due && now.getTime() - due.getTime() > PIPELINE_FIRE_GRACE_MS) {
+    const [fanout] = (await ctx.opsStore
+      .list({ origin: 'cron', action: PIPELINE_ACTION, limit: 1 })
+      .catch(() => []))
+      .filter((r) => r.action === PIPELINE_ACTION);
+    // The coordinator stamps its row with the fan-out's start, a little after
+    // the scheduled minute; a row from before that minute is an older fire.
+    if (fanout && Date.parse(fanout.ts) < due.getTime() - 60000) {
+      return {
+        name: 'Scheduler',
+        status: 'FAIL',
+        detail: `pipeline missed its ${due.toISOString().slice(0, 16).replace('T', ' ')}Z fire `
+          + `(last ran ${String(fanout.ts).slice(0, 16).replace('T', ' ')}Z) · ${heartbeat}`,
+      };
+    }
+  }
+  return { name: 'Scheduler', status: 'PASS', detail: heartbeat };
 }
 
 export function healthPct(checks) {
@@ -501,13 +527,14 @@ export function systemConfidence({ storeRows, checks }) {
 }
 
 // --- scheduler info ---------------------------------------------------------------
-export async function schedulerInfo(ctx, { now = new Date() } = {}) {
+export async function schedulerInfo(ctx, { now = new Date(), check = null } = {}) {
   const crons = Object.entries(ctx.crons || {}).map(([name, expr]) => {
     const next = cronNext(expr, now);
     return { name, cron: expr, nextRun: next ? next.toISOString() : null };
   });
   const last = ctx.opsStore ? await ctx.opsStore.list({ origin: 'cron', limit: 5 }) : [];
-  const check = await schedulerCheck(ctx, { now });
+  // The caller's own Scheduler check, when it has one: the same two reads.
+  check = check || (await schedulerCheck(ctx, { now }));
   return { crons, lastRuns: last, healthy: check.status === 'PASS' ? true : check.status === 'FAIL' ? false : null, detail: check.detail };
 }
 
@@ -519,6 +546,15 @@ export async function schedulerInfo(ctx, { now = new Date() } = {}) {
 // which both read the same way.
 const DOW_NAMES = { SUN: 0, MON: 1, TUE: 2, WED: 3, THU: 4, FRI: 5, SAT: 6 };
 export function cronNext(expr, from = new Date()) {
+  return cronScan(expr, from, 1);
+}
+
+// The latest scheduled minute at or before `from` (same parser, same cap).
+export function cronPrev(expr, from = new Date()) {
+  return cronScan(expr, from, -1);
+}
+
+function cronScan(expr, from, direction) {
   const fields = String(expr || '').trim().split(/\s+/);
   if (fields.length !== 5) return null;
   fields[4] = fields[4].toUpperCase().replace(/\b(SUN|MON|TUE|WED|THU|FRI|SAT)\b/g, (n) => String(DOW_NAMES[n]));
@@ -547,7 +583,8 @@ export function cronNext(expr, from = new Date()) {
   if (!mi || !ho || !dom || !mo || !dow) return null;
   const d = new Date(from);
   d.setUTCSeconds(0, 0);
-  d.setUTCMinutes(d.getUTCMinutes() + 1);
+  // Next: strictly after `from`. Previous: the minute `from` is in counts.
+  if (direction > 0) d.setUTCMinutes(d.getUTCMinutes() + 1);
   const domAll = fields[2] === '*';
   const dowAll = fields[4] === '*';
   for (let i = 0; i < 40320; i++) {
@@ -561,7 +598,7 @@ export function cronNext(expr, from = new Date()) {
             ? dom.has(d.getUTCDate())
             : dom.has(d.getUTCDate()) || dow.has(d.getUTCDay());
     if (mo.has(d.getUTCMonth() + 1) && dayOk && ho.has(d.getUTCHours()) && mi.has(d.getUTCMinutes())) return d;
-    d.setUTCMinutes(d.getUTCMinutes() + 1);
+    d.setUTCMinutes(d.getUTCMinutes() + direction);
   }
   return null;
 }
@@ -635,50 +672,77 @@ function parseDetail(row) {
 // The audit actions that carry enrichment work, across every origin.
 const ENRICH_ACTIONS = new Set(['enrich', 'cron:enrich', 'ops:enrich']);
 
+// Audit rows of the given actions, newest first, ONE READ PER ACTION. A shared
+// newest-N window cannot answer "what did action X do today": the price lanes
+// write three rows a minute, so 200 rows cover about an hour and everything
+// rarer than that falls out. `truncatedAt` is the newest "oldest row" among
+// the reads that came back full — before it, the lists are incomplete.
+async function auditRowsFor(opsStore, actions, { limit = 50, origin = '' } = {}) {
+  if (!opsStore) return { rows: [], truncatedAt: null };
+  let truncatedAt = null;
+  const lists = await Promise.all([...actions].map(async (action) => {
+    const got = await opsStore.list({ action, origin, limit }).catch(() => []);
+    if (got.length >= limit) {
+      const oldest = Date.parse(got[got.length - 1].ts);
+      if (Number.isFinite(oldest) && (truncatedAt == null || oldest > truncatedAt)) truncatedAt = oldest;
+    }
+    // Filtered again here: a store that ignores `action` must not triple-count.
+    return got.filter((r) => r.action === action);
+  }));
+  const rows = lists.flat().sort((a, b) => Date.parse(b.ts) - Date.parse(a.ts));
+  return { rows, truncatedAt };
+}
+
 // Average offers/hour vision has enriched over a trailing window, from the
 // audit rows' own `detail.enriched` counters. null when nothing ran in-window
-// (so ETA reads "n/a" rather than dividing by zero).
-export async function enrichRate(ctx, { now = new Date(), windowHours = 24 } = {}) {
+// (so ETA reads "n/a" rather than dividing by zero). When a read came back
+// full before reaching the window's start (a background job writes a row a
+// minute), the rate is taken over the hours the rows really cover. It used to
+// read the newest 200 rows of EVERY action — about an hour — and divide by 24.
+const ENRICH_RATE_ROWS = 400;
+export async function enrichRate(ctx, { now = new Date(), windowHours = 24, audit = null } = {}) {
   if (!ctx.opsStore) return { perHour: null, enriched: 0, windowHours };
-  const rows = await ctx.opsStore.list({ limit: 200 }).catch(() => []);
-  const since = now.getTime() - windowHours * 3600 * 1000;
+  const { rows, truncatedAt } = audit
+    || (await auditRowsFor(ctx.opsStore, ENRICH_ACTIONS, { limit: ENRICH_RATE_ROWS }));
+  const since = Math.max(now.getTime() - windowHours * 3600 * 1000, truncatedAt ?? 0);
+  const hours = Math.max((now.getTime() - since) / 3600000, 1 / 60);
   let enriched = 0;
   for (const r of rows) {
-    if (!ENRICH_ACTIONS.has(r.action)) continue;
     if (Date.parse(r.ts) < since) continue;
     enriched += Number(parseDetail(r).enriched) || 0;
   }
   return {
-    perHour: enriched > 0 ? Math.round((enriched / windowHours) * 10) / 10 : null,
+    perHour: enriched > 0 ? Math.round((enriched / hours) * 10) / 10 : null,
     enriched,
-    windowHours,
+    windowHours: Math.round(hours * 10) / 10,
   };
 }
 
 // §1 Vision Progress: the live enrichment dashboard in one read.
 export async function visionProgress(ctx, { now = new Date() } = {}) {
   const today = todayISO(now);
-  const [offers, cov, products, sightings, rate, cronRows] = await Promise.all([
+  // The enrichment audit rows, read by action (see auditRowsFor): the rate,
+  // the last cron fire and the worker heuristic all come from these. The
+  // newest-30 window they used to share held ten minutes of price-lane rows,
+  // so "Last enrich cron" read "never" between fires.
+  const [offers, cov, products, sightings, audit, recentRows] = await Promise.all([
     ctx.offerStore ? ctx.offerStore.counts(today) : Promise.resolve({ total: 0, current: 0, stores: 0 }),
     ctx.enrichStore ? ctx.enrichStore.coverage(today) : Promise.resolve(null),
     ctx.registryStore ? ctx.registryStore.productCount() : Promise.resolve(0),
     ctx.registryStore ? ctx.registryStore.sightingsCount() : Promise.resolve(0),
-    enrichRate(ctx, { now }),
-    ctx.opsStore ? ctx.opsStore.list({ origin: 'cron', limit: 30 }).catch(() => []) : Promise.resolve([]),
+    auditRowsFor(ctx.opsStore, ENRICH_ACTIONS, { limit: ENRICH_RATE_ROWS }),
+    // Every action, newest first: only the provider-limit signal below.
+    ctx.opsStore ? ctx.opsStore.list({ limit: 30 }).catch(() => []) : Promise.resolve([]),
   ]);
-  const lastCronEnrich = cronRows.find((r) => r.action === 'cron:enrich') || null;
+  const rate = await enrichRate(ctx, { now, audit });
+  const lastCronEnrich = audit.rows.find((r) => r.action === 'cron:enrich') || null;
   const nextEnrich = cronNext(ctx.crons?.enrich, now);
 
   // Worker status heuristic: an enrich audit row younger than 2 minutes means a
   // drain is (or just was) in flight. The console's own client-driven drain
   // sets its state locally; this catches the cron path too.
-  let recentEnrich = null;
-  let recentRows = [];
-  if (ctx.opsStore) {
-    recentRows = await ctx.opsStore.list({ limit: 30 }).catch(() => []);
-    recentEnrich = recentRows.find((r) => ENRICH_ACTIONS.has(r.action)) || null;
-  }
-  const running = recentEnrich && now.getTime() - Date.parse(recentEnrich.ts) < 120000;
+  const recentEnrich = audit.rows[0] || null;
+  const running = !!recentEnrich && now.getTime() - Date.parse(recentEnrich.ts) < 120000;
 
   // Provider rate-limit surface (Vision Milestone 2 §3). The free-tier quota is
   // ACCOUNT-SPECIFIC and unpublished, so the only ground truth is what Mistral
@@ -822,56 +886,118 @@ export async function recoverySnapshot(ctx, { now = new Date() } = {}) {
   };
 }
 
+// Price Monitoring rounds write no audit row: their durable record is
+// watch_runs, one row per watch per 07:00/19:00 Riyadh slot. Newest slot
+// first; `minAgeMs` skips a slot still inside its main round. A slot's
+// elapsedMs (scheduled -> last watch settled) exists once nothing is open.
+const WATCH_SLOT_LOOKBACK_MS = 5 * 24 * 3600 * 1000;
+export async function watchSlots(db, { now = new Date(), minAgeMs = 0, limit = 1 } = {}) {
+  if (!db) return [];
+  const { results } = await db.prepare(
+    `SELECT slot_key, MIN(scheduled_at) AS scheduled_at, COUNT(*) AS total,
+            SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) AS completed,
+            SUM(CASE WHEN status = 'incomplete' THEN 1 ELSE 0 END) AS incomplete,
+            MAX(completed_at) AS last_completed_at
+       FROM watch_runs
+      WHERE scheduled_at <= ? AND scheduled_at >= ?
+      GROUP BY slot_key ORDER BY MIN(scheduled_at) DESC LIMIT ?`,
+  ).bind(
+    new Date(now.getTime() - minAgeMs).toISOString(),
+    new Date(now.getTime() - WATCH_SLOT_LOOKBACK_MS).toISOString(),
+    Math.max(1, Math.min(Number(limit) || 1, 20)),
+  ).all();
+  return (results || []).map((r) => {
+    const total = Number(r.total || 0);
+    const completed = Number(r.completed || 0);
+    const incomplete = Number(r.incomplete || 0);
+    const open = total - completed - incomplete;
+    const span = r.last_completed_at ? Date.parse(r.last_completed_at) - Date.parse(r.scheduled_at) : NaN;
+    return {
+      slot: r.slot_key,
+      scheduledAt: r.scheduled_at,
+      total,
+      completed,
+      incomplete,
+      open,
+      elapsedMs: open === 0 && Number.isFinite(span) && span >= 0 ? span : null,
+    };
+  });
+}
+
 // §5 Cron Monitor: every scheduled task with its last run, next fire, and a
-// short execution log — all from the cron-origin audit rows + the cron specs.
-// The audit action each schedule writes (enrich and verification write only on
-// fires that had work; brochureResume is its per-store children).
-const CRON_ACTION = {
-  pipeline: 'cron:fanout',
-  watches: 'cron:watches',
-  enrich: 'cron:enrich',
-  verification: 'cron:vision-verification',
-  brochureResume: 'ingest:brochures',
+// short execution log — from the rows each schedule REALLY writes. A name
+// mapped to an action nothing records reads "no runs" forever: `cron:watches`,
+// `cron:maintenance` and `cron:visionDrain` all did. enrich and verification
+// write only on fires that had work; brochureResume is its per-store children;
+// visionDrain is the Background Vision job's fires (origin ops, detail.job);
+// watches come from watch_runs, not the audit log. crons.test.mjs holds every
+// name in crons.js CRONS to an entry here.
+export const CRON_SOURCE = {
+  pipeline: { action: PIPELINE_ACTION },
+  maintenance: { action: 'registry:maintain' },
+  enrich: { action: 'cron:enrich' },
+  verification: { action: 'cron:vision-verification' },
+  brochureResume: { action: 'ingest:brochures' },
+  visionDrain: { action: 'enrich', origin: 'ops', limit: 40, match: (detail) => detail.job === 'vision' },
+  retention: { action: 'cron:retention' },
+  digest: { action: 'cron:digest' },
+  backup: { action: 'cron:backup' },
+  minimarts: { action: 'cron:minimarts' },
+  priceFallback: { action: 'price-fallback' },
+  watches: { action: 'watch_runs', watchRounds: true },
 };
+const CRON_LOG_ROWS = 8;
+
+async function cronRuns(ctx, source, now) {
+  if (source.watchRounds) {
+    const slots = await watchSlots(ctx.db, { now, limit: CRON_LOG_ROWS }).catch(() => []);
+    return slots.map((s) => ({
+      ts: s.scheduledAt,
+      // Judged on what settled: an open watch is still on its minute retries.
+      ok: s.incomplete === 0,
+      elapsedMs: s.elapsedMs,
+      failed: s.incomplete,
+      error: s.incomplete ? `${s.incomplete} of ${s.total} watch(es) incomplete` : null,
+      detail: { slot: s.slot, total: s.total, completed: s.completed, incomplete: s.incomplete, open: s.open },
+    }));
+  }
+  if (!ctx.opsStore) return [];
+  // One read per action: a shared newest-200 window was filled by the price
+  // drain and the resume children, so the weekly pipeline fell out of it.
+  const rows = await ctx.opsStore
+    .list({ origin: source.origin || 'cron', action: source.action, limit: source.limit || CRON_LOG_ROWS })
+    .catch(() => []);
+  return rows
+    .filter((r) => r.action === source.action)
+    .map((r) => ({
+      ts: r.ts,
+      ok: !!r.ok,
+      elapsedMs: r.elapsed_ms,
+      failed: r.failed,
+      error: r.error,
+      detail: parseDetail(r),
+    }))
+    .filter((r) => !source.match || source.match(r.detail))
+    .slice(0, CRON_LOG_ROWS);
+}
 
 export async function cronMonitor(ctx, { now = new Date() } = {}) {
   const schedules = Object.entries(ctx.crons || {}).map(([name, expr]) => [
     name,
     expr,
-    CRON_ACTION[name] || `cron:${name}`,
+    CRON_SOURCE[name] || { action: `cron:${name}` },
   ]);
-  // One read per action: a shared newest-200 window was filled by the price
-  // drain and the resume children, so the weekly pipeline fell out of it.
-  const rowLists = ctx.opsStore
-    ? await Promise.all(schedules.map(([, , action]) =>
-      ctx.opsStore.list({ origin: 'cron', action, limit: 8 }).catch(() => [])))
-    : schedules.map(() => []);
-  const crons = schedules.map(([name, expr, action], index) => {
-    const mine = rowLists[index].filter((r) => r.action === action);
-    const last = mine[0] || null;
+  const runLists = await Promise.all(schedules.map(([, , source]) => cronRuns(ctx, source, now)));
+  const crons = schedules.map(([name, expr, source], index) => {
+    const runs = runLists[index];
     const next = cronNext(expr, now);
     return {
       name,
       cron: expr,
-      action,
+      action: source.action,
       nextRun: next ? next.toISOString() : null,
-      last: last
-        ? {
-            ts: last.ts,
-            ok: !!last.ok,
-            elapsedMs: last.elapsed_ms,
-            failed: last.failed,
-            error: last.error,
-            detail: parseDetail(last),
-          }
-        : null,
-      runs: mine.slice(0, 8).map((r) => ({
-        ts: r.ts,
-        ok: !!r.ok,
-        elapsedMs: r.elapsed_ms,
-        error: r.error,
-        detail: parseDetail(r),
-      })),
+      last: runs[0] || null,
+      runs: runs.map(({ ts, ok, elapsedMs, error, detail }) => ({ ts, ok, elapsedMs, error, detail })),
     };
   });
   return { crons, generatedAt: now.toISOString() };
@@ -886,17 +1012,18 @@ function stageStatus(check) {
 }
 
 // §6 Pipeline Health: the seven stages, each healthy|warn|fail with throughput
-// and last execution. Reuses the existing health grid rather than re-deriving.
+// and last execution. The three stages that mirror a health-grid check (Offers
+// Engine, Price History, Search) are judged by the grid's own rules from the
+// counts this function reads anyway. It used to build the whole grid for
+// them: every store's status plus eight subsystem probes, a second time on
+// each console load, to use three results that never depended on the stores.
 export async function pipelineHealth(ctx, { now = new Date() } = {}) {
   const today = todayISO(now);
-  const storeRows = await computeStoreRows(ctx, { now });
-  const checks = await subsystemChecks(ctx, { storeRows, now });
-  const byName = (n) => checks.find((c) => c.name === n);
   const cronRowsFor = (action) => (ctx.opsStore
     ? ctx.opsStore.list({ origin: 'cron', action, limit: 1 }).catch(() => [])
     : Promise.resolve([]));
   const [offers, cov, verdicts, rstats, hist, fanoutRows, enrichRows] = await Promise.all([
-    ctx.offerStore ? ctx.offerStore.counts(today) : Promise.resolve({ current: 0 }),
+    ctx.offerStore ? ctx.offerStore.counts(today).catch(() => null) : Promise.resolve(null),
     ctx.enrichStore ? ctx.enrichStore.coverage(today) : Promise.resolve(null),
     ctx.enrichStore ? ctx.enrichStore.verdictCounts().catch(() => ({})) : Promise.resolve({}),
     ctx.registryStore ? ctx.registryStore.stats().catch(() => null) : Promise.resolve(null),
@@ -905,12 +1032,35 @@ export async function pipelineHealth(ctx, { now = new Date() } = {}) {
     cronRowsFor('cron:enrich'),
   ]);
   const cronRows = [...fanoutRows, ...enrichRows];
+  // Same verdicts as subsystemChecks (status.test.mjs holds the two together).
+  const gridChecks = {
+    'Offers Engine': !ctx.offerStore
+      ? { status: 'FAIL', detail: 'no offer store bound' }
+      : !offers
+        ? { status: 'FAIL', detail: 'offer counts unavailable' }
+        : !offers.current
+          ? { status: 'FAIL', detail: 'no current offers held' }
+          : { status: 'PASS', detail: `${offers.current} current offers across ${offers.stores} stores` },
+    'Price History': !ctx.historyStore
+      ? { status: 'FAIL', detail: 'no history store bound' }
+      : !hist
+        ? { status: 'FAIL', detail: 'history counts unavailable' }
+        : { status: 'PASS', detail: `${hist.identities} identities · ${hist.points} points` },
+    Search: ctx.searchClient
+      ? { status: 'PASS', detail: 'connector bound' }
+      : { status: 'UNCONFIGURED', detail: 'CONNECTOR binding missing' },
+  };
+  const byName = (n) => gridChecks[n];
   const lastOf = (action) => {
     const r = cronRows.find((x) => x.action === action);
     return r ? r.ts : null;
   };
   const v = (k) => Number(verdicts[k]) || 0;
-  const totalSightings = rstats ? Object.values(rstats.bands || {}).reduce((s, n) => s + n, 0) : 0;
+  // A partial stats object must read as "unavailable", not throw and blank
+  // the whole Pipeline card.
+  const products = rstats?.products || null;
+  const bands = rstats?.bands || {};
+  const totalSightings = Object.values(bands).reduce((s, n) => s + (Number(n) || 0), 0);
 
   // Vision-stage verdict from coverage: fail if eligible offers exist but none
   // attempted; warn while a backlog remains; healthy once caught up.
@@ -926,7 +1076,7 @@ export async function pipelineHealth(ctx, { now = new Date() } = {}) {
     {
       name: 'OCR',
       status: stageStatus(byName('Offers Engine')),
-      throughput: `${offers.current} current offers`,
+      throughput: `${offers?.current || 0} current offers`,
       lastAt: lastOf('cron:fanout'),
       detail: byName('Offers Engine')?.detail || '',
     },
@@ -946,18 +1096,18 @@ export async function pipelineHealth(ctx, { now = new Date() } = {}) {
     },
     {
       name: 'Registry',
-      status: rstats ? (rstats.products.flagged > 0 ? 'warn' : 'healthy') : 'warn',
-      throughput: rstats ? `${rstats.products.active} active products` : 'unavailable',
+      status: products ? (products.flagged > 0 ? 'warn' : 'healthy') : 'warn',
+      throughput: products ? `${products.active} active products` : 'unavailable',
       lastAt: lastOf('cron:enrich'),
-      detail: rstats ? `${rstats.products.dormant} dormant · ${rstats.products.flagged} flagged` : '',
+      detail: products ? `${products.dormant} dormant · ${products.flagged} flagged` : '',
     },
     {
       name: 'Sightings',
-      status: rstats && (rstats.bands.review || 0) > (totalSightings * 0.25) ? 'warn' : 'healthy',
-      throughput: `${totalSightings} sightings`,
+      status: !rstats || (bands.review || 0) > (totalSightings * 0.25) ? 'warn' : 'healthy',
+      throughput: rstats ? `${totalSightings} sightings` : 'unavailable',
       lastAt: lastOf('cron:enrich'),
       detail: rstats
-        ? `auto ${rstats.bands.auto || 0} · review ${rstats.bands.review || 0} · created ${rstats.bands.created || 0}`
+        ? `auto ${bands.auto || 0} · review ${bands.review || 0} · created ${bands.created || 0}`
         : '',
     },
     {
@@ -981,38 +1131,66 @@ export async function pipelineHealth(ctx, { now = new Date() } = {}) {
 // §7 Diagnostics: the latencies a Worker CAN measure — probe round-trips + the
 // audit log's own elapsed_ms by stage + how long the oldest offer has waited in
 // the vision queue. Metrics with no Worker runtime API are named, not faked.
+// Each group lists the actions that are REALLY written: resolve children
+// record only failures, so the console's own `ops:resolve` runs are the
+// signal, and watch rounds are timed from watch_runs (nothing ever wrote the
+// `cron:watches` / `ops:watches` rows the old groups looked for).
 const LATENCY_GROUPS = {
-  ingest: (a) => a === 'ingest' || a === 'ingest:offers' || a === 'ingest:brochures' || a === 'cron:fanout',
-  vision: (a) => ENRICH_ACTIONS.has(a),
-  resolve: (a) => a === 'resolve',
-  watches: (a) => a === 'cron:watches' || a === 'ops:watches',
+  ingest: ['ingest', 'ingest:offers', 'ingest:brochures', PIPELINE_ACTION],
+  vision: [...ENRICH_ACTIONS],
+  resolve: ['resolve', 'ops:resolve'],
 };
+const LATENCY_ROWS = 50;
+
+// One timed read of a store; null when it throws or is not bound.
+async function probeMs(fn) {
+  const t0 = Date.now();
+  try {
+    await fn();
+    return Date.now() - t0;
+  } catch {
+    return null;
+  }
+}
 
 export async function latencyStats(ctx, { now = new Date() } = {}) {
   const today = todayISO(now);
-  const checks = await subsystemChecks(ctx, { now });
-  const rows = ctx.opsStore ? await ctx.opsStore.list({ limit: 200 }).catch(() => []) : [];
-  const avg = (pred) => {
-    const ms = rows.filter((r) => pred(r.action) && r.elapsed_ms != null).map((r) => r.elapsed_ms);
-    return ms.length ? Math.round(ms.reduce((s, x) => s + x, 0) / ms.length) : null;
+  const average = (values) => (values.length
+    ? Math.round(values.reduce((s, x) => s + x, 0) / values.length)
+    : null);
+  // Per action, like the Cron Monitor: the old shared newest-200 window was an
+  // hour of price-lane rows, so these averages read "—". The two probes are
+  // timed directly — the whole health grid (every store's coverage) was being
+  // computed only to read these two numbers.
+  const groupAvg = async (actions) => {
+    const { rows } = await auditRowsFor(ctx.opsStore, actions, { limit: LATENCY_ROWS });
+    return average(rows.filter((r) => r.elapsed_ms != null).map((r) => Number(r.elapsed_ms)));
   };
-  const probe = (n) => byNameMs(checks, n);
-  const oldest = ctx.offerStore ? await ctx.offerStore.oldestUnenrichedAge(today).catch(() => null) : null;
+  const [d1, kv, ingest, vision, resolve, slots, oldest] = await Promise.all([
+    probeMs(() => ctx.metadataStore.existsByChecksum('sha256:ops-probe')),
+    probeMs(() => {
+      if (!ctx.objectStore) throw new Error('no object store bound');
+      return ctx.objectStore.get('ops/never-written-probe');
+    }),
+    groupAvg(LATENCY_GROUPS.ingest),
+    groupAvg(LATENCY_GROUPS.vision),
+    groupAvg(LATENCY_GROUPS.resolve),
+    watchSlots(ctx.db, { now, limit: CRON_LOG_ROWS }).catch(() => []),
+    ctx.offerStore?.oldestUnenrichedAge
+      ? ctx.offerStore.oldestUnenrichedAge(today).catch(() => null)
+      : Promise.resolve(null),
+  ]);
   return {
-    probes: { d1: probe('D1'), kv: probe('KV') },
+    probes: { d1, kv },
     latency: {
-      ingest: avg(LATENCY_GROUPS.ingest),
-      vision: avg(LATENCY_GROUPS.vision),
-      resolve: avg(LATENCY_GROUPS.resolve),
-      watches: avg(LATENCY_GROUPS.watches),
+      ingest,
+      vision,
+      resolve,
+      // Scheduled -> last watch settled, over the recent settled rounds.
+      watches: average(slots.filter((s) => s.elapsedMs != null).map((s) => s.elapsedMs)),
     },
     queueAgeMs: oldest ? Math.max(0, now.getTime() - Date.parse(oldest)) : null,
     notInstrumented: ['Worker CPU usage', 'Cache hit rate', 'KV quota usage'],
     generatedAt: now.toISOString(),
   };
-}
-
-function byNameMs(checks, name) {
-  const c = checks.find((x) => x.name === name);
-  return c && typeof c.ms === 'number' ? c.ms : null;
 }

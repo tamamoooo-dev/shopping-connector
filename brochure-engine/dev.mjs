@@ -15,6 +15,7 @@ import http from 'node:http';
 import { fileURLToPath } from 'node:url';
 import { handleRequest, ingestAll } from './src/engine.js';
 import { handleOps } from './src/ops/console.js';
+import { CRONS } from './src/crons.js';
 import { handleIdentityBuilderDebug } from './src/offers/identityDebug.js';
 import { createPipeline } from './src/pipeline.js';
 import { createAggregatorCollector } from './src/collectors/aggregator.js';
@@ -144,6 +145,7 @@ function buildContext() {
     // the console's in-process dev fallback.
     opsStore: createMemoryOpsStore(),
     opsToken: process.env.OPS_TOKEN || 'dev-ops',
+    opsReadToken: process.env.OPS_READ_TOKEN || null,
     mistralPools: MISTRAL_POOLS,
     mistralKey: MISTRAL_POOLS.medium.find((slot) => slot.key)?.key || null,
     mistralKeyBackup: MISTRAL_POOLS.medium.filter((slot) => slot.key)[1]?.key || null,
@@ -153,7 +155,7 @@ function buildContext() {
     identityNormalizationMode: process.env.IDENTITY_NORMALIZATION_MODE,
     isDevelopment: true,
     self: undefined,
-    crons: { pipeline: '0 6 * * MON,TUE,WED,THU', watches: '45 5 * * *' },
+    crons: CRONS,
   };
 }
 

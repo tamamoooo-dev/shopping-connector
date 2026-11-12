@@ -1,6 +1,6 @@
 // digest.test.mjs — the daily health digest's verdicts.
 import assert from 'node:assert/strict';
-import { composeDigest, isDigestTick, runDailyDigest } from './digest.js';
+import { composeDigest, gatherDigestInputs, isDigestTick, runDailyDigest } from './digest.js';
 import { ntfyPushDisabled } from '../monitor.js';
 import { createMemoryOpsStore } from '../storage/local.js';
 
@@ -35,6 +35,54 @@ ok(/^[\x20-\x7e]*$/.test(sick.title), 'the title stays ASCII so ntfy can carry i
 
 const sparse = composeDigest({ stores: [], vision: null, prices: null, watches: null, keys: null });
 ok(sparse.ok && sparse.body.includes('Stores: all 0 OK'), 'missing inputs never invent problems');
+
+// --- scheduler, retention, backup (2026-11-12) ---------------------------------
+const quiet = composeDigest({
+  stores: [{ store: 'lulu', status: 'OK' }],
+  scheduler: { status: 'PASS', detail: 'last cron run 0.0h ago (price-fallback)' },
+  retention: { ok: true, ageH: 2, error: null },
+  backup: { id: '2026-11-08', done: true, ageDays: 4.2 },
+});
+ok(quiet.ok, 'a passing scheduler, yesterday\'s retention and this week\'s backup are not issues');
+ok(!quiet.body.includes('Scheduler:'), 'a passing scheduler adds no line');
+ok(quiet.body.includes('Retention: ran 2 h ago') && quiet.body.includes('Backup: last complete 2026-11-08 (4 d ago)'),
+  'retention and backup are always reported');
+
+const neglected = composeDigest({
+  stores: [{ store: 'lulu', status: 'OK' }],
+  scheduler: { status: 'FAIL', detail: 'pipeline missed its 2026-11-10 06:00Z fire' },
+  retention: { ok: false, ageH: 2, error: 'ops: archive verification failed' },
+  backup: { id: '2026-10-25', done: true, ageDays: 18 },
+});
+ok(neglected.problems.join('|') === 'scheduler|retention failed|backup overdue', 'each is one issue');
+ok(neglected.body.includes('Scheduler: pipeline missed its 2026-11-10 06:00Z fire')
+  && neglected.body.includes('Retention: failed (ops: archive verification failed)'), 'the reason is shown');
+
+ok(composeDigest({ retention: { ok: true, ageH: 60 } }).problems[0] === 'retention not running',
+  'a retention run older than two days is a missed run');
+ok(composeDigest({ backup: { id: '2026-11-08', done: false, ageDays: 0.2 } }).ok, 'an export under way is not an issue');
+ok(composeDigest({ backup: { id: '2026-11-08', done: false, ageDays: 3 } }).problems[0] === 'backup stuck',
+  'an export still unfinished days later is');
+
+// gatherDigestInputs reads them from the audit row and the export's state object.
+{
+  const opsStore = createMemoryOpsStore();
+  const now = new Date('2026-11-12T05:00:00Z');
+  await opsStore.record({ ts: '2026-11-12T03:00:00.000Z', action: 'cron:retention', origin: 'cron', ok: true });
+  const objects = new Map([['backups/d1/active.json', { id: '2026-11-08', done: true }]]);
+  const objectStore = {
+    async get(key) {
+      return objects.has(key) ? { bytes: new TextEncoder().encode(JSON.stringify(objects.get(key))) } : null;
+    },
+  };
+  const inputs = await gatherDigestInputs({ opsStore, objectStore }, { now });
+  ok(inputs.retention.ok && inputs.retention.ageH === 2, 'retention comes from the newest cron:retention row');
+  ok(inputs.backup.done && inputs.backup.id === '2026-11-08' && Math.floor(inputs.backup.ageDays) === 4,
+    'backup comes from backups/d1/active.json');
+  ok(inputs.scheduler.status === 'PASS', 'the scheduler check is the console\'s own');
+  const bare = await gatherDigestInputs({ opsStore: createMemoryOpsStore(), objectStore: { async get() { return null; } } }, { now });
+  ok(bare.retention === null && bare.backup === null, 'no row and no export state: not judged');
+}
 
 // --- push off (2026-10-09): the digest is recorded, never pushed ----------------
 ok(ntfyPushDisabled({ NTFY_PUSH: 'off' }) && ntfyPushDisabled({ NTFY_PUSH: ' OFF ' }) && ntfyPushDisabled({ NTFY_PUSH: 'false' }),

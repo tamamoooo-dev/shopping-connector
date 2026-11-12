@@ -60,6 +60,7 @@ export async function pruneStoredBytes(ctx, {
   maxOpsRows = 3000,
   maxEvidenceRows = 5000,
   maxOfferRows = 5000,
+  watchRunKeepDays = 30,
   now = new Date(),
 } = {}) {
   const report = { startedAt: new Date().toISOString(), pruned: 0, deletes: 0, skipped: 0, errors: [] };
@@ -221,6 +222,18 @@ export async function pruneStoredBytes(ctx, {
       report.historyPruned = await ctx.historyStore.pruneStale(historyCutoff, { maxRows: 400 });
     } catch (err) {
       report.errors.push(`history: ${err.message}`);
+    }
+  }
+
+  // Watch rounds: two rows per watch per day, kept forever until now. A month
+  // is far past anything that reads them (the console looks back five days),
+  // and each watch keeps its newest round regardless.
+  if (ctx.watchRunStore && ctx.watchRunStore.pruneBefore) {
+    try {
+      const runsCutoff = new Date(now.getTime() - watchRunKeepDays * 86400000).toISOString();
+      report.watchRunsPruned = await ctx.watchRunStore.pruneBefore(runsCutoff, { limit: 2000 });
+    } catch (err) {
+      report.errors.push(`watch runs: ${err.message}`);
     }
   }
 

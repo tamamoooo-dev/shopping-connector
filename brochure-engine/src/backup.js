@@ -107,6 +107,8 @@ export async function runBackupStep(db, bucket, { now = new Date(), maxParts = 1
     tablesDone: manifest.tables.filter((table) => table.done).length,
     tables: manifest.tables.length,
     rotated,
+    startedAt: manifest.startedAt || null,
+    finishedAt: manifest.finishedAt || null,
   };
 }
 

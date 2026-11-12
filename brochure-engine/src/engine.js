@@ -23,7 +23,8 @@ import { drainVisionVerification } from './offers/visionVerification.js';
 import { drainPriceFallback } from './offers/priceFallback.js';
 import { rebuildRow, summarize } from './offers/rebuild.js';
 import { readVisionModelSetting } from './offers/visionModel.js';
-import { createKeyChain, latestMistralUsage } from './offers/mistralKeys.js';
+import { createKeyChain } from './offers/mistralKeys.js';
+import { currentKeyUsage, noteKeyUsage, readKeyHealth } from './offers/mistralKeyHealth.js';
 import { drainRecovery } from './recovery/runner.js';
 import { readRecoveryPolicy } from './recovery/policy.js';
 import { drainResolution } from './registry/drain.js';
@@ -91,10 +92,20 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, X-Ingest-Secret',
 };
 
+// What earlier invocations learned about each key: the newest audit rows that
+// carry `keyUsage`, merged with the durable record (offers/mistralKeyHealth.js)
+// for when no such row is among them. The record read is kept per context so
+// rememberKeyUsage can decide on a write without reading it again.
+const keyHealthRead = new WeakMap();
 async function mistralUsageSnapshot(ctx) {
-  if (!ctx.opsStore?.list) return {};
-  const rows = await ctx.opsStore.list({ limit: 120 }).catch(() => []);
-  return latestMistralUsage(rows);
+  const stored = await readKeyHealth(ctx.objectStore);
+  keyHealthRead.set(ctx, stored);
+  return currentKeyUsage(ctx, { stored });
+}
+
+// Best-effort: losing one observation costs a recheck call, never a run.
+async function rememberKeyUsage(ctx, keyUsage) {
+  await noteKeyUsage(ctx.objectStore, keyUsage, { stored: keyHealthRead.get(ctx) || null }).catch(() => {});
 }
 
 function mistralPool(ctx, pool) {
@@ -1568,6 +1579,7 @@ export async function handleRequest(request, ctx) {
         })
         .catch(() => {});
     }
+    await rememberKeyUsage(ctx, report.keyUsage);
     return json(report);
   }
 
@@ -1641,6 +1653,7 @@ export async function handleRequest(request, ctx) {
         },
       }).catch(() => {});
     }
+    await rememberKeyUsage(ctx, report.keyUsage);
     return json(report);
   }
 
@@ -1805,6 +1818,7 @@ export async function handleRequest(request, ctx) {
         },
       }).catch(() => {});
     }
+    await rememberKeyUsage(ctx, report.keyUsage);
     return json(report);
   }
 
@@ -1853,6 +1867,7 @@ export async function handleRequest(request, ctx) {
         },
       }).catch(() => {});
     }
+    await rememberKeyUsage(ctx, report.keyUsage);
     return json(report);
   }
 

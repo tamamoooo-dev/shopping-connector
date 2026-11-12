@@ -189,6 +189,13 @@ const post = (ctx, path, body, headers = {}) =>
   r = await post(ctx, '/api/login', { token: 'wrong' });
   check('bad login -> 401', r.status === 401);
 
+  // Regression 2026-11-11: a body that parses to null (or a list, or a string)
+  // threw on `body.token` and answered 500 instead of refusing the login.
+  for (const [label, body] of [['null', null], ['a list', ['x']], ['a string', 'x']]) {
+    r = await post(ctx, '/api/login', body, { 'CF-Connecting-IP': '7.7.7.' + label.length });
+    check(`login with ${label} for a body -> 401, not 500`, r.status === 401, String(r.status));
+  }
+
   r = await post(ctx, '/api/login', { token: 'test-ops-token' });
   const cookie = (r.headers.get('Set-Cookie') || '').split(';')[0];
   check('good login sets persistent HttpOnly Strict cookie', r.status === 200 && cookie.startsWith('ops_session=') && /HttpOnly/.test(r.headers.get('Set-Cookie')) && /SameSite=Strict/.test(r.headers.get('Set-Cookie')) && /Max-Age=315360000(?:;|$)/.test(r.headers.get('Set-Cookie')));
@@ -228,6 +235,17 @@ const post = (ctx, path, body, headers = {}) =>
   check('overview: alpha healthy at 100% coverage', o.stores.find((s) => s.store === 'alpha').status === 'OK');
   check('overview: beta STALE, gamma NO_FLYER', o.stores.find((s) => s.store === 'beta').status === 'STALE' && o.stores.find((s) => s.store === 'gamma').status === 'NO_FLYER');
   check('overview carries confidence + checks + scheduler', typeof o.confidence.score === 'number' && o.checks.length >= 9 && o.scheduler.crons.length === 2);
+  check('overview: scheduler verdict is the grid\'s own',
+    o.scheduler.detail === o.checks.find((c) => c.name === 'Scheduler').detail);
+  check('overview: no digest recorded yet -> null', o.digest === null);
+  await ctx.opsStore.record({
+    ts: '2026-11-12T05:00:00.000Z', action: 'cron:digest', origin: 'cron', ok: true, failed: 1,
+    detail: { healthy: false, title: 'Super Search: 1 issue(s)', body: 'Needs attention: backup overdue', problems: ['backup overdue'], push: 'disabled' },
+  });
+  const withDigest = await (await req(ctx, '/api/overview', { headers: auth })).json();
+  check('overview: the newest daily digest is carried for Home',
+    withDigest.digest.healthy === false && withDigest.digest.problems[0] === 'backup overdue'
+      && withDigest.digest.body.includes('backup overdue') && withDigest.digest.ts === '2026-11-12T05:00:00.000Z');
 
   const s = await (await req(ctx, '/api/store?id=alpha', { headers: auth })).json();
   check('inspector: flyer id + edition + counts', s.flyers[0].flyerRef === '111' && s.flyers[0].edition === '2026-W28' && s.hotspots === 2 && s.clickable === 2);
@@ -544,6 +562,21 @@ const post = (ctx, path, body, headers = {}) =>
   check('heal not ok while stores are unhealthy', heal.ok === false && heal.verification.failures.length === 2);
   check('heal audit row written', (await ctx.opsStore.list({})).some((row) => row.action === 'ops:heal'));
 
+  // One store sweep before the fan-out and ONE after it, shared by Coverage
+  // validation, Hotspot validation and Final verification (it was four).
+  {
+    const sctx = await buildCtx();
+    const listCurrent = sctx.metadataStore.listCurrent.bind(sctx.metadataStore);
+    let sweeps = 0;
+    sctx.metadataStore.listCurrent = async (...args) => { sweeps += 1; return listCurrent(...args); };
+    const swept = await (await post(sctx, '/api/heal', { confirm: 'HEAL', notify: false }, auth)).json();
+    check('heal sweeps the stores twice, not four times', sweeps === 2, String(sweeps));
+    check('heal verdicts are unchanged by the shared sweep',
+      swept.verification.failures.join(',') === heal.verification.failures.join(',')
+        && swept.verification.coverage === heal.verification.coverage
+        && swept.health.confidence === heal.health.confidence);
+  }
+
   // Notification step reports the notifier outcome and heal notifies by default.
   const notified = [];
   const nctx = await buildCtx();
@@ -701,6 +734,31 @@ const post = (ctx, path, body, headers = {}) =>
 
   check('progress needs auth -> 401', (await req(ctx, '/api/progress')).status === 401);
 
+  // Read-only token (2026-11-12): GET routes only, Bearer only.
+  {
+    const bearer = (token) => ({ headers: { Authorization: `Bearer ${token}` } });
+    const post = (token, body = {}) => ({
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    const withRead = { ...ctx, opsReadToken: 'read-only-token' };
+    check('read token: GET is allowed', (await req(withRead, '/api/crons', bearer('read-only-token'))).status === 200);
+    check('read token: POST is refused -> 403',
+      (await req(withRead, '/api/maintain', post('read-only-token', { confirm: true }))).status === 403);
+    check('read token: logout is refused -> 403', (await req(withRead, '/api/logout', post('read-only-token'))).status === 403);
+    const login = await req(withRead, '/api/login', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ token: 'read-only-token' }),
+    });
+    check('read token: cannot log in (no session cookie)', login.status === 401 && !login.headers.get('Set-Cookie'));
+    check('read token: unset means no read access', (await req(ctx, '/api/crons', bearer('read-only-token'))).status === 401);
+    check('read token: a wrong value -> 401', (await req(withRead, '/api/crons', bearer('nope'))).status === 401);
+    const same = { ...ctx, opsReadToken: ctx.opsToken };
+    check('read token equal to the operator token is ignored: still admin',
+      (await req(same, '/api/logout', post(ctx.opsToken))).status === 200);
+    check('operator token is unaffected', (await req(withRead, '/api/crons', bearer(ctx.opsToken))).status === 200);
+  }
+
   const prog = await (await req(ctx, '/api/progress', { headers: auth })).json();
   check('progress shape', prog.coverage === 80 && prog.registryProducts === 25 && prog.sightings === 120 && prog.remaining === 10 && prog.nextCron !== null);
 
@@ -741,10 +799,21 @@ const post = (ctx, path, body, headers = {}) =>
   check('maintain needs confirm -> 428', (await post(ctx, '/api/maintain', {}, auth)).status === 428);
   check('reopen needs confirm -> 428', (await post(ctx, '/api/reopen', { ids: ['x'] }, auth)).status === 428);
   check('reopen with no ids -> 400', (await post(ctx, '/api/reopen', { confirm: true, ids: [] }, auth)).status === 400);
+  check('a confirmed mutation with null for a body is refused, not a 500',
+    (await post(ctx, '/api/resolve', null, auth)).status === 428);
 
   // CSP now permits Inspector images while connect-src stays same-origin.
   const csp = (await req(ctx, '')).headers.get('Content-Security-Policy') || '';
   check('CSP allows images, keeps connect-src self', csp.includes("img-src 'self' data: https:") && csp.includes("connect-src 'self'"));
+
+  // The console's whole client is one inline script inside a template string:
+  // a stray backtick or brace ships a page that renders and does nothing. This
+  // only proves it PARSES — the cheapest guard there is for 80 KB of UI code.
+  const html = await (await req(ctx, '')).text();
+  const script = html.slice(html.indexOf('<script>') + 8, html.lastIndexOf('</script>'));
+  let parseError = null;
+  try { new Function(script); } catch (err) { parseError = err.message; }
+  check('the console page script parses', script.length > 10000 && parseError === null, String(parseError));
   console.log('operations center routes ✅');
 }
 

@@ -15,6 +15,8 @@ import { marketDate } from '../marketDate.js';
 //     row via engine.js /ingest. Only when SELF is absent (dev.mjs) does an
 //     in-process dispatcher call the same ingestAll/ingestOffers functions
 //     directly.
+//   • Read-only access for automated checks: OPS_READ_TOKEN (optional) may
+//     call the GET routes with a Bearer header and nothing else.
 //   • Auth: the dedicated OPS_TOKEN Worker secret (human operators only —
 //     INGEST_SECRET stays machine-only). Digest comparison, HMAC-signed
 //     HttpOnly/Secure/SameSite=Strict session cookie scoped to /__ops, Bearer
@@ -65,9 +67,9 @@ import {
 } from '../recovery/policy.js';
 import {
   createKeyChain,
-  latestMistralUsage,
   mistralPoolInventory,
 } from '../offers/mistralKeys.js';
+import { currentKeyUsage } from '../offers/mistralKeyHealth.js';
 import { drainResolution } from '../registry/drain.js';
 import { runMaintenance, writeMergeSetting, readMergeSetting } from '../registry/lifecycle.js';
 import { resolveLegacyWatches } from '../monitor.js';
@@ -150,17 +152,30 @@ async function makeSessionCookie(ctx) {
 const clearSessionCookie = () =>
   `ops_session=; Path=${OPS_PATH}; HttpOnly; Secure; SameSite=Strict; Max-Age=0`;
 
-async function isAuthed(request, ctx) {
-  if (!ctx.opsToken) return false; // no token configured -> console locked
+// Who is asking: 'admin' (the operator: OPS_TOKEN as a Bearer header, or the
+// signed session cookie), 'read' (OPS_READ_TOKEN as a Bearer header), or null.
+//
+// The read token (2026-11-12) exists for automated checks: it can call the
+// GET routes and nothing else. It is a Bearer header only — it cannot log in,
+// so it never becomes a session cookie — and it is refused while it equals
+// the operator token, which would make it an operator token under another name.
+async function authLevel(request, ctx) {
+  if (!ctx.opsToken) return null; // no token configured -> console locked
   const auth = request.headers.get('Authorization') || '';
-  if (auth.startsWith('Bearer ') && (await tokenMatches(ctx, auth.slice(7).trim()))) return true;
+  if (auth.startsWith('Bearer ')) {
+    const supplied = auth.slice(7).trim();
+    if (await tokenMatches(ctx, supplied)) return 'admin';
+    if (supplied && typeof ctx.opsReadToken === 'string' && ctx.opsReadToken
+        && ctx.opsReadToken !== ctx.opsToken
+        && (await sha256Hex(supplied)) === (await sha256Hex(ctx.opsReadToken))) return 'read';
+  }
   const m = /(?:^|;\s*)ops_session=([^;]+)/.exec(request.headers.get('Cookie') || '');
-  if (!m) return false;
+  if (!m) return null;
   const [expStr, sig] = m[1].split('.');
   const exp = Number(expStr);
-  if (!exp || exp < Date.now() || !sig) return false;
+  if (!exp || exp < Date.now() || !sig) return null;
   const expected = await signExpiry(ctx, exp);
-  return (await sha256Hex(sig)) === (await sha256Hex(expected));
+  return (await sha256Hex(sig)) === (await sha256Hex(expected)) ? 'admin' : null;
 }
 
 // Login rate limiting, stored through the engine's own object store (a JSON
@@ -329,8 +344,12 @@ async function dispatchIngest(ctx, targets, mode = '', { completePublication = f
 // whose durable publication is advancing (PUBLISHING — a stalled or errored
 // job is FAIL) is in progress, not failed: the resume cron finishes it and
 // the old flyer stays live until the atomic commit.
-async function verifyTargets(ctx, targets) {
-  const rows = await computeStoreRows(ctx, { stores: targets });
+// `allRows`: an every-store sweep the caller already has (a store's row is the
+// same whether it was computed alone or with the others).
+async function verifyTargets(ctx, targets, { allRows = null } = {}) {
+  const rows = allRows
+    ? allRows.filter((row) => targets.includes(row.store))
+    : await computeStoreRows(ctx, { stores: targets });
   const lines = rows.map((r) => ({
     store: r.store,
     label: r.label,
@@ -421,7 +440,8 @@ async function runOperation(ctx, body) {
   const handedOff = fanout.stores
     .filter((line) => line.ok && line.result?.publication?.handedOff)
     .map((line) => line.store);
-  const failedStores = new Set([
+  // (Not `failedStores`: that name is the status engine's import above.)
+  const failedTargets = new Set([
     ...fanout.stores.filter((line) => !line.ok).map((line) => line.store),
     ...verification.failures,
   ]);
@@ -442,7 +462,7 @@ async function runOperation(ctx, body) {
     action: `ops:${op}`,
     stores: targets.length,
     ok,
-    failed: failedStores.size,
+    failed: failedTargets.size,
     coverage: verification.coverage,
     elapsed_ms: report.elapsedMs,
     error:
@@ -1113,14 +1133,23 @@ async function runHeal(ctx, body) {
     return { dispatched: fanout.dispatched, ok: fanout.ok };
   });
 
+  // ONE every-store sweep after the fan-out, shared by the three steps that
+  // read it. Each used to run its own, seconds apart, with nothing in between
+  // that changes a store. A failed sweep is retried by the next step.
+  let sweep = null;
+  const afterRows = () => {
+    sweep = sweep || computeStoreRows(ctx).catch((err) => { sweep = null; throw err; });
+    return sweep;
+  };
+
   let verification = null;
   await step('Coverage validation', async () => {
-    verification = await verifyTargets(ctx, targets);
+    verification = await verifyTargets(ctx, targets, { allRows: await afterRows() });
     return { coverage: verification.coverage, failures: verification.failures };
   });
 
   await step('Hotspot validation', async () => {
-    const rows = await computeStoreRows(ctx);
+    const rows = await afterRows();
     // An image-set store whose current flyers carry ZERO tap targets is the
     // signature of a D4D markup break — surface it loudly.
     const suspect = rows
@@ -1145,7 +1174,7 @@ async function runHeal(ctx, body) {
 
   let health = null;
   await step('Final verification', async () => {
-    const storeRows = await computeStoreRows(ctx);
+    const storeRows = await afterRows();
     const checks = await subsystemChecks(ctx, { storeRows });
     health = { healthPct: healthPct(checks), confidence: systemConfidence({ storeRows, checks }).score };
     return health;
@@ -1294,7 +1323,8 @@ async function runResolveOperation(ctx, body) {
 // dangling-sighting healing — runMaintenance writes its own audit row.
 async function runMaintainOperation(ctx) {
   if (!ctx.registryStore) throw new OpsError('Registry unavailable.', 503);
-  const report = await runMaintenance(ctx, { today: todayISO() });
+  // origin 'ops': a button press must not read as the Monday cron's run.
+  const report = await runMaintenance(ctx, { today: todayISO(), origin: 'ops' });
   return { action: 'ops:maintain', ...report, ok: !report.error };
 }
 
@@ -1318,11 +1348,35 @@ async function runReopenOperation(ctx, body) {
   return { action: 'ops:reopen', reopened: ids.length, resolution, ok, elapsedMs: Date.now() - t0 };
 }
 
+// The newest recorded daily digest (ops/digest.js writes one `cron:digest`
+// row at 05:00 UTC), for Home. Null until one has run.
+async function latestDigest(ctx) {
+  if (!ctx.opsStore) return null;
+  const [row] = (await ctx.opsStore.list({ action: 'cron:digest', limit: 1 }).catch(() => []))
+    .filter((entry) => entry.action === 'cron:digest');
+  if (!row) return null;
+  let detail = {};
+  try { detail = typeof row.detail === 'string' ? JSON.parse(row.detail) : row.detail || {}; } catch { /* shown without a body */ }
+  return {
+    ts: row.ts,
+    healthy: detail.healthy ?? null,
+    title: detail.title || null,
+    body: detail.body || null,
+    problems: Array.isArray(detail.problems) ? detail.problems : [],
+    push: detail.push || null,
+    error: row.error || null,
+  };
+}
+
 /* --- routes -------------------------------------------------------------------- */
 
 async function apiRoute(request, ctx, url, sub) {
   const method = request.method;
-  const body = method === 'POST' ? await request.json().catch(() => ({})) : {};
+  // A body that parses to null, a string or an array is not a request object:
+  // read as empty, so `body.token` / `body.confirm` answer 401 / 428 instead
+  // of throwing a 500 on a property of null.
+  const parsed = method === 'POST' ? await request.json().catch(() => null) : null;
+  const body = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
 
   // Login is the only unauthenticated route — and it is rate limited.
   if (sub === 'login' && method === 'POST') {
@@ -1339,7 +1393,10 @@ async function apiRoute(request, ctx, url, sub) {
     return opsJson({ ok: true }, 200, { 'Set-Cookie': await makeSessionCookie(ctx) });
   }
 
-  if (!(await isAuthed(request, ctx))) throw new OpsError('unauthorized', 401);
+  const level = await authLevel(request, ctx);
+  if (!level) throw new OpsError('unauthorized', 401);
+  // Every GET route below only reads; everything that changes state is a POST.
+  if (level === 'read' && method !== 'GET') throw new OpsError('read-only token', 403);
 
   if (sub === 'logout' && method === 'POST') {
     return opsJson({ ok: true }, 200, { 'Set-Cookie': clearSessionCookie() });
@@ -1357,7 +1414,9 @@ async function apiRoute(request, ctx, url, sub) {
           confidence: systemConfidence({ storeRows, checks }),
           healthPct: healthPct(checks),
           checks,
-          scheduler: await schedulerInfo(ctx),
+          // The grid's own Scheduler verdict, not a second run of the check.
+          scheduler: await schedulerInfo(ctx, { check: checks.find((c) => c.name === 'Scheduler') || null }),
+          digest: await latestDigest(ctx),
           stores: storeRows,
           generatedAt: new Date().toISOString(),
           elapsedMs: Date.now() - t0,
@@ -1442,7 +1501,9 @@ async function apiRoute(request, ctx, url, sub) {
         const recentRuns = ctx.opsStore?.list
           ? await ctx.opsStore.list({ limit: 120 }).catch(() => [])
           : [];
-        const keyUsage = latestMistralUsage(recentRuns);
+        // The same merged view the engine's key chains start from: audit rows
+        // plus the durable record (offers/mistralKeyHealth.js).
+        const keyUsage = await currentKeyUsage(ctx, { rows: recentRuns });
         const pools = ctx.mistralPools || {
           medium: [
             { id: 'medium-1', label: 'Medium key 1', key: ctx.mistralKey },

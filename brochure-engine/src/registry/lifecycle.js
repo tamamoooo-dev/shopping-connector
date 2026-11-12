@@ -262,7 +262,9 @@ export async function writeMergeSetting(objectStore, enabled, { reason = null, b
 
 export async function runMaintenance(
   { registryStore, enrichStore, opsStore, objectStore },
-  { today = new Date().toISOString().slice(0, 10), tuning = LIFECYCLE_TUNING } = {},
+  // `origin` is who started the run in the audit row: the Monday cron (the
+  // default) or the Ops Console's Repair Registry button ('ops').
+  { today = new Date().toISOString().slice(0, 10), tuning = LIFECYCLE_TUNING, origin = 'cron' } = {},
 ) {
   const report = { startedAt: new Date().toISOString(), today };
   report.dormant = await registryStore.sweepDormancy(isoDaysAgo(today, tuning.dormantAfterDays));
@@ -276,33 +278,34 @@ export async function runMaintenance(
   // switch lets an operator freeze merges for the duration and re-arm after,
   // without a deploy. Absent setting = enabled (today's behaviour, unchanged).
   const mergeSetting = await readMergeSetting(objectStore);
-  if (!mergeSetting.enabled) {
-    report.consolidation = {
-      pairs: 0, merges: 0, log: [], skipped: true,
-      reason: mergeSetting.reason || 'Automated merge is disabled by an operator setting.',
-    };
-    Object.assign(report, await healDanglingSightings({ registryStore, enrichStore }));
-    report.finishedAt = new Date().toISOString();
-    return report;
-  }
-  report.consolidation = await consolidate(registryStore, { tuning });
+  report.consolidation = mergeSetting.enabled
+    ? await consolidate(registryStore, { tuning })
+    : {
+        pairs: 0, merges: 0, log: [], skipped: true,
+        reason: mergeSetting.reason || 'Automated merge is disabled by an operator setting.',
+      };
   Object.assign(report, await healDanglingSightings({ registryStore, enrichStore }));
   report.finishedAt = new Date().toISOString();
   if (opsStore) {
     // The §5.4 merge log: one audit row per run carries every merge — the
     // reversibility trail (sightings retain their reads; tombstones point).
+    // Written with merges frozen too: the sweep and the healing still ran, and
+    // a frozen switch used to return before this row, so the Cron Monitor
+    // showed maintenance as never having run for as long as the freeze lasted.
     await opsStore
       .record({
         ts: report.startedAt,
         action: 'registry:maintain',
-        origin: 'cron',
+        origin,
         ok: true,
+        elapsed_ms: Date.parse(report.finishedAt) - Date.parse(report.startedAt),
         detail: {
           dormant: report.dormant,
           pairs: report.consolidation.pairs,
           merges: report.consolidation.merges,
           log: report.consolidation.log,
           healed: report.healed,
+          ...(report.consolidation.skipped ? { mergeSkipped: true } : {}),
         },
       })
       .catch(() => {});

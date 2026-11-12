@@ -65,6 +65,21 @@ export function createD1WatchRunStore(db) {
       return new Map((results || []).map((row) => [row.watch_id, rowToWatchRun(row)]));
     },
 
+    // Retention: settled rounds scheduled before `cutoffISO`. A watch's
+    // newest round is never deleted, whatever its age — it is the watch's
+    // last known result (latestForWatchIds).
+    async pruneBefore(cutoffISO, { limit = 2000 } = {}) {
+      const res = await db.prepare(
+        `DELETE FROM watch_runs WHERE id IN (
+           SELECT r.id FROM watch_runs r
+            WHERE r.scheduled_at < ? AND r.status IN ('completed','incomplete')
+              AND EXISTS (SELECT 1 FROM watch_runs n
+                           WHERE n.watch_id = r.watch_id AND n.scheduled_at > r.scheduled_at)
+            ORDER BY r.scheduled_at LIMIT ?)`,
+      ).bind(cutoffISO, limit).run();
+      return res?.meta?.changes || 0;
+    },
+
     async claimDue(nowMs = Date.now(), limit = 3) {
       const now = new Date(nowMs).toISOString();
       const leaseUntil = new Date(nowMs + LEASE_MS).toISOString();
@@ -150,6 +165,15 @@ export function createMemoryWatchRunStore() {
         if (latest) out.set(id, { ...latest });
       }
       return out;
+    },
+    async pruneBefore(cutoffISO, { limit = 2000 } = {}) {
+      const all = [...runs.values()];
+      const doomed = all.filter((run) => run.scheduledAt < cutoffISO
+        && ['completed', 'incomplete'].includes(run.status)
+        && all.some((other) => other.watchId === run.watchId && other.scheduledAt > run.scheduledAt))
+        .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt)).slice(0, limit);
+      for (const run of doomed) runs.delete(run.id);
+      return doomed.length;
     },
     async claimDue(nowMs = Date.now(), limit = 3) {
       const now = new Date(nowMs).toISOString();
