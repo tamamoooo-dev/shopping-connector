@@ -1,0 +1,11 @@
+{
+  "manifest_version": 3,
+  "name": "Super Search: my browser",
+  "version": "1.0.0",
+  "description": "Runs a store search you start in Super Search in this browser, for stores that refuse the server, and hands the result back to your app.",
+  "permissions": ["alarms", "storage"],
+  "host_permissions": ["https://gcc.luluhypermarket.com/*"],
+  "background": { "service_worker": "relay.js" },
+  "options_ui": { "page": "options.html", "open_in_tab": true },
+  "action": { "default_title": "Super Search: my browser", "default_popup": "options.html" }
+}

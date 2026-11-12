@@ -4,4 +4,14 @@ name = "shopping-connector"
 main = "src/index.js"
 compatibility_date = "2025-06-01"
 
-# Stateless by design: no KV, no D1, no Durable Objects, no cache bindings.
+# Stateless by design: no KV, no D1, no cache bindings. It stores nothing.
+# One Durable Object class (src/relay.js) holds the owner's own browser's
+# connection, so a search the owner starts can be answered by that browser
+# when a store refuses this Worker. It keeps no data.
+[[durable_objects.bindings]]
+name = "RELAY"
+class_name = "BrowserRelay"
+
+[[migrations]]
+tag = "v1-browser-relay"
+new_sqlite_classes = ["BrowserRelay"]

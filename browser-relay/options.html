@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Super Search: my browser</title>
+    <style>
+      :root { color-scheme: light dark; }
+      body { font: 14px/1.5 system-ui, "Segoe UI", Tahoma, sans-serif; margin: 0; padding: 16px 18px; min-width: 300px; max-width: 440px; }
+      h1 { font-size: 15px; margin: 0 0 10px; }
+      .ar { direction: rtl; text-align: right; }
+      .muted { opacity: 0.7; font-size: 12.5px; }
+      .code { font: 600 24px/1.2 ui-monospace, Consolas, monospace; letter-spacing: 1px; margin: 4px 0 2px; user-select: all; }
+      .state { margin: 12px 0 4px; font-weight: 600; }
+      .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-inline-end: 6px; background: #999; }
+      .dot.on { background: #1a9c4b; }
+      .dot.off { background: #c0392b; }
+      .dot.wait { background: #d89b00; }
+      .row { display: flex; gap: 8px; margin-top: 14px; flex-wrap: wrap; }
+      button { font: inherit; padding: 6px 12px; border-radius: 6px; border: 1px solid #8886; background: transparent; color: inherit; cursor: pointer; }
+      button:hover { background: #8882; }
+      hr { border: 0; border-top: 1px solid #8884; margin: 14px 0; }
+      ul { margin: 6px 0 0; padding-inline-start: 18px; }
+    </style>
+  </head>
+  <body>
+    <h1>Super Search: my browser</h1>
+
+    <div class="muted">Your code. Type it once in the app: tap the Lulu chip, then "Use my browser".</div>
+    <div class="muted ar">رمزك. اكتبه مرة واحدة في التطبيق: اضغط على لولو ثم «استخدم متصفحي».</div>
+    <div class="code" id="code">····-····-····</div>
+    <div class="row" style="margin-top: 6px">
+      <button id="copy">Copy · نسخ</button>
+    </div>
+
+    <div class="state"><span class="dot" id="dot"></span><span id="state">…</span></div>
+    <div class="muted" id="detail"></div>
+
+    <div class="row">
+      <button id="pause">Pause · إيقاف مؤقت</button>
+      <button id="newkey">New code · رمز جديد</button>
+    </div>
+
+    <hr />
+    <div class="muted">
+      What this does:
+      <ul>
+        <li>Runs a search you start in the app, in this browser, on: <span id="stores"></span>.</li>
+        <li>At most <span id="max"></span> searches in 10 minutes.</li>
+        <li>If the store refuses, it stops for an hour. Nothing is retried around.</li>
+      </ul>
+    </div>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -85,8 +85,50 @@ const listJsonStrategy = {
   },
 };
 
+// Lulu sends 99999 for every product until the browser has chosen a region
+// (measured 2026-11-12: no pz-locale / pz-currency cookie -> 99999 and English
+// names). It is "no price", never a price.
+const NO_PRICE = 99999;
+const LOCALES = new Set(['ar-sa', 'en-sa']);
+
+// The owner's own browser asked Lulu (relay.js): its products, cut down to the
+// fields above, become the same normalized results. Nothing from the browser
+// is trusted as an address: the link is rebuilt on Lulu's host and an image
+// must be https.
+function fromBrowser(answer) {
+  const locale = LOCALES.has(answer.locale) ? answer.locale : 'ar-sa';
+  const products = (Array.isArray(answer.products) ? answer.products : []).filter(
+    (p) => p && typeof p === 'object' && typeof p.absolute_url === 'string' && p.absolute_url.startsWith('/') && !p.absolute_url.startsWith('//'),
+  );
+  const priced = products.filter((p) => {
+    const price = toNumber(p.price);
+    // A browser set to another country's Lulu sends that country's money.
+    const riyals = String(p.currency_type || 'sar').toLowerCase() === 'sar';
+    return riyals && price !== null && price > 0 && price < NO_PRICE;
+  });
+  if (products.length && !priced.length) {
+    const err = new Error('Lulu sent no prices: the browser has no region chosen.');
+    err.relayState = 'no-price';
+    throw err;
+  }
+  return priced
+    .map((p) => {
+      const result = normalize(p, locale);
+      if (!result.image.toLowerCase().startsWith('https://')) result.image = '';
+      if (result.oldPrice !== null && result.oldPrice >= NO_PRICE) {
+        result.oldPrice = null;
+        result.discountLabel = '';
+      }
+      result.name = result.name.slice(0, 200);
+      result.brand = result.brand.slice(0, 80);
+      return result;
+    })
+    .filter((r) => r.name);
+}
+
 export const luluProvider = {
   id: 'lulu',
   label: 'Lulu',
   strategies: [listJsonStrategy],
+  fromBrowser,
 };

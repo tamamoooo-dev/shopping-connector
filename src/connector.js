@@ -12,6 +12,10 @@
 // It is intentionally STATELESS: no database, no auth, no sessions, no cache.
 // Every request does a live fetch. It is a thin proxy + normalizer.
 //
+// One fallback (2026-11-12, relay.js): when a store refuses this Worker and
+// the request carries the owner's X-Relay-Key, the search is run in the
+// owner's own browser and its answer is normalized by the same provider.
+//
 // Provider contract (identical to the frontend's):
 //   { id, label, strategies: [ { name, run(query) -> Promise<NormalizedResult[]> } ] }
 //
@@ -21,7 +25,7 @@
 const CORS = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'GET, OPTIONS',
-  'Access-Control-Allow-Headers': 'Content-Type',
+  'Access-Control-Allow-Headers': 'Content-Type, X-Relay-Key',
 };
 
 function json(body, status = 200, extraHeaders = {}) {
@@ -72,8 +76,26 @@ async function runProvider(provider, query, options = {}) {
   throw error;
 }
 
+// The owner's own browser answers for a store that refused this Worker.
+// Returns the response to send, or the relay's state when it had no answer.
+async function viaBrowser(provider, query, limit, options) {
+  const answer = await options.relay(options.relayKey, { store: provider.id, query });
+  if (answer.state !== 'ok') return { state: answer.state || 'error' };
+  let results;
+  try {
+    results = provider.fromBrowser(answer, query);
+  } catch (err) {
+    return { state: err.relayState || 'error' };
+  }
+  const window = results.slice(0, limit);
+  const body = { provider: provider.id, query, strategy: 'browser-relay', via: 'browser', count: window.length, results: window };
+  return { response: json(window.length ? body : { ...body, empty: true, failures: [] }) };
+}
+
 // Main entry. `registry` is a plain object: { [providerId]: provider }.
-export async function handleRequest(request, registry) {
+// `options.relay` (index.js) asks the owner's browser; `options.relayKey` is
+// the cleaned code from the request, or null.
+export async function handleRequest(request, registry, options = {}) {
   // CORS preflight
   if (request.method === 'OPTIONS') {
     return new Response(null, { status: 204, headers: CORS });
@@ -149,8 +171,14 @@ export async function handleRequest(request, registry) {
   } catch (err) {
     // 403 + blocked: the store refuses this server (Lulu's firewall turns away
     // every request from a Cloudflare Worker, 2026-11-03); 502: it failed.
+    let relay = null;
+    if (err.blocked && options.relay && options.relayKey && typeof provider.fromBrowser === 'function') {
+      const viaOwner = await viaBrowser(provider, query, limit, options);
+      if (viaOwner.response) return viaOwner.response;
+      relay = viaOwner.state;
+    }
     return json(
-      { provider: providerId, query, error: err.message, failures: err.failures || [], ...(err.blocked ? { blocked: true } : {}) },
+      { provider: providerId, query, error: err.message, failures: err.failures || [], ...(err.blocked ? { blocked: true } : {}), ...(relay ? { relay } : {}) },
       err.blocked ? 403 : 502,
     );
   }
