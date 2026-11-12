@@ -214,6 +214,9 @@ export function relayAnswer(message) {
   if (message.stopped) return { state: 'stopped', until: typeof message.until === 'string' ? message.until : null };
   if (message.refused) return { state: 'refused', status: Number(message.status) || null };
   if (message.busy) return { state: 'busy' };
+  // The store sent its page without the product data: this browser has to
+  // open the store's site once (the same advice as a missing region).
+  if (message.noData) return { state: 'no-price' };
   if (message.error) return { state: 'error', error: String(message.error).slice(0, 200) };
   if (!Array.isArray(message.products)) return { state: 'error', error: 'no products in the answer' };
   return {

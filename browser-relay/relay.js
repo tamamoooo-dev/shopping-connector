@@ -22,6 +22,7 @@ const PING_MS = 20 * 1000;
 
 const STORES = {
   lulu: { label: 'Lulu', read: readLulu },
+  carrefour: { label: 'Carrefour', read: readCarrefour },
 };
 
 let socket = null;
@@ -116,6 +117,99 @@ async function readLulu(query) {
       absolute_url: typeof p.absolute_url === 'string' ? p.absolute_url.slice(0, 300) : '',
       productimage_set: Array.isArray(p.productimage_set) && p.productimage_set[0] ? [{ image: p.productimage_set[0].image }] : [],
       attributes: { brand: p.attributes && typeof p.attributes.brand === 'string' ? p.attributes.brand.slice(0, 80) : '' },
+    })),
+  };
+}
+
+// Carrefour's search page carries its products in the page's own data
+// (self.__next_f); each product card is one object with a productId. The
+// same reading as the engine's browser-check/check.js.
+function carrefourCards(html) {
+  const parts = [];
+  const re = /self\.__next_f\.push\(\[1,("(?:[^"\\]|\\.)*")\]\)/g;
+  let m;
+  while ((m = re.exec(html))) {
+    try {
+      parts.push(JSON.parse(m[1]));
+    } catch {
+      // not a string chunk
+    }
+  }
+  const text = parts.join('');
+  const found = new Map();
+  let from = 0;
+  for (;;) {
+    const k = text.indexOf('"productId":', from);
+    if (k < 0) break;
+    from = k + 1;
+    let depth = 0;
+    let start = -1;
+    for (let i = k; i >= 0; i -= 1) {
+      const c = text[i];
+      if (c === '}') depth += 1;
+      else if (c === '{') {
+        if (depth === 0) {
+          start = i;
+          break;
+        }
+        depth -= 1;
+      }
+    }
+    if (start < 0) continue;
+    let d = 0;
+    let end = -1;
+    let inString = false;
+    for (let i = start; i < text.length; i += 1) {
+      const c = text[i];
+      if (inString) {
+        if (c === '\\') i += 1;
+        else if (c === '"') inString = false;
+        continue;
+      }
+      if (c === '"') inString = true;
+      else if (c === '{') d += 1;
+      else if (c === '}') {
+        d -= 1;
+        if (d === 0) {
+          end = i;
+          break;
+        }
+      }
+    }
+    if (end < 0) continue;
+    try {
+      const o = JSON.parse(text.slice(start, end + 1));
+      if (o.productId != null && o.productName && o.sellingPrice != null && !found.has(String(o.productId))) found.set(String(o.productId), o);
+    } catch {
+      // a fragment, not a card
+    }
+  }
+  return { cards: [...found.values()], chunks: parts.length };
+}
+
+// One page per search: the Arabic page for Arabic words, the English one otherwise.
+async function readCarrefour(query) {
+  const lang = /[\u0600-\u06FF]/.test(query) ? 'ar' : 'en';
+  const res = await fetch(`https://www.carrefourksa.com/mafsau/${lang}/search?keyword=${encodeURIComponent(query)}`, { credentials: 'include' });
+  const html = await res.text();
+  if ([401, 403, 429].includes(res.status) || /attention required|just a moment|cf-chl|captcha|access denied/i.test(html.slice(0, 4000))) {
+    return { refused: true, status: res.status };
+  }
+  if (!res.ok) return { error: `Carrefour answered HTTP ${res.status}` };
+  const { cards, chunks } = carrefourCards(html);
+  // The page came without its product data: this browser has not opened Carrefour yet.
+  if (!chunks) return { noData: true };
+  return {
+    locale: lang,
+    products: cards.slice(0, 60).map((o) => ({
+      productId: o.productId,
+      productName: String(o.productName).slice(0, 200),
+      sellingPrice: o.sellingPrice,
+      markedPrice: o.markedPrice,
+      currency: o.currency,
+      productUrl: typeof o.productUrl === 'string' ? o.productUrl.slice(0, 300) : '',
+      imageUrl: typeof o.imageUrl === 'string' ? o.imageUrl : '',
+      isSoldByWeight: Boolean(o.isSoldByWeight),
     })),
   };
 }

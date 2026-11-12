@@ -10,6 +10,7 @@ import { amazonProvider, setAmazonEnv } from './providers/amazon.js';
 import { tamimiProvider } from './providers/tamimi.js';
 import { danubeProvider } from './providers/danube.js';
 import { luluProvider } from './providers/lulu.js';
+import { carrefourProvider } from './providers/carrefour.js';
 import { noonProvider } from './providers/noon.js';
 import { ninjaProvider } from './providers/ninja.js';
 
@@ -19,6 +20,7 @@ const registry = {
   [tamimiProvider.id]: tamimiProvider,
   [danubeProvider.id]: danubeProvider,
   [luluProvider.id]: luluProvider,
+  [carrefourProvider.id]: carrefourProvider,
   [noonProvider.id]: noonProvider,
   [ninjaProvider.id]: ninjaProvider,
 };
