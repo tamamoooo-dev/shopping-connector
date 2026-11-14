@@ -9,6 +9,7 @@ import {
   copyOfPicture,
   agreeCopies,
   offersFromCopies,
+  lastRevealed,
   runMinimartTick,
   claimForReader,
   saveReaderReadings,
@@ -75,6 +76,25 @@ assert.deepEqual(copyOfPicture(null), { lines: [], offers: [] });
     frame([{ name: 'قهوة', price: 30, count: 2 }], ['قهوة 2 علبة بـ 30']),
   ], { framed: true });
   assert.deepEqual(offers.map((o) => [o.price, o.count, o.shownName, o.frame]).sort(), [[12.5, 1, 'شوكولاتة جالكسي', 0], [30, 2, 'قهوة', 3]]);
+}
+
+// A presenter shop's video (Q, 2026-11-14): another shop's price in red, a
+// price still drawing in, then the revealed price. Only the last one stands.
+{
+  const frame = (offers, lines) => ({ ref: 'f', copies: [copy(lines, offers), copy(lines, offers)] });
+  const video = [
+    frame([], ['تيس بربري']),
+    frame([{ name: 'تيس بربري', price: 800, count: 1 }], ['تيس بربري', 'الي ينباع ب ٨٠٠ ريال']),
+    frame([{ name: 'تيس بربري', price: 49, count: 1 }], ['تيس بربري', '٤٩']),
+    frame([{ name: 'تيس بربري', price: 499.8, count: 1 }], ['تيس بربري', '٤٩٩.٨٠']),
+  ];
+  assert.deepEqual(offersFromCopies(video, { framed: true }).map((o) => o.price).sort((a, b) => a - b), [49, 499.8, 800]);
+  const shown = offersFromCopies(video, { framed: true, presenter: true });
+  assert.deepEqual(shown.map((o) => [o.price, o.frame, o.shownName]), [[499.8, 3, 'تيس بربري']]);
+  // Read from the last frame that shows a price, even when an earlier one showed it first.
+  assert.deepEqual(lastRevealed([{ price: 9.8, frame: 1 }, { price: 22, frame: 0 }], [[{ price: 22 }], [{ price: 9.8 }], [], [{ price: 9.8 }], []]),
+    [{ price: 9.8, frame: 3 }]);
+  assert.deepEqual(lastRevealed([{ price: 5, frame: 0 }], [[], []]), [{ price: 5, frame: 0 }]);
 }
 
 // --- tick + reader, end to end on the real schema -------------------------------------------

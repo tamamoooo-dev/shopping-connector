@@ -67,8 +67,17 @@
 //       – A picture no offer has needed for PICTURE_KEEP_MS after the last
 //         offer showing it expired leaves R2; a deal posted again later takes
 //         the new posting's picture.
+//   • A PRESENTER SHOP (2026-11-14, Q / كيو in place of the closed عروض
+//     البركة; minimartCrop.js): a person presents one product a video. Its
+//     videos first show other shops' prices ("الي يوصل سعره ٢٢ ريال", a
+//     screenshot of another app) and draw the price in ("49" → "499.80"), so
+//     only the price the LAST priced frame shows is the offer
+//     (lastRevealed); measured on Q's 25 videos, this keeps exactly the
+//     revealed price in every one. Its cards show a crop of the product made
+//     by the PC reader, never the frame with the person in it.
 
 import { MISTRAL_URL, postMistral, toBase64, fetchWithTimeout } from './offers/enrich.js';
+import { PRESENTER } from './minimartCrop.js';
 import { withFailover, classifyMistralError } from './offers/mistralKeys.js';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
@@ -763,6 +772,20 @@ export function dropOldPriceTwins(offers) {
   return offers.filter((o) => !offers.some((other) => other !== o && samePrice(other.wasPrice, o.price)));
 }
 
+// A presenter shop's video (one product, its price revealed last): only the
+// offers whose price the last priced frame shows stand, read from that frame.
+// frameOffers: each frame's offers, in frame order.
+export function lastRevealed(candidates, frameOffers) {
+  let last = -1;
+  frameOffers.forEach((offers, i) => {
+    if (offers?.length) last = i;
+  });
+  if (last < 0) return candidates;
+  return candidates
+    .filter((c) => frameOffers[last].some((o) => samePrice(o.price, c.price)))
+    .map((c) => ({ ...c, frame: last }));
+}
+
 // --- the PC reader's copies -------------------------------------------------------------
 // A price counts only when a copied line prints it: not in the app's own text
 // ("منذ ٢٣", a clock) and at least once not as a weight; "بريال" prints 1.
@@ -806,7 +829,7 @@ export function agreeCopies(first, second) {
 // video's frames (a price in two frames, or in one frame by both copies,
 // stands). A name shows only its words printed in both copies of its
 // picture, a size only when its numbers are. -> [{ …offer, frame }]
-export function offersFromCopies(pictures, { framed = false, ignore = null } = {}) {
+export function offersFromCopies(pictures, { framed = false, ignore = null, presenter = false } = {}) {
   const read = pictures.map((p) => {
     const copies = (p.copies || []).slice(0, 2).map(copyOfPicture);
     return {
@@ -818,6 +841,7 @@ export function offersFromCopies(pictures, { framed = false, ignore = null } = {
   if (framed) {
     const { accepted, single } = groupFrames(read.map((r) => r.offers));
     candidates = dropSizeTwins(dropOldPriceTwins(dedupeDeals([...accepted, ...single])));
+    if (presenter) candidates = lastRevealed(candidates, read.map((r) => r.offers));
   } else {
     candidates = dropSizeTwins(read[0]?.offers || []).map((o) => ({ ...o, frame: 0 }));
   }
@@ -927,6 +951,7 @@ export async function readSnap(snap, { ask, media = null, framesAllowed = MAX_FR
       if (again?.some((o) => samePrice(o.price, offer.price))) candidates.push({ ...offer, votes: 2 });
     }
     candidates = dropSizeTwins(dropOldPriceTwins(dedupeDeals(candidates)));
+    if (snap.shopStyle === PRESENTER) candidates = lastRevealed(candidates, readings);
   } else {
     // A photo, or a video read from its cover (no binding, or the month's
     // frame allowance is spent).
@@ -1228,11 +1253,18 @@ export function lowYield({ videos, priced }) {
 // Pictures of offers that expired PICTURE_KEEP_MS ago leave R2 (their offers
 // stay, as the repeat history, without a picture). -> how many left.
 async function dropOldPictures({ store, bucket, now }) {
-  const keys = await store.unusedPictureKeys(new Date(now().getTime() - PICTURE_KEEP_MS).toISOString(), PICTURES_PER_TICK);
-  if (!keys.length) return 0;
+  const before = new Date(now().getTime() - PICTURE_KEEP_MS).toISOString();
+  // A presenter shop's product crops go with their offers' pictures.
+  const crops = store.expiredCrops ? await store.expiredCrops(before, PICTURES_PER_TICK) : [];
+  if (crops.length) {
+    await bucket.delete(crops.map((c) => c.cropKey));
+    await store.clearCrops(crops.map((c) => c.id));
+  }
+  const keys = await store.unusedPictureKeys(before, PICTURES_PER_TICK);
+  if (!keys.length) return crops.length;
   await bucket.delete(keys);
   await store.clearPictures(keys);
-  return keys.length;
+  return keys.length + crops.length;
 }
 
 // Readies one new snap for the PC reader: the file fetched (a repeat is
@@ -1515,7 +1547,7 @@ export async function saveReaderReadings({ store, bucket = null, readings, now =
       continue;
     }
     const pictures = snap.pictures.map((ref) => ({ ref, copies: Array.isArray(byRef.get(ref).copies) ? byRef.get(ref).copies : [] }));
-    const offers = offersFromCopies(pictures, { framed: snap.pictures.some(isFrameRef), ignore: shopWords(snap.shopTitle) })
+    const offers = offersFromCopies(pictures, { framed: snap.pictures.some(isFrameRef), ignore: shopWords(snap.shopTitle), presenter: snap.shopStyle === PRESENTER })
       .map((o) => ({ ...o, image: { ref: pictures[o.frame].ref } }));
     if (!(await store.startSaving(snapId, READER))) {
       results.push({ snapId, status: 'conflict' });

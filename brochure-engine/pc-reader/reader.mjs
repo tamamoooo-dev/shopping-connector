@@ -34,6 +34,12 @@
 // on each 15-minute run, and the engine keeps the snaps for it when that is
 // at most 2 h away, or gives them to Mistral when it is further. What each
 // account is waiting for is kept in logs/accounts.json.
+//
+// PRODUCT CROPS (2026-11-14, owner: "since there is a person grabbing the
+// products .. eliminate him from the photo or find another way"): after the
+// reading rounds, the offers of a presenter shop (Q) whose picture has no crop
+// yet are cropped to the product (crop.mjs, rules in src/minimartCrop.js) and
+// posted back (POST /minimarts/reader/crops); their cards show the crop.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -42,6 +48,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import sharp from 'sharp';
 import { loadIngestSecret } from '../local-secrets.mjs';
 import { limitOf, limitedEntry, reportUntil, usableAccount } from '../src/readerLimits.js';
+import { cropOffers } from './crop.mjs';
 
 const ENGINE = process.env.ENGINE_URL || 'https://brochure-engine.tamamoooo.workers.dev';
 const MODEL = 'claude-haiku-5-5';
@@ -49,6 +56,8 @@ const BATCH = 28;
 const LONG_EDGE = 1092;
 const WORKERS = 2;
 const MAX_ROUNDS = process.argv.includes('--once') ? 1 : 10;
+const CROP_BATCH = 20;
+const CROP_ROUNDS = process.argv.includes('--once') ? 1 : 3;
 const CALL_TIMEOUT_MS = 5 * 60 * 1000;
 const LOG_DIR = fileURLToPath(new URL('./logs/', import.meta.url));
 const LOG_MAX_BYTES = 1024 * 1024;
@@ -303,6 +312,54 @@ async function round() {
   return queue.snaps.length;
 }
 
+// One round of product crops. -> offers answered (cropped or none).
+async function cropRound() {
+  const started = Date.now();
+  let queue;
+  try {
+    queue = await engine(`/minimarts/reader/crops?limit=${CROP_BATCH}`);
+  } catch (err) {
+    if (/HTTP 404/.test(String(err?.message))) return 0; // an engine without crops
+    throw err;
+  }
+  if (!queue.offers?.length) return 0;
+  const errors = [];
+  const crops = [];
+  const jobs = [];
+  for (const o of queue.offers) {
+    try {
+      const res = await fetch(`${ENGINE}${o.url}`, { signal: AbortSignal.timeout(60_000) });
+      // The picture left R2: nothing to crop, the card shows none.
+      if (res.status === 404) {
+        crops.push({ offerId: o.offerId, imageKey: o.imageKey, image: null });
+        continue;
+      }
+      if (!res.ok) throw new Error(`picture HTTP ${res.status}`);
+      jobs.push({ id: o.offerId, imageKey: o.imageKey, name: o.name, bytes: Buffer.from(await res.arrayBuffer()) });
+    } catch (err) {
+      errors.push(`${o.offerId}: ${String(err?.message || err).slice(0, 120)}`);
+    }
+  }
+  const found = await cropOffers(jobs, { ask: (content) => ask(content, errors) });
+  for (const job of jobs) {
+    const r = found.get(job.id);
+    if (!r) continue; // not answered (a failed or refused call): the next run asks again
+    crops.push({ offerId: job.id, imageKey: job.imageKey, image: r.image ? r.image.toString('base64') : null, kind: r.kind || null, rect: r.rect || null });
+  }
+  let results = [];
+  if (crops.length) results = (await engine('/minimarts/reader/crops', { method: 'POST', body: JSON.stringify({ crops }) })).results || [];
+  log({
+    crops: queue.offers.length,
+    cropped: results.filter((r) => r.status === 'cropped').length,
+    none: results.filter((r) => r.status === 'none').length,
+    unanswered: queue.offers.length - crops.length,
+    calls: usage.calls, failed: usage.failed, input: usage.input, output: usage.output,
+    ms: Date.now() - started, errors: errors.slice(0, 5),
+  });
+  Object.assign(usage, { calls: 0, failed: 0, input: 0, output: 0, thinking: 0, costUSD: 0, by: {} });
+  return crops.length;
+}
+
 try {
   if (!usable()) {
     await reportLimit(); // no model is asked before a reset
@@ -316,6 +373,9 @@ try {
     }
     for (let i = 0; i < MAX_ROUNDS; i += 1) {
       if (!(await round()) || !usable()) break;
+    }
+    for (let i = 0; i < CROP_ROUNDS && usable(); i += 1) {
+      if (!(await cropRound())) break;
     }
     if (!usable()) await reportLimit();
   }

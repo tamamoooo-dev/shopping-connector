@@ -70,6 +70,7 @@ import {
   fetchProfile, resolveShopLink, MAX_SHOPS, BATCH_READ_PROMPT, READER_MAX_PICTURES,
   claimForReader, saveReaderReadings, queueReread, setReaderLimit,
 } from './minimarts.js';
+import { PRESENTER, cropKeyFor, shopStyle } from './minimartCrop.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
 // extracts prices from flyer images; the flyer prevails on any mismatch).
@@ -81,6 +82,10 @@ const OFFERS_NOTE =
 // is deliberately uncertain: it can still serve when its own text matches the
 // query, but it must never pull unrelated siblings into another consumer.
 const TRUSTED_CANONICAL_BANDS = new Set(['auto', 'created']);
+// Mini marts product crops (minimartCrop.js): offers handed to the PC reader
+// at a time, and the largest crop accepted.
+const CROP_QUEUE_MAX = 40;
+const CROP_MAX_BYTES = 1500 * 1024;
 
 function isTrustedCanonicalBand(band) {
   return TRUSTED_CANONICAL_BANDS.has(band);
@@ -387,15 +392,21 @@ export async function handleRequest(request, ctx) {
     const [shops, offers] = await Promise.all([ctx.minimartStore.listShops(), ctx.minimartStore.liveOffers(nowIso)]);
     return json({
       shops,
-      offers: offers.map(({ shownName, sizePrinted, ...o }) => ({
-        ...o,
-        // Only words printed in the picture; a guess is never shown (owner, 2026-11-05).
-        name: shownName == null ? o.name : shownName || null,
-        size: sizePrinted === 0 ? null : o.size,
-        perUnit: o.count > 1 ? Math.round((o.price / o.count) * 100) / 100 : null,
-        image: o.imageKey ? `/minimarts/image?key=${encodeURIComponent(o.imageKey)}` : null,
-        imageKey: undefined,
-      })),
+      offers: offers.map(({ shownName, sizePrinted, cropKey, cropOf, shopStyle: style, ...o }) => {
+        // A presenter shop's card shows the product crop made from this very
+        // picture, never the frame with the person in it (owner, 2026-11-14);
+        // no crop yet, or none stood: no picture.
+        const pictureKey = style === PRESENTER ? (cropOf && cropOf === o.imageKey ? cropKey : null) : o.imageKey;
+        return {
+          ...o,
+          // Only words printed in the picture; a guess is never shown (owner, 2026-11-05).
+          name: shownName == null ? o.name : shownName || null,
+          size: sizePrinted === 0 ? null : o.size,
+          perUnit: o.count > 1 ? Math.round((o.price / o.count) * 100) / 100 : null,
+          image: pictureKey ? `/minimarts/image?key=${encodeURIComponent(pictureKey)}` : null,
+          imageKey: undefined,
+        };
+      }),
       generatedAt: nowIso,
     });
   }
@@ -506,6 +517,77 @@ export async function handleRequest(request, ctx) {
       return json(set);
     }
 
+    // A presenter shop's offers whose picture has no product crop yet
+    // (minimartCrop.js): the reader crops them on the PC and posts them back.
+    if (path === '/minimarts/reader/crops' && request.method === 'GET') {
+      const asked = Number(url.searchParams.get('limit'));
+      const limit = Number.isFinite(asked) && asked >= 1 ? Math.min(CROP_QUEUE_MAX, Math.floor(asked)) : CROP_QUEUE_MAX;
+      const offers = await store.cropQueue(new Date().toISOString(), limit);
+      return json({
+        offers: offers.map((o) => ({
+          offerId: o.id,
+          imageKey: o.imageKey,
+          name: [o.name, o.size].filter(Boolean).join(' ') || null,
+          url: `/minimarts/image?key=${encodeURIComponent(o.imageKey)}`,
+        })),
+      });
+    }
+
+    // { crops: [{ offerId, imageKey, image: base64 JPEG | null, kind, rect }] }:
+    // image null = no crop stood (the card shows no picture). A crop is kept
+    // only while imageKey is still the offer's picture.
+    if (path === '/minimarts/reader/crops' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: 'Body must be JSON.' }, 400);
+      }
+      if (!Array.isArray(body?.crops)) return json({ error: "Missing 'crops'." }, 400);
+      const results = [];
+      for (const crop of body.crops.slice(0, CROP_QUEUE_MAX)) {
+        const offerId = String(crop?.offerId || '');
+        const imageKey = String(crop?.imageKey || '');
+        if (!offerId || !imageKey.startsWith('minimarts/')) {
+          results.push({ offerId, status: 'invalid' });
+          continue;
+        }
+        let cropKey = null;
+        if (crop.image != null) {
+          let bytes;
+          try {
+            bytes = Uint8Array.from(atob(String(crop.image)), (c) => c.charCodeAt(0));
+          } catch {
+            bytes = null;
+          }
+          if (!bytes || bytes.length < 100 || bytes.length > CROP_MAX_BYTES || bytes[0] !== 0xff || bytes[1] !== 0xd8) {
+            results.push({ offerId, status: 'invalid', error: 'not a JPEG' });
+            continue;
+          }
+          cropKey = cropKeyFor(imageKey, offerId);
+          await ctx.storageBucket.put(cropKey, bytes, { httpMetadata: { contentType: 'image/jpeg' } });
+        }
+        const { saved, oldCropKey } = await store.saveCrop(offerId, imageKey, cropKey);
+        if (!saved) {
+          if (cropKey) await ctx.storageBucket.delete(cropKey).catch(() => {});
+          results.push({ offerId, status: 'conflict' });
+          continue;
+        }
+        if (oldCropKey) await ctx.storageBucket.delete(oldCropKey).catch(() => {});
+        results.push({ offerId, status: cropKey ? 'cropped' : 'none', kind: cropKey ? String(crop.kind || '') || null : null });
+      }
+      await ctx.opsStore?.record({
+        ts: new Date().toISOString(),
+        action: 'reader:minimarts-crops',
+        origin: 'pc',
+        ok: results.every((r) => r.status === 'cropped' || r.status === 'none'),
+        offers: results.filter((r) => r.status === 'cropped').length,
+        failed: results.filter((r) => r.status === 'invalid').length,
+        detail: { results },
+      }).catch(() => {});
+      return json({ results });
+    }
+
     if (path === '/minimarts/reader/status' && request.method === 'GET') {
       const weekAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
       return json({
@@ -542,6 +624,11 @@ export async function handleRequest(request, ctx) {
     const now = new Date();
     const nowIso = now.toISOString();
     await ctx.minimartStore.addShop(username, nowIso);
+    // { style: 'presenter' }: a person presents its offers (minimartCrop.js);
+    // { style: null } turns it off. Left out: unchanged.
+    if (body && Object.prototype.hasOwnProperty.call(body, 'style')) {
+      await ctx.minimartStore.setShopStyle(username, shopStyle(body.style));
+    }
     if (page.status === 'ok') {
       const added = await ctx.minimartStore.addSnaps(username, page.snaps, nowIso);
       await ctx.minimartStore.recordCheck(username, {

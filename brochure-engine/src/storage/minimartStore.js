@@ -22,6 +22,9 @@
 //   recentOffers(username, sinceIso) / insertOffers(rows)
 //   repostOffer(id, { postedAt, expiresAt }) / retireOffer(id, nowIso)
 //   liveOffers(nowIso) -> offers on show, newest posting first
+//   A presenter shop (2026-11-14, minimartCrop.js): setShopStyle(username, style);
+//   cropQueue(nowIso, limit) -> offers whose picture has no crop yet;
+//   saveCrop(id, imageKey, cropKey) -> { saved, oldCropKey }; expiredCrops(beforeIso, limit) / clearCrops(ids)
 
 function offerOut(r) {
   return {
@@ -46,6 +49,10 @@ function offerOut(r) {
     expiresAt: r.expires_at,
     votes: Number(r.votes) || 0,
     createdAt: r.created_at,
+    // A presenter shop's card shows the crop made from this very picture.
+    cropKey: r.crop_key ?? null,
+    cropOf: r.crop_of ?? null,
+    shopStyle: r.shop_style ?? null,
   };
 }
 
@@ -59,6 +66,8 @@ function shopOut(r) {
     // still the picture that was looked at).
     logo: r.picture_kind === 'logo' && r.picture_kind_of === r.picture ? r.picture : null,
     pictureKind: r.picture_kind ?? null,
+    // 'presenter': a person presents the offers in videos (minimartCrop.js).
+    style: r.style ?? null,
     addedAt: r.added_at,
     lastCheckedAt: r.last_checked_at,
     nextCheckAt: r.next_check_at,
@@ -77,6 +86,7 @@ function snapOut(r) {
     mediaUrl: r.media_url,
     previewUrl: r.preview_url,
     shopTitle: r.shop_title ?? null,
+    shopStyle: r.shop_style ?? null,
     status: r.status,
     attempts: Number(r.attempts) || 0,
     // Prepared for the PC reader: the pictures' refs in R2, who holds it.
@@ -87,7 +97,7 @@ function snapOut(r) {
   };
 }
 
-const SNAP_COLUMNS = 's.*, m.title AS shop_title';
+const SNAP_COLUMNS = 's.*, m.title AS shop_title, m.style AS shop_style';
 // A time no limit reaches: `limited_until > NEVER` is never true.
 const NEVER = '9999-12-31T00:00:00.000Z';
 const changed = (res) => Number(res?.meta?.changes) > 0;
@@ -127,6 +137,11 @@ export function createMinimartStore(db) {
         .run();
       const row = await db.prepare('SELECT * FROM minimart_shops WHERE username = ?').bind(username).first();
       return row ? shopOut(row) : null;
+    },
+
+    // 'presenter' or null (minimartCrop.js shopStyle). -> whether the shop exists.
+    async setShopStyle(username, style) {
+      return changed(await db.prepare('UPDATE minimart_shops SET style = ?2 WHERE username = ?1').bind(username, style).run());
     },
 
     // Stops checking; its offers leave the page (they stay in D1 as history).
@@ -623,6 +638,53 @@ export function createMinimartStore(db) {
       return bare;
     },
 
+    // A presenter shop's live offers whose picture has no crop yet (a new
+    // picture, or a picture changed since its crop), newest first.
+    async cropQueue(nowIso, limit) {
+      const { results } = await db
+        .prepare(
+          `SELECT o.* FROM minimart_offers o
+           JOIN minimart_shops m ON m.username = o.username AND m.active = 1 AND m.style = 'presenter'
+           WHERE o.expires_at > ?1 AND o.image_key IS NOT NULL
+             AND (o.crop_of IS NULL OR o.crop_of != o.image_key)
+           ORDER BY o.created_at DESC, o.id LIMIT ?2`,
+        )
+        .bind(nowIso, limit)
+        .all();
+      return (results || []).map(offerOut);
+    },
+
+    // The crop made from `imageKey` (null: none stood). Kept only while that
+    // is still the offer's picture. -> { saved, oldCropKey } (the crop it replaces).
+    async saveCrop(id, imageKey, cropKey) {
+      const before = await db.prepare('SELECT crop_key FROM minimart_offers WHERE id = ?1 AND image_key = ?2').bind(id, imageKey).first();
+      if (!before) return { saved: false, oldCropKey: null };
+      const saved = changed(await db
+        .prepare('UPDATE minimart_offers SET crop_key = ?3, crop_of = ?2 WHERE id = ?1 AND image_key = ?2')
+        .bind(id, imageKey, cropKey)
+        .run());
+      return { saved, oldCropKey: saved && before.crop_key && before.crop_key !== cropKey ? before.crop_key : null };
+    },
+
+    // Crops of offers that expired before `beforeIso` (they leave R2 with their pictures).
+    async expiredCrops(beforeIso, limit) {
+      const { results } = await db
+        .prepare('SELECT id, crop_key FROM minimart_offers WHERE crop_key IS NOT NULL AND expires_at < ?1 LIMIT ?2')
+        .bind(beforeIso, limit)
+        .all();
+      return (results || []).map((r) => ({ id: r.id, cropKey: r.crop_key }));
+    },
+
+    async clearCrops(ids) {
+      for (let i = 0; i < ids.length; i += 50) {
+        const part = ids.slice(i, i + 50);
+        await db
+          .prepare(`UPDATE minimart_offers SET crop_key = NULL, crop_of = NULL WHERE id IN (${part.map(() => '?').join(', ')})`)
+          .bind(...part)
+          .run();
+      }
+    },
+
     // A deal posted again after its picture left R2 takes the new posting's.
     async setOfferImage(id, imageKey) {
       await db.prepare('UPDATE minimart_offers SET image_key = ?2 WHERE id = ?1 AND image_key IS NULL').bind(id, imageKey).run();
@@ -631,7 +693,7 @@ export function createMinimartStore(db) {
     async liveOffers(nowIso) {
       const { results } = await db
         .prepare(
-          `SELECT o.* FROM minimart_offers o
+          `SELECT o.*, m.style AS shop_style FROM minimart_offers o
            JOIN minimart_shops m ON m.username = o.username AND m.active = 1
            WHERE o.expires_at > ?
            ORDER BY COALESCE(o.last_posted_at, o.posted_at) DESC, o.id`,

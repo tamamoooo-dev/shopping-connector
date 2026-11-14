@@ -858,7 +858,8 @@ CREATE TABLE IF NOT EXISTS minimart_shops (
   last_error      TEXT,
   last_post_at    TEXT,                             -- newest snap seen
   picture_kind    TEXT,                             -- logo | photo | snapchat (2026-11-05)
-  picture_kind_of TEXT                              -- the picture URL that kind is for
+  picture_kind_of TEXT,                             -- the picture URL that kind is for
+  style           TEXT                              -- 'presenter': a person presents the offers (2026-11-14)
 );
 
 CREATE INDEX IF NOT EXISTS ix_minimart_shops_due
@@ -943,7 +944,9 @@ CREATE TABLE IF NOT EXISTS minimart_offers (
   votes          INTEGER NOT NULL DEFAULT 0,        -- readings that agreed on the price
   created_at     TEXT NOT NULL,                     -- first seen (the "new" badge)
   shown_name     TEXT,                              -- the name's printed words; '' = a guess (not shown), NULL unchecked
-  size_printed   INTEGER                            -- the same for size (2026-11-05)
+  size_printed   INTEGER,                           -- the same for size (2026-11-05)
+  crop_key       TEXT,                              -- R2 key of the product crop (presenter shops, 2026-11-14)
+  crop_of        TEXT                               -- the image_key that crop was made from
 );
 
 CREATE INDEX IF NOT EXISTS ix_minimart_offers_live

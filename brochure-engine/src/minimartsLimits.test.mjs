@@ -303,11 +303,20 @@ const reader = (db, id) => db.prepare('SELECT status, reader, claimed_at FROM mi
       offer('c:1', 'عصير', 3, 'minimarts/bshaaral/c-photo.jpg', nowMs - 2 * DAY), // expired 2 days ago: kept a week
     ]);
     for (const key of ['a', 'b', 'c']) await bucket.put(`minimarts/bshaaral/${key}-photo.jpg`, enc(key));
+    // A presenter shop's product crops (2026-11-14) go with their offers.
+    for (const key of ['a', 'c']) {
+      await bucket.put(`minimarts/bshaaral/${key}-photo.crop.${key}-1.jpg`, enc(`${key} crop`));
+      await store.saveCrop(`${key}:1`, `minimarts/bshaaral/${key}-photo.jpg`, `minimarts/bshaaral/${key}-photo.crop.${key}-1.jpg`);
+    }
 
     await claimForReader({ store, now }); // on
     let report = await runMinimartTick({ store, bucket, media, ask: mistral({ reads: false }), fetchImpl: fetchFor(state), now });
-    assert.equal(report.picturesDropped, 1);
-    assert.deepEqual([...bucket.objects.keys()].sort(), ['minimarts/bshaaral/b-photo.jpg', 'minimarts/bshaaral/c-photo.jpg']);
+    assert.equal(report.picturesDropped, 2); // a's picture and a's crop
+    assert.deepEqual([...bucket.objects.keys()].sort(),
+      ['minimarts/bshaaral/b-photo.jpg', 'minimarts/bshaaral/c-photo.crop.c-1.jpg', 'minimarts/bshaaral/c-photo.jpg']);
+    const cropOf = async (id) => fixture.db.prepare('SELECT crop_key, crop_of FROM minimart_offers WHERE id = ?').bind(id).first();
+    assert.deepEqual({ ...(await cropOf('a:1')) }, { crop_key: null, crop_of: null });
+    assert.equal((await cropOf('c:1')).crop_key, 'minimarts/bshaaral/c-photo.crop.c-1.jpg');
     const imageOf = async (id) => (await fixture.db.prepare('SELECT image_key FROM minimart_offers WHERE id = ?').bind(id).first()).image_key;
     assert.deepEqual([await imageOf('a:1'), await imageOf('b:1'), await imageOf('c:1')], [null, 'minimarts/bshaaral/b-photo.jpg', 'minimarts/bshaaral/c-photo.jpg']);
     assert.deepEqual(await store.picturelessOffers(['a:1', 'b:1', 'nope']), ['a:1']);

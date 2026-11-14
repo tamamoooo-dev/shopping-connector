@@ -31,7 +31,11 @@ globalThis.fetch = async (url) => {
 };
 
 const objects = new Map([['minimarts/t.sshoco/R38XrLDwQ5SH2jq-2SFujQ-photo.jpg', new Uint8Array([0xff, 0xd8, 0xff])]]);
-const storageBucket = { async get(key) { return objects.has(key) ? { body: objects.get(key) } : null; } };
+const storageBucket = {
+  async get(key) { return objects.has(key) ? { body: objects.get(key) } : null; },
+  async put(key, bytes) { objects.set(key, bytes); },
+  async delete(keys) { for (const k of [].concat(keys)) objects.delete(k); },
+};
 
 const fixture = createSqliteD1(['schema.sql']);
 try {
@@ -115,6 +119,39 @@ try {
   out = await (await call(reader, '/minimarts/reader/status', { headers: key })).json();
   assert.equal(out.reader.limitedUntil, far);
   assert.deepEqual(out.checkProblems, []);
+
+  // A presenter shop (2026-11-14): its card shows the product crop, never the frame.
+  res = await call(ctx, '/minimarts/shops', { method: 'POST', body: JSON.stringify({ link: 't.sshoco', style: 'presenter' }) });
+  assert.equal((await res.json()).shop.style, 'presenter');
+  const frameKey = 'minimarts/t.sshoco/R38XrLDwQ5SH2jq-2SFujQ-photo.jpg';
+  const lebna = () => call(ctx, '/minimarts').then((r) => r.json()).then((o) => o.offers.find((x) => x.price === 11.5));
+  assert.equal((await lebna()).image, null); // no crop yet: no picture
+  res = await call(reader, '/minimarts/reader/crops', { headers: key });
+  out = await res.json();
+  assert.deepEqual(out.offers.map((o) => [o.offerId, o.imageKey, o.name]), [['R38XrLDwQ5SH2jq-2SFujQ:1', frameKey, 'لبنة تركية']]);
+  assert.equal(out.offers[0].url, `/minimarts/image?key=${encodeURIComponent(frameKey)}`);
+  const jpeg = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(200)]).toString('base64');
+  res = await call(reader, '/minimarts/reader/crops', { method: 'POST', headers: key, body: JSON.stringify({ crops: [
+    { offerId: 'R38XrLDwQ5SH2jq-2SFujQ:1', imageKey: frameKey, image: jpeg, kind: 'close', rect: [1, 2, 3, 4] },
+    { offerId: 'R38XrLDwQ5SH2jq-2SFujQ:1', imageKey: 'minimarts/t.sshoco/other-f9.jpg', image: jpeg }, // not its picture any more
+    { offerId: 'R38XrLDwQ5SH2jq-2SFujQ:2', imageKey: frameKey, image: 'bm90IGEganBlZw==' },
+  ] }) });
+  out = await res.json();
+  assert.deepEqual(out.results.map((r) => r.status), ['cropped', 'conflict', 'invalid']);
+  const cropKey = 'minimarts/t.sshoco/R38XrLDwQ5SH2jq-2SFujQ-photo.crop.R38XrLDwQ5SH2jq-2SFujQ-1.jpg';
+  assert.ok(objects.has(cropKey));
+  assert.ok(!objects.has('minimarts/t.sshoco/other-f9.crop.R38XrLDwQ5SH2jq-2SFujQ-1.jpg'), 'a refused crop is not kept');
+  const shownCrop = (await lebna()).image;
+  assert.equal(shownCrop, `/minimarts/image?key=${encodeURIComponent(cropKey)}`);
+  assert.equal((await call(ctx, shownCrop)).status, 200);
+  assert.deepEqual((await (await call(reader, '/minimarts/reader/crops', { headers: key })).json()).offers, []);
+  // None stood: answered, and no picture.
+  await minimartStore.saveCrop('R38XrLDwQ5SH2jq-2SFujQ:1', frameKey, null);
+  assert.equal((await lebna()).image, null);
+  // The style turned off: the frame again.
+  res = await call(ctx, '/minimarts/shops', { method: 'POST', body: JSON.stringify({ link: 't.sshoco', style: null }) });
+  assert.equal((await res.json()).shop.style, null);
+  assert.equal((await lebna()).image, `/minimarts/image?key=${encodeURIComponent(frameKey)}`);
 
   res = await call(ctx, '/minimarts/shops?username=t.sshoco', { method: 'DELETE' });
   assert.equal(res.status, 200);
