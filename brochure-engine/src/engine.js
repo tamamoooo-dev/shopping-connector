@@ -68,7 +68,7 @@ import {
 } from './collectors/d4dResumable.js';
 import {
   fetchProfile, resolveShopLink, MAX_SHOPS, BATCH_READ_PROMPT, READER_MAX_PICTURES,
-  claimForReader, saveReaderReadings, queueReread, setReaderLimit,
+  claimForReader, saveReaderReadings, queueReread, setReaderLimit, ownerShopName,
 } from './minimarts.js';
 import { PRESENTER, cropKeyFor, shopStyle } from './minimartCrop.js';
 
@@ -629,6 +629,13 @@ export async function handleRequest(request, ctx) {
     if (body && Object.prototype.hasOwnProperty.call(body, 'style')) {
       await ctx.minimartStore.setShopStyle(username, shopStyle(body.style));
     }
+    // { nameAr, nameEn }: the owner's name for the shop, shown instead of its
+    // profile name (Q: "محمد عمر / كيو🛒" → كيو / Q); null clears it, left out
+    // is unchanged.
+    const names = {};
+    if (body && Object.prototype.hasOwnProperty.call(body, 'nameAr')) names.ar = ownerShopName(body.nameAr);
+    if (body && Object.prototype.hasOwnProperty.call(body, 'nameEn')) names.en = ownerShopName(body.nameEn);
+    if (Object.keys(names).length) await ctx.minimartStore.setShopNames(username, names);
     if (page.status === 'ok') {
       const added = await ctx.minimartStore.addSnaps(username, page.snaps, nowIso);
       await ctx.minimartStore.recordCheck(username, {

@@ -859,7 +859,9 @@ CREATE TABLE IF NOT EXISTS minimart_shops (
   last_post_at    TEXT,                             -- newest snap seen
   picture_kind    TEXT,                             -- logo | photo | snapchat (2026-11-05)
   picture_kind_of TEXT,                             -- the picture URL that kind is for
-  style           TEXT                              -- 'presenter': a person presents the offers (2026-11-14)
+  style           TEXT,                             -- 'presenter': a person presents the offers (2026-11-14)
+  name_ar         TEXT,                             -- the owner's name for the shop (2026-11-14);
+  name_en         TEXT                              --   shown instead of `title`, NULL = the profile name
 );
 
 CREATE INDEX IF NOT EXISTS ix_minimart_shops_due

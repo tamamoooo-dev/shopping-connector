@@ -22,6 +22,7 @@
 //   recentOffers(username, sinceIso) / insertOffers(rows)
 //   repostOffer(id, { postedAt, expiresAt }) / retireOffer(id, nowIso)
 //   liveOffers(nowIso) -> offers on show, newest posting first
+//   The owner's name for a shop (2026-11-14): setShopNames(username, { ar?, en? }).
 //   A presenter shop (2026-11-14, minimartCrop.js): setShopStyle(username, style);
 //   cropQueue(nowIso, limit) -> offers whose picture has no crop yet;
 //   saveCrop(id, imageKey, cropKey) -> { saved, oldCropKey }; expiredCrops(beforeIso, limit) / clearCrops(ids)
@@ -68,6 +69,9 @@ function shopOut(r) {
     pictureKind: r.picture_kind ?? null,
     // 'presenter': a person presents the offers in videos (minimartCrop.js).
     style: r.style ?? null,
+    // The owner's name for the shop, shown instead of `title` (2026-11-14).
+    nameAr: r.name_ar ?? null,
+    nameEn: r.name_en ?? null,
     addedAt: r.added_at,
     lastCheckedAt: r.last_checked_at,
     nextCheckAt: r.next_check_at,
@@ -140,6 +144,19 @@ export function createMinimartStore(db) {
     },
 
     // 'presenter' or null (minimartCrop.js shopStyle). -> whether the shop exists.
+    // names: { ar?, en? } — a key left out is unchanged, null clears it.
+    async setShopNames(username, names) {
+      const sets = [];
+      const values = [username];
+      for (const [lang, column] of [['ar', 'name_ar'], ['en', 'name_en']]) {
+        if (!Object.prototype.hasOwnProperty.call(names, lang)) continue;
+        values.push(names[lang] ?? null);
+        sets.push(`${column} = ?${values.length}`);
+      }
+      if (!sets.length) return false;
+      return changed(await db.prepare(`UPDATE minimart_shops SET ${sets.join(', ')} WHERE username = ?1`).bind(...values).run());
+    },
+
     async setShopStyle(username, style) {
       return changed(await db.prepare('UPDATE minimart_shops SET style = ?2 WHERE username = ?1').bind(username, style).run());
     },

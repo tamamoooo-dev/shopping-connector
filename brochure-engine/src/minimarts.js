@@ -642,6 +642,14 @@ export function shopWords(title) {
   return nameTokens(title);
 }
 
+// The owner's name for a shop (POST /minimarts/shops { nameAr, nameEn }):
+// one line, at most 40 characters; empty -> null (the profile name again).
+export function ownerShopName(value) {
+  if (typeof value !== 'string') return null;
+  const name = value.replace(/\s+/g, ' ').trim().slice(0, 40).trim();
+  return name || null;
+}
+
 // Two readings name the same product when half the shorter name's words are
 // in the other (readings of one picture vary: "لبنة تركية" / "لبنة").
 export function similarNames(a, b, ignore = null) {

@@ -120,6 +120,19 @@ try {
   assert.equal(out.reader.limitedUntil, far);
   assert.deepEqual(out.checkProblems, []);
 
+  // The owner's name for a shop (2026-11-14), kept when the profile is read again.
+  res = await call(ctx, '/minimarts/shops', { method: 'POST', body: JSON.stringify({ link: 't.sshoco', nameAr: '  كيو ', nameEn: 'Q' }) });
+  out = await res.json();
+  assert.deepEqual([out.shop.title, out.shop.nameAr, out.shop.nameEn], ['وقت التحليهـ', 'كيو', 'Q']);
+  res = await call(ctx, '/minimarts/shops', { method: 'POST', body: JSON.stringify({ link: 't.sshoco' }) });
+  assert.deepEqual([(await res.json()).shop.nameAr], ['كيو'], 'left out: unchanged');
+  res = await call(ctx, '/minimarts/shops', { method: 'POST', body: JSON.stringify({ link: 't.sshoco', nameEn: '', nameAr: 7 }) });
+  out = await res.json();
+  assert.deepEqual([out.shop.nameAr, out.shop.nameEn], [null, null], 'empty or not text: cleared');
+  await call(ctx, '/minimarts/shops', { method: 'POST', body: JSON.stringify({ link: 't.sshoco', nameAr: 'كيو', nameEn: 'Q' }) });
+  out = await (await call(ctx, '/minimarts')).json();
+  assert.deepEqual([out.shops[0].nameAr, out.shops[0].nameEn], ['كيو', 'Q']);
+
   // A presenter shop (2026-11-14): its card shows the product crop, never the frame.
   res = await call(ctx, '/minimarts/shops', { method: 'POST', body: JSON.stringify({ link: 't.sshoco', style: 'presenter' }) });
   assert.equal((await res.json()).shop.style, 'presenter');
