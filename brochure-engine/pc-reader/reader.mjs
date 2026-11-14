@@ -40,6 +40,12 @@
 // reading rounds, the offers of a presenter shop (Q) whose picture has no crop
 // yet are cropped to the product (crop.mjs, rules in src/minimartCrop.js) and
 // posted back (POST /minimarts/reader/crops); their cards show the crop.
+//
+// OFFER GROUPS (2026-11-15, owner: "under each mini market add for main
+// categories frozen food .. food ( all food except frozen and snacks ) drinks
+// , and snacks"): then every live offer not sorted yet gets its group from
+// one Haiku look at its picture (shrunk to 512 px) and name, 15 offers a
+// call (rules in src/minimartCategory.js, POST /minimarts/reader/categories).
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -49,6 +55,7 @@ import sharp from 'sharp';
 import { loadIngestSecret } from '../local-secrets.mjs';
 import { limitOf, limitedEntry, reportUntil, usableAccount } from '../src/readerLimits.js';
 import { cropOffers } from './crop.mjs';
+import { CATEGORY_PROMPT, categoryLabel, parseCategories } from '../src/minimartCategory.js';
 
 const ENGINE = process.env.ENGINE_URL || 'https://brochure-engine.tamamoooo.workers.dev';
 const MODEL = 'claude-haiku-5-5';
@@ -58,6 +65,9 @@ const WORKERS = 2;
 const MAX_ROUNDS = process.argv.includes('--once') ? 1 : 10;
 const CROP_BATCH = 20;
 const CROP_ROUNDS = process.argv.includes('--once') ? 1 : 3;
+const CATEGORY_BATCH = 15;
+const CATEGORY_EDGE = 512;
+const CATEGORY_ROUNDS = process.argv.includes('--once') ? 1 : 30;
 const CALL_TIMEOUT_MS = 5 * 60 * 1000;
 const LOG_DIR = fileURLToPath(new URL('./logs/', import.meta.url));
 const LOG_MAX_BYTES = 1024 * 1024;
@@ -101,11 +111,11 @@ async function engine(path, init = {}) {
 }
 
 // One prepared picture, shrunk for reading (the engine keeps the original).
-async function picture(url) {
+async function picture(url, edge = LONG_EDGE) {
   const res = await fetch(`${ENGINE}${url}`, { signal: AbortSignal.timeout(60_000) });
   if (!res.ok) throw new Error(`picture HTTP ${res.status}`);
   const bytes = Buffer.from(await res.arrayBuffer());
-  const small = await sharp(bytes).rotate().resize({ width: LONG_EDGE, height: LONG_EDGE, fit: 'inside', withoutEnlargement: true })
+  const small = await sharp(bytes).rotate().resize({ width: edge, height: edge, fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 85 }).toBuffer();
   return small.toString('base64');
 }
@@ -360,6 +370,49 @@ async function cropRound() {
   return crops.length;
 }
 
+// One round of offer groups. -> offers answered.
+async function categoryRound() {
+  const started = Date.now();
+  let queue;
+  try {
+    queue = await engine(`/minimarts/reader/categories?limit=${CATEGORY_BATCH}`);
+  } catch (err) {
+    if (/HTTP 404/.test(String(err?.message))) return 0; // an engine without groups
+    throw err;
+  }
+  if (!queue.offers?.length) return 0;
+  const errors = [];
+  const content = [];
+  for (const [i, o] of queue.offers.entries()) {
+    content.push({ type: 'text', text: categoryLabel(i + 1, o) });
+    let data = null;
+    if (o.url) {
+      try {
+        data = await picture(o.url, CATEGORY_EDGE);
+      } catch (err) {
+        errors.push(`${o.offerId}: ${String(err?.message || err).slice(0, 120)}`);
+      }
+    }
+    content.push(data ? { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data } } : { type: 'text', text: '(no picture)' });
+  }
+  content.push({ type: 'text', text: queue.prompt || CATEGORY_PROMPT });
+  const found = parseCategories(await ask(content, errors));
+  const categories = queue.offers
+    .map((o, i) => ({ offerId: o.offerId, name: o.name ?? null, category: found.get(i + 1) }))
+    .filter((c) => c.category);
+  let results = [];
+  if (categories.length) results = (await engine('/minimarts/reader/categories', { method: 'POST', body: JSON.stringify({ categories }) })).results || [];
+  log({
+    categories: queue.offers.length,
+    saved: results.filter((r) => r.status === 'saved').length,
+    unanswered: queue.offers.length - categories.length,
+    calls: usage.calls, failed: usage.failed, input: usage.input, output: usage.output,
+    ms: Date.now() - started, errors: errors.slice(0, 5),
+  });
+  Object.assign(usage, { calls: 0, failed: 0, input: 0, output: 0, thinking: 0, costUSD: 0, by: {} });
+  return categories.length;
+}
+
 try {
   if (!usable()) {
     await reportLimit(); // no model is asked before a reset
@@ -376,6 +429,9 @@ try {
     }
     for (let i = 0; i < CROP_ROUNDS && usable(); i += 1) {
       if (!(await cropRound())) break;
+    }
+    for (let i = 0; i < CATEGORY_ROUNDS && usable(); i += 1) {
+      if (!(await categoryRound())) break;
     }
     if (!usable()) await reportLimit();
   }

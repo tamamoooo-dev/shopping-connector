@@ -1,0 +1,11 @@
+-- Mini marts: an offer's group (2026-11-15). The owner: "under each mini
+-- market add for main categories frozen food .. food ( all food except
+-- frozen and snacks ) drinks , and snacks".
+--   minimart_offers.category: frozen | food | drinks | snacks | other |
+--     unknown (src/minimartCategory.js), set once by the PC reader (Haiku,
+--     the offer's picture and name). NULL = not sorted yet (shown under
+--     "All" only).
+--
+-- Additive only. Apply BEFORE deploying the engine that reads this column:
+--   npx wrangler d1 execute brochure-engine --remote --file=migrate-2026-11-15-minimart-categories.sql --yes
+ALTER TABLE minimart_offers ADD COLUMN category TEXT;

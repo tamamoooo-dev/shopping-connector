@@ -948,7 +948,8 @@ CREATE TABLE IF NOT EXISTS minimart_offers (
   shown_name     TEXT,                              -- the name's printed words; '' = a guess (not shown), NULL unchecked
   size_printed   INTEGER,                           -- the same for size (2026-11-05)
   crop_key       TEXT,                              -- R2 key of the product crop (presenter shops, 2026-11-14)
-  crop_of        TEXT                               -- the image_key that crop was made from
+  crop_of        TEXT,                              -- the image_key that crop was made from
+  category       TEXT                               -- frozen|food|drinks|snacks|other|unknown, NULL = not sorted (2026-11-15)
 );
 
 CREATE INDEX IF NOT EXISTS ix_minimart_offers_live

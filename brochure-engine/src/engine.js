@@ -71,6 +71,7 @@ import {
   claimForReader, saveReaderReadings, queueReread, setReaderLimit, ownerShopName,
 } from './minimarts.js';
 import { PRESENTER, cropKeyFor, shopStyle } from './minimartCrop.js';
+import { CATEGORY_PROMPT, categoryOf } from './minimartCategory.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
 // extracts prices from flyer images; the flyer prevails on any mismatch).
@@ -86,6 +87,7 @@ const TRUSTED_CANONICAL_BANDS = new Set(['auto', 'created']);
 // at a time, and the largest crop accepted.
 const CROP_QUEUE_MAX = 40;
 const CROP_MAX_BYTES = 1500 * 1024;
+const CATEGORY_QUEUE_MAX = 60;
 
 function isTrustedCanonicalBand(band) {
   return TRUSTED_CANONICAL_BANDS.has(band);
@@ -531,6 +533,49 @@ export async function handleRequest(request, ctx) {
           url: `/minimarts/image?key=${encodeURIComponent(o.imageKey)}`,
         })),
       });
+    }
+
+    // Offer groups (2026-11-15, minimartCategory.js): live offers not sorted
+    // yet, with the picture their card shows (else the frame) and the name
+    // they were read as (a guess included: it only sorts, it is not shown).
+    if (path === '/minimarts/reader/categories' && request.method === 'GET') {
+      const asked = Number(url.searchParams.get('limit'));
+      const limit = Number.isFinite(asked) && asked >= 1 ? Math.min(CATEGORY_QUEUE_MAX, Math.floor(asked)) : CATEGORY_QUEUE_MAX;
+      const offers = await store.categoryQueue(new Date().toISOString(), limit);
+      return json({
+        prompt: CATEGORY_PROMPT,
+        offers: offers.map((o) => {
+          const key = o.shopStyle === PRESENTER && o.cropKey && o.cropOf === o.imageKey ? o.cropKey : o.imageKey;
+          return {
+            offerId: o.id, name: o.name ?? null, brand: o.brand ?? null, size: o.size ?? null,
+            url: key ? `/minimarts/image?key=${encodeURIComponent(key)}` : null,
+          };
+        }),
+      });
+    }
+
+    // { categories: [{ offerId, category, name }] }: `name` is the name the
+    // queue gave; an offer re-read to another name since is left for later.
+    if (path === '/minimarts/reader/categories' && request.method === 'POST') {
+      let body = {};
+      try { body = await request.json(); } catch { body = {}; }
+      const list = Array.isArray(body?.categories) ? body.categories.slice(0, CATEGORY_QUEUE_MAX) : [];
+      const asked = list.map((c) => ({ id: c?.offerId ? String(c.offerId) : null, category: categoryOf(c?.category), name: c?.name ?? null }));
+      const valid = asked.filter((c) => c.id && c.category);
+      const saved = new Set(await store.saveCategories(valid));
+      const results = asked.map((c) => (c.id && c.category
+        ? { offerId: c.id, category: c.category, status: saved.has(c.id) ? 'saved' : 'conflict' }
+        : { offerId: c.id, status: 'invalid' }));
+      await ctx.opsStore?.record({
+        ts: new Date().toISOString(),
+        action: 'reader:minimarts-categories',
+        origin: 'pc',
+        ok: results.every((r) => r.status === 'saved'),
+        offers: saved.size,
+        failed: results.filter((r) => r.status === 'invalid').length,
+        detail: { results: results.slice(0, 60) },
+      }).catch(() => {});
+      return json({ results });
     }
 
     // { crops: [{ offerId, imageKey, image: base64 JPEG | null, kind, rect }] }:

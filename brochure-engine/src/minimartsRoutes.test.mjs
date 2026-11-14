@@ -120,6 +120,36 @@ try {
   assert.equal(out.reader.limitedUntil, far);
   assert.deepEqual(out.checkProblems, []);
 
+  // Offer groups (2026-11-15): the reader sorts each live offer once.
+  {
+    res = await call(reader, '/minimarts/reader/categories', { headers: key });
+    out = await res.json();
+    assert.ok(out.prompt.includes('"frozen"'));
+    const queued = out.offers.map((o) => [o.offerId, o.name]).sort();
+    assert.deepEqual(queued, [['R38XrLDwQ5SH2jq-2SFujQ:1', 'لبنة تركية'], ['R38XrLDwQ5SH2jq-2SFujQ:2', 'مربى الفراولة']]);
+    const urlOf = (id) => out.offers.find((o) => o.offerId === id).url;
+    assert.equal(urlOf('R38XrLDwQ5SH2jq-2SFujQ:1'), '/minimarts/image?key=minimarts%2Ft.sshoco%2FR38XrLDwQ5SH2jq-2SFujQ-photo.jpg');
+    assert.equal(urlOf('R38XrLDwQ5SH2jq-2SFujQ:2'), null);
+    res = await call(reader, '/minimarts/reader/categories', { method: 'POST', headers: key, body: JSON.stringify({ categories: [
+      { offerId: 'R38XrLDwQ5SH2jq-2SFujQ:1', category: 'food', name: 'لبنة تركية' },
+      { offerId: 'R38XrLDwQ5SH2jq-2SFujQ:2', category: 'food', name: 'مربى' }, // re-read to another name since
+      { offerId: 'R38XrLDwQ5SH2jq-2SFujQ:2', category: 'dessert' },
+    ] }) });
+    assert.deepEqual((await res.json()).results.map((r) => r.status), ['saved', 'conflict', 'invalid']);
+    const live = (await (await call(ctx, '/minimarts')).json()).offers;
+    assert.equal(live.find((o) => o.price === 11.5).category, 'food');
+    assert.equal(live.find((o) => o.price === 37.5).category, null);
+    out = await (await call(reader, '/minimarts/reader/categories', { headers: key })).json();
+    assert.deepEqual(out.offers.map((o) => o.offerId), ['R38XrLDwQ5SH2jq-2SFujQ:2']);
+    // A re-read that changes the name sorts it again; the same name keeps it.
+    const [lebnaOffer] = (await minimartStore.offersOfSnap('R38XrLDwQ5SH2jq-2SFujQ')).filter((o) => o.price === 11.5);
+    await minimartStore.rewriteOffer(lebnaOffer.id, { ...lebnaOffer, imageKey: null });
+    assert.equal((await minimartStore.offersOfSnap('R38XrLDwQ5SH2jq-2SFujQ')).find((o) => o.price === 11.5).category, 'food');
+    await minimartStore.rewriteOffer(lebnaOffer.id, { ...lebnaOffer, name: 'لبنة', imageKey: null });
+    assert.equal((await minimartStore.offersOfSnap('R38XrLDwQ5SH2jq-2SFujQ')).find((o) => o.price === 11.5).category, null);
+    await minimartStore.rewriteOffer(lebnaOffer.id, { ...lebnaOffer, imageKey: null });
+  }
+
   // The owner's name for a shop (2026-11-14), kept when the profile is read again.
   res = await call(ctx, '/minimarts/shops', { method: 'POST', body: JSON.stringify({ link: 't.sshoco', nameAr: '  كيو ', nameEn: 'Q' }) });
   out = await res.json();

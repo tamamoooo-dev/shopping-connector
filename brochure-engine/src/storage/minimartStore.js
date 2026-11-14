@@ -23,6 +23,8 @@
 //   repostOffer(id, { postedAt, expiresAt }) / retireOffer(id, nowIso)
 //   liveOffers(nowIso) -> offers on show, newest posting first
 //   The owner's name for a shop (2026-11-14): setShopNames(username, { ar?, en? }).
+//   Offer groups (2026-11-15, minimartCategory.js): categoryQueue(nowIso, limit);
+//   saveCategories([{ id, category, name }]) -> ids saved.
 //   A presenter shop (2026-11-14, minimartCrop.js): setShopStyle(username, style);
 //   cropQueue(nowIso, limit) -> offers whose picture has no crop yet;
 //   saveCrop(id, imageKey, cropKey) -> { saved, oldCropKey }; expiredCrops(beforeIso, limit) / clearCrops(ids)
@@ -54,6 +56,8 @@ function offerOut(r) {
     cropKey: r.crop_key ?? null,
     cropOf: r.crop_of ?? null,
     shopStyle: r.shop_style ?? null,
+    // frozen | food | drinks | snacks | other | unknown; null = not sorted yet (2026-11-15).
+    category: r.category ?? null,
   };
 }
 
@@ -489,7 +493,8 @@ export function createMinimartStore(db) {
         .prepare(
           `UPDATE minimart_offers SET
              name = ?2, shown_name = ?3, brand = ?4, size = ?5, size_printed = ?6, count = ?7, unit = ?8,
-             price = ?9, was_price = ?10, image_key = COALESCE(?11, image_key), votes = ?12
+             price = ?9, was_price = ?10, image_key = COALESCE(?11, image_key), votes = ?12,
+             category = CASE WHEN name IS ?2 THEN category ELSE NULL END
            WHERE id = ?1`,
         )
         .bind(id, o.name, o.shownName ?? null, o.brand ?? null, o.size ?? null, o.sizePrinted ?? null, o.count || 1,
@@ -681,6 +686,34 @@ export function createMinimartStore(db) {
         .bind(id, imageKey, cropKey)
         .run());
       return { saved, oldCropKey: saved && before.crop_key && before.crop_key !== cropKey ? before.crop_key : null };
+    },
+
+    // Live offers not sorted into a group yet, newest first (2026-11-15).
+    async categoryQueue(nowIso, limit) {
+      const { results } = await db
+        .prepare(
+          `SELECT o.*, m.style AS shop_style FROM minimart_offers o
+           JOIN minimart_shops m ON m.username = o.username AND m.active = 1
+           WHERE o.expires_at > ?1 AND o.category IS NULL
+           ORDER BY o.created_at DESC, o.id LIMIT ?2`,
+        )
+        .bind(nowIso, limit)
+        .all();
+      return (results || []).map(offerOut);
+    },
+
+    // [{ id, category }] -> ids saved. An offer whose name a re-read changed
+    // since it was queued (`name`) is left for the next round.
+    async saveCategories(list) {
+      const saved = [];
+      for (const { id, category, name } of list) {
+        const res = await db
+          .prepare('UPDATE minimart_offers SET category = ?2 WHERE id = ?1 AND name IS ?3')
+          .bind(id, category, name ?? null)
+          .run();
+        if (changed(res)) saved.push(id);
+      }
+      return saved;
     },
 
     // Crops of offers that expired before `beforeIso` (they leave R2 with their pictures).
