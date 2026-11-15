@@ -383,7 +383,7 @@ test('BRAND_BY_SLUG resolves display names for the API', () => {
 /* --- the API document builders (stub store — no D1, no network) ------------------ */
 
 import { getBrowseSummaryDoc, getBrowseOffersDoc } from './api.js';
-import { handleRequest } from '../engine.js';
+import { handleRequest, markBrowseChanged } from '../engine.js';
 
 // A fixture row factory in the browse store's joined shape.
 let seq = 0;
@@ -611,6 +611,47 @@ await (async () => {
     const body = await resp.json();
     assert.ok(body.note, 'honesty note present');
     assert.ok(Array.isArray(body.departments) && body.departments.length);
+  });
+
+  // The edge cache, with a Map standing in for Cloudflare's. Pins the
+  // 2026-11-15 defect: writes cleared `/browse` while the app's entry lived
+  // under `/browse?v=...`, so a new flyer never reached the cached summary.
+  test('route: a write that reshapes Browse makes the next summary a new build', async () => {
+    const edge = new Map();
+    const hadCaches = Object.prototype.hasOwnProperty.call(globalThis, 'caches');
+    const before = globalThis.caches;
+    globalThis.caches = { default: {
+      async match(key) { return edge.get(String(key))?.clone(); },
+      async put(key, resp) { edge.set(String(key), resp); },
+    } };
+    try {
+      const stored = new Map();
+      const cachedCtx = stubCtx({ rows });
+      cachedCtx.objectStore = {
+        async get(key) { return stored.has(key) ? { bytes: stored.get(key), contentType: 'text/plain' } : null; },
+        async put(key, bytes) { stored.set(key, bytes); },
+      };
+      let builds = 0;
+      const counts = cachedCtx.browseStore.categoryCounts;
+      cachedCtx.browseStore.categoryCounts = async (...a) => { builds += 1; return counts(...a); };
+      const get = (v) => handleRequest(new Request(`https://engine.test/browse?v=${v}`), cachedCtx);
+
+      const first = await get('app-version-1');
+      assert.equal(first.status, 200);
+      assert.equal(first.headers.get('Cache-Control'), 'public, max-age=120, s-maxage=3600',
+        'the browser keeps the summary 2 minutes, the edge an hour');
+      assert.equal(builds, 1);
+      await get('app-version-2');
+      assert.equal(builds, 1, "the app's ?v= is not part of the cache key");
+
+      await markBrowseChanged(cachedCtx);
+      await get('app-version-1');
+      assert.equal(builds, 2, 'after a write the next read builds a new summary');
+      await get('app-version-1');
+      assert.equal(builds, 2, 'and that one is cached in turn');
+    } finally {
+      if (hadCaches) globalThis.caches = before; else delete globalThis.caches;
+    }
   });
 
   test('route: GET /browse/offers validates the store id', async () => {

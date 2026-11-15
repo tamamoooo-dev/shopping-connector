@@ -495,6 +495,51 @@ export function createD1EnrichStore(db) {
       return { updated: rows.length };
     },
 
+    // Current offers whose SAVED classification is a fresh or frozen aisle
+    // reached from a word in the name, with no retailer category behind it:
+    // the rows knowledge/classification.js freshGuessChallenge can re-file.
+    // Read-only. The classification is returned as its saved JSON text.
+    async listNameWordFresh({ currentOn, after = '', limit = 500 } = {}) {
+      const saved = "'$._arabic_builder.product_title.classification";
+      const { results } = await db
+        .prepare(
+          `SELECT e.id, e.name, e.name_ar, e.brand, o.category, o.source,
+                  json_extract(e.extraction_json, ${saved}') AS classification
+             FROM offer_enrichments e
+             JOIN offers o ON o.id = e.id
+            WHERE o.valid_to >= ? AND e.id > ? AND json_valid(e.extraction_json)
+              AND json_extract(e.extraction_json, ${saved}.department') IN ('fresh','frozen')
+              AND json_extract(e.extraction_json, ${saved}.source') IN
+                  ('english_dictionary','arabic_dictionary','product_title_dictionary',
+                   'explicit_category_terms','brand_archive_consensus')
+            ORDER BY e.id ASC
+            LIMIT ?`,
+        )
+        .bind(currentOn, String(after || ''), Math.max(1, Math.min(Number(limit) || 500, 2000)))
+        .all();
+      return results || [];
+    },
+
+    // Replace ONE saved field, the classification inside the stored product
+    // title. Nothing else in the row is read back or rewritten: not the names,
+    // not the identity candidate, not the mint verdict.
+    async applyClassifications(rows) {
+      if (!rows?.length) return { updated: 0 };
+      for (let i = 0; i < rows.length; i += 50) {
+        await db.batch(
+          rows.slice(i, i + 50).map((r) => db
+            .prepare(
+              `UPDATE offer_enrichments
+                  SET extraction_json = json_set(extraction_json,
+                        '$._arabic_builder.product_title.classification', json(?))
+                WHERE id = ? AND json_valid(extraction_json)`,
+            )
+            .bind(JSON.stringify(r.classification), r.id)),
+        );
+      }
+      return { updated: rows.length };
+    },
+
     // Explicit allowlist used only by staged historical re-enrichment. Unlike
     // listDebris it may return an already-enriched crop, but never widens past
     // the supplied IDs and never mutates Registry state itself.

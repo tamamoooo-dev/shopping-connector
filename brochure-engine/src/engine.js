@@ -54,6 +54,7 @@ import {
 } from './monitor.js';
 import { getHotspotsDoc } from './hotspots.js';
 import { getBrowseSummaryDoc, getBrowseOffersDoc } from './browse/api.js';
+import { classifyArchivedProduct } from './knowledge/classification.js';
 import { detectBrand } from './browse/brands.js';
 import { watchesWithSearchIdentity } from './watchSearchIdentity.js';
 import { processWatchRuns } from './watchSchedule.js';
@@ -143,15 +144,40 @@ function json(body, status = 200, extra = {}) {
   });
 }
 
-// Drop the edge-cached /browse summary after a write that reshapes it (offers
-// ingest, backfill) so the market floor reflects fresh data immediately
-// instead of waiting out the 1h TTL. Cache API deletes are per-colo — which
-// covers the single-user reality; other colos simply age out. Best-effort:
-// no caches binding (local dev harness) is fine.
-async function purgeBrowseCache(url) {
+// The edge-cached /browse summary, and how a write that reshapes it (offers
+// ingest, backfill, a re-filing) makes the next read build a new one.
+//
+// The summary is cached under a key WE build: the summary's shape and the
+// data GENERATION, a stamp kept in the object store that every such write
+// replaces. A new generation is a new key, so the next /browse in ANY
+// Cloudflare location misses and rebuilds; the old entry ages out.
+//
+// What this replaces (found 2026-11-15): the write paths deleted the cache
+// entry `/browse`, while the app reads `/browse?v=<its version>` and the
+// entry was stored under that full URL -- a different key, so nothing was
+// ever cleared. A Cache API delete also reaches only the location it runs
+// in, and a cron-run ingest does not run where the owner's phone reads.
+const BROWSE_SUMMARY_SHAPE = '2'; // bump when the summary document changes shape
+const BROWSE_GENERATION_KEY = 'cache/browse-generation.txt';
+
+async function browseGeneration(ctx) {
   try {
-    const cache = globalThis.caches ? globalThis.caches.default : null;
-    if (cache) await cache.delete(new URL('/browse', url.origin).toString());
+    const stored = ctx.objectStore ? await ctx.objectStore.get(BROWSE_GENERATION_KEY) : null;
+    return (stored && new TextDecoder().decode(stored.bytes).trim()) || '0';
+  } catch {
+    return '0'; // an unreadable stamp must never take Browse down
+  }
+}
+
+// Best-effort: a failed stamp leaves the summary to age out within the hour,
+// which is what happened on every write before this existed.
+export async function markBrowseChanged(ctx) {
+  try {
+    if (ctx.objectStore) {
+      await ctx.objectStore.put(BROWSE_GENERATION_KEY, new TextEncoder().encode(String(Date.now())), {
+        contentType: 'text/plain',
+      });
+    }
   } catch {
     /* best-effort */
   }
@@ -711,19 +737,24 @@ export async function handleRequest(request, ctx) {
   // Read-only views over the offers/price-history substrate, speaking ONLY
   // canonical taxonomy ids (browse/taxonomy.js). /browse is the market floor
   // (departments + rails, one payload); /browse/offers the universal listing.
-  // The summary is edge-cached: the substrate changes 3×/week, so an hour of
-  // staleness is invisible — and a cold build costs a few D1 queries anyway.
+  // The summary is edge-cached for an hour under shape + data generation (see
+  // markBrowseChanged): the request's own query string is not part of the key,
+  // so the app's `?v=` cannot hide an entry from the writes that replace it.
+  // The browser keeps its copy 2 minutes (max-age), the edge an hour
+  // (s-maxage): a browser holding the summary for an hour would undo the
+  // generation for the one person who uses it.
   if (path === '/browse' && request.method === 'GET') {
     if (!ctx.browseStore) return json({ error: 'Browse unavailable.' }, 503);
     const cache = globalThis.caches ? globalThis.caches.default : null;
+    const cacheKey = `${url.origin}/browse?shape=${BROWSE_SUMMARY_SHAPE}&gen=${encodeURIComponent(await browseGeneration(ctx))}`;
     if (cache) {
-      const hit = await cache.match(request.url);
+      const hit = await cache.match(cacheKey);
       if (hit) return hit;
     }
     const doc = await getBrowseSummaryDoc(ctx, todayISO());
     doc.note = OFFERS_NOTE;
-    const resp = json(doc, 200, { 'Cache-Control': 'public, max-age=3600' });
-    if (cache) await cache.put(request.url, resp.clone());
+    const resp = json(doc, 200, { 'Cache-Control': 'public, max-age=120, s-maxage=3600' });
+    if (cache) await cache.put(cacheKey, resp.clone());
     return resp;
   }
 
@@ -967,6 +998,58 @@ export async function handleRequest(request, ctx) {
     });
   }
 
+  // Re-file saved classifications that put a product in Fresh (or its frozen
+  // counterpart) on the strength of a word in its name, against the current
+  // rule (knowledge/classification.js freshGuessChallenge). A saved
+  // classification is written once, when the offer is read, so a better rule
+  // reaches the offers already on the page only through this.
+  //
+  // Narrow on purpose: it touches only current offers, only rows the challenge
+  // itself moves, and only the one saved field. Everything else a full
+  // recompute would change is left alone. No model is called.
+  //
+  //   (default)  write nothing; list every row that would move, from -> to
+  //   ?apply=1   write those rows, then mark Browse changed
+  if (path === '/enrich/refile-fresh' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.enrichStore?.listNameWordFresh) return json({ error: 'Re-filing unavailable.' }, 503);
+    const apply = url.searchParams.get('apply') === '1';
+    const after = url.searchParams.get('after') || '';
+    const limit = Math.max(1, Math.min(Number(url.searchParams.get('limit')) || 500, 2000));
+    const rows = await ctx.enrichStore.listNameWordFresh({ currentOn: todayISO(), after, limit });
+    const changes = [];
+    for (const row of rows) {
+      let saved = null;
+      try { saved = JSON.parse(row.classification); } catch { /* an unreadable field is re-filed like any other */ }
+      const next = classifyArchivedProduct({
+        id: row.id, name: row.name, nameAr: row.name_ar, brand: row.brand, category: row.category, source: row.source,
+      });
+      if (next.challenge !== 'fresh_name_word') continue; // not this rule's doing
+      if (saved?.status === next.status && saved?.aisle === next.aisle) continue;
+      changes.push({
+        id: row.id, name: row.name, nameAr: row.name_ar, brand: row.brand,
+        from: saved?.aisle ?? null, to: next.aisle, by: next.source, classification: next,
+        // The whole field as it was, so a dry run's output is also the record
+        // needed to put a row back.
+        savedBefore: saved,
+      });
+    }
+    if (apply && changes.length) {
+      await ctx.enrichStore.applyClassifications(changes);
+      await markBrowseChanged(ctx);
+    }
+    return json({
+      mode: apply ? 'applied' : 'dry-run (nothing written)',
+      scanned: rows.length,
+      wouldMove: changes.length,
+      written: apply ? changes.length : 0,
+      nextAfter: rows.length === limit ? rows[rows.length - 1].id : null,
+      changes: changes.map(({ classification, ...shown }) => shown),
+    });
+  }
+
   // Per-product tap targets for a held brochure's pages (see hotspots.js):
   // parsed once from the flyer source, cached in KV, joined to the flyer's
   // offers rows so one call powers the whole tappable-brochure experience.
@@ -1098,7 +1181,7 @@ export async function handleRequest(request, ctx) {
       report.targets.push({ store: s, ...h, offersStamped: stamped });
     }
     report.finishedAt = new Date().toISOString();
-    await purgeBrowseCache(url); // identities/brands just changed shape
+    await markBrowseChanged(ctx); // identities/brands just changed shape
     return json(report);
   }
 
@@ -1560,10 +1643,10 @@ export async function handleRequest(request, ctx) {
       url.searchParams.get('offers') !== '0'
     ) {
       report.offers = await ingestOffers(ctx, { store });
-      await purgeBrowseCache(url); // fresh offers reshape the market floor
+      await markBrowseChanged(ctx); // fresh offers reshape the market floor
     }
     if (resumableTarget && report.offers) {
-      await purgeBrowseCache(url);
+      await markBrowseChanged(ctx);
     }
     // Audit (Ops Console timeline): every ingest run — cron child or manual —
     // records one row. Best-effort: a failed write never fails the ingest.
@@ -1932,7 +2015,7 @@ export async function handleRequest(request, ctx) {
         report.enrichment = { error: String(err?.message || err).slice(0, 160) };
       }
     }
-    if (report.accepted) await purgeBrowseCache(url); // new offers reshape the market floor
+    if (report.accepted) await markBrowseChanged(ctx); // new offers reshape the market floor
     if (ctx.opsStore) {
       await ctx.opsStore.record({
         ts: report.startedAt,

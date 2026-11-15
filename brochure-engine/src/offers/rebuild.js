@@ -64,6 +64,13 @@ export function rebuildRow(row, { identityNormalizationMode = 'strict' } = {}) {
   };
   const observation = observationOf(row.extraction_json);
   const knowledge = productKnowledge(extracted, observation, {
+    // The offer's id and retailer category, as at enrich time. Without them
+    // the saved classification was recomputed from the name alone, so a
+    // rebuild would have re-filed every product by a word in its name and
+    // dropped its image review (found 2026-11-15; `listForRebuild` already
+    // selected the category, nothing passed it on).
+    id: row.id ?? null,
+    category: row.category ?? null,
     price: row.price ?? null,
     currency: row.currency ?? null,
     store: String(row.id ?? '').split(':')[0] || null,

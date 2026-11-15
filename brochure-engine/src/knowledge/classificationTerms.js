@@ -50,6 +50,14 @@ export const CLASSIFICATION_ARABIC = [
  ['outdoors-tools',['كماشه','مفك','مثقاب','مضخه ضغط','ضاغط ضغط','ادوات سباكه','شوايه','منقل','خيمه','طقم مفكات']],
 ];
 export const CLASSIFICATION_ENGLISH = [
+ // Products whose names carry a fresh-food word as an ingredient, a flavour or
+ // a purpose (2026-11-15, read off the live Fresh department). These outrank a
+ // fresh aisle guessed from that word (classification.js freshGuessChallenge).
+ ['pasta-noodles',['instant noodle','noodle bag','noodle cup','noodle']],
+ ['appliances',['meat grinder','meat mincer']],
+ ['kitchen-dining',['lemon squeezer','potato masher','squeezer','masher']],
+ ['chips-snacks',['beef jerky','jerky']],
+ ['canned-food',['corned beef','sieved tomatoes','sieved tomato','chopped tomatoes','tomato puree','tomato peeled']],
  ['skin-face',['hyaluron expert','lip therapy']],
  ['sauces-spreads',["smucker's gooper","smucker's goober"]],
  ['chips-snacks',["herr's restaurant style"]],

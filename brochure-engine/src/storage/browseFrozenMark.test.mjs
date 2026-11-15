@@ -21,6 +21,7 @@ const TODAY = '2026-07-20';
 // D1 refuses a statement over 100,000 bytes. Half of it is the ceiling here, so
 // a later growth of the name expression fails this test long before production.
 const STATEMENT_CEILING = 50_000;
+const BOUND_CEILING = 40;
 
 const { db, raw, close } = createSqliteD1(['schema.sql']);
 
@@ -40,6 +41,12 @@ const NAMES = [
 insertOffers(raw, NAMES.map(([name, name_ar], i) => ({
   id: `lulu:central:d4d:${i + 1}`, name, name_ar, price: 10 + i, category: 'fresh-chicken-poultry',
 })));
+// Two rows no source maps: a category slug nobody knows, and no category.
+// Names the classifier cannot place either, so they belong to More.
+insertOffers(raw, [
+  { id: 'lulu:central:d4d:901', name: 'Zzyx Qwv', price: 3, category: 'a-slug-nobody-maps' },
+  { id: 'lulu:central:d4d:902', name: 'Zzyx Qwv Two', price: 4, category: null },
+]);
 raw.exec("UPDATE offers SET brochure_id = 'fixture-brochure', page_index = 0");
 
 const expectFrozen = NAMES.filter(([n, a]) => isFrozenMarked(n, a)).length;
@@ -49,11 +56,19 @@ assert.ok(expectFrozen >= 5 && expectFresh >= 4, 'the fixture covers both sides 
 let assertions = 0;
 for (const builtArabicNamesEnabled of [false, true]) {
   const statements = [];
+  const boundCounts = [];
   const recording = {
     ...db,
     prepare(sql) {
       statements.push(Buffer.byteLength(sql));
-      return db.prepare(sql);
+      const statement = db.prepare(sql);
+      return {
+        ...statement,
+        bind(...args) {
+          boundCounts.push(args.length);
+          return statement.bind(...args);
+        },
+      };
     },
   };
   const store = createD1BrowseStore(recording, { builtArabicNamesEnabled });
@@ -83,12 +98,25 @@ for (const builtArabicNamesEnabled of [false, true]) {
   for (const d of DEPARTMENTS) await getBrowseOffersDoc(ctx, { dept: d.id }, TODAY);
   for (const a of AISLES) await getBrowseOffersDoc(ctx, { aisle: a.id, sort: 'price' }, TODAY);
   await getBrowseOffersDoc(ctx, { dept: 'fresh', brand: 'almarai' }, TODAY);
+  await getBrowseOffersDoc(ctx, { dept: 'more', store: 'lulu', brand: 'almarai' }, TODAY);
   const largest = Math.max(...statements);
   assert.ok(
     largest < STATEMENT_CEILING,
     `largest Browse statement is ${largest} bytes; D1 refuses 100,000 (ceiling here ${STATEMENT_CEILING})`,
   );
-  assertions += 9;
+  // D1 refuses more than 100 bound parameters. The More department bound 175
+  // (every mapped category of every source) and answered 500.
+  const mostBound = Math.max(...boundCounts);
+  assert.ok(
+    mostBound <= BOUND_CEILING,
+    `a Browse statement binds ${mostBound} parameters; D1 refuses over 100 (ceiling here ${BOUND_CEILING})`,
+  );
+
+  // The More department: only what no source maps, saved classification included.
+  const more = await getBrowseOffersDoc(ctx, { dept: 'more' }, TODAY);
+  assert.equal(more.count, 2, 'More: the unmapped-category row and the no-category row');
+  assert.ok(more.offers.every((o) => o.aisle === 'other'), 'More cards say other');
+  assertions += 12;
 }
 
 close();

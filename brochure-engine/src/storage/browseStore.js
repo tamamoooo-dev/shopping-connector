@@ -216,14 +216,21 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
         'o.page_index IS NOT NULL',
       ];
       const binds = [currentOn];
+      // Category lists are written into the statement, not bound. They are
+      // OUR constants (browse/mapping.js slugs and taxonomy aisle ids), never
+      // request input, and D1 refuses a statement with more than 100 bound
+      // parameters: the `other` aisle excludes every mapped category of every
+      // source (96 + 74), so the More department answered 500 from the day the
+      // saved-classification source was added (2026-10-23; found 2026-11-15).
+      const inList = (categories) => categories.map((c) => `'${String(c).replace(/'/g, "''")}'`).join(',');
       if (include) {
         if (!include.length) return []; // no source feeds these aisles
         // A group's optional `frozen` mode ('exclude' | 'only') applies the
         // fresh->frozen name refinement inside SQL, so pagination and counts
         // stay exact (browse/api.js categoryFilter builds the groups).
         const parts = include.map(({ source, categories, frozen }) => {
-          binds.push(source, ...categories);
-          let p = `(${sourceSql} = ? AND ${categorySql} IN (${categories.map(() => '?').join(',')})`;
+          binds.push(source);
+          let p = `(${sourceSql} = ? AND ${categorySql} IN (${inList(categories)})`;
           if (frozen === 'exclude') p += ` AND NOT ${frozenMarkSql}`;
           else if (frozen === 'only') p += ` AND ${frozenMarkSql}`;
           return `${p})`;
@@ -232,9 +239,9 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
       }
       if (excludeMapped) {
         for (const { source, categories } of excludeMapped) {
-          binds.push(source, ...categories);
+          binds.push(source);
           where.push(
-            `(${sourceSql} != ? OR ${categorySql} IS NULL OR ${categorySql} NOT IN (${categories.map(() => '?').join(',')}))`,
+            `(${sourceSql} != ? OR ${categorySql} IS NULL OR ${categorySql} NOT IN (${inList(categories)}))`,
           );
         }
       }
