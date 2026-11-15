@@ -501,14 +501,20 @@ await (async () => {
     assert.equal(more.aisles[0].offers, 1);
   });
 
-  test('summary: exactly the two kept rails, nothing else (V1.1 simplification)', () => {
-    assert.deepEqual(doc.rails.map((r) => r.id).sort(), ['drops', 'lowest-ever']);
+  test('summary: Biggest Drops is the one rail (Lowest Ever removed 2026-11-15)', () => {
+    assert.deepEqual(doc.rails.map((r) => r.id), ['drops']);
   });
 
-  test('summary: lowest-ever carries the history-verified deal with its badge', () => {
-    const lowest = doc.rails.find((r) => r.id === 'lowest-ever');
-    assert.ok(lowest && lowest.items.length === 1);
-    const card = lowest.items[0];
+  test('summary: no longer reads the candidates pool (the removed rail was its only reader)', async () => {
+    const ctxNoPool = stubCtx({ rows });
+    ctxNoPool.browseStore.candidates = async () => { throw new Error('the summary read the candidates pool'); };
+    const d = await getBrowseSummaryDoc(ctxNoPool, TODAY);
+    assert.deepEqual(d.rails.map((r) => r.id), ['drops']);
+  });
+
+  test('a card keeps its lowest-ever note without the rail', async () => {
+    const d = await getBrowseOffersDoc(stubCtx({ rows: [lowRow()] }), { rail: 'drops' }, TODAY);
+    const card = d.offers[0];
     assert.ok(card.badges.lowestEver, 'lowest-ever badge rides the card');
     assert.equal(card.aisle, 'cheese-cream');
     assert.equal(card.dept, 'dairy-eggs');
@@ -583,18 +589,19 @@ await (async () => {
     assert.ok((await getBrowseOffersDoc(ctx, { rail: 'exceptional' }, TODAY)).error);
     assert.ok((await getBrowseOffersDoc(ctx, { rail: 'ending-soon' }, TODAY)).error);
     assert.ok((await getBrowseOffersDoc(ctx, { rail: 'new-this-week' }, TODAY)).error);
+    assert.ok((await getBrowseOffersDoc(ctx, { rail: 'lowest-ever' }, TODAY)).error);
   });
 
-  test('listing: rail=lowest-ever pages the history-verified pool', async () => {
-    const d = await getBrowseOffersDoc(ctx, { rail: 'lowest-ever' }, TODAY);
+  test('listing: rail=drops pages the advertised cuts', async () => {
+    const d = await getBrowseOffersDoc(stubCtx({ rows: [lowRow()] }), { rail: 'drops' }, TODAY);
     assert.equal(d.count, 1);
     assert.equal(d.offers[0].badges.drop, 43);
   });
 
   test('listing: dedupe collapses same-identity same-store variants', async () => {
     const twin = { ...lowRow(), id: 'lulu:central:d4d:twin', identity: candidates[0].identity, price: candidates[0].price };
-    const ctx2 = stubCtx({ rows, candidates: [candidates[0], twin] });
-    const d = await getBrowseOffersDoc(ctx2, { rail: 'lowest-ever' }, TODAY);
+    const ctx2 = stubCtx({ rows: [candidates[0], twin] });
+    const d = await getBrowseOffersDoc(ctx2, { rail: 'drops' }, TODAY);
     assert.equal(d.count, 1);
   });
 

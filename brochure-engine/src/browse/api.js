@@ -21,12 +21,15 @@ import { BRAND_BY_SLUG } from './brands.js';
 import { applyProductTitle } from '../lexicon/productTitle.js';
 import { applyUnitPrice } from '../offers/enrich.js';
 
-// Browse V1.1 (2026-07-16): the homepage keeps only the rails that earn their
-// place with real data — Biggest Drops and Lowest Ever. Exceptional Deals /
-// Ending Soon / New This Week were removed as a product decision (trust over
-// feature count); deals.js keeps the scoring pure & tested for when the
-// substrate is deep enough to bring Exceptional Deals back.
-const RAIL_IDS = ['drops', 'lowest-ever'];
+// Browse V1.1 (2026-07-16): Exceptional Deals / Ending Soon / New This Week
+// were removed as a product decision (trust over feature count); deals.js
+// keeps the scoring pure & tested for when the substrate is deep enough to
+// bring Exceptional Deals back.
+// 2026-11-15: the owner removed the Lowest Ever rail too. Biggest Drops is the
+// one rail. A card still says "lowest in N weeks" in its own notes (deals.js
+// offerBadges); only the section is gone, and with it the 10,000-row
+// candidates read the summary made for it.
+const RAIL_IDS = ['drops'];
 const RAIL_SIZE = 12;
 
 // --- cards ---------------------------------------------------------------------
@@ -155,30 +158,14 @@ function categoryFilter({ dept, aisle }) {
 }
 
 // --- rails ------------------------------------------------------------------------
-// Two rails, both data-backed: Biggest Drops (SQL-sorted advertised cuts) and
-// Lowest Ever (history-verified lows from the candidates pool). Every rail is
-// deduped and finite.
-const dropPct = (r) =>
-  r.old_price > r.price ? (r.old_price - r.price) / r.old_price : 0;
-
-const byDropThenPrice = (a, b) => dropPct(b) - dropPct(a) || a.price - b.price;
-
-function lowestEverRows(pool, today) {
-  return pool.filter((r) => offerBadges(r, today).lowestEver).sort(byDropThenPrice);
-}
-
+// One rail, data-backed: Biggest Drops (SQL-sorted advertised cuts), deduped
+// and finite.
 async function buildRails(ctx, today) {
-  const store = ctx.browseStore;
-  const [candidates, drops] = await Promise.all([
-    store.candidates(today),
-    store.list({ hasDrop: true, sort: 'discount', limit: 40, currentOn: today }),
-  ]);
-
-  const take = (rows) => rows.slice(0, RAIL_SIZE).map((r) => cardDoc(r, today));
-  return [
-    { id: 'drops', items: take(dedupeRows(drops)) },
-    { id: 'lowest-ever', items: take(lowestEverRows(dedupeRows(candidates), today)) },
-  ].filter((rail) => rail.items.length);
+  const drops = await ctx.browseStore.list({
+    hasDrop: true, sort: 'discount', limit: 40, currentOn: today,
+  });
+  const items = dedupeRows(drops).slice(0, RAIL_SIZE).map((r) => cardDoc(r, today));
+  return items.length ? [{ id: 'drops', items }] : [];
 }
 
 // --- the market floor ----------------------------------------------------------------
@@ -247,20 +234,11 @@ export async function getBrowseOffersDoc(ctx, params, today) {
 
   // Rail "see all": reproduce the rail's population, paged.
   if (rail) {
-    let rows;
-    if (rail === 'drops') {
-      rows = dedupeRows(
-        await ctx.browseStore.list({
-          hasDrop: true, sort: 'discount', store, brand, limit: 120, offset, currentOn: today,
-        }),
-      );
-    } else {
-      // lowest-ever: history-verified lows from the candidates pool.
-      const pool = dedupeRows(await ctx.browseStore.candidates(today)).filter(
-        (r) => (!store || r.store === store) && (!brand || r.brand_slug === brand),
-      );
-      rows = lowestEverRows(pool, today).slice(offset, offset + limit);
-    }
+    const rows = dedupeRows(
+      await ctx.browseStore.list({
+        hasDrop: true, sort: 'discount', store, brand, limit: 120, offset, currentOn: today,
+      }),
+    );
     return { count: rows.length, offers: rows.slice(0, limit).map((r) => cardDoc(r, today)) };
   }
 

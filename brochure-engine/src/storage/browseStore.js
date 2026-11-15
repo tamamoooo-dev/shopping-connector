@@ -109,9 +109,15 @@ export function createD1BrowseStore(db, { builtArabicNamesEnabled = false } = {}
     json_extract(e.extraction_json, '$._arabic_builder.product_title') AS e_product_title,
     json_extract(e.extraction_json, '$.package_type') AS e_package_type`;
   const markNames = `(ifnull(${CANON_NAME_SQL},'') || ' ' || ifnull(${canonicalNameAr},''))`;
-  const likeAny = (terms) => terms.map((t) => `${markNames} LIKE '%${t}%'`).join(' OR ');
-  const frozenMarkSql = `((${likeAny(FROZEN_MARK_TERMS)})
-    OR ((${likeAny(PROCESSED_MARK_TERMS)}) AND NOT (${likeAny(FRESH_GUARD_TERMS)})))`;
+  // The name pair is written ONCE and tested as the column mark_names. Writing
+  // it out per term (41 terms) made the mark alone ~70 KB of SQL; a Fresh or
+  // Frozen listing carries the mark twice, so its statement reached 163 KB and
+  // D1 refused it (statement limit 100 KB) -- every Fresh and Frozen listing
+  // answered 500 (found 2026-11-15). Same terms, same test, 0 or 1, never NULL.
+  const likeAny = (terms) => terms.map((t) => `mark_names LIKE '%${t}%'`).join(' OR ');
+  const frozenMarkSql = `(SELECT ((${likeAny(FROZEN_MARK_TERMS)})
+    OR ((${likeAny(PROCESSED_MARK_TERMS)}) AND NOT (${likeAny(FRESH_GUARD_TERMS)})))
+    FROM (SELECT ${markNames} AS mark_names))`;
   // SQL twin of browse/api.js dedupeRows. Brand counts, family counts and
   // paged brand cards must describe the same real-world deals. The identity is
   // strongest; identity-less OCR rows use the canonical displayed name/image.
