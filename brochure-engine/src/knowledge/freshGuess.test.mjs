@@ -59,7 +59,7 @@ check({ name: 'Lamb Weston Potato Wedges W/Skin', nameAr: 'بطاطس ودجز',
 // --- 3. a flavour word beside a brand is the flavour ------------------------------
 check({ name: 'Biorepair Kids Strawberry', nameAr: 'فراولة', brand: 'Biorepair Kids' }, 'review', 'a toothpaste, not a fruit');
 check({ name: 'tic tac STRAWBERRY MIX', nameAr: 'فراولة', brand: 'tic tac' }, 'review', 'a sweet');
-check({ name: 'Jif Ultra Degreaser Lemon 470ML', nameAr: 'ليمون جيف', brand: 'Jif' }, 'review', 'a cleaner');
+check({ name: 'Jif Ultra Degreaser Lemon 470ML', nameAr: 'ليمون جيف', brand: 'Jif' }, 'cleaning', 'a cleaner');
 check({ name: 'PROTEIN FLATBREADS GARLIC & PARSELEY', nameAr: 'ثوم بروتين', brand: 'Befit' }, 'review', 'a brand read apart from the name still counts');
 check({ name: 'HERFY Chicken Rings', nameAr: 'دجاج هرفي', brand: 'Herfy' }, 'review', 'chicken is the flavour of a made product');
 // An Arabic-only reading gets the same answer as the English one.
