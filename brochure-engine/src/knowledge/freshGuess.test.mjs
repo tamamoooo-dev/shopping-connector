@@ -35,6 +35,9 @@ check({ name: "JACK LINK'S BEEF JERKY, SWEET & HOT", nameAr: 'لحم بقري', 
 check({ name: 'Argentina Corned Beef 200g', nameAr: 'لحم بقري', brand: 'Argentina' }, 'canned-food', 'a can');
 check({ name: 'GOODY SIEVED TOMATOES, 350 GRAMS', nameAr: 'طماطم قودي', brand: 'Goody' }, 'canned-food', 'a can');
 
+// The phrase outranks a later Arabic word too (the live reading says "in tomato juice").
+check({ name: 'CHOPPED TOMATOES by somalia', nameAr: 'طماطم مقطعة / مقشورة في عصير الطماطم', brand: 'العامية' }, 'canned-food', 'a can, not a juice');
+
 // --- 2. the brand's archive consensus is another department ----------------------
 check({ name: 'SHEBA SUCCULENT CHICKEN BREAST OR TUNA WITH SALMON', nameAr: 'صدور دجاج / تونة', brand: 'Sheba' }, 'pets', 'pet food');
 check({ name: 'Indomie Chicken 40x70g / Special Chicken 40x75g', nameAr: 'دجاج اندومي', brand: 'Indomie' }, 'pasta-noodles', 'noodles');

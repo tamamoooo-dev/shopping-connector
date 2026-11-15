@@ -130,11 +130,20 @@ export function classifyArchivedProduct(input={},data={names:ARCHIVE_CLASSIFICAT
       const arabicEntry=valid(english?arabicCategory(nameAr,input.brand):arabic);
       const arabicGuess=arabicEntry&&{...arabicEntry,matched_phrase:classificationKey(arabicEntry.en?.[0])};
       const title=english?titleCategory(name):titleAisle;
-      if(arabicGuess&&stands(arabicGuess)){aisle=arabicGuess.aisle;method='arabic_dictionary';type=arabicEntry;}
-      else if(title&&stands({aisle:title})){aisle=title;method='product_title_dictionary';}
-      else if(broad&&stands({aisle:broad})){aisle=broad;method='explicit_category_terms';}
-      else if(lost?.aisle){aisle=lost.aisle;method=lost.method;evidence=lost.evidence;}
-      else {
+      // Where the challenge itself names the product (an explicit phrase, the
+      // brand's consensus), that outranks every later name-word step: canned
+      // "chopped tomatoes in tomato juice" is a can, not a juice.
+      const steps=[['arabic_dictionary',arabicGuess],['product_title_dictionary',title&&{aisle:title}],['explicit_category_terms',broad&&{aisle:broad}]];
+      let placed=false;
+      const byChallenge=()=>{if(!lost?.aisle)return false;aisle=lost.aisle;method=lost.method;evidence=lost.evidence;return true;};
+      placed=byChallenge();
+      for(const [how,guess] of steps){
+        if(placed)break;
+        if(!guess)continue;
+        if(stands(guess)){aisle=guess.aisle;method=how;if(how==='arabic_dictionary')type=arabicEntry;placed=true;}
+        else placed=byChallenge();
+      }
+      if(!placed){
         const brand=resolveBrand(input.brand);
         const supported=data.brands?.[brand.brand_id];
         if(supported&&!(lost&&isFreshAisle(supported.aisle))){aisle=supported.aisle;method='brand_archive_consensus';evidence=supported.evidence;}
