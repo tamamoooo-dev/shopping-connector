@@ -1026,7 +1026,10 @@ export async function handleRequest(request, ctx) {
       const next = classifyArchivedProduct({
         id: row.id, name: row.name, nameAr: row.name_ar, brand: row.brand, category: row.category, source: row.source,
       });
-      if (next.challenge !== 'fresh_name_word') continue; // not this rule's doing
+      // This rule's doing only: the guess lost now, it lost before (the row
+      // may come back out of review), or the name carries a frozen mark.
+      if (next.challenge !== 'fresh_name_word' && saved?.challenge !== 'fresh_name_word'
+        && next.department !== 'frozen') continue;
       if (saved?.status === next.status && saved?.aisle === next.aisle) continue;
       changes.push({
         id: row.id, name: row.name, nameAr: row.name_ar, brand: row.brand,

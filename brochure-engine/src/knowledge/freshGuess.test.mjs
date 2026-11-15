@@ -35,6 +35,19 @@ check({ name: "JACK LINK'S BEEF JERKY, SWEET & HOT", nameAr: 'لحم بقري', 
 check({ name: 'Argentina Corned Beef 200g', nameAr: 'لحم بقري', brand: 'Argentina' }, 'canned-food', 'a can');
 check({ name: 'GOODY SIEVED TOMATOES, 350 GRAMS', nameAr: 'طماطم قودي', brand: 'Goody' }, 'canned-food', 'a can');
 
+// The owner, 2026-11-15: "Fix the rest" (what the first pass left).
+check({ name: 'Penne Chicken Marinara 500g', nameAr: 'دجاج' }, 'pasta-noodles', 'pasta');
+check({ name: 'Hott Grill BBQ Fish Hand Crill HC5830', nameAr: 'هوت غريل شواكا', brand: 'Hott Grill' }, 'outdoors-tools', 'a grill');
+check({ name: 'REEEM LUNCHEON BEEF 850 GM', nameAr: 'لانشون لحم بقري', brand: 'Reeem' }, 'canned-food', 'a can');
+check({ name: 'DAC DWL LEMON 1LTR', nameAr: 'داك سائل تطيف الصحن بالليمون لتر', brand: 'DAC' }, 'dishwashing', 'dish liquid');
+check({ name: 'Jif Ultra Degreaser Lemon 470ML', nameAr: 'جيف مزيل الدهن بالليمون 470 مل', brand: 'Jif' }, 'cleaning', 'a cleaner');
+check({ name: 'Tanmiah Breded Chicken Fillet Original 600G', nameAr: 'دجاج فيليه سادة', brand: 'Tanmiah' }, 'frozen-poultry', 'breaded, misspelt');
+// Branded meat that IS the meat: a butcher's cut, or nothing but brand and meat.
+check({ name: 'Al Abeer Pakistan Beef Bone-in 900g', nameAr: 'لحم بقري باكستاني بالعظم', brand: 'Al Abeer' }, 'meat', 'a cut');
+check({ name: 'URUSSA CHICKEN', nameAr: 'دجاج أوروسا', brand: 'URUSSA' }, 'chicken-poultry', 'brand and meat only');
+check({ name: 'MORNING DELIGHT SMOKED BEEF BREAKFAST SLICES, 340 GRAMS', nameAr: 'لحم بقري مدخن شرائح', brand: 'Morning Delight' }, 'deli', 'smoked');
+check({ name: 'Bess Mix Chicken In Gravy', nameAr: 'دجاج بالمرق بيس ميكس', brand: 'Bess Mix' }, 'review', 'still refused');
+
 // The phrase outranks a later Arabic word too (the live reading says "in tomato juice").
 check({ name: 'CHOPPED TOMATOES by somalia', nameAr: 'طماطم مقطعة / مقشورة في عصير الطماطم', brand: 'العامية' }, 'canned-food', 'a can, not a juice');
 

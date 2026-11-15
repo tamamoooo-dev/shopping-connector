@@ -53,7 +53,13 @@ export const CLASSIFICATION_ENGLISH = [
  // Products whose names carry a fresh-food word as an ingredient, a flavour or
  // a purpose (2026-11-15, read off the live Fresh department). These outrank a
  // fresh aisle guessed from that word (classification.js freshGuessChallenge).
- ['pasta-noodles',['instant noodle','noodle bag','noodle cup','noodle']],
+ ['pasta-noodles',['instant noodle','noodle bag','noodle cup','noodle','penne']],
+ ['outdoors-tools',['bbq grill','grill bbq','hand grill']],
+ ['dishwashing',['dwl','dishwashing liquid']],
+ ['cleaning',['degreaser']],
+ // "Luncheon" with no retailer category is the can (Reem 340 g, Panda 850 g);
+ // the chilled counter's is filed by its retailer category.
+ ['canned-food',['luncheon']],
  ['appliances',['meat grinder','meat mincer']],
  ['kitchen-dining',['lemon squeezer','potato masher','squeezer','masher']],
  ['chips-snacks',['beef jerky','jerky']],

@@ -201,7 +201,7 @@ export const PROCESSED_MARK_TERMS = [
   'برجر', 'برغر', 'burger',
   'ستربس', 'ستريبس', 'ستريس', 'strips',
   'بوب كورن', 'بوبكورن', 'popcorn',
-  'بقسماط', 'breaded', 'تمبورا', 'tempura',
+  'بقسماط', 'breaded', 'breded', 'تمبورا', 'tempura',
   'زينج', 'زينغ', 'زنجز',
   'بروست', 'broasted', 'كوردون', 'cordon',
   'فرايز', 'fries', 'كرات لحم', 'كرات اللحم', 'meatball', 'meat ball',

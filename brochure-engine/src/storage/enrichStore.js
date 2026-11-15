@@ -508,10 +508,12 @@ export function createD1EnrichStore(db) {
              FROM offer_enrichments e
              JOIN offers o ON o.id = e.id
             WHERE o.valid_to >= ? AND e.id > ? AND json_valid(e.extraction_json)
-              AND json_extract(e.extraction_json, ${saved}.department') IN ('fresh','frozen')
-              AND json_extract(e.extraction_json, ${saved}.source') IN
-                  ('english_dictionary','arabic_dictionary','product_title_dictionary',
-                   'explicit_category_terms','brand_archive_consensus')
+              AND ((json_extract(e.extraction_json, ${saved}.department') IN ('fresh','frozen')
+                    AND json_extract(e.extraction_json, ${saved}.source') IN
+                        ('english_dictionary','arabic_dictionary','product_title_dictionary',
+                         'explicit_category_terms','brand_archive_consensus'))
+                   -- or a row the rule already moved once (it may sit in review)
+                   OR json_extract(e.extraction_json, ${saved}.challenge') = 'fresh_name_word')
             ORDER BY e.id ASC
             LIMIT ?`,
         )

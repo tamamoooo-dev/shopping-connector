@@ -67,11 +67,24 @@ function titleCategory(name){
 //   3. a flavour-capable word (a fruit, a vegetable, chicken, beef) beside a
 //      brand: the word is the flavour. Kept when the brand's consensus is
 //      fresh (Tanmiah), when the name carries a frozen mark (the frozen
-//      refinement places it), or when a meat name says it is fresh.
+//      refinement places it), or when a meat name says it is fresh, names
+//      a butcher's cut, or is nothing but the brand and the meat. Smoked
+//      meat goes to the deli.
 const deptOf=aisle=>AISLE_BY_ID.get(aisle)?.dept||null;
 const isFreshAisle=aisle=>deptOf(aisle)==='fresh';
 const FRESH_MEAT_AISLES=new Set(['chicken-poultry','meat','fish']);
 const SAYS_FRESH=new RegExp(['fresh','chilled','مبرد',...FRESH_GUARD_TERMS].join('|'),'i');
+// A butcher's cut in the name says the product is the meat itself ("Al Abeer
+// Beef Bone-in"), and so does a name that is nothing but the brand and the
+// meat ("Urussa Chicken"). Smoked or sliced-for-breakfast meat is the deli's.
+const BUTCHER_CUT=/\b(?:bone[- ]?in|boneless|whole|breasts?|thighs?|drumsticks?|legs?|wings?|minced?|fillets?|steaks?|ribs?|shoulder|liver|gizzards?)\b|بالعظم|بدون عظم|صدور|صدر|افخاذ|أفخاذ|كامل|مفروم|فيليه|ستيك|كبد|قوانص/i;
+const DELI_FORM=/\bsmoked\b|\bbreakfast slices\b|مدخن/i;
+const MEAT_WORDS=new Set(['chicken','beef','meat','lamb','mutton','veal','fish','fresh']);
+const isBareMeatName=(name,brand)=>{
+  const brandWords=new Set(classificationKey(brand).split(' '));
+  const rest=classificationKey(name).split(' ').filter(w=>w&&!brandWords.has(w)&&!/^\d/.test(w));
+  return rest.length>0&&rest.every(w=>MEAT_WORDS.has(w));
+};
 function freshGuessChallenge({name,nameAr,brand,data}){
   const brandKey=classificationKey(brand),resolved=brandKey?resolveBrand(brand):null;
   const consensus=resolved?.brand_id?data.brands?.[resolved.brand_id]:null;
@@ -89,7 +102,11 @@ function freshGuessChallenge({name,nameAr,brand,data}){
       return {aisle:consensus.aisle,method:'brand_archive_consensus',evidence:consensus.evidence};
     if(!hasBrand||consensus||!isFlavorCategory(category))return null;
     if(refineAisle(category.aisle,{name,name_ar:nameAr})!==category.aisle)return null;
-    if(FRESH_MEAT_AISLES.has(category.aisle)&&SAYS_FRESH.test(text))return null;
+    if(FRESH_MEAT_AISLES.has(category.aisle)){
+      if(SAYS_FRESH.test(text))return null;
+      if(DELI_FORM.test(text))return category.aisle==='deli'?null:{aisle:'deli',method:'explicit_category_terms',evidence:null};
+      if(BUTCHER_CUT.test(text)||isBareMeatName(name,brand))return null;
+    }
     return {aisle:null,method:null,evidence:null};
   };
 }
