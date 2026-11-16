@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Super Search: my browser",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Runs a store search you start in Super Search in this browser, for stores that refuse the server, and hands the result back to your app.",
   "permissions": ["alarms", "storage"],
   "host_permissions": ["https://gcc.luluhypermarket.com/*", "https://www.carrefourksa.com/*"],

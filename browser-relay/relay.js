@@ -95,8 +95,11 @@ async function connect() {
 }
 
 // --- one search ----------------------------------------------------------------------------
-async function readLulu(query) {
-  const res = await fetch(`https://gcc.luluhypermarket.com/ar-sa/list?search_text=${encodeURIComponent(query)}&format=json&page_size=50`, {
+const LULU = 'https://gcc.luluhypermarket.com';
+const CHALLENGE = /attention required|just a moment|cf-chl|captcha|access denied/i;
+
+async function askLulu(query) {
+  const res = await fetch(`${LULU}/ar-sa/list?search_text=${encodeURIComponent(query)}&format=json&page_size=50`, {
     headers: { Accept: 'application/json' },
     credentials: 'include',
   });
@@ -104,7 +107,31 @@ async function readLulu(query) {
   if ([401, 403, 429].includes(res.status) || (res.ok && !type.includes('json'))) return { refused: true, status: res.status };
   if (!res.ok) return { error: `Lulu answered HTTP ${res.status}` };
   const body = await res.json();
-  const list = Array.isArray(body.products) ? body.products : [];
+  return { list: Array.isArray(body.products) ? body.products : [] };
+}
+
+// Lulu prices in riyals only while this browser holds Lulu's Saudi preference
+// cookies (pz-locale=ar-sa, pz-currency=sar). Lulu sets them itself when its
+// Saudi page is opened, and they last 7 days (measured 2026-11-16); without
+// them every product comes in dirhams, or as 99999 ("no price"). With them,
+// products not sold in Saudi still come as price 0 with no currency, so the
+// test is "not one product has a riyal price", never "every product".
+const notInRiyals = (list) =>
+  list.length > 0 &&
+  !list.some((p) => String(p.currency_type || '').toLowerCase() === 'sar' && Number(p.price) > 0 && Number(p.price) < 99999);
+
+async function readLulu(query) {
+  let answer = await askLulu(query);
+  if (answer.list && notInRiyals(answer.list)) {
+    // Open Lulu's Saudi page once, as the owner would by hand, then ask again.
+    const home = await fetch(`${LULU}/ar-sa/`, { credentials: 'include' });
+    const page = await home.text();
+    if ([401, 403, 429].includes(home.status) || CHALLENGE.test(page.slice(0, 4000))) return { refused: true, status: home.status };
+    answer = await askLulu(query);
+  }
+  if (!answer.list) return answer;
+  if (notInRiyals(answer.list)) return { noData: true };
+  const list = answer.list;
   // Only what the connector's Lulu reader uses.
   return {
     locale: 'ar-sa',
