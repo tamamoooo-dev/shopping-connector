@@ -1,24 +1,45 @@
-// providers/tamimi.js — Tamimi Markets (experimental) provider.
+// providers/tamimi.js — Tamimi Markets provider.
 //
-// Tamimi's store (shop.tamimimarkets.com) runs on the ZopSmart platform and
-// exposes a clean, public JSON API. Like Panda, this is a plain server-side
-// fetch + normalize — no scraping, no auth, no protection bypass.
+// 2026-11-16: Tamimi moved its online shop. shop.tamimimarkets.com (ZopSmart,
+// /api/layout/search) now answers every address with a 301 to
+// www.tamimimarkets.com, a new site whose search page arrives empty and is
+// filled in the visitor's browser by Tamimi's search service, Constructor
+// (ac.cnstrc.com). This provider reads that same service. The owner chose
+// this on 2026-11-16, with these limits:
+//   - the connector names itself honestly; it never poses as a browser;
+//   - search only, and only when someone searches or a Price Watch round runs;
+//   - a refusal (a 4xx: blocked, rate-limited, or the key retired) reports the
+//     store `blocked`. Never look for another key or another way in.
 //
-//   GET /api/layout/search?q=<query>&storeId=4   (Accept-Language: en|ar)
-//   (the `q` param is what actually filters; `searchKeyword` is ignored.)
-//   -> data.page.layouts[].value.collection.product[]
-//      product: { id, name, slug, brand.name, variants[] }
-//      variant: { name (size), images[], storeSpecificData[].{ mrp, discount } }
-//   price = mrp - discount ;  oldPrice = mrp (when discounted)
-//   A product holds every PACK SIZE as a variant (1 L, 4 x 1 L, 12 x 1 L …),
-//   each with its own price, stock and barcodes. The top-level result stays
-//   the first variant (unchanged for every consumer); `variants` carries them
-//   all, so Price Monitoring can price each pack per item.
+// The keys are the public browser keys printed in every visitor's page. The
+// site keeps two indexes and switches by language: English names, or Arabic
+// names and brands.
+//
+//   GET https://ac.cnstrc.com/v1/search/<q>?key=<key>&section=Products
+//       &num_results_per_page=50&fmt_options[variations_return_type]=all
+//       &fmt_options[hidden_fields]=<field>.<branch> …&us=<branch>
+//   -> response.results[]: { value (name, no brand, no size), data: { id,
+//        url, brand, image_url, variant (size), barcode, variation_id,
+//        price{branch} (list price), net_price{branch} (selling price),
+//        discount{branch}, in_stock{branch} }, variations[] }
+//   One product lists every pack (single EA, multipack PAK, case CS) as a
+//   variation with its own size, price, stock and barcode. The top-level
+//   result is the pack the search shows; `variants` carries them all, so
+//   Price Monitoring can price each pack per item (as with ZopSmart).
+//
+// Prices are the same at every branch (measured 2026-11-16 on 100 products
+// across Riyadh V131 / V134 / V148 and the site's default V152); only stock
+// differs. The branch is Olaya, Riyadh (V131), like every other store here.
 
 import { gtinKeys } from './gtin.js';
 
-const API_BASE = 'https://shop.tamimimarkets.com';
-const STORE_ID = 4;
+const SEARCH = 'https://ac.cnstrc.com/v1/search/';
+const SITE = 'https://www.tamimimarkets.com';
+const KEYS = { en: 'key_87HUpZO6lbVJRtwV', ar: 'key_nx6GIIy1DgcBsOjt' };
+export const BRANCH = 'V131';
+const FIELDS = ['price', 'net_price', 'discount', 'in_stock'];
+const PAGE_SIZE = 50;
+const USER_AGENT = 'SuperSearch-connector/1.0 (price comparison)';
 
 function detectLang(query) {
   return /[؀-ۿ]/.test(query) ? 'ar' : 'en';
@@ -29,77 +50,109 @@ function toNumber(v) {
   return Number.isFinite(n) ? n : null;
 }
 
-// Find the layout holding the product collection (robust to layout ordering).
-function findProducts(json) {
-  const layouts = json && json.data && json.data.page && json.data.page.layouts;
-  if (!Array.isArray(layouts)) return [];
-  for (const l of layouts) {
-    const products = l && l.value && l.value.collection && l.value.collection.product;
-    if (Array.isArray(products) && products.length) return products;
+const clean = (v) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '');
+const atBranch = (field) => (field && typeof field === 'object' ? field[BRANCH] : undefined);
+const round2 = (n) => Math.round(n * 100) / 100;
+
+export function searchUrl(query, lang = detectLang(query)) {
+  const params = new URLSearchParams({
+    key: KEYS[lang] || KEYS.en,
+    section: 'Products',
+    page: '1',
+    num_results_per_page: String(PAGE_SIZE),
+    'fmt_options[variations_return_type]': 'all',
+    us: BRANCH,
+  });
+  for (const field of FIELDS) params.append('fmt_options[hidden_fields]', `${field}.${BRANCH}`);
+  return `${SEARCH}${encodeURIComponent(query)}?${params}`;
+}
+
+// One pack's price at the branch. A sold-out pack can show 0.00: no price.
+export function packPrice(data = {}) {
+  const net = toNumber(atBranch(data.net_price));
+  const list = toNumber(atBranch(data.price));
+  const selling = net ?? list;
+  const price = selling != null && selling > 0 ? round2(selling) : null;
+  const oldPrice = price != null && list != null && list > price ? round2(list) : null;
+  const stock = atBranch(data.in_stock);
+  return { price, oldPrice, inStock: typeof stock === 'boolean' ? stock : null };
+}
+
+// The product page on Tamimi's own site (the service names another host).
+function productLink(url) {
+  try {
+    const { pathname } = new URL(url);
+    if (pathname.startsWith('/products/')) return `${SITE}${pathname}`;
+  } catch {
+    // no usable address
   }
-  return [];
+  return '';
 }
 
-function variantPrice(variant) {
-  const ss = (variant.storeSpecificData && variant.storeSpecificData[0]) || {};
-  const mrp = toNumber(ss.mrp);
-  const discount = toNumber(ss.discount) || 0;
-  const stock = toNumber(ss.stock);
-  return {
-    price: mrp != null ? Math.round((mrp - discount) * 100) / 100 : null,
-    oldPrice: mrp != null && discount > 0 ? mrp : null,
-    inStock: stock == null ? null : stock > 0,
-  };
+// Tamimi's product numbers: kept as numbers, as the old shop gave them.
+function productId(data) {
+  const id = data.id ?? data.variation_id;
+  return typeof id === 'string' && /^\d{1,15}$/.test(id) ? Number(id) : id;
 }
 
-function normalize(product, lang) {
-  const variant = (product.variants && product.variants[0]) || {};
-  const { price, oldPrice, inStock } = variantPrice(variant);
-  const mrp = oldPrice ?? price;
-  const discount = oldPrice != null && price != null ? oldPrice - price : 0;
-  const image =
-    (variant.images && variant.images[0]) || (product.images && product.images[0]) || '';
+export function normalize(result) {
+  const data = (result && result.data) || {};
+  const packs = Array.isArray(result && result.variations) && result.variations.length
+    ? result.variations
+    : [{ value: result && result.value, data }];
+  // The pack the search shows comes first: it keeps the product's own id.
+  const shown = (p) => Boolean(p && p.data && p.data.variation_id === data.variation_id);
+  const ordered = [...packs].sort((a, b) => shown(b) - shown(a));
+  const { price, oldPrice, inStock } = packPrice(data);
+  const image = clean(data.image_url);
 
   return {
-    id: product.id,
-    name: (product.name || '').trim(),
-    image,
+    id: productId(data),
+    name: clean(result && result.value),
+    image: image.startsWith('https://') ? image : '',
     price,
     oldPrice,
     currency: 'SAR',
-    link: `${API_BASE}/${lang}/product/${product.slug}`,
-    size: (variant.name || '').trim(),
-    brand: product.brand && product.brand.name ? product.brand.name.trim() : '',
-    discountLabel: discount > 0 && mrp ? `${Math.round((discount / mrp) * 100)}% Off` : '',
-    barcodes: gtinKeys(variant.barcodes),
+    link: productLink(data.url),
+    size: clean(data.variant),
+    brand: clean(data.brand),
+    discountLabel: oldPrice && price ? `${Math.round((1 - price / oldPrice) * 100)}% Off` : '',
+    barcodes: gtinKeys([data.barcode]),
     inStock,
-    variants: (product.variants || []).map((v) => ({
-      id: v.id,
-      size: (v.name || '').trim(),
-      ...variantPrice(v),
-      barcodes: gtinKeys(v.barcodes),
-    })),
+    variants: ordered.map((p) => {
+      const d = (p && p.data) || {};
+      return {
+        id: d.variation_id,
+        size: clean(d.variant),
+        ...packPrice(d),
+        barcodes: gtinKeys([d.barcode]),
+      };
+    }),
   };
 }
 
-const layoutSearchStrategy = {
-  name: 'layout-search',
+const constructorSearchStrategy = {
+  name: 'constructor-search',
   async run(query) {
-    const lang = detectLang(query);
-    const url = `${API_BASE}/api/layout/search?q=${encodeURIComponent(query)}&storeId=${STORE_ID}`;
-    const res = await fetch(url, {
-      headers: { Accept: 'application/json', 'Accept-Language': lang === 'ar' ? 'ar' : 'en' },
+    const res = await fetch(searchUrl(query), {
+      headers: { Accept: 'application/json', 'User-Agent': USER_AGENT },
     });
+    // A refusal is the end of it: no retry, no other key, no other way in.
+    if (res.status >= 400 && res.status < 500 && res.status !== 404) {
+      const err = new Error(`HTTP ${res.status} (Tamimi's search refused the connector)`);
+      err.blocked = true;
+      throw err;
+    }
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const json = await res.json();
-    const products = findProducts(json);
-    if (!Array.isArray(products)) throw new Error('unexpected response shape');
-    return products.map((p) => normalize(p, lang)).filter((r) => r.name);
+    const results = json && json.response && json.response.results;
+    if (!Array.isArray(results)) throw new Error('unexpected response shape');
+    return results.map(normalize).filter((r) => r.name);
   },
 };
 
 export const tamimiProvider = {
   id: 'tamimi',
   label: 'Tamimi',
-  strategies: [layoutSearchStrategy],
+  strategies: [constructorSearchStrategy],
 };
