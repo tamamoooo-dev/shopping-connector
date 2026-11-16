@@ -13,6 +13,7 @@ import { luluProvider } from './providers/lulu.js';
 import { carrefourProvider } from './providers/carrefour.js';
 import { noonProvider } from './providers/noon.js';
 import { ninjaProvider } from './providers/ninja.js';
+import { hungerstationProvider } from './providers/hungerstation.js';
 
 const registry = {
   [pandaProvider.id]: pandaProvider,
@@ -23,6 +24,7 @@ const registry = {
   [carrefourProvider.id]: carrefourProvider,
   [noonProvider.id]: noonProvider,
   [ninjaProvider.id]: ninjaProvider,
+  [hungerstationProvider.id]: hungerstationProvider,
 };
 
 // The meeting point between the owner's app and the owner's own browser.

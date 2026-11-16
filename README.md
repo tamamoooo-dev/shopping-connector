@@ -130,6 +130,7 @@ the connector matters for stores that can't.)
 | `danube` | Public Spree JSON API (`danube.sa/api/products.json?q[name_cont]=`) | **Stable (experimental).** Clean JSON, no auth, EN/AR, sale prices. |
 | `lulu` | Akinon list JSON (`gcc.luluhypermarket.com/{en-sa\|ar-sa}/list?search_text=&format=json`) | **Stable (experimental).** Clean JSON, EN/AR, SAR via pz-locale/pz-currency cookies. |
 | `noon` | Noon Minutes search page RSC flight (`minutes.noon.com/{saudi-en\|saudi-ar}/search/?q=`) | **Best-effort (experimental).** Parses server-rendered product JSON; EN/AR, SAR, sale prices. Main noon.com blocks datacenter IPs — Minutes does not. |
+| `hungerstation` | HungerStation Market's own search page (`hungerstation.com/{sa-en\|sa-ar}/hmarket?query=`), its server-rendered page data (`__NEXT_DATA__` → `productSearchResult`), pages 1–2 (20 each) | **Best-effort (2026-11-16).** EN/AR, SAR, promotions (`originalPrice` = old price), product code (`sku`) as id. The web prices Riyadh from the site's default store (Al Rabwah). A refusal or a challenge page reports `blocked`. |
 
 ### Amazon caveat (read before relying on it)
 
