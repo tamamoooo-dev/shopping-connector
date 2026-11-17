@@ -72,6 +72,7 @@ import {
   claimForReader, saveReaderReadings, queueReread, setReaderLimit, ownerShopName,
 } from './minimarts.js';
 import { PRESENTER, cropKeyFor, shopStyle } from './minimartCrop.js';
+import { archiveDoc } from './storage/offerArchive.js';
 import { CATEGORY_PROMPT, categoryOf } from './minimartCategory.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
@@ -1127,6 +1128,36 @@ export async function handleRequest(request, ctx) {
     if (doc) return json({ product: q, lowest: doc.lowest });
     if (!ctx.historyStore) return json({ error: 'Price history unavailable.' }, 503);
     return json({ product: q, lowest: await getLowestDoc(ctx.historyStore, q) });
+  }
+
+  // The permanent flyer price archive (storage/offerArchive.js): every flyer
+  // offer kept, one dated line per store, since the beginning. Pages of old
+  // brochures are deleted only once their products are saved here.
+  if (path === '/prices/archive' && request.method === 'GET') {
+    const q = historyQuery();
+    if (!q) return json({ error: "Missing required parameter 'q'." }, 400);
+    if (!ctx.offerArchive) return json({ error: 'Price archive unavailable.' }, 503);
+    const limit = Number(url.searchParams.get('limit')) || 500;
+    return json(archiveDoc(q, await ctx.offerArchive.search({ q, limit })));
+  }
+
+  if (path === '/prices/archive/stats' && request.method === 'GET') {
+    if (!ctx.offerArchive) return json({ error: 'Price archive unavailable.' }, 503);
+    return json(await ctx.offerArchive.stats());
+  }
+
+  // Guarded one-time backfill of offers recovered from older copies. Rows are
+  // validated and append-only; re-sending a chunk inserts nothing twice.
+  if (path === '/prices/archive/import' && request.method === 'POST') {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.offerArchive) return json({ error: 'Price archive unavailable.' }, 503);
+    const body = await request.json().catch(() => null);
+    if (!Array.isArray(body?.rows) || body.rows.length > 1000) {
+      return json({ error: 'Expected { rows: [...] } with at most 1000 rows' }, 400);
+    }
+    return json(await ctx.offerArchive.importRows(body.rows));
   }
 
   // Full picture: per-size/variant records (lowest ever, highest, latest per

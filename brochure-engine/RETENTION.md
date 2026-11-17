@@ -17,6 +17,25 @@ and reads it back to verify its SHA-256 hash. Existing Vision evidence remains
 in `vision-verification/attempts/`. Small manifests and brochure D1 rows remain;
 only page image bytes are removed from both R2 and the KV fallback.
 
+## Price archive (2026-11-17)
+
+Every expired offer is copied into the `offer_archive` D1 table in the same
+batch that deletes it from `offers`: store, validity dates, price, was-price,
+the servable name (Vision when servable, flyer text otherwise), size, crop and
+flyer links. The table is append-only and never pruned.
+`GET /prices/archive?q=` lists every dated flyer price for a query and
+`GET /prices/archive/stats` counts rows. Offers from before the table existed
+were backfilled once from the weekly D1 backups, the August archives, the
+August desktop dump and the Vision evidence in R2
+(`POST /prices/archive/import`, owner decision 2026-11-17).
+
+A second pass deletes the page images of an expired, noncurrent image edition
+fifteen days after expiry when every hotspot product has a priced archive row
+or was never priced by the flyer and rejected by the price fallback. Editions
+with no hotspot products keep their pages: the pages are their only record.
+It writes the same verified `brochure-data/` snapshot first (policy
+`price-archive-complete`) and checks at most 300 candidates a day.
+
 Failed archive verification stops deletion. A page deletion failure leaves
 the row unpruned and the manifests intact for retry. Current brochures and
 editions in the seven-day review window are preserved. A run processes at most

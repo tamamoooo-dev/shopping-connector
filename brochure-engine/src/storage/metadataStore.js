@@ -140,6 +140,23 @@ export function createD1MetadataStore(db) {
       return results || [];
     },
 
+    // Expired brochures that still hold page images, newest first, for the
+    // price-archive retention pass (retention.js). Whether every product is in
+    // the archive is decided there, from the brochure's hotspot manifest.
+    async listArchivePrunable(cutoffISO, limit = 300) {
+      const { results } = await db
+        .prepare(
+          `SELECT b.* FROM brochures b
+            WHERE b.is_current = 0 AND b.pruned_at IS NULL
+              AND b.valid_to IS NOT NULL AND b.valid_to < ?
+              AND b.source_type = 'images'
+            ORDER BY b.valid_to DESC LIMIT ?`,
+        )
+        .bind(cutoffISO, limit)
+        .all();
+      return results || [];
+    },
+
     async getProcessingSnapshot(row) {
       const flyerRef = /\/(\d+)\/[a-z0-9-]+(?:\?.*)?$/i.exec(row.source_url || '')?.[1];
       if (!flyerRef) return null;

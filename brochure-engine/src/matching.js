@@ -157,7 +157,7 @@ const SYNONYMS = [
   ['skimmed', 'skim', 'منزوع', 'خالي'],
   ['squares', 'مربعات'],
   // household + personal-care staples that flyer shoppers actually search
-  ['tuna', 'تونه', 'تن'],
+  ['tuna', 'تونه', 'تونا', 'تن'],
   ['shampoo', 'شامبو'],
   ['tissue', 'tissues', 'مناديل', 'محارم'],
   ['chocolate', 'شوكولاته', 'شوكولا'],

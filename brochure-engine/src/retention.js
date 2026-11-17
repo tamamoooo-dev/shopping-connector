@@ -1,10 +1,14 @@
 // retention.js — storage retention (a production-stability feature).
 //
-// Images become disposable seven days after expiry, only for noncurrent,
-// fully processed editions. Missing offers never count as completion.
+// Images become disposable seven days after expiry for noncurrent, fully
+// processed editions, and fifteen days after expiry for editions whose every
+// hotspot product is saved in the price archive (storage/offerArchive.js).
+// Missing offers never count as completion.
 // Save and hash-verify a structured snapshot before deleting page bytes.
-// Brochure metadata, price history and Vision evidence remain durable.
-// The daily 03:00 UTC owner bounds deletes; incomplete editions keep images.
+// Brochure metadata, price history, the price archive and Vision evidence
+// remain durable. Expired offers are copied into the price archive in the same
+// batch that deletes them. The daily 03:00 UTC owner bounds deletes;
+// incomplete editions keep images.
 
 import { processingComplete } from './storage/brochureProcessing.js';
 
@@ -51,6 +55,115 @@ async function archiveOldOps(ctx, cutoffISO, limit) {
   return { archived: rows.length, deleted, key, sha256: hash, bytes: bytes.byteLength };
 }
 
+// Write a hash-verified structured snapshot of one brochure to `brochure-data/`
+// and then delete its page images. The small publication/geometry manifests
+// stay: they keep the brochure's structure and make a partial delete safe to
+// retry. Returns the number of images deleted, or null when nothing was done
+// (over budget, or the row changed since it was listed).
+async function snapshotAndDeletePages(ctx, row, doc, hotspots, { policy, data, cutoff, budget }) {
+  const { metadataStore, objectStore } = ctx;
+  const base = `brochures/${row.storage_key}`;
+  const keys = [...new Set(doc.pages.map(p => p.imageUrl))];
+  if (keys.some(key => typeof key !== 'string' || !key.startsWith(`${base}/`)
+      || !/^page\d+\.(?:webp|jpg|jpeg|png|img)$/.test(key.slice(base.length + 1)))) {
+    throw new Error('unsafe brochure asset path');
+  }
+  if (keys.length > budget) return null; // out of delete budget this run — next fire drains it
+  const archiveBytes = encoder.encode(JSON.stringify({
+    version: 1, policy,
+    archived_at: new Date().toISOString(), brochure: row,
+    meta: doc, hotspots, ...data,
+    attempt_evidence_prefix: 'vision-verification/attempts/',
+  }));
+  const hash = await sha256Hex(archiveBytes);
+  const archiveKey = `brochure-data/${encodeURIComponent(row.id)}/${hash}.json`;
+  await objectStore.put(archiveKey, archiveBytes, { contentType: 'application/json' });
+  const archived = await objectStore.get(archiveKey);
+  if (!archived || await sha256Hex(archived.bytes) !== hash) {
+    throw new Error('brochure data archive verification failed');
+  }
+  if (metadataStore.getById) {
+    const live = await metadataStore.getById(row.id);
+    if (!live || live.is_current || live.pruned_at || live.checksum !== row.checksum
+        || live.storage_key !== row.storage_key || !live.valid_to || live.valid_to >= cutoff) {
+      return null;
+    }
+  }
+  for (const key of keys) await objectStore.delete(key);
+  return keys.length;
+}
+
+// Every product a brochure's hotspot manifest names (D4D offer ids).
+export function hotspotOfferIds(hotspots) {
+  if (!Array.isArray(hotspots?.pages)) return [];
+  const ids = new Set();
+  for (const page of hotspots.pages) {
+    for (const spot of Array.isArray(page?.spots) ? page.spots : []) {
+      if (spot?.offerId != null && String(spot.offerId).trim()) ids.add(String(spot.offerId));
+    }
+  }
+  return [...ids];
+}
+
+// The price-archive pass (owner decision 2026-11-17): once every product of an
+// expired brochure has its store, dates and price saved in the price archive,
+// its page images may go. A product counts as saved when the archive holds a
+// priced row for it, or when the flyer never priced it and the price fallback
+// rejected it. A brochure with no hotspot products is never touched — its
+// pages are the only record of what it offered.
+async function pruneArchivedBrochures(ctx, report, { cutoff, budget, maxRows, maxCandidates }) {
+  const { metadataStore, objectStore, offerArchive } = ctx;
+  const out = { checked: 0, pruned: 0, deletes: 0, incomplete: 0, noProducts: 0 };
+  const rows = await metadataStore.listArchivePrunable(cutoff, maxCandidates);
+  for (const row of rows) {
+    if (out.pruned >= maxRows || budget - out.deletes <= 0) break;
+    try {
+      if (row.is_current || !row.valid_to || row.valid_to >= cutoff) continue;
+      const base = `brochures/${row.storage_key}`;
+      const meta = await objectStore.get(`${base}/meta.json`);
+      const hotspotObject = await objectStore.get(`${base}/hotspots.json`);
+      if (!meta || !hotspotObject) continue;
+      out.checked += 1;
+      const doc = JSON.parse(new TextDecoder().decode(meta.bytes));
+      const hotspots = JSON.parse(new TextDecoder().decode(hotspotObject.bytes));
+      if (!Array.isArray(doc.pages) || !doc.pages.length) continue;
+      const ids = hotspotOfferIds(hotspots);
+      if (!ids.length) {
+        out.noProducts += 1;
+        continue;
+      }
+      const archived = await offerArchive.archivedOfferIds(row.store, row.region, ids);
+      const snapshot = metadataStore.getProcessingSnapshot
+        ? await metadataStore.getProcessingSnapshot(row)
+        : null;
+      const unpriced = new Set((snapshot?.pending || [])
+        .filter((p) => p.status === 'rejected')
+        .map((p) => String(p.offer_id)));
+      if (!ids.every((id) => archived.has(id) || unpriced.has(id))) {
+        out.incomplete += 1;
+        continue;
+      }
+      const deleted = await snapshotAndDeletePages(ctx, row, doc, hotspots, {
+        policy: 'price-archive-complete',
+        data: {
+          archived_offer_ids: [...archived],
+          unpriced_offer_ids: [...unpriced],
+          price_archive: 'offer_archive (GET /prices/archive)',
+        },
+        cutoff,
+        budget: budget - out.deletes,
+      });
+      if (deleted == null) continue;
+      out.deletes += deleted;
+      await metadataStore.markPruned(row.id);
+      out.pruned += 1;
+    } catch (err) {
+      report.errors.push(`${row.id}: ${err.message}`);
+    }
+  }
+  return out;
+}
+
 export async function pruneStoredBytes(ctx, {
   keepDays = 7,
   offerKeepDays = 14,
@@ -61,6 +174,7 @@ export async function pruneStoredBytes(ctx, {
   maxEvidenceRows = 5000,
   maxOfferRows = 5000,
   watchRunKeepDays = 30,
+  maxArchiveCandidates = 300,
   now = new Date(),
 } = {}) {
   const report = { startedAt: new Date().toISOString(), pruned: 0, deletes: 0, skipped: 0, errors: [] };
@@ -97,43 +211,15 @@ export async function pruneStoredBytes(ctx, {
           report.skipped += 1;
           continue;
         }
-        // Keep the small publication/geometry manifests as structured data.
-        // They also make a failed or partial image deletion safe to retry.
-        const keys = [...new Set(doc.pages.map(p => p.imageUrl))];
-        if (keys.some(key => !key.startsWith(`${base}/`)
-            || !/^page\d+\.(?:webp|jpg|jpeg|png|img)$/.test(key.slice(base.length + 1)))) {
-          throw new Error('unsafe brochure asset path');
-        }
-        if (keys.length > budget) {
-          report.skipped += 1; // out of delete budget this run — next fire drains it
+        const deleted = await snapshotAndDeletePages(ctx, row, doc, hotspots, {
+          policy: 'processed-expired-7-days', data: snapshot, cutoff, budget,
+        });
+        if (deleted == null) {
+          report.skipped += 1;
           continue;
         }
-        const archiveBytes = encoder.encode(JSON.stringify({
-          version: 1, policy: 'processed-expired-7-days',
-          archived_at: new Date().toISOString(), brochure: row,
-          meta: doc, hotspots, ...snapshot,
-          attempt_evidence_prefix: 'vision-verification/attempts/',
-        }));
-        const hash = await sha256Hex(archiveBytes);
-        const archiveKey = `brochure-data/${encodeURIComponent(row.id)}/${hash}.json`;
-        await objectStore.put(archiveKey, archiveBytes, { contentType: 'application/json' });
-        const archived = await objectStore.get(archiveKey);
-        if (!archived || await sha256Hex(archived.bytes) !== hash) {
-          throw new Error('brochure data archive verification failed');
-        }
-        if (metadataStore.getById) {
-          const live = await metadataStore.getById(row.id);
-          if (!live || live.is_current || live.pruned_at || live.checksum !== row.checksum
-              || live.storage_key !== row.storage_key || !live.valid_to || live.valid_to >= cutoff) {
-            report.skipped += 1;
-            continue;
-          }
-        }
-        for (const key of keys) {
-          budget -= 1;
-          await objectStore.delete(key);
-          report.deletes += 1;
-        }
+        budget -= deleted;
+        report.deletes += deleted;
       }
       await metadataStore.markPruned(row.id);
       report.pruned += 1;
@@ -183,6 +269,27 @@ export async function pruneStoredBytes(ctx, {
       }
     } catch (err) {
       report.errors.push(`offers: ${err.message}`);
+    }
+  }
+
+  // Brochure pages whose products are all in the price archive. Runs after the
+  // offers prune above, one day past its horizon, so the expired offers this
+  // brochure printed have already been copied into the archive.
+  if (ctx.offerArchive?.archivedOfferIds && metadataStore.listArchivePrunable && objectStore.put) {
+    try {
+      const archiveCutoff = new Date(nowMs - (offerKeepDays + 1) * 86400000).toISOString().slice(0, 10);
+      const archivePass = await pruneArchivedBrochures(ctx, report, {
+        cutoff: archiveCutoff,
+        budget,
+        maxRows,
+        maxCandidates: maxArchiveCandidates,
+      });
+      budget -= archivePass.deletes;
+      report.deletes += archivePass.deletes;
+      report.pruned += archivePass.pruned;
+      report.archivePass = archivePass;
+    } catch (err) {
+      report.errors.push(`price archive pass: ${err.message}`);
     }
   }
 

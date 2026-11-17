@@ -48,6 +48,7 @@ import {
 } from './storage/objectStore.js';
 import { createD1CollectionStore } from './storage/collectionStore.js';
 import { createD1HistoryStore } from './storage/historyStore.js';
+import { createOfferArchive } from './storage/offerArchive.js';
 import { createD1OfferStore } from './storage/offerStore.js';
 import { createD1BrowseStore } from './storage/browseStore.js';
 import { createD1WatchStore } from './storage/watchStore.js';
@@ -511,6 +512,7 @@ function buildContext(env) {
     collectionStore,
     pipeline,
     historyStore,
+    offerArchive: env.DB ? createOfferArchive(env.DB) : null,
     offerStore,
     offersSource,
     browseStore,

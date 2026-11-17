@@ -33,6 +33,7 @@ import { saleObservationSql, readSaleObservation } from '../offers/saleObservati
 // matches against, exactly as search_text is for OCR.
 
 import { normalizeText } from '../matching.js';
+import { ensureOfferArchive } from './offerArchive.js';
 import { corroboratedPackCount, corroboratedPackCountSql } from '../offers/observedPackCount.js';
 import { observedNameSql } from '../observedText.js';
 import { CORROBORATION_FLOOR, servable } from '../offers/enrich.js';
@@ -1543,19 +1544,42 @@ export function createD1EnrichStore(db) {
                             WHERE valid_to IS NOT NULL AND valid_to < ?
                             ORDER BY valid_to, id LIMIT ?`;
       const activeSidecars = sidecars.filter(([table]) => present.has(table));
-      const statements = activeSidecars.map(([table, offerColumn]) => db
+      // The price archive (storage/offerArchive.js) takes a copy of every
+      // expiring offer FIRST, in the same transaction as the deletes, so no
+      // offer can leave D1 without its store, dates, price and names being
+      // kept. If the archive cannot be created nothing is deleted.
+      await ensureOfferArchive(db);
+      const withVision = present.has('offer_enrichments');
+      const statements = [db
+        .prepare(`INSERT OR IGNORE INTO offer_archive
+            (id, store, region, flyer_ref, brochure_id, valid_from, valid_to, price, old_price,
+             currency, name, name_ar, size, category, image_url, source_url, price_source,
+             origin, match_text, archived_at)
+          SELECT o.id, o.store, o.region, o.flyer_ref, o.brochure_id, o.valid_from, o.valid_to,
+                 o.price, o.old_price, COALESCE(o.currency, 'SAR'),
+                 ${withVision ? CANON_NAME_SQL : 'o.name'}, ${withVision ? CANON_NAME_AR_SQL : 'o.name_ar'},
+                 ${withVision ? `CASE WHEN ${SERVABLE_SQL} THEN e.size END` : 'NULL'},
+                 o.category, o.image_url, o.source_url, o.price_source, 'retention',
+                 TRIM(${withVision ? CANON_HAYSTACK_SQL : "COALESCE(o.search_text, '')"} || ' ' ||
+                   COALESCE(LOWER(o.name), '') || ' ' || COALESCE(o.name_ar, '')),
+                 ?
+            FROM offers o ${withVision ? 'LEFT JOIN offer_enrichments e ON e.id = o.id' : ''}
+           WHERE o.id IN (${candidates}) AND o.price > 0`)
+        .bind(new Date().toISOString(), cutoffISO, bounded)];
+      statements.push(...activeSidecars.map(([table, offerColumn]) => db
         .prepare(`DELETE FROM ${table} WHERE ${offerColumn} IN (${candidates})`)
-        .bind(cutoffISO, bounded));
+        .bind(cutoffISO, bounded)));
       statements.push(db
         .prepare(`DELETE FROM offers WHERE id IN (${candidates})`)
         .bind(cutoffISO, bounded));
       const results = await db.batch(statements);
       const byTable = Object.fromEntries(activeSidecars.map(([table], index) => [
         table,
-        Number(results[index]?.meta?.changes || 0),
+        Number(results[index + 1]?.meta?.changes || 0),
       ]));
       return {
         offers: Number(results[results.length - 1]?.meta?.changes || 0),
+        archived: Number(results[0]?.meta?.changes || 0),
         sidecars: Object.values(byTable).reduce((sum, count) => sum + count, 0),
         byTable,
       };
