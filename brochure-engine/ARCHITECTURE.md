@@ -290,8 +290,11 @@ PDF-index store = **one config object, zero new code** (Discovery §10.D.1).
   `store` → all current brochures (for a "this week's flyers" grid).
 - `GET /brochures/history?store=<id>&region=<key>` → prior editions (Pillar 3
   substrate).
-- `GET /asset/<storageKey>/<file>` → streams the PDF/page image from R2 (or
-  return R2 public URLs directly).
+- `GET /asset/brochures/<storageKey>/<file>` → streams a brochure's
+  `meta.json`, `original.pdf` or `pageNN.<ext>` from R2. Nothing else: every
+  other key in the bucket (D1 backups, archives, settings, `hotspots.json`,
+  `brochures/_resume/`) answers `404` unread (`isPublicAssetKey`, engine.js;
+  2026-11-18).
 - Errors mirror the connector: `400` missing/invalid param, `404` unknown
   store/region, `502` on storage failure. CORS on every response.
 

@@ -101,6 +101,21 @@ const CORS = {
   'Access-Control-Allow-Headers': 'Content-Type, X-Ingest-Secret',
 };
 
+// The only bucket keys GET /asset/<key> serves, unauthenticated: a brochure's
+// manifest, its original PDF and its page images, all under
+// brochures/<store>/<region>/<edition>/ — what the app's flyer viewer loads
+// (live-shopping-assistant/src/brochure.js). Mini marts pictures have their own
+// route (/minimarts/image). Everything else in the bucket stays private:
+// backups/d1/ (every D1 table), ops-archive/, price-archive/, brochure-data/,
+// vision-verification/, ops/, cache/, brochures/_resume/, and each brochure's
+// hotspots.json (served as /brochures/hotspots). Each path part must start
+// with a letter or digit, so `..` and `_resume` never match.
+const PUBLIC_ASSET_KEY =
+  /^brochures\/(?:[A-Za-z0-9][A-Za-z0-9._-]*\/){3}(?:meta\.json|original\.pdf|page\d+\.(?:webp|jpg|jpeg|png|img))$/;
+export function isPublicAssetKey(key) {
+  return typeof key === 'string' && PUBLIC_ASSET_KEY.test(key);
+}
+
 // What earlier invocations learned about each key: the newest audit rows that
 // carry `keyUsage`, merged with the durable record (offers/mistralKeyHealth.js)
 // for when no such row is among them. The record read is kept per context so
@@ -1090,8 +1105,12 @@ export async function handleRequest(request, ctx) {
   }
 
   // Asset streaming — serve the stored PDF/meta bytes from the object store (§8).
+  // Only a brochure's own files (isPublicAssetKey); every other key in the
+  // bucket answers 404 without being read.
   if (path.startsWith('/asset/') && request.method === 'GET') {
-    const key = decodeURIComponent(path.slice('/asset/'.length));
+    let key = null;
+    try { key = decodeURIComponent(path.slice('/asset/'.length)); } catch { /* malformed %-escape */ }
+    if (!isPublicAssetKey(key)) return json({ error: 'Asset not found' }, 404);
     const obj = await ctx.objectStore.get(key);
     if (!obj) return json({ error: 'Asset not found' }, 404);
     return new Response(obj.bytes, {
