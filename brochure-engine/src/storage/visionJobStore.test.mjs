@@ -35,6 +35,15 @@ function fakeDb() {
             }
             return { meta: { changes: 1 } };
           }
+          // Heartbeat renewal: CAS on the value the renewing store last wrote.
+          if (/SET lease_until = \? WHERE id = \? AND lease_until = \?/.test(sql)) {
+            const [until, id, held] = b;
+            if (row && row.id === id && row.lease_until === held) {
+              row.lease_until = until;
+              return { meta: { changes: 1 } };
+            }
+            return { meta: { changes: 0 } };
+          }
           // Lease CAS — MUST be tested before the generic SET update.
           if (/SET lease_until = \?\s+WHERE id = \? AND status = 'running'/.test(sql)) {
             const [until, id, now] = b;
@@ -94,6 +103,35 @@ console.log('visionJobStore lease (single-writer):');
 
   await store.stop();
   check('a stopped job refuses the lease (no drain writer)', (await store.tryLease({ nowMs: t0 + 600000, leaseMs: 120000 })) === false && (await store.get()).status === 'stopped');
+}
+
+console.log('visionJobStore lease heartbeat (renewLease):');
+{
+  const db = fakeDb();
+  const hop = createD1VisionJobStore(db);
+  await hop.start({ scope: 'all', total: 100 });
+  const t0 = 1_000_000;
+  check('a store that never leased cannot renew', (await hop.renewLease({ nowMs: t0, leaseMs: 240000 })) === false);
+
+  await hop.tryLease({ nowMs: t0, leaseMs: 240000 });
+  check('the holder extends its own lease',
+    (await hop.renewLease({ nowMs: t0 + 60000, leaseMs: 240000 })) === true
+      && (await hop.get()).lease_until === new Date(t0 + 300000).toISOString());
+  check('a renewed lease still blocks another fire',
+    (await createD1VisionJobStore(db).tryLease({ nowMs: t0 + 200000, leaseMs: 240000 })) === false);
+
+  // The holder died: no renewal, the lease lapses, the next hop takes it.
+  const next = createD1VisionJobStore(db);
+  check('a lapsed lease is taken by the next hop',
+    (await next.tryLease({ nowMs: t0 + 400000, leaseMs: 240000 })) === true);
+  check('the old holder cannot extend the new holder\'s lease',
+    (await hop.renewLease({ nowMs: t0 + 410000, leaseMs: 240000 })) === false
+      && (await hop.get()).lease_until === new Date(t0 + 640000).toISOString());
+
+  await next.update({ lease_until: null }); // the hop hands off
+  check('a released lease is not revived by a late beat',
+    (await next.renewLease({ nowMs: t0 + 420000, leaseMs: 240000 })) === false
+      && (await next.get()).lease_until === null);
 }
 
 if (failures) { console.error(`\n${failures} FAILURE(S)`); process.exit(1); }

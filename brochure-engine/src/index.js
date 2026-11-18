@@ -39,6 +39,8 @@ import {
   createPriceFallbackDispatcher,
   priceFallbackLanes,
   PRICE_FALLBACK_LANE_DEADLINE_MS,
+  HEARTBEAT_LEASE_MS,
+  startLeaseHeartbeat,
 } from './scheduler.js';
 import { createD1MetadataStore } from './storage/metadataStore.js';
 import {
@@ -338,7 +340,11 @@ async function runSteadyStateVision(env, { scheduledTime = Date.now() } = {}) {
   if (bgJob && bgJob.status === 'running') return;
   const lease = createD1VisionJobStore(env.DB, { id: 'steady-vision' });
   await lease.ensureRunning({ scope: 'all', origin: 'cron' });
-  if (!(await lease.tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS }))) return;
+  // Short lease kept alive by a heartbeat (scheduler.js startLeaseHeartbeat):
+  // a fire that dies frees the drain within minutes, not 15.
+  if (!(await lease.tryLease({ nowMs: Date.now(), leaseMs: HEARTBEAT_LEASE_MS }))) return;
+  const heartbeat = startLeaseHeartbeat(lease);
+  let released = false;
   try {
     const te = Date.now();
     const today = marketDate();
@@ -366,8 +372,14 @@ async function runSteadyStateVision(env, { scheduledTime = Date.now() } = {}) {
         candidateIds: candidates.map((offer) => offer.id),
         ...CPU_SAFE_BACKGROUND_DRAIN,
         deadlineMs: DRAIN_DISPATCH_WINDOW_MS,
+        shouldContinue: async () => !heartbeat.lost,
       },
     );
+    // Every child has answered, so the Vision lease is free: the next fire
+    // may read while Registry resolution (its own single-writer lease) runs.
+    await heartbeat.stop();
+    await lease.update({ lease_until: null }).catch(() => {});
+    released = true;
     // This fire only runs when no Background Vision job is active.
     const resolution = await runDetachedResolution(env);
     console.log(
@@ -402,7 +414,8 @@ async function runSteadyStateVision(env, { scheduledTime = Date.now() } = {}) {
       })
       .catch(() => {});
   } finally {
-    await lease.update({ lease_until: null }).catch(() => {});
+    await heartbeat.stop();
+    if (!released) await lease.update({ lease_until: null }).catch(() => {});
   }
 }
 
@@ -1041,9 +1054,13 @@ const worker = {
           }
           if (!context.mistralPools.medium.some((slot) => slot.key)) return;
           // Single-writer: only one fire drains at a time (atomic CAS lease).
-          if (!(await context.visionJobStore.tryLease({ nowMs: Date.now(), leaseMs: VISION_LEASE_MS }).catch(() => false))) return;
+          // Short lease kept alive by a heartbeat (scheduler.js
+          // startLeaseHeartbeat): a hop that dies frees the job within
+          // minutes, and the one-minute tick above starts the next hop.
+          if (!(await context.visionJobStore.tryLease({ nowMs: Date.now(), leaseMs: HEARTBEAT_LEASE_MS }).catch(() => false))) return;
+          const heartbeat = startLeaseHeartbeat(context.visionJobStore);
           const te = Date.now();
-          let visionCompleted = false;
+          let released = false;
           try {
             const candidates = await context.enrichStore.listDebris({
               currentOn: today,
@@ -1063,14 +1080,14 @@ const worker = {
                 candidateIds: candidates.map((offer) => offer.id),
                 ...CPU_SAFE_BACKGROUND_DRAIN,
                 deadlineMs: DRAIN_DISPATCH_WINDOW_MS,
-                shouldContinue: async () => (await context.visionJobStore.get())?.status === 'running',
+                shouldContinue: async () => !heartbeat.lost
+                  && (await context.visionJobStore.get())?.status === 'running',
               },
             );
-            // Resolution runs in its own SELF child so its CPU is isolated too.
-            const resolution = await runDetachedResolution(env, { tag: 'ops' });
             const remaining = await context.enrichStore.countDebris(today).catch(() => null);
             const done = remaining != null && remaining <= 0;
             const terminal = terminalProviderFailure(drain);
+            await heartbeat.stop();
             const currentJob = await context.visionJobStore.get().catch(() => null);
             if (currentJob?.status === 'running') {
               await context.visionJobStore
@@ -1084,13 +1101,22 @@ const worker = {
                   failed: (currentJob.failed || 0) + drain.failed,
                   remaining: remaining == null ? currentJob.remaining : remaining,
                   hops: (currentJob.hops || 0) + drain.batches,
-                  last_error: drain.lines?.find((l) => !l.ok)?.error || resolution.error || null,
+                  last_error: drain.lines?.find((l) => !l.ok)?.error || null,
                   provider_limit: drain.providerLimit || currentJob.provider_limit || null,
                   finished_at: done || terminal ? new Date().toISOString() : null,
                   lease_until: null,
                 })
                 .catch(() => {});
             }
+            // Hand off BEFORE resolution (2026-11-19). Every child has
+            // answered, so the next hop can start reading now; Registry
+            // resolution keeps its own single-writer lease and took 40-200 s
+            // a hop on 2026-11-18, time the Mistral keys used to sit idle.
+            await context.visionJobStore.update({ lease_until: null });
+            released = true;
+            await enqueueBackground(env.BACKGROUND_DRAINS, context.visionJobStore, 'vision');
+            // Resolution runs in its own SELF child so its CPU is isolated too.
+            const resolution = await runDetachedResolution(env, { tag: 'ops' });
             await context.opsStore
               .record({
                 ts: drain.startedAt,
@@ -1111,10 +1137,11 @@ const worker = {
                 },
               })
               .catch(() => {});
-            visionCompleted = true;
           } finally {
-            await context.visionJobStore.update({ lease_until: null });
-            if (visionCompleted) await enqueueBackground(env.BACKGROUND_DRAINS, context.visionJobStore, 'vision');
+            await heartbeat.stop();
+            // A hop that failed before its hand-off frees the job; the
+            // one-minute tick re-enqueues it.
+            if (!released) await context.visionJobStore.update({ lease_until: null });
           }
         })(),
       );

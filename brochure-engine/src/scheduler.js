@@ -363,6 +363,51 @@ export async function fetchSelfChild(self, url, init, { timeoutMs = SELF_CHILD_T
   }
 }
 
+// Vision lease heartbeat (2026-11-19). Measured 2026-11-18 on the Background
+// Vision job: 8 of 15 hops died without recording anything (no ops row, no job
+// update), and each dead hop then held the 15-minute lease, so the drain sat
+// idle 15-48 minutes at a time and read ~290 offers/hour against a ~600/hour
+// Mistral ceiling. A fire now takes a short lease and renews it every minute
+// from a timer while its invocation is alive. When the invocation dies the
+// renewals stop and the lease lapses within HEARTBEAT_LEASE_MS; the
+// one-minute tick then starts the next fire. A renewal that finds the lease
+// gone (released or taken over) marks the heartbeat `lost`, and the fire stops
+// dispatching new children. A failed D1 write is only skipped: the lease still
+// has two more beats of slack.
+export const HEARTBEAT_LEASE_MS = 4 * 60 * 1000;
+export const LEASE_HEARTBEAT_EVERY_MS = 60 * 1000;
+
+export function startLeaseHeartbeat(store, {
+  leaseMs = HEARTBEAT_LEASE_MS,
+  everyMs = LEASE_HEARTBEAT_EVERY_MS,
+  now = () => Date.now(),
+  setIntervalImpl = setInterval,
+  clearIntervalImpl = clearInterval,
+} = {}) {
+  let lost = false;
+  let stopped = false;
+  let inflight = null;
+  const beat = () => {
+    if (lost || stopped || inflight || typeof store?.renewLease !== 'function') return inflight;
+    inflight = Promise.resolve()
+      .then(() => store.renewLease({ nowMs: now(), leaseMs }))
+      .then((ok) => { if (ok === false) lost = true; })
+      .catch(() => {})
+      .finally(() => { inflight = null; });
+    return inflight;
+  };
+  const timer = setIntervalImpl(beat, everyMs);
+  return {
+    get lost() { return lost; },
+    beat,
+    async stop() {
+      if (!stopped) clearIntervalImpl(timer);
+      stopped = true;
+      await inflight;
+    },
+  };
+}
+
 export function createEnrichDispatcher({
   self,
   ingestSecret,

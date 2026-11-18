@@ -16,6 +16,8 @@
 //   get()                           -> Promise<row|null>  (provider_limit parsed)
 //   update(patch)                   -> Promise<row|null>  (whitelisted columns)
 //   stop()                          -> Promise<row|null>  (status 'stopped')
+//   tryLease({ nowMs, leaseMs })    -> Promise<boolean>   (claim the drain)
+//   renewLease({ nowMs, leaseMs })  -> Promise<boolean>   (extend OUR lease)
 
 // Only these columns may be patched — a typo can never write a phantom column.
 const PATCHABLE = new Set([
@@ -35,6 +37,11 @@ function rowOut(r) {
 
 export function createD1VisionJobStore(db, { id = 'active' } = {}) {
   const jobId = String(id || 'active');
+  // The lease_until value THIS store instance last wrote (tryLease or
+  // renewLease). renewLease only extends a lease still holding that exact
+  // value, so a fire whose lease expired and was taken over can never
+  // extend the new holder's lease.
+  let held = null;
   return {
     async start({ scope = 'all', total = 0, origin = 'ops' } = {}) {
       const now = new Date().toISOString();
@@ -94,7 +101,26 @@ export function createD1VisionJobStore(db, { id = 'active' } = {}) {
         )
         .bind(until, jobId, now)
         .run();
-      return (res?.meta?.changes || 0) > 0;
+      const ok = (res?.meta?.changes || 0) > 0;
+      if (ok) held = until;
+      return ok;
+    },
+
+    // Heartbeat (2026-11-19, scheduler.js startLeaseHeartbeat). A fire takes
+    // a SHORT lease and extends it while it is alive, so a fire that dies
+    // stops blocking the drain within minutes instead of a fixed 15-minute
+    // lease. Compare-and-set on the value this instance wrote: true while
+    // this fire still owns the lease, false once it was released or taken.
+    async renewLease({ nowMs = Date.now(), leaseMs = 120000 } = {}) {
+      if (!held) return false;
+      const until = new Date(nowMs + leaseMs).toISOString();
+      const res = await db
+        .prepare('UPDATE vision_jobs SET lease_until = ? WHERE id = ? AND lease_until = ?')
+        .bind(until, jobId, held)
+        .run();
+      const ok = (res?.meta?.changes || 0) > 0;
+      held = ok ? until : null;
+      return ok;
     },
 
     async get() {
