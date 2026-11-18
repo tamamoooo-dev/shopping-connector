@@ -1193,7 +1193,12 @@ export async function extractWithFailover(
     ...failover
   } = {},
 ) {
-  const crop = await fetchOfferCrop(offer, { fetchImpl, onCrop });
+  // A ready reading needs only the crop's address: its pixels were already
+  // read (the PC reader, the price fallback), so the Worker does not fetch
+  // them again. The crop gate (needsEnrichment) applies either way.
+  const crop = observation
+    ? (needsEnrichment(offer) ? { cropUrl: offer.imageUrl, contentType: null, bytes: null, base64: null } : null)
+    : await fetchOfferCrop(offer, { fetchImpl, onCrop });
   if (!crop) return null;
   const result = await runSmartExtraction({
     strategy,

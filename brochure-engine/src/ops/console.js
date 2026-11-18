@@ -82,6 +82,11 @@ import {
   VISION_MODEL_OPTIONS,
   VISION_MODEL_TIERS,
 } from '../offers/visionModel.js';
+import {
+  normalizeVisionReader,
+  visionReaderGate,
+  writeVisionReaderSetting,
+} from '../offers/visionReader.js';
 import { CONSOLE_HTML } from './ui.js';
 import { enqueueBackground } from '../backgroundContinuation.js';
 
@@ -615,6 +620,19 @@ async function runVisionModelSelect(ctx, body) {
   // Same shape the GET returns, so the console renders a selection response and
   // a poll response through one code path. Once armed, active === selected.
   return { action: 'ops:vision-model', ok: true, setting, defaultModel: DEFAULT_MODEL, activeModel: setting.model };
+}
+
+// Who reads Stage-1 Vision (offers/visionReader.js; owner 2026-11-19: "in
+// engine ops i can toggle between the two"). Haiku = the PC reader, with
+// Mistral as its automatic backup when the PC is off or out of Claude plan;
+// Mistral = the PC reads nothing. Takes effect on the next fire.
+async function runVisionReaderSelect(ctx, body) {
+  const mode = normalizeVisionReader(body?.mode);
+  if (!mode) throw new OpsError(`Unknown Vision reader '${body?.mode}'.`);
+  const setting = await writeVisionReaderSetting(ctx.objectStore, mode, { by: 'ops' });
+  await auditOp(ctx, { action: 'ops:vision-reader', ok: true, elapsed_ms: 0, detail: { mode } });
+  const gate = await visionReaderGate({ objectStore: ctx.objectStore, db: ctx.db || null });
+  return { action: 'ops:vision-reader', ok: true, ...gate, setting };
 }
 
 // Background Manual Vision — stop. Flips the job to 'stopped'; the running chain
@@ -1521,6 +1539,8 @@ async function apiRoute(request, ctx, url, sub) {
           keyPools: mistralPoolInventory(pools, keyUsage),
         });
       }
+      case 'vision/reader': // who reads Stage 1 now: Haiku on the PC or Mistral
+        return opsJson(await visionReaderGate({ objectStore: ctx.objectStore, db: ctx.db || null }));
       case 'queue': // §4 Queue Monitor
         return opsJson(await queueSnapshot(ctx));
       // --- S5.7 Recovery Queue (C-8, C-9) ----------------------------------
@@ -1747,6 +1767,10 @@ async function apiRoute(request, ctx, url, sub) {
         // record written from here on.
         requireConfirm(body, true);
         return opsJson(await runVisionModelSelect(ctx, body));
+      }
+      case 'vision/reader': {
+        requireConfirm(body, true);
+        return opsJson(await runVisionReaderSelect(ctx, body));
       }
       case 'registry/merge': {
         // Freeze or re-arm the AUTOMATED registry merge. Merge is the one

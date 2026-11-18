@@ -23,6 +23,11 @@ import { drainVisionVerification } from './offers/visionVerification.js';
 import { drainPriceFallback } from './offers/priceFallback.js';
 import { rebuildRow, summarize } from './offers/rebuild.js';
 import { readVisionModelSetting } from './offers/visionModel.js';
+import {
+  createVisionReaderState, HAIKU_VISION_MODEL, observationsFromReadings, oneReadingStatements,
+  setVisionReaderLimit, VISION_READER_BATCH_TEMPLATE, VISION_READER_MAX_QUEUE,
+  VISION_READER_MAX_READINGS, visionReaderGate, visionReaderPrompt,
+} from './offers/visionReader.js';
 import { createKeyChain } from './offers/mistralKeys.js';
 import { currentKeyUsage, noteKeyUsage, readKeyHealth } from './offers/mistralKeyHealth.js';
 import { drainRecovery } from './recovery/runner.js';
@@ -465,6 +470,129 @@ export async function handleRequest(request, ctx) {
     return new Response(object.body, {
       headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'public, max-age=604800, immutable', ...CORS },
     });
+  }
+
+  // The Vision PC reader (offers/visionReader.js, pc-reader/vision.mjs):
+  // Claude Haiku 5.5 reads Stage-1 flyer crops on the owner's PC, ONE reading
+  // a crop, and posts each reading back; the engine saves it through the
+  // Stage-1 path Mistral readings take. Guarded by the ingest secret.
+  if (path.startsWith('/vision/reader/')) {
+    if (!ctx.ingestSecret || request.headers.get('X-Ingest-Secret') !== ctx.ingestSecret) {
+      return json({ error: 'Forbidden' }, 403);
+    }
+    if (!ctx.db || !ctx.enrichStore) return json({ error: 'Vision reader unavailable.' }, 503);
+    const state = createVisionReaderState(ctx.db);
+
+    // Asking is the heartbeat. With the switch on Mistral the PC gets no work.
+    if (path === '/vision/reader/queue' && request.method === 'GET') {
+      const now = new Date();
+      await state.note(now.toISOString());
+      const gate = await visionReaderGate({ objectStore: ctx.objectStore, db: ctx.db, now });
+      if (gate.setting.mode !== 'haiku') {
+        return json({ mode: gate.setting.mode, reader: gate.reader, why: gate.why, offers: [] });
+      }
+      const asked = Number(url.searchParams.get('crops'));
+      const limit = Number.isFinite(asked) && asked >= 1 ? Math.min(VISION_READER_MAX_QUEUE, Math.floor(asked)) : 100;
+      const rows = await ctx.enrichStore.listDebris({ currentOn: todayISO(), limit });
+      return json({
+        mode: 'haiku',
+        reader: gate.reader,
+        why: gate.why,
+        model: HAIKU_VISION_MODEL,
+        prompt: visionReaderPrompt(1),
+        batchPrompt: VISION_READER_BATCH_TEMPLATE,
+        offers: rows.map((r) => ({ id: r.id, imageUrl: r.image_url })),
+      });
+    }
+
+    // { readings: [{ id, reading: {name_en, ...} }], run?, final? }. Each
+    // reading is saved once; an offer already read (by anyone) is skipped.
+    if (path === '/vision/reader/readings' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: 'Body must be JSON.' }, 400);
+      }
+      if (!Array.isArray(body?.readings)) return json({ error: "Missing 'readings'." }, 400);
+      const started = new Date();
+      const readings = body.readings.slice(0, VISION_READER_MAX_READINGS);
+      const observations = observationsFromReadings(readings, { observedAt: started.toISOString() });
+      const ids = Object.keys(observations);
+      let report = null;
+      if (ids.length) {
+        report = await drainEnrichment(
+          {
+            enrichStore: ctx.enrichStore,
+            verificationHistoryStore: ctx.visionVerificationHistoryStore,
+            // Unused: every offer here carries its reading.
+            keyChain: createKeyChain([]),
+          },
+          {
+            limit: ids.length,
+            currentOn: todayISO(),
+            queueOfferIds: ids,
+            observations,
+            strategy: ctx.extractionStrategy,
+            identityNormalizationMode: ctx.identityNormalizationMode,
+            model: HAIKU_VISION_MODEL,
+          },
+        );
+        // ONE READING: Stage 2 never re-reads these.
+        await ctx.db.batch(oneReadingStatements(ctx.db, ids, new Date().toISOString())).catch(() => {});
+      }
+      const run = {
+        ...(body.run && typeof body.run === 'object' ? body.run : {}),
+        posted: readings.length,
+        readings: ids.length,
+        saved: report?.stored ?? 0,
+        published: report?.enriched ?? 0,
+        failed: report?.failed ?? 0,
+      };
+      if (body.final === true || ids.length) await state.noteRun(started.toISOString(), run).catch(() => {});
+      // One audit row per PC run (its final post), and one for any save failure.
+      if (ctx.opsStore && (body.final === true || run.failed > 0)) {
+        await ctx.opsStore.record({
+          ts: started.toISOString(),
+          action: 'reader:vision',
+          origin: 'pc',
+          ok: run.failed === 0 && !(Array.isArray(run.errors) && run.errors.length),
+          offers: Number(run.published) || 0,
+          failed: run.failed,
+          elapsed_ms: Number(run.ms) || null,
+          error: report?.errors?.[0] || (Array.isArray(run.errors) ? run.errors[0] : null) || null,
+          detail: { run },
+        }).catch(() => {});
+      }
+      return json({ run, errors: (report?.errors || []).slice(0, 5) });
+    }
+
+    // Every Claude account is at its limit until { until }; a time already
+    // past means it reads again. { accounts } is kept as a note.
+    if (path === '/vision/reader/limit' && request.method === 'POST') {
+      let body;
+      try {
+        body = await request.json();
+      } catch {
+        return json({ error: 'Body must be JSON.' }, 400);
+      }
+      const set = await setVisionReaderLimit(state, { until: body?.until, note: body?.accounts ?? null });
+      if (!set) return json({ error: "Missing 'until' (a time)." }, 400);
+      await ctx.opsStore?.record({
+        ts: new Date().toISOString(),
+        action: 'reader:vision-limit',
+        origin: 'pc',
+        ok: true,
+        detail: { ...set, accounts: body?.accounts ?? null },
+      }).catch(() => {});
+      return json(set);
+    }
+
+    if (path === '/vision/reader/status' && request.method === 'GET') {
+      const gate = await visionReaderGate({ objectStore: ctx.objectStore, db: ctx.db });
+      return json(gate);
+    }
+    return json({ error: 'Not found.' }, 404);
   }
 
   // The PC reader (pc-reader/: Claude Haiku 5.5 on the owner's PC, through

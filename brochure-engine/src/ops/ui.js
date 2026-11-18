@@ -192,6 +192,16 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
     </div>
 
     <div class="card">
+      <h2>Vision Reader <span id="vrTag" class="tag">…</span></h2>
+      <div class="mut" style="margin-bottom:10px">Who reads new flyer crops for names, brand and size. Haiku runs on the PC on the Claude plan, one reading a crop; Mistral reads by itself while the PC is off or out of plan. Prices always come from D4D.</div>
+      <div class="seg" id="vrSeg">
+        <button data-mode="haiku">Haiku · PC</button>
+        <button data-mode="mistral">Mistral</button>
+      </div>
+      <div id="vrPanel"><span class="spin"></span></div>
+    </div>
+
+    <div class="card">
       <h2>Vision Model <span id="vmTag" class="tag">…</span></h2>
       <div class="mut" style="margin-bottom:10px">Ministral 14B is the one production model. Validated products use one vision read. A flagged, changed or failed reading can enter the bounded verification queue.</div>
       <div id="vmWarn" class="warnBox" style="display:none"></div>
@@ -403,7 +413,7 @@ document.querySelectorAll("nav button").forEach(function (b) {
     stopPoll();
     if (b.dataset.v === "home" || b.dataset.v === "stores") loadOverview();
     if (b.dataset.v === "vision") {
-      loadQueue(); loadProgress(); loadVerification(); loadVisionModel();
+      loadQueue(); loadProgress(); loadVerification(); loadVisionModel(); loadVisionReader();
       // Job rows are tiny and remain live. Coverage/verification aggregate
       // endpoints scan the working corpus, so refresh those on entry/return,
       // after explicit actions/job completion, and every six hours—not every
@@ -868,6 +878,59 @@ function runLiveDrain() {
   }
   step();
 }
+
+/* ---------- Vision tab: Vision Reader (Haiku on the PC / Mistral) ---------- */
+/* The switch the owner asked for (2026-11-19). "Reading now" is the engine's
+   own decision (offers/visionReader.js whoReadsVision), so the card never
+   claims Haiku while Mistral is the one reading. */
+function loadVisionReader() { return api("vision/reader").then(renderVisionReader).catch(function () {}); }
+function renderVisionReader(r) {
+  if (!r || !r.setting) return;
+  var mode = r.setting.mode;
+  $("#vrSeg").querySelectorAll("button").forEach(function (b) {
+    b.classList.toggle("on", b.dataset.mode === mode);
+  });
+  var tag = $("#vrTag");
+  tag.textContent = r.reader === "haiku" ? "Haiku reading" : "Mistral reading";
+  tag.className = "tag" + (mode === "haiku" && r.reader !== "haiku" ? " warnTag" : "");
+  var why = {
+    "chosen": "Mistral chosen here",
+    "pc-off": "PC reader not asking for work — Mistral reads meanwhile",
+    "pc-limited": "both Claude accounts at their limit for over 2 h — Mistral reads meanwhile",
+    "pc-holding": "Claude limit ends within 2 h — new crops wait for Haiku",
+    "pc-on": "PC reader is on"
+  }[r.why] || r.why || "—";
+  var pc = r.pc || {};
+  var run = pc.last_run || null;
+  var runText = run
+    ? (run.published != null ? run.published + " published" : "") +
+      (run.readings != null ? " · " + run.readings + " read" : "") +
+      (run.ms ? " · " + Math.round(run.ms / 1000) + " s" : "") +
+      (pc.last_run_at ? " · " + ago(pc.last_run_at) : "")
+    : "none yet";
+  $("#vrPanel").innerHTML =
+    kvl("Reading now", (r.reader === "haiku" ? "Haiku 5.5 (PC)" : "Mistral 14B") + " · " + why) +
+    kvl("PC last asked", pc.seen_at ? ago(pc.seen_at) : "never") +
+    kvl("Last PC post", runText) +
+    (pc.limited_until && Date.parse(pc.limited_until) > Date.now()
+      ? kvl("Claude limit until", tsShort(pc.limited_until)) : "") +
+    kvl("Switch set", r.setting.selectedAt ? ago(r.setting.selectedAt) + (r.setting.selectedBy ? " · " + r.setting.selectedBy : "") : "default (Haiku)");
+}
+$("#vrSeg").querySelectorAll("button").forEach(function (b) {
+  b.onclick = function () {
+    var mode = b.dataset.mode;
+    var msg = mode === "haiku"
+      ? "Haiku on the PC reads new flyer crops, one reading each. Mistral reads only while the PC is off or out of Claude plan."
+      : "Mistral reads every new flyer crop. The PC reader stops asking for work.";
+    confirmSheet(mode === "haiku" ? "Read with Haiku" : "Read with Mistral", msg, false).then(function (ok) {
+      if (!ok) return;
+      api("vision/reader", { body: { mode: mode, confirm: true } }).then(function (r) {
+        toast(mode === "haiku" ? "Haiku reads from the next fire" : "Mistral reads from the next fire");
+        renderVisionReader(r);
+      }).catch(function (e) { toast(e.message || "error", true); });
+    });
+  };
+});
 
 /* ---------- Vision tab: Vision Model (Developer Tool) ---------- */
 /* Read-only: one model (Ministral 14B) serves every Mistral use, so there is

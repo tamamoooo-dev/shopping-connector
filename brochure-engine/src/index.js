@@ -87,6 +87,7 @@ import { nestoProvider } from './providers/nesto.js';
 import { d4dStoreProviders } from './providers/d4dStores.js';
 import { buildMistralPools, createKeyChain, isTerminalMistralLimit, MISTRAL_POOL_DEFINITIONS } from './offers/mistralKeys.js';
 import { PRICE_FALLBACK_DEFAULTS } from './offers/priceFallback.js';
+import { visionReaderGate } from './offers/visionReader.js';
 import { readRejudgeSweepState, runRejudgeSweep } from './offers/visionVerification.js';
 import { BUSINESS_ACCEPTANCE_VERSION } from './offers/businessAcceptance.js';
 import { latestRiyadhSlot } from './watchPlan.js';
@@ -335,6 +336,27 @@ async function runMinimartsTick(env, { scheduledTime = Date.now() } = {}) {
 // which owns the drain and the resolution writer while it runs.
 async function runSteadyStateVision(env, { scheduledTime = Date.now() } = {}) {
   const context = buildContext(env);
+  // Haiku on the PC reads Stage 1 while the ops switch says Haiku and the PC
+  // is asking for work (offers/visionReader.js); Mistral is the backup. This
+  // fire then only runs Registry resolution for what the PC saved.
+  const gate = await visionReaderGate({ objectStore: context.objectStore, db: env.DB }).catch(() => null);
+  if (gate?.reader === 'haiku') {
+    const te = Date.now();
+    const resolution = await runDetachedResolution(env);
+    await context.opsStore
+      .record({
+        ts: new Date(te).toISOString(),
+        action: 'cron:enrich',
+        origin: 'cron',
+        ok: resolution.ok,
+        failed: resolution.ok ? 0 : 1,
+        elapsed_ms: Date.now() - te,
+        error: resolution.error || null,
+        detail: { reader: 'haiku', why: gate.why, resolution },
+      })
+      .catch(() => {});
+    return;
+  }
   if (!context.mistralPools.medium.some((slot) => slot.key)) return;
   const bgJob = await context.visionJobStore.get().catch(() => null);
   if (bgJob && bgJob.status === 'running') return;
@@ -1050,6 +1072,28 @@ const worker = {
               await context.visionVerificationJobStore.update({ lease_until: null });
               if (verificationCompleted) await enqueueBackground(env.BACKGROUND_DRAINS, context.visionVerificationJobStore, 'verification');
             }
+            return;
+          }
+          // Haiku on the PC reads Stage 1 (offers/visionReader.js): the job
+          // waits for it instead of paying Mistral. It only keeps its numbers
+          // current, every 10 minutes so the queue count is not paid each
+          // minute, and finishes when nothing is left to read.
+          const readerGate = await visionReaderGate({ objectStore: context.objectStore, db: env.DB }).catch(() => null);
+          if (readerGate?.reader === 'haiku') {
+            const last = Date.parse(job.updated_at || '');
+            if (Number.isFinite(last) && Date.now() - last < 10 * 60 * 1000) return;
+            const remaining = await context.enrichStore.countDebris(today).catch(() => null);
+            const current = remaining == null ? null : await context.visionJobStore.get().catch(() => null);
+            if (current?.status !== 'running') return;
+            await context.visionJobStore
+              .update({
+                status: remaining <= 0 ? 'done' : 'running',
+                processed: Math.max(0, (current.total || 0) - remaining),
+                remaining,
+                last_error: null,
+                finished_at: remaining <= 0 ? new Date().toISOString() : null,
+              })
+              .catch(() => {});
             return;
           }
           if (!context.mistralPools.medium.some((slot) => slot.key)) return;
