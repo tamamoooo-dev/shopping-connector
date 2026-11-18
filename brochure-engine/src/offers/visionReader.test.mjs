@@ -11,6 +11,7 @@ import {
 } from './visionReader.js';
 import { ENRICHMENT_VISION_PROMPT } from './enrichmentPrompt.js';
 import { drainEnrichment } from './enrich.js';
+import { handleRequest } from '../engine.js';
 import { buildOffer, offerToRow } from './contract.js';
 import { createKeyChain } from './mistralKeys.js';
 import { createD1OfferStore } from '../storage/offerStore.js';
@@ -143,6 +144,33 @@ console.log('saving, one reading (real SQL):');
 
   const gate = await visionReaderGate({ objectStore: null, db, now: t0 });
   ok(gate.reader === 'mistral' && gate.why === 'pc-limited', 'the gate reads the switch, the PC and its limit together');
+
+  console.log('the routes:');
+  const audits = [];
+  const ctx = {
+    ingestSecret: 's3cret', db, enrichStore, objectStore: null, extractionStrategy: 'vision-first',
+    opsStore: { async record(row) { audits.push(row); } },
+  };
+  const call = (path, init = {}) => handleRequest(new Request(`https://engine.test${path}`, {
+    ...init, headers: { 'X-Ingest-Secret': 's3cret', 'content-type': 'application/json', ...(init.headers || {}) },
+  }), ctx);
+  ok((await call('/vision/reader/status', { headers: { 'X-Ingest-Secret': 'wrong' } })).status === 403, 'no ingest secret, no access');
+  const queue = await (await call('/vision/reader/queue?crops=5')).json();
+  ok(queue.mode === 'haiku' && queue.offers.length === 1 && queue.offers[0].id === ids['103'], 'the queue hands out only unread crops');
+  ok(queue.prompt === ENRICHMENT_VISION_PROMPT && queue.batchPrompt === VISION_READER_BATCH_TEMPLATE, 'with the prompts the PC fills');
+  const posted = await (await call('/vision/reader/readings', {
+    method: 'POST',
+    body: JSON.stringify({ readings: [{ id: ids['103'], reading: { name_en: 'Cutey Cat Food', brand: 'Cutey', package_size: '1.5kg', current_price: 28.99 } }] }),
+  })).json();
+  ok(posted.run.saved === 1 && posted.run.published === 1, 'a call\'s readings: saved and published counts back to the PC');
+  await call('/vision/reader/readings', {
+    method: 'POST',
+    body: JSON.stringify({ readings: [], final: true, run: { reader: 'haiku', crops: 3, readings: 3, saved: 3, published: 3, ms: 4000, errors: [] } }),
+  });
+  const last = (await state.get()).last_run;
+  ok(last.published === 3 && last.readings === 3 && last.failed === 0, 'the final post keeps the PC\'s run totals (not this post\'s zeros)');
+  const audit = audits.find((a) => a.action === 'reader:vision');
+  ok(audit?.offers === 3 && audit.ok === true && audit.elapsed_ms === 4000, 'one audit row for the run, with its totals');
   close();
 }
 

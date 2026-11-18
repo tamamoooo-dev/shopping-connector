@@ -541,14 +541,18 @@ export async function handleRequest(request, ctx) {
         // ONE READING: Stage 2 never re-reads these.
         await ctx.db.batch(oneReadingStatements(ctx.db, ids, new Date().toISOString())).catch(() => {});
       }
-      const run = {
-        ...(body.run && typeof body.run === 'object' ? body.run : {}),
+      // This post's own counts. The PC's final post carries its whole run
+      // (readings, saved, published over every post), so there its totals
+      // stand and only this post's save failures are added.
+      const post = {
         posted: readings.length,
         readings: ids.length,
         saved: report?.stored ?? 0,
         published: report?.enriched ?? 0,
         failed: report?.failed ?? 0,
       };
+      const pcRun = body.run && typeof body.run === 'object' && !Array.isArray(body.run) ? body.run : null;
+      const run = pcRun ? { ...pcRun, failed: (Number(pcRun.failed) || 0) + post.failed } : post;
       if (body.final === true || ids.length) await state.noteRun(started.toISOString(), run).catch(() => {});
       // One audit row per PC run (its final post), and one for any save failure.
       if (ctx.opsStore && (body.final === true || run.failed > 0)) {
