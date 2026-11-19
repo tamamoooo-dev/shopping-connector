@@ -44,6 +44,14 @@ const blenderSecond = { name_en: null, current_price: null, sale_options: [] };
 assert.equal(chooseReading(blenderFirst, blenderSecond, 1.9), blenderFirst, 'a second reading with less is not taken');
 assert.equal(chooseReading(kitkat, { name_en: 'KitKat', current_price: null, sale_options: [] }, 8.99), kitkat, 'losing the price loses');
 assert.equal(chooseReading(kako, null, 3.95), kako, 'no second answer keeps the first');
+// A name is a must: a second reading that found the price but names nothing
+// (or only in Arabic) never replaces a named first reading (2026-11-20).
+const sony = { name_en: 'Sony 4K Google Smart TV K-75S20', name_ar: null, current_price: 2799, sale_options: [line(2799)] };
+assert.equal(chooseReading(sony, { name_en: null, name_ar: null, current_price: 2499, sale_options: [line(2499)] }, 2499), sony, 'nameless with the price loses to named');
+const mozzarella = { name_en: 'MOZZARELLA CHEESE - 3 COWS - PER KG', name_ar: 'جبنة موزاريلا ٣ بقرات', current_price: 29.99, sale_options: [line(29.99)] };
+assert.equal(chooseReading(mozzarella, { name_en: null, name_ar: 'داري', current_price: 26.99, sale_options: [line(26.99)] }, 26.99), mozzarella, 'Arabic-only with the price loses to both names');
+const pantene = { name_en: 'PANTENE Sun Care', name_ar: 'بانتين واقي الشمس', current_price: 15.99, sale_options: [line(15.99)] };
+assert.equal(chooseReading({ name_en: null, name_ar: null, current_price: null }, pantene, 15.99), pantene, 'nothing first, everything second');
 
 // The cap: 5% of the crops a run fetched.
 assert.equal(SECOND_READ_SHARE, 0.05);

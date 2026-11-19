@@ -57,12 +57,14 @@ export function secondReadReason(entry, price) {
   return null;
 }
 
-// The second reading replaces the first unless it is worse: price found
-// counts most, then a name. It was asked the exact question, so on a tie it
-// wins.
+// The second reading replaces the first unless it is worse. A name is a
+// must on a card, so the English name counts most, then the Arabic, then
+// D4D's price on a line (2026-11-20: a second reading that found the price of
+// a TV but named nothing replaced "Sony 4K Google Smart TV K-75S20"). It was
+// asked the exact question, so on a tie it wins.
 export function chooseReading(first, second, price) {
   if (!second || typeof second !== 'object') return first;
-  const score = (e) => (priceFound(e, price) ? 2 : 0) + (named(e) ? 1 : 0);
+  const score = (e) => (e && text(e.name_en) ? 2 : 0) + (e && text(e.name_ar) ? 1 : 0) + (priceFound(e, price) ? 1 : 0);
   const s2 = score(second);
   return s2 > 0 && s2 >= score(first) ? second : first;
 }
