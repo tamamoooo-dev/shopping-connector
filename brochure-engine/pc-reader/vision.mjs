@@ -45,10 +45,13 @@
 //
 //   node vision.mjs                    read until the queue is empty
 //   node vision.mjs --once             one queue's worth, then stop
-//   node vision.mjs --reread list.json re-read these offers ([{id, imageUrl}])
+//   node vision.mjs --reread list.json re-read these offers ([{id, imageUrl, price?}])
 //                                      and REPLACE their saved reading; done
-//                                      ids go to logs/reread-done.txt, so a
-//                                      second start carries on where it stopped
+//                                      ids go to list.done.txt beside the list,
+//                                      so a second start carries on where it stopped
+//        ... --reread list.json --second-all
+//                                      the owner's one-off pass over known
+//                                      difficult cards: no 5% cap on second reads
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -74,7 +77,11 @@ const RUN_MAX_MS = 50 * 60 * 1000;
 const CALL_TIMEOUT_MS = 4 * 60 * 1000;
 const LOG_DIR = process.env.VISION_LOG_DIR || fileURLToPath(new URL('./logs/', import.meta.url));
 const LOG_FILE = `${LOG_DIR}vision.log`;
-const REREAD_DONE = `${LOG_DIR}reread-done.txt`;
+// Each list keeps its own done file beside it (list.json -> list.done.txt).
+const REREAD_DONE = REREAD ? `${REREAD.replace(/\.json$/i, '')}.done.txt` : null;
+// The owner's one-off passes over KNOWN difficult cards (2026-11-20, "yes,
+// read them"): every difficult crop in the list gets its second read.
+const SECOND_ALL = !!REREAD && process.argv.includes('--second-all');
 const LOG_MAX_BYTES = 1024 * 1024;
 const STATE_FILE = `${LOG_DIR}accounts.json`;
 const BACKUP_DIR = process.env.READER_BACKUP_DIR || join(homedir(), '.claude-backup');
@@ -466,7 +473,7 @@ async function main() {
           if (!why) continue;
           const key = `${o.imageUrl}|${o.price}`;
           if (!asked.has(key)) {
-            if (run.second >= secondReadsAllowed(run.crops)) {
+            if (!SECOND_ALL && run.second >= secondReadsAllowed(run.crops)) {
               run.secondCapped += 1;
               continue;
             }
