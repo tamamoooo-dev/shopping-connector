@@ -63,6 +63,8 @@ console.log('the prompt:');
   const ten = visionReaderPrompt(10);
   ok(ten.includes(ENRICHMENT_VISION_PROMPT) && ten.startsWith('Above are 10 separate flyer crops'), 'ten crops: the same prompt, framed');
   ok(VISION_READER_BATCH_TEMPLATE.replaceAll('{n}', '10') === ten, 'the template the PC fills is the same text');
+  ok(ten.includes('number printed in a black band') && ten.includes('"crop": the number printed in its band'),
+    'the crop number is read from the band printed in each picture (the PC draws it)');
 }
 
 console.log('readings in:');
@@ -171,6 +173,24 @@ console.log('saving, one reading (real SQL):');
   ok(last.published === 3 && last.readings === 3 && last.failed === 0, 'the final post keeps the PC\'s run totals (not this post\'s zeros)');
   const audit = audits.find((a) => a.action === 'reader:vision');
   ok(audit?.offers === 3 && audit.ok === true && audit.elapsed_ms === 4000, 'one audit row for the run, with its totals');
+
+  console.log('re-reading a wrong reading (owner, 2026-11-19):');
+  const fixed = { id: ids['101'], reading: { name_en: 'Fairy Original Dishwashing Liquid', brand: 'Fairy', package_size: '400ml', current_price: 5.95 } };
+  raw.prepare("UPDATE offer_enrichments SET mint_verdict = 'minted' WHERE id = ?").run(ids['101']);
+  await call('/vision/reader/readings', { method: 'POST', body: JSON.stringify({ readings: [fixed] }) });
+  ok(raw.prepare('SELECT name FROM offer_enrichments WHERE id = ?').get(ids['101']).name === 'Fairy Lemon Dishwashing Liquid',
+    'a normal post never overwrites a saved reading');
+  const cardBefore = JSON.stringify((await state.get()).last_run);
+  const redo = await (await call('/vision/reader/readings', { method: 'POST', body: JSON.stringify({ reread: true, readings: [fixed] }) })).json();
+  const after = raw.prepare('SELECT name, mint_verdict FROM offer_enrichments WHERE id = ?').get(ids['101']);
+  ok(redo.run.saved === 1 && after.name === 'Fairy Original Dishwashing Liquid', 'reread: the saved reading is replaced');
+  ok(after.mint_verdict === null, 'reread: the replaced reading goes back for product matching');
+  await call('/vision/reader/readings', {
+    method: 'POST',
+    body: JSON.stringify({ reread: true, readings: [], final: true, run: { reader: 'haiku-reread', readings: 1, saved: 1, published: 1, ms: 900, errors: [] } }),
+  });
+  ok(JSON.stringify((await state.get()).last_run) === cardBefore, 'a re-read pass leaves the last Stage-1 run on the ops card');
+  ok(audits.some((a) => a.action === 'reader:vision-reread' && a.offers === 1), 'and gets its own audit row');
   close();
 }
 

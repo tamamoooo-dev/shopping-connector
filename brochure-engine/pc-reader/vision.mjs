@@ -19,14 +19,28 @@
 // the queue is empty or RUN_MAX_MS, then ends; Task Scheduler starts it every
 // 5 minutes (install-vision-task.ps1), and a run still going is left alone.
 //
+// Numbered pictures, each picture once (2026-11-19, owner: "build it and
+// re-read the bad ones"). With only a text "Crop k" before each image, a call
+// of look-alike crops (Nesto's olive oil / mixer / olive oil …, offers sharing
+// one picture) put readings on the neighbouring offer: 29–30% of 140 replayed
+// bad live calls. Now each crop carries its number INSIDE the picture (a black
+// "CROP k" band on top, drawn when the engine's prompt describes it), and a
+// call holds up to ten DIFFERENT pictures; offers sharing a picture get that
+// picture's reading. Measured: 0 of 1,100 readings moved, $0.24–0.30 per
+// 1,000 crops (was $0.32).
+//
 // Accounts: the PC's own Claude login first, then the backup sign-in
 // (%USERPROFILE%\.claude-backup, login-backup.cmd), sharing logs/accounts.json
 // with the Mini marts reader so a limit one finds the other knows. With every
 // account at its limit nothing is asked: the engine is told when the first
 // resets, and Mistral reads meanwhile when that is more than 2 h away.
 //
-//   node vision.mjs            read until the queue is empty
-//   node vision.mjs --once     one queue's worth, then stop
+//   node vision.mjs                    read until the queue is empty
+//   node vision.mjs --once             one queue's worth, then stop
+//   node vision.mjs --reread list.json re-read these offers ([{id, imageUrl}])
+//                                      and REPLACE their saved reading; done
+//                                      ids go to logs/reread-done.txt, so a
+//                                      second start carries on where it stopped
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, statSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { join } from 'node:path';
@@ -44,10 +58,14 @@ const QUEUE_ASK = 200;
 const CROP_EDGE = 768;
 const MAX_TRIES = 2;
 const ONCE = process.argv.includes('--once');
+const REREAD = process.argv.includes('--reread') ? process.argv[process.argv.indexOf('--reread') + 1] : null;
+const POST_MAX = 50; // the engine saves at most 50 readings a post
+const BAND = 64; // px: the black "CROP k" band drawn above each crop
 const RUN_MAX_MS = 50 * 60 * 1000;
 const CALL_TIMEOUT_MS = 4 * 60 * 1000;
-const LOG_DIR = fileURLToPath(new URL('./logs/', import.meta.url));
+const LOG_DIR = process.env.VISION_LOG_DIR || fileURLToPath(new URL('./logs/', import.meta.url));
 const LOG_FILE = `${LOG_DIR}vision.log`;
+const REREAD_DONE = `${LOG_DIR}reread-done.txt`;
 const LOG_MAX_BYTES = 1024 * 1024;
 const STATE_FILE = `${LOG_DIR}accounts.json`;
 const BACKUP_DIR = process.env.READER_BACKUP_DIR || join(homedir(), '.claude-backup');
@@ -210,10 +228,35 @@ async function crop(url) {
   return jpeg.toString('base64');
 }
 
+// The crop with its number printed in a black band on top ("CROP k").
+async function numbered(data, k) {
+  const bytes = Buffer.from(data, 'base64');
+  const { width } = await sharp(bytes).metadata();
+  const label = Buffer.from(`<svg width="${width}" height="${BAND}" xmlns="http://www.w3.org/2000/svg"><rect width="100%" height="100%" fill="#000"/><text x="12" y="48" font-family="Arial" font-weight="bold" font-size="44" fill="#fff">CROP ${k}</text></svg>`);
+  const out = await sharp(bytes).extend({ top: BAND, background: '#000' })
+    .composite([{ input: label, top: 0, left: 0 }]).jpeg({ quality: 88 }).toBuffer();
+  return out.toString('base64');
+}
+
+function rereadDone() {
+  try {
+    return new Set(readFileSync(REREAD_DONE, 'utf8').split(/\r?\n/).filter(Boolean));
+  } catch {
+    return new Set();
+  }
+}
+
 // --- the run -------------------------------------------------------------------------
 async function main() {
   const started = Date.now();
-  const run = { reader: 'haiku', crops: 0, calls: 0, readings: 0, published: 0, saved: 0, missing: 0, cropErrors: 0, postErrors: 0, workers: WORKERS, errors: [] };
+  const run = { reader: REREAD ? 'haiku-reread' : 'haiku', crops: 0, pictures: 0, calls: 0, readings: 0, published: 0, saved: 0, missing: 0, kept: 0, cropErrors: 0, postErrors: 0, workers: WORKERS, errors: [] };
+  // --reread: the offers to read again, minus those a previous start finished.
+  let rereadList = null;
+  if (REREAD) {
+    const done = rereadDone();
+    rereadList = JSON.parse(readFileSync(REREAD, 'utf8')).filter((o) => o?.id && o.imageUrl && !done.has(o.id));
+    log({ reread: REREAD, offers: rereadList.length, alreadyDone: done.size });
+  }
   if (!usable()) {
     await reportLimit();
     return;
@@ -236,31 +279,42 @@ async function main() {
     if (fetching) return fetching;
     fetching = (async () => {
       try {
-        const q = await engine(`/vision/reader/queue?crops=${QUEUE_ASK}`);
+        // A re-read pass still asks the queue: for the prompts, and to stop
+        // when the switch says Mistral. Its offers come from the list.
+        const q = await engine(`/vision/reader/queue?crops=${REREAD ? 1 : QUEUE_ASK}`);
         if (q.mode !== 'haiku') {
           stopped = `switch: ${q.mode}`;
           return;
         }
         prompts = { single: q.prompt, batch: q.batchPrompt };
         model = q.model || model;
-        const fresh = (q.offers || []).filter((o) => o?.id && o.imageUrl && !seen.has(o.id));
+        const offered = REREAD ? rereadList.filter((o) => !seen.has(o.id)).slice(0, QUEUE_ASK) : (q.offers || []);
+        const fresh = offered.filter((o) => o?.id && o.imageUrl && !seen.has(o.id));
         if (!fresh.length) {
           drained = true;
           return;
         }
         for (const o of fresh) seen.add(o.id);
-        // Crops come straight from D4D's CDN, eight at a time.
+        // Crops come straight from D4D's CDN, eight at a time; a picture
+        // several offers share is downloaded once.
+        const byPicture = new Map();
+        for (const o of fresh) byPicture.set(o.imageUrl, [...(byPicture.get(o.imageUrl) || []), o]);
+        const urls = [...byPicture.keys()];
         let next = 0;
         await Promise.all(Array.from({ length: 8 }, async () => {
-          while (next < fresh.length) {
-            const o = fresh[next++];
+          while (next < urls.length) {
+            const url = urls[next++];
+            const offers = byPicture.get(url);
             try {
-              o.data = await crop(o.imageUrl);
-              pending.push(o);
-              run.crops += 1;
+              const data = await crop(url);
+              for (const o of offers) {
+                o.data = data;
+                pending.push(o);
+              }
+              run.crops += offers.length;
             } catch (err) {
-              run.cropErrors += 1;
-              if (run.errors.length < 10) run.errors.push(`${o.id}: ${String(err?.message || err).slice(0, 100)}`);
+              run.cropErrors += offers.length;
+              if (run.errors.length < 10) run.errors.push(`${offers[0].id}: ${String(err?.message || err).slice(0, 100)}`);
             }
           }
         }));
@@ -277,9 +331,16 @@ async function main() {
   async function post(readings) {
     for (let attempt = 1; attempt <= 2; attempt += 1) {
       try {
-        const out = await engine('/vision/reader/readings', { method: 'POST', body: JSON.stringify({ readings }) });
+        const out = await engine('/vision/reader/readings', { method: 'POST', body: JSON.stringify({ readings, ...(REREAD ? { reread: true } : {}) }) });
         run.saved += out.run?.saved || 0;
         run.published += out.run?.published || 0;
+        if (REREAD) {
+          try {
+            appendFileSync(REREAD_DONE, readings.map((r) => `${r.id}\n`).join(''));
+          } catch {
+            /* a restart re-reads these few again */
+          }
+        }
         return;
       } catch (err) {
         if (attempt === 2) {
@@ -292,6 +353,23 @@ async function main() {
     }
   }
 
+  // Up to PER_CALL different pictures, with every waiting offer that shows one
+  // of them: each picture is read once a call and its reading goes to each.
+  const pictures = () => new Set(pending.map((o) => o.imageUrl)).size;
+  function takeGroup() {
+    const urls = [];
+    for (const o of pending) {
+      if (!urls.includes(o.imageUrl)) urls.push(o.imageUrl);
+      if (urls.length === PER_CALL) break;
+    }
+    const take = new Set(urls);
+    const group = pending.filter((o) => take.has(o.imageUrl));
+    const rest = pending.filter((o) => !take.has(o.imageUrl));
+    pending.length = 0;
+    pending.push(...rest);
+    return { urls, group };
+  }
+
   async function worker(index) {
     while (!stopped) {
       if (index >= workers) return; // the run slowed down: fewer calls at once
@@ -299,25 +377,30 @@ async function main() {
         stopped = stopped || 'time';
         return;
       }
-      if (pending.length < PER_CALL && !drained) await refill();
-      const group = pending.splice(0, PER_CALL);
+      if (pictures() < PER_CALL && !drained) await refill();
+      const { urls, group } = takeGroup();
       if (!group.length) {
         if (drained || stopped) return;
         await new Promise((r) => setTimeout(r, 2000));
         continue;
       }
       for (const o of group) tries.set(o.id, (tries.get(o.id) || 0) + 1);
-      const content = group.length === 1
+      const data = urls.map((u) => group.find((o) => o.imageUrl === u).data);
+      // The band only when the engine's prompt says the number is printed in
+      // one, so the PC and the engine can be updated in either order.
+      const banded = urls.length > 1 && /black band/.test(prompts.batch);
+      const images = banded ? await Promise.all(data.map((d, k) => numbered(d, k + 1))) : data;
+      const content = urls.length === 1
         ? [
-          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: group[0].data } },
+          { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: images[0] } },
           { type: 'text', text: prompts.single },
         ]
         : [
-          ...group.flatMap((o, k) => [
+          ...images.flatMap((d, k) => [
             { type: 'text', text: `Crop ${k + 1}` },
-            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: o.data } },
+            { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: d } },
           ]),
-          { type: 'text', text: prompts.batch.replaceAll('{n}', String(group.length)) },
+          { type: 'text', text: prompts.batch.replaceAll('{n}', String(urls.length)) },
         ];
       const raw = await ask(content, model, run.errors);
       run.calls += 1;
@@ -347,21 +430,25 @@ async function main() {
       }
       failStreak = 0;
       failedCalls = 0;
+      run.pictures += urls.length;
       const obj = parse(raw);
-      const entries = group.length === 1 ? (obj ? [{ ...obj, crop: 1 }] : []) : (Array.isArray(obj?.crops) ? obj.crops : []);
+      const entries = urls.length === 1 ? (obj ? [{ ...obj, crop: 1 }] : []) : (Array.isArray(obj?.crops) ? obj.crops : []);
       const readings = [];
-      group.forEach((o, k) => {
+      urls.forEach((url, k) => {
         const entry = entries.find((e) => Number(e?.crop) === k + 1);
-        if (entry && typeof entry === 'object') readings.push({ id: o.id, reading: entry });
-        else if ((tries.get(o.id) || 0) < MAX_TRIES) pending.push(o); // read again in a later call
-        else {
-          // ONE READING: Haiku gave no answer twice; saved as an empty reading.
-          readings.push({ id: o.id, reading: {} });
-          run.missing += 1;
+        for (const o of group.filter((x) => x.imageUrl === url)) {
+          if (entry && typeof entry === 'object') readings.push({ id: o.id, reading: entry });
+          else if ((tries.get(o.id) || 0) < MAX_TRIES) pending.push(o); // read again in a later call
+          else if (REREAD) run.kept += 1; // a re-read never replaces a reading with nothing
+          else {
+            // ONE READING: Haiku gave no answer twice; saved as an empty reading.
+            readings.push({ id: o.id, reading: {} });
+            run.missing += 1;
+          }
         }
       });
       run.readings += readings.length;
-      if (readings.length) await post(readings);
+      for (let i = 0; i < readings.length; i += POST_MAX) await post(readings.slice(i, i + POST_MAX));
     }
   }
 
@@ -376,7 +463,7 @@ async function main() {
   });
   if (run.calls || run.crops || run.errors.length) {
     log(run);
-    await engine('/vision/reader/readings', { method: 'POST', body: JSON.stringify({ readings: [], final: true, run }) }).catch(() => {});
+    await engine('/vision/reader/readings', { method: 'POST', body: JSON.stringify({ readings: [], final: true, run, ...(REREAD ? { reread: true } : {}) }) }).catch(() => {});
   }
 }
 

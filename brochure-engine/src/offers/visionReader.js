@@ -183,15 +183,20 @@ export async function visionReaderGate({ objectStore = null, db = null, now = ne
 // --- what the PC sends and gets ---------------------------------------------------
 
 // The instruction for one call. One crop: the production prompt unchanged.
-// Several: the same prompt, framed so each labelled crop is read on its own
-// pixels and answered in order (the framing measured on 2026-11-19).
+// Several: the same prompt, framed so each crop is read on its own pixels and
+// answered in order. The PC prints each crop's number INTO the picture (a
+// black "CROP n" band on top) and sends each picture once a call: with only a
+// text label before each image, a call of look-alike crops (Nesto's olive oil
+// / mixer / olive oil …, offers sharing one picture) put readings on the
+// neighbouring offer — 29–30% of 140 replayed bad live calls; with the band,
+// 0 of 1,100 readings moved, at the same or lower cost (2026-11-19).
 function framedPrompt(n) {
   return [
-    `Above are ${n} separate flyer crops, each labelled "Crop n". Each crop is a different advertised product. Apply the instructions below to EACH crop independently, using only that crop's own pixels.`,
+    `Above are ${n} separate flyer crops. Each crop has its number printed in a black band at its top ("CROP n"); the band is a label, not part of the flyer. Each crop is a different advertised product. Apply the instructions below to EACH crop independently, using only that crop's own pixels.`,
     '',
     ENRICHMENT_VISION_PROMPT,
     '',
-    `Return exactly one JSON object {"crops":[...]} holding one entry per crop, in order: the JSON object described above for that crop, plus "crop": its number.`,
+    `Return exactly one JSON object {"crops":[...]} holding one entry per crop, in order: the JSON object described above for that crop, plus "crop": the number printed in its band.`,
   ].join('\n');
 }
 

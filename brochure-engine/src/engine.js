@@ -515,6 +515,12 @@ export async function handleRequest(request, ctx) {
         return json({ error: 'Body must be JSON.' }, 400);
       }
       if (!Array.isArray(body?.readings)) return json({ error: "Missing 'readings'." }, 400);
+      // reread: the owner's fix-up pass (2026-11-19, "re-read the bad ones"):
+      // these offers WERE read, by a 10-crop call that put readings on the
+      // neighbouring offer. Selected by id, so the saved reading is replaced
+      // (and re-resolved: the upsert clears mint_verdict). Otherwise an offer
+      // already read is skipped, as before.
+      const reread = body.reread === true;
       const started = new Date();
       const readings = body.readings.slice(0, VISION_READER_MAX_READINGS);
       const observations = observationsFromReadings(readings, { observedAt: started.toISOString() });
@@ -531,7 +537,7 @@ export async function handleRequest(request, ctx) {
           {
             limit: ids.length,
             currentOn: todayISO(),
-            queueOfferIds: ids,
+            ...(reread ? { offerIds: ids } : { queueOfferIds: ids }),
             observations,
             strategy: ctx.extractionStrategy,
             identityNormalizationMode: ctx.identityNormalizationMode,
@@ -553,12 +559,13 @@ export async function handleRequest(request, ctx) {
       };
       const pcRun = body.run && typeof body.run === 'object' && !Array.isArray(body.run) ? body.run : null;
       const run = pcRun ? { ...pcRun, failed: (Number(pcRun.failed) || 0) + post.failed } : post;
-      if (body.final === true || ids.length) await state.noteRun(started.toISOString(), run).catch(() => {});
+      // A re-read pass is not a Stage-1 run: the ops card keeps the last real one.
+      if (!reread && (body.final === true || ids.length)) await state.noteRun(started.toISOString(), run).catch(() => {});
       // One audit row per PC run (its final post), and one for any save failure.
       if (ctx.opsStore && (body.final === true || run.failed > 0)) {
         await ctx.opsStore.record({
           ts: started.toISOString(),
-          action: 'reader:vision',
+          action: reread ? 'reader:vision-reread' : 'reader:vision',
           origin: 'pc',
           ok: run.failed === 0 && !(Array.isArray(run.errors) && run.errors.length),
           offers: Number(run.published) || 0,
