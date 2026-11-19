@@ -776,12 +776,17 @@ const post = (ctx, path, body, headers = {}) =>
 
   const ins = await (await req(ctx, '/api/inspector?filter=all', { headers: auth })).json();
   check('inspector feed returns items + enrichment model + echoes filter', ins.filter === 'all' && ins.items.length === 1 && ins.items[0].e_model === 'mistral-medium-latest');
-  check('admin inspector owns the enrichment color legend',
-    CONSOLE_HTML.includes('enrichDot missing') && CONSOLE_HTML.includes('enrichDot enriched') && CONSOLE_HTML.includes('enrichDot medium'));
-  check('5-second Vision polling is limited to tiny job rows',
-    /function \(\) \{ loadVisionJob\(\); loadVerificationJob\(\); \},\s*5000/.test(CONSOLE_HTML));
-  check('corpus-wide Vision metrics are rate-limited to six hours',
-    /function \(\) \{ loadProgress\(\); loadVerification\(\); \},\s*21600000/.test(CONSOLE_HTML));
+  // The Vision tab rebuilt 2026-11-19 (owner: "keep only what matters").
+  check('inspector badges name the reader (Haiku / Mistral), no retired-model legend',
+    CONSOLE_HTML.includes('function readerOf(') && !CONSOLE_HTML.includes('enrichDot'));
+  check('Vision polling: who reads every minute, corpus-wide counts every 10 minutes',
+    /startPoll\(loadVisionReader, 60000, loadProgress, 600000\)/.test(CONSOLE_HTML));
+  check('Mistral keys shown once each, no per-minute "remaining %", limits only while under a day old',
+    CONSOLE_HTML.includes('function renderMistralBackup(') && !CONSOLE_HTML.includes('remainingPct') &&
+    /Date\.now\(\) - Date\.parse\(pl\.observedAt\) > 86400000/.test(CONSOLE_HTML));
+  check('no Vision buttons that run Mistral past the Haiku/Mistral switch, no Stage-2 or queue cards',
+    !CONSOLE_HTML.includes('drainLiveBtn') && !CONSOLE_HTML.includes('vjStartBtn') &&
+    !CONSOLE_HTML.includes('vvStartBtn') && !CONSOLE_HTML.includes('qResolveBtn'));
 
   const one = await (await req(ctx, '/api/inspect?id=alpha:central:d4d:A', { headers: auth })).json();
   check('inspect composes offer + ocr + vision(none) + registry', one.offer.id === 'alpha:central:d4d:A' && one.ocr.name === 'A' && one.vision === null && one.product === null);

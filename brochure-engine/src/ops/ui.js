@@ -19,7 +19,7 @@ export const CONSOLE_HTML = `<!doctype html>
 :root{
   --bg:#0b1220;--card:#111a2e;--card2:#16223c;--line:#22304f;
   --text:#e6ecf7;--mut:#8ea0bf;--acc:#4f8ef7;
-  --ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--medium:#a855f7;--unk:#64748b;
+  --ok:#22c55e;--warn:#f59e0b;--bad:#ef4444;--unk:#64748b;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 html,body{margin:0;padding:0}
@@ -41,12 +41,6 @@ main{padding:14px;max-width:640px;margin:0 auto}
 .dot{width:10px;height:10px;border-radius:50%;flex:none}
 .dot.ok{background:var(--ok)}.dot.bad{background:var(--bad)}
 .dot.warn{background:var(--warn)}.dot.unk{background:var(--unk)}
-.enrichDot{display:inline-block;width:12px;height:12px;flex:0 0 12px;border:2px solid var(--card);
-  border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.4)}
-.enrichDot.missing{background:var(--bad)}.enrichDot.enriched{background:var(--ok)}
-.enrichDot.medium{background:var(--medium)}
-.enrichLegend{display:flex;gap:12px;flex-wrap:wrap;align-items:center;margin:0 0 10px;color:var(--mut);font-size:12px}
-.enrichLegend span{display:inline-flex;gap:5px;align-items:center}
 .badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;margin-left:auto;flex:none}
 .b-ok{background:rgba(34,197,94,.15);color:var(--ok)}
 .b-bad{background:rgba(239,68,68,.15);color:var(--bad)}
@@ -179,43 +173,21 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
 
   <section class="view" id="v-vision">
     <div class="card">
-      <h2>Vision Progress <span id="workerTag" class="tag">…</span></h2>
-      <div id="visionProg"><span class="spin"></span></div>
-      <div id="drainLive" style="display:none;margin-top:8px">
-        <div class="bar"><i id="drainBar" style="width:0;background:var(--acc)"></i></div>
-        <div class="mut" id="drainStat" style="margin-top:4px"></div>
-      </div>
-      <div class="btnGrid" style="margin-top:10px">
-        <button class="primary" id="drainLiveBtn">▶ Run Drain (live)</button>
-        <button class="ghost" id="drainStopBtn" disabled>Stop</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Vision Reader <span id="vrTag" class="tag">…</span></h2>
-      <div class="mut" style="margin-bottom:10px">Who reads new flyer crops for names, brand and size. Haiku runs on the PC on the Claude plan, one reading a crop; Mistral reads by itself while the PC is off or out of plan. Prices always come from D4D.</div>
+      <h2>Vision <span id="vrTag" class="tag">…</span></h2>
+      <div class="mut" style="margin-bottom:10px">Reads each new flyer crop once for its name, brand and size. Prices always come from D4D. Haiku runs on the PC on the Claude plan; Mistral reads by itself while the PC is off or out of plan.</div>
       <div class="seg" id="vrSeg">
         <button data-mode="haiku">Haiku · PC</button>
         <button data-mode="mistral">Mistral</button>
       </div>
-      <div id="vrPanel"><span class="spin"></span></div>
+      <div id="visionProg" style="margin-top:10px"><span class="spin"></span></div>
+      <div id="vrPanel"></div>
     </div>
 
     <div class="card">
-      <h2>Vision Model <span id="vmTag" class="tag">…</span></h2>
-      <div class="mut" style="margin-bottom:10px">Ministral 14B is the one production model. Validated products use one vision read. A flagged, changed or failed reading can enter the bounded verification queue.</div>
-      <div id="vmWarn" class="warnBox" style="display:none"></div>
+      <h2>Mistral backup <span id="vmTag" class="tag">…</span></h2>
+      <div class="mut" style="margin-bottom:10px">Ministral 14B reads only while the switch is on Mistral, the PC stops asking, or both Claude accounts are out for over 2 h.</div>
       <div id="vmPanel"><span class="spin"></span></div>
-    </div>
-
-    <div class="card">
-      <h2>Background Vision <span id="vjTag" class="tag">idle</span></h2>
-      <div class="mut" style="margin-bottom:8px">Drains the queue to empty on the server — safe to close this page; it keeps running. For backfills, maintenance, and recovery.</div>
-      <div id="vjPanel"><span class="mut">No job yet.</span></div>
-      <div class="btnGrid" style="margin-top:10px">
-        <button class="primary" id="vjStartBtn">▶ Run Vision (background)</button>
-        <button class="ghost" id="vjStopBtn" disabled>Stop</button>
-      </div>
+      <div id="vmLimit"></div>
     </div>
 
     <div class="card">
@@ -225,21 +197,12 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
         <button data-ins="registry">Registry</button>
       </div>
       <div id="insOffer">
-        <div class="enrichLegend" aria-label="Enrichment status legend">
-          <span><i class="enrichDot missing"></i>not enriched</span>
-          <span><i class="enrichDot enriched"></i>enriched</span>
-          <span><i class="enrichDot medium"></i>older read (retired Medium model)</span>
-        </div>
-        <input type="text" id="insQ" placeholder="Search offers (OCR / vision name)…">
+        <input type="text" id="insQ" placeholder="Search current offers by name…">
         <div class="chips" id="insChips">
           <span class="chip on" data-f="all">all</span>
-          <span class="chip" data-f="vision-enriched">vision enriched</span>
-          <span class="chip" data-f="ocr-fallback">OCR fallback</span>
-          <span class="chip" data-f="unresolved">unresolved</span>
-          <span class="chip" data-f="deferred">deferred</span>
-          <span class="chip" data-f="reviewed">reviewed</span>
-          <span class="chip" data-f="low-confidence">low confidence</span>
-          <span class="chip" data-f="missing-product">missing productId</span>
+          <span class="chip" data-f="vision-enriched">named</span>
+          <span class="chip" data-f="ocr-fallback">no usable name</span>
+          <span class="chip" data-f="missing-product">not linked to a product</span>
         </div>
         <div id="insList"><span class="mut">Search or pick a filter above.</span></div>
       </div>
@@ -247,37 +210,6 @@ h4.sec{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.
         <input type="text" id="regQ" placeholder="Search by productId, name, or brand…">
         <div style="height:10px"></div>
         <div id="regList"><span class="mut">Type to search the registry.</span></div>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Vision Verification <span id="vvTag" class="tag">idle</span></h2>
-      <div class="mut" style="margin-bottom:10px">Stage 2 re-reads every accepted and rejected Stage 1 result. A product enters or remains in Enrichment only after two normalized readings match; mismatches keep cycling without an attempt limit.</div>
-      <div id="vvStatus"><span class="spin"></span></div>
-      <div id="vvLive" style="display:none;margin-top:8px">
-        <div class="bar"><i id="vvLiveBar" style="width:0;background:var(--acc)"></i></div>
-        <div class="mut" id="vvLiveStat" style="margin-top:4px"></div>
-      </div>
-      <div class="btnGrid" style="margin-top:10px">
-        <button class="primary" id="vvLiveBtn">▶ Run Verification (live)</button>
-        <button class="ghost" id="vvLiveStopBtn" disabled>Stop</button>
-      </div>
-      <div style="height:14px"></div>
-      <h3 style="margin:0 0 6px">Background Verification <span id="vvJobTag" class="tag">idle</span></h3>
-      <div class="mut" style="margin-bottom:8px">The same drain runs to empty on the server. You can close this page and it keeps going.</div>
-      <div id="vvJobPanel"><span class="mut">No job yet.</span></div>
-      <div class="btnGrid" style="margin-top:10px">
-        <button class="primary" id="vvStartBtn">▶ Run Verification (background)</button>
-        <button class="ghost" id="vvStopBtn" disabled>Stop</button>
-      </div>
-    </div>
-
-    <div class="card">
-      <h2>Queue Monitor</h2>
-      <div id="queueOut"><span class="spin"></span></div>
-      <div class="btnGrid" style="margin-top:10px">
-        <button id="qResolveBtn">Resolve Backlog</button>
-        <button id="qReopenBtn">Re-open Deferred</button>
       </div>
     </div>
   </section>
@@ -400,7 +332,7 @@ function startPoll(fn, ms, metricFn, metricMs) {
 document.addEventListener("visibilitychange", function () {
   // Refresh immediately on return so a backgrounded tab isn't left stale.
   if (!document.hidden && POLL && $("#v-vision").classList.contains("active")) {
-    loadProgress(); loadVerification(); loadVisionJob(); loadVerificationJob();
+    loadProgress(); loadVisionReader();
   }
 });
 
@@ -413,17 +345,10 @@ document.querySelectorAll("nav button").forEach(function (b) {
     stopPoll();
     if (b.dataset.v === "home" || b.dataset.v === "stores") loadOverview();
     if (b.dataset.v === "vision") {
-      loadQueue(); loadProgress(); loadVerification(); loadVisionModel(); loadVisionReader();
-      // Job rows are tiny and remain live. Coverage/verification aggregate
-      // endpoints scan the working corpus, so refresh those on entry/return,
-      // after explicit actions/job completion, and every six hours—not every
-      // five seconds. Returning to the tab also refreshes them immediately.
-      startPoll(
-        function () { loadVisionJob(); loadVerificationJob(); },
-        5000,
-        function () { loadProgress(); loadVerification(); },
-        21600000
-      );
+      // Who reads is cheap and changes by the minute; the offer counts scan
+      // the working corpus, so they refresh on entry and every 10 minutes.
+      loadProgress(); loadVisionModel();
+      startPoll(loadVisionReader, 60000, loadProgress, 600000);
     }
     if (b.dataset.v === "more") { loadMore(); loadMoreOps(); }
   };
@@ -802,87 +727,63 @@ function fmtDur(h) {
   if (h < 48) return h.toFixed(1) + "h";
   return Math.round(h / 24) + "d";
 }
+/* ---------- Vision tab (rebuilt 2026-11-19) ---------- */
+/* Owner: "the vision ops seems to be messy with inaccurate mistral percentage
+   .. keep only what matters". Three cards: Vision (who reads + the switch +
+   progress), Mistral backup (each key once, in plain words), Inspector.
+   Removed from the page: the live/background Mistral drains (they bypassed
+   the Haiku/Mistral switch), Stage-2 verification (Haiku rows get ONE
+   reading), the Queue Monitor (its registry buttons live in the Ops tab), and
+   each key's "remaining %": that was the requests-per-MINUTE window at the
+   key's last reply (2 a minute, so always 50% after a call), not capacity.
+   The server routes are unchanged. */
 function loadProgress() { return api("progress").then(renderProgress).catch(function () {}); }
 function renderProgress(p) {
-  var tag = $("#workerTag");
-  tag.textContent = p.worker === "running" ? "running" : "idle";
-  tag.className = "tag" + (p.worker === "running" ? " run" : "");
+  if (!p || !p.offers) return;
   $("#visionProg").innerHTML =
-    '<div class="progGrid">' +
+    '<div class="progGrid" style="grid-template-columns:repeat(4,1fr)">' +
       kpiBox(p.offers.current, "current offers") +
-      kpiBox(p.enriched, "enriched · name + price") +
-      kpiBox(p.remaining, "remaining") +
+      kpiBox(p.enriched, "named") +
+      kpiBox(p.remaining, "waiting") +
       kpiBox(p.coverage == null ? "n/a" : p.coverage + "%", "coverage") +
-      kpiBox(p.registryProducts, "registry products") +
-      kpiBox(p.sightings, "sightings") +
     "</div>" +
     '<div class="bar"><i style="width:' + (p.coverage || 0) + "%;background:" + scoreColor(p.coverage) + '"></i></div>' +
     '<div style="height:8px"></div>' +
-    kvl("Enrichment declined (missing basics)", p.declined) +
-    kvl("Verification accepted (2 matches)", p.verified || 0) +
-    kvl("Servable", p.servable) +
-    kvl("Enrichment rate", p.rate == null ? "—" : p.rate + " offers/hr") +
-    kvl("Est. time remaining", fmtDur(p.etaHours)) +
-    kvl("Queue depth", p.queueDepth) +
-    kvl("Last enrich cron", p.lastCron ? ago(p.lastCron.ts) : "never") +
-    kvl("Next enrich cron", p.nextCron ? tsShort(p.nextCron) : "—") +
-    providerLimitHtml(p.providerLimit);
+    (p.declined ? kvl("Read, no usable name", p.declined) : "") +
+    kvl("Engine last checked", p.lastCron ? ago(p.lastCron.ts) : "never");
+  $("#vmLimit").innerHTML = mistralLimitHtml(p.providerLimit);
+}
+/* The latest Mistral limit the engine saw (progress.providerLimit), shown in
+   the Mistral backup card only while it is under a day old: the old card kept
+   showing a finished job's 429 from the day before. */
+function mistralLimitHtml(pl) {
+  if (!pl || !pl.observedAt || Date.now() - Date.parse(pl.observedAt) > 86400000) return "";
+  var category = pl.category;
+  if (!category && Number(pl.limitRequestsMinute) === 0) category = "request_allowance_zero";
+  var labels = {
+    monthly_account_quota: "Monthly/account quota exhausted",
+    request_rate_limit: "Short-term request rate limit",
+    token_rate_limit: "Token-per-minute rate limit",
+    concurrency_limit: "Concurrent request limit",
+    billing_restriction: "Account/billing restriction",
+    capacity_throttling: "Temporary Mistral capacity throttling",
+    request_allowance_zero: "Workspace/model request allowance is zero",
+    unknown_429: "Unknown Mistral HTTP 429"
+  };
+  var transient = category === "request_rate_limit" || category === "token_rate_limit" ||
+    category === "concurrency_limit" || category === "capacity_throttling" || category === "unknown_429";
+  var explanation = category === "request_allowance_zero"
+    ? "This is not monthly usage exhaustion. Automatic retries are stopped; check the Workspace API rate limit or plan state in Mistral Admin."
+    : category === "monthly_account_quota"
+      ? "The monthly completion allowance is exhausted."
+      : transient
+        ? "A short-lived limit; the engine waits and retries by itself."
+        : "Mistral rejected API access for this account; check billing and Workspace status.";
+  return '<div class="warnBox" style="margin-top:8px">' + esc((labels[category] || labels.unknown_429) + " · " + ago(pl.observedAt) + ". " + explanation) + "</div>";
 }
 
-/* live client-driven drain — one batch per call, real progress (§1) */
-var drainStop = false, drainBusy = false;
-$("#drainLiveBtn").onclick = function () {
-  confirmSheet("Run Vision Drain (live)",
-    "Runs the enrichment drain one batch at a time from here with live progress — identical code to the enrich cron. Safe to stop anytime.",
-    false).then(function (ok) { if (ok) runLiveDrain(); });
-};
-$("#drainStopBtn").onclick = function () { drainStop = true; };
-function runLiveDrain() {
-  if (drainBusy) return;
-  drainBusy = true; drainStop = false;
-  $("#drainLive").style.display = "block";
-  $("#drainLiveBtn").disabled = true; $("#drainStopBtn").disabled = false;
-  var t0 = Date.now(), total = null, processed = 0, batch = 0;
-  function finish(msg) {
-    drainBusy = false;
-    $("#drainLiveBtn").disabled = false; $("#drainStopBtn").disabled = true;
-    $("#drainStat").innerHTML += " — " + esc(msg);
-    toast("Drain " + msg);
-    loadProgress(); loadQueue();
-  }
-  function step() {
-    if (drainStop) { finish("stopped"); return; }
-    api("enrich", { body: { batches: 1, confirm: true } }).then(function (r) {
-      batch += 1;
-      if (r.nothingToDo) { finish("queue empty"); return; }
-      if (r.failed) {
-        if (r.providerLimit) $("#drainStat").innerHTML += providerLimitHtml(r.providerLimit);
-        finish(r.providerLimit && r.providerLimit.category === "request_allowance_zero"
-          ? "stopped: Mistral request allowance is zero"
-          : "stopped on Mistral error");
-        return;
-      }
-      if (total == null) total = r.pending || 0;
-      var rem = r.remaining == null ? total : r.remaining;
-      processed = Math.max(processed, total - rem);
-      var pct = total ? Math.min(100, Math.round((processed / total) * 100)) : 100;
-      var el = (Date.now() - t0) / 1000;
-      var rate = processed > 0 ? processed / (el / 3600) : 0;
-      var etaH = rate > 0 && rem > 0 ? rem / rate : 0;
-      $("#drainBar").style.width = pct + "%";
-      $("#drainStat").innerHTML = "batch " + batch + " · " + processed + "/" + total +
-        " (" + pct + "%) · " + Math.round(el) + "s · ETA " + (etaH ? fmtDur(etaH) : "~");
-      loadProgress();
-      if (rem > 0 && batch < 40) step(); else finish("done");
-    }).catch(function (e) { finish(e.message || "error"); });
-  }
-  step();
-}
-
-/* ---------- Vision tab: Vision Reader (Haiku on the PC / Mistral) ---------- */
-/* The switch the owner asked for (2026-11-19). "Reading now" is the engine's
-   own decision (offers/visionReader.js whoReadsVision), so the card never
-   claims Haiku while Mistral is the one reading. */
+/* Who reads: the engine's own decision (offers/visionReader.js
+   whoReadsVision), so the card never claims Haiku while Mistral reads. */
 function loadVisionReader() { return api("vision/reader").then(renderVisionReader).catch(function () {}); }
 function renderVisionReader(r) {
   if (!r || !r.setting) return;
@@ -903,18 +804,18 @@ function renderVisionReader(r) {
   var pc = r.pc || {};
   var run = pc.last_run || null;
   var runText = run
-    ? (run.published != null ? run.published + " published" : "") +
-      (run.readings != null ? " · " + run.readings + " read" : "") +
+    ? (run.published != null ? run.published + " named" : "") +
+      (run.crops != null ? " of " + run.crops + " crops" : "") +
       (run.ms ? " · " + Math.round(run.ms / 1000) + " s" : "") +
       (pc.last_run_at ? " · " + ago(pc.last_run_at) : "")
     : "none yet";
   $("#vrPanel").innerHTML =
     kvl("Reading now", (r.reader === "haiku" ? "Haiku 5.5 (PC)" : "Mistral 14B") + " · " + why) +
     kvl("PC last asked", pc.seen_at ? ago(pc.seen_at) : "never") +
-    kvl("Last PC post", runText) +
+    kvl("Last PC run", runText) +
     (pc.limited_until && Date.parse(pc.limited_until) > Date.now()
       ? kvl("Claude limit until", tsShort(pc.limited_until)) : "") +
-    kvl("Switch set", r.setting.selectedAt ? ago(r.setting.selectedAt) + (r.setting.selectedBy ? " · " + r.setting.selectedBy : "") : "default (Haiku)");
+    (r.setting.selectedAt ? kvl("Switch changed", ago(r.setting.selectedAt) + (r.setting.selectedBy ? " · " + r.setting.selectedBy : "")) : "");
 }
 $("#vrSeg").querySelectorAll("button").forEach(function (b) {
   b.onclick = function () {
@@ -925,164 +826,45 @@ $("#vrSeg").querySelectorAll("button").forEach(function (b) {
     confirmSheet(mode === "haiku" ? "Read with Haiku" : "Read with Mistral", msg, false).then(function (ok) {
       if (!ok) return;
       api("vision/reader", { body: { mode: mode, confirm: true } }).then(function (r) {
-        toast(mode === "haiku" ? "Haiku reads from the next fire" : "Mistral reads from the next fire");
+        toast(mode === "haiku" ? "Haiku reads from the next check" : "Mistral reads from the next check");
         renderVisionReader(r);
       }).catch(function (e) { toast(e.message || "error", true); });
     });
   };
 });
 
-/* ---------- Vision tab: Vision Model (Developer Tool) ---------- */
-/* Read-only: one model (Ministral 14B) serves every Mistral use, so there is
-   nothing to choose. The card shows the model really running and each key's
-   last observed state (audit rows + the durable key-health record). */
-var vmActive = null, vmKeyPools = [];
-function loadVisionModel() { return api("vision/model").then(renderVisionModel).catch(function () {}); }
-function keyPoolsHtml(pools) {
-  if (!pools || !pools.length) return "";
-  return '<div style="height:10px"></div>' +
-    '<div class="mut" style="margin-bottom:6px">Model keys · remaining capacity is the latest Mistral rate-limit observation. Secrets are never shown.</div>' +
-    pools.map(function (pool) {
-      var keys = (pool.keys || []).map(function (key) {
-        var pct = key.remainingPct == null ? "—" : Math.round(key.remainingPct * 10) / 10 + "%";
-        var state = !key.configured ? "missing" : key.status === "invalid" ? "invalid" :
-          key.status === "restricted" ? "restricted" : key.status === "limited" ? "limited" :
-          key.status === "unobserved" ? "not observed yet" : "ready";
-        return '<div class="kv"><span>' + esc(pct + " · " + key.label) + '</span><b>' +
-          esc(state + (key.observedAt ? " · " + ago(key.observedAt) : "")) + '</b></div>';
-      }).join("");
-      return '<div style="margin-top:8px"><div class="mut">' + esc(pool.label + " · " + pool.model) +
-        '</div>' + keys + '</div>';
-    }).join("");
-}
-function renderVisionModel(r) {
-  var s = r && r.setting;
-  if (!s) return;
-  if (r.keyPools) vmKeyPools = r.keyPools;
-  /* The model REALLY running. While no selection is stored the selector is
-     inert and extraction uses the engine default, so never render s.model as
-     if it were active — an unarmed card must not claim a tier it isn't using. */
-  vmActive = r.activeModel || (s.armed ? s.model : null);
-  var tag = $("#vmTag");
-  tag.textContent = !s.armed ? "engine default" : (s.budget ? "budget" : "production");
-  tag.className = "tag" + (s.armed && s.budget ? " warnTag" : "");
-  var warn = s.armed ? s.warning : null;
-  $("#vmWarn").style.display = warn ? "block" : "none";
-  if (warn) $("#vmWarn").textContent = warn;
-  $("#vmPanel").innerHTML =
-    kvl("Active model", vmActive || "—") +
-    (s.armed
-      ? kvl("Version", s.version) + kvl("Selected",
-          ago(s.selectedAt) + (s.selectedBy ? " · " + s.selectedBy : ""))
-      : kvl("Selected", "never — no override stored")) +
-    '<div class="mut" style="margin-top:6px">' +
-    "Every stored row records the model that read it. Live Mistral rate-limit signal appears under Vision Progress above.</div>" +
-    keyPoolsHtml(vmKeyPools);
-}
-/* ---------- Vision tab: Background Manual Vision job (§2) ---------- */
-function providerLimitHtml(pl) {
-  if (!pl) return "";
-  var category = pl.category;
-  if (!category && Number(pl.limitRequestsMinute) === 0) category = "request_allowance_zero";
-  var labels = {
-    monthly_account_quota: "Monthly/account quota exhausted",
-    request_rate_limit: "Short-term request rate limit",
-    token_rate_limit: "Token-per-minute rate limit",
-    concurrency_limit: "Concurrent request limit",
-    billing_restriction: "Account/billing restriction",
-    capacity_throttling: "Temporary Mistral capacity throttling",
-    request_allowance_zero: "Workspace/model request allowance is zero",
-    unknown_429: "Unknown Mistral HTTP 429"
-  };
-  var transientLimit = category === "request_rate_limit" || category === "token_rate_limit" ||
-    category === "concurrency_limit" || category === "capacity_throttling" || category === "unknown_429";
-  var bits = [];
-  if (pl.status != null) bits.push("HTTP " + pl.status);
-  if (pl.limitRequestsMinute != null) {
-    bits.push("requests/min " + pl.remainingRequestsMinute + "/" + pl.limitRequestsMinute);
-  }
-  if (pl.limitTokensMinute != null) {
-    bits.push("tokens/min " + pl.remainingTokensMinute + "/" + pl.limitTokensMinute);
-  }
-  if (pl.limitTokensMonth != null) {
-    bits.push("tokens/month " + pl.remainingTokensMonth + "/" + pl.limitTokensMonth);
-  }
-  if (pl.retryAfter != null) bits.push("retry-after " + pl.retryAfter + "s");
-  if (pl.providerCode) bits.push("code " + pl.providerCode);
-  var resume = "";
-  if (transientLimit && pl.retryAfter != null && pl.observedAt) {
-    resume = kvl("Auto-resume ~", tsShort(new Date(Date.parse(pl.observedAt) + pl.retryAfter * 1000).toISOString()));
-  }
-  var explanation = category === "request_allowance_zero"
-    ? "This is not monthly usage exhaustion. Automatic retries are stopped; check the Workspace API rate limit or plan state in Mistral Admin."
-    : category === "monthly_account_quota"
-      ? "The monthly completion allowance is exhausted."
-      : transientLimit
-        ? "This is a short-lived traffic/throttling signal; only provider-directed backoff is used."
-        : "Mistral rejected API access for this account; check billing and Workspace status.";
-  return '<div style="height:8px"></div>' +
-    '<div class="mut" style="margin-bottom:4px">' + esc(labels[category] || labels.unknown_429) + '</div>' +
-    kvl("Signal", bits.join(" · ") || "seen") + resume +
-    (pl.model ? kvl("Request model", pl.model) : "") +
-    (pl.requestId ? kvl("Mistral request ID", pl.requestId) : "") +
-    (pl.providerMessage ? kvl("Mistral reason", pl.providerMessage) : "") +
-    '<div class="mut" style="margin-top:4px">' + esc(explanation) +
-    ' Exact configured limits live in Mistral Admin Console → API → Limits.</div>';
-}
-var lastVisionJobStatus = null;
-function loadVisionJob() { return api("vision/job").then(renderVisionJob).catch(function () {}); }
-function renderVisionJob(r) {
-  var j = r && r.job;
-  var st = j ? j.status : "idle";
-  if (lastVisionJobStatus === "running" && st !== "running") {
-    loadProgress(); loadQueue();
-  }
-  lastVisionJobStatus = st;
-  var tag = $("#vjTag");
-  tag.textContent = st;
-  tag.className = "tag" + (st === "running" ? " run" : "");
-  $("#vjStartBtn").disabled = st === "running";
-  $("#vjStopBtn").disabled = st !== "running";
-  if (!j) { $("#vjPanel").innerHTML = '<span class="mut">No job yet.</span>'; return; }
-  var total = j.total || 0, processed = j.processed || 0;
-  var pct = total ? Math.min(100, Math.round((processed / total) * 100)) : (st === "done" ? 100 : 0);
-  var barCol = st === "error" ? "var(--bad)" : st === "done" ? "var(--ok)" : "var(--acc)";
-  $("#vjPanel").innerHTML =
-    '<div class="bar"><i style="width:' + pct + "%;background:" + barCol + '"></i></div>' +
-    '<div style="height:8px"></div>' +
-    kvl("Status", st) +
-    kvl("Processed", processed + " / " + total + " (" + pct + "%)") +
-    kvl("Enriched / declined", (j.enriched || 0) + " / " + (j.declined || 0)) +
-    kvl("Failed (skipped)", j.failed || 0) +
-    kvl("Remaining", j.remaining == null ? "—" : j.remaining) +
-    kvl("Batches (hops)", j.hops || 0) +
-    kvl("Started", j.started_at ? ago(j.started_at) : "—") +
-    (j.finished_at ? kvl("Finished", ago(j.finished_at)) : "") +
-    (j.last_error ? kvl("Last error", j.last_error) : "") +
-    providerLimitHtml(j.provider_limit);
-}
-$("#vjStartBtn").onclick = function () {
-  confirmSheet("Run Vision (background)",
-    "Drains the Vision queue to empty as a server-side job — you can close this page and it keeps going. Intended for backfills, maintenance, and recovery.",
-    false).then(function (ok) {
-      if (!ok) return;
-      api("vision/start", { body: { confirm: true, scope: "all" } }).then(function (r) {
-        if (r.nothingToDo) toast("Vision queue empty");
-        else if (r.alreadyRunning) toast("A job is already running");
-        else toast("Vision job started");
-        loadVisionJob();
-      }).catch(function (e) { toast(e.message || "error", true); });
+/* Mistral backup: the engine's key list (vision/model keyPools) names the
+   same keys once per pool; each key is shown once, in plain words. */
+var KEY_STATE = { ready: "ready", limited: "rate-limited", invalid: "invalid key", restricted: "restricted", unobserved: "not used yet" };
+function loadVisionModel() { return api("vision/model").then(renderMistralBackup).catch(function () {}); }
+function renderMistralBackup(r) {
+  if (!r) return;
+  var seen = {}, keys = [], empty = 0;
+  (r.keyPools || []).forEach(function (pool) {
+    (pool.keys || []).forEach(function (k) {
+      if (!k || seen[k.id]) return;
+      seen[k.id] = true;
+      if (!k.configured) { empty += 1; return; }
+      keys.push(k);
     });
-};
-$("#vjStopBtn").onclick = function () {
-  api("vision/stop", { body: {} }).then(function () { toast("Stopping…"); loadVisionJob(); })
-    .catch(function (e) { toast(e.message || "error", true); });
-};
+  });
+  var ready = keys.filter(function (k) { return k.status === "ready" || k.status === "unobserved"; }).length;
+  var broken = keys.filter(function (k) { return k.status === "invalid" || k.status === "restricted"; }).length;
+  var tag = $("#vmTag");
+  tag.textContent = ready + " of " + keys.length + " keys usable";
+  tag.className = "tag" + (broken || !ready ? " warnTag" : "");
+  $("#vmPanel").innerHTML =
+    kvl("Model", r.activeModel || r.defaultModel || "—") +
+    keys.map(function (k) {
+      return kvl(k.label || k.id, (KEY_STATE[k.status] || k.status || "—") + (k.observedAt ? " · " + ago(k.observedAt) : ""));
+    }).join("") +
+    (empty ? kvl("Empty key slots", empty) : "") +
+    '<div class="mut" style="margin-top:6px">Names are the stored secret names; every key reads with Ministral 14B. Secrets are never shown.</div>';
+}
 
-/* ---------- Vision tab: Inspector (§2/§3) ---------- */
-/* Scoped to #insSeg, not to every .seg in the tab — the Vision Model selector
-   is a segmented control on this tab too, and a tab-wide query would clear its
-   selection whenever the Inspector toggled. */
+/* ---------- Vision tab: Inspector ---------- */
+/* Scoped to #insSeg, not to every .seg in the tab: the reader switch is a
+   segmented control on this tab too. */
 $("#insSeg").querySelectorAll("button").forEach(function (b) {
   b.onclick = function () {
     $("#insSeg").querySelectorAll("button").forEach(function (x) { x.classList.remove("on"); });
@@ -1100,16 +882,11 @@ $("#insChips").querySelectorAll(".chip").forEach(function (c) {
   };
 });
 $("#insQ").addEventListener("input", function () { clearTimeout(insQTimer); insQTimer = setTimeout(loadInspector, 300); });
+function readerOf(model) { return /haiku|claude/i.test(String(model || "")) ? "Haiku" : "Mistral"; }
 function insBadge(it) {
-  if (it.s_match_band) return statusBadge(String(it.s_match_band).toUpperCase());
-  if (it.e_servable) return '<span class="badge b-ok">vision</span>';
-  if (it.e_enriched_at != null) return '<span class="badge b-warn">ocr</span>';
-  return '<span class="badge b-unk">raw</span>';
-}
-function enrichmentDot(it) {
-  var state = !it.e_servable ? "missing" : /medium/i.test(String(it.e_model || "")) ? "medium" : "enriched";
-  var label = state === "missing" ? "Not enriched" : state === "medium" ? "Enriched by the retired Medium model" : "Enriched";
-  return '<span class="enrichDot ' + state + '" role="img" aria-label="' + label + '" title="' + label + '"></span>';
+  if (it.e_servable) return '<span class="badge b-ok">' + readerOf(it.e_model) + "</span>";
+  if (it.e_enriched_at != null) return '<span class="badge b-warn">no name</span>';
+  return '<span class="badge b-unk">waiting</span>';
 }
 function loadInspector() {
   $("#insList").innerHTML = '<span class="spin"></span>';
@@ -1119,11 +896,9 @@ function loadInspector() {
     $("#insList").innerHTML = d.items.map(function (it) {
       var name = it.e_name || it.o_name || it.e_name_ar || it.o_name_ar || it.id;
       return '<div class="insRow" data-id="' + esc(it.id) + '">' +
-        enrichmentDot(it) +
         (it.image_url ? '<img class="thumb" src="' + esc(it.image_url) + '" loading="lazy" alt="">' : '<div class="thumb"></div>') +
         '<div class="meta"><b dir="auto">' + esc(name) + "</b>" +
-        '<div class="mut">' + esc(it.store) + (it.price != null ? " · " + esc(it.price) + " " + esc(it.currency || "") : "") +
-        (it.e_corroboration != null ? " · cor " + esc(it.e_corroboration) : "") + "</div></div>" +
+        '<div class="mut">' + esc(it.store) + (it.price != null ? " · " + esc(it.price) + " " + esc(it.currency || "") : "") + "</div></div>" +
         insBadge(it) + "</div>";
     }).join("");
     $("#insList").querySelectorAll(".insRow").forEach(function (r) { r.onclick = function () { openInspect(r.dataset.id); }; });
@@ -1148,17 +923,16 @@ function renderInspect(d) {
   var h = '<h3 dir="auto">' + esc((vis && vis.name) || ocr.name || o.id) + "</h3>";
   if (o.imageUrl) h += '<div class="imgWrap"><img src="' + esc(o.imageUrl) + '" alt=""></div>';
   h += '<div class="cmp">' +
-    cmpCol("OCR read", ocr.name, ocr.nameAr, ocr.identity, false) +
+    cmpCol("D4D text", ocr.name, ocr.nameAr, ocr.identity, false) +
     cmpCol("Vision read", vis ? vis.name : null, vis ? vis.nameAr : null, vis ? vis.identity : null, diff) +
     "</div>";
   if (vis) {
-    h += kvl("Vision brand / size", [vis.brand, vis.size].filter(Boolean).join(" · ") || "—") +
-      kvl("Enrichment model", vis.model || "—") +
-      kvl("Confidence / corroboration", (vis.confidence == null ? "—" : vis.confidence) + " / " + (vis.corroboration == null ? "—" : vis.corroboration)) +
-      kvl("Servable", vis.servable ? "yes" : "no — OCR fallback") +
-      kvl("Mint verdict", vis.mintVerdict || "unresolved");
+    h += kvl("Brand / size", [vis.brand, vis.size].filter(Boolean).join(" · ") || "—") +
+      kvl("Read by", vis.model ? readerOf(vis.model) + " · " + vis.model : "—") +
+      kvl("On cards", vis.servable ? "yes" : "no — no usable name") +
+      kvl("Product link", vis.mintVerdict || "not yet");
   } else {
-    h += '<div class="mut">No vision enrichment stored for this offer.</div>';
+    h += '<div class="mut">Not read by Vision yet.</div>';
   }
   h += '<h4 class="sec">Registry</h4>';
   if (p) {
@@ -1169,7 +943,7 @@ function renderInspect(d) {
       kvl("Match score", s && s.matchScore != null ? s.matchScore : "—") +
       '<div style="height:8px"></div><button class="ghost" id="openProdBtn" data-pid="' + esc(p.id) + '">Open product ▸</button>';
   } else {
-    h += '<div class="mut">No registry sighting — this offer has not been resolved into a product.</div>';
+    h += '<div class="mut">Not linked to a product yet.</div>';
   }
   h += '<h4 class="sec">Offer</h4>' +
     kvl("Offer id", o.id) + kvl("Store · region", o.store + " · " + o.region) +
@@ -1220,185 +994,12 @@ function renderProduct(d) {
       '<div style="display:flex;justify-content:space-between;align-items:center"><b>' + esc(s.store) + " · " + esc(s.week) + "</b>" +
       statusBadge(String(s.matchBand || "").toUpperCase()) + "</div>" +
       '<div class="mut">' + (s.price != null ? esc(s.price) : "?") + " · score " + (s.matchScore == null ? "—" : esc(s.matchScore)) +
-      " · cor " + (s.corroboration == null ? "—" : esc(s.corroboration)) + " · " + ago(s.resolvedAt) + "</div>" +
+      " · " + ago(s.resolvedAt) + "</div>" +
       (s.enrichment ? '<div class="mut" dir="auto">vision: ' + esc(s.enrichment.name || s.enrichment.nameAr || "—") +
         (s.enrichment.mintVerdict ? " [" + esc(s.enrichment.mintVerdict) + "]" : "") + "</div>" : "") + "</div>";
   }).join("") : '<span class="mut">none</span>';
   return h;
 }
-
-/* ---------- Vision tab: Verification ---------- */
-/* The Recovery Queue panel and its Human review screen were removed
-   2026-11-12: the card had been hidden and never loaded since recovery was
-   retired. The server routes (/api/recovery*) are unchanged. */
-function loadVerification() {
-  return api("verification").then(function (v) {
-    var tag = $("#vvTag");
-    if (!v.available) {
-      tag.textContent = "migration owed";
-      tag.className = "tag warnTag";
-      $("#vvStatus").innerHTML = '<div class="mut">Vision Verification is unavailable until its migration is applied.</div>';
-      return;
-    }
-    tag.textContent = v.pending ? "verifying" : "idle";
-    tag.className = "tag" + (v.pending ? " run" : "");
-    $("#vvStatus").innerHTML =
-      '<div class="qgrid">' +
-        kpiBox(v.pending || 0, "awaiting verification") +
-        kpiBox(v.verified || 0, "verified · 2 matches") +
-        kpiBox(v.maxAttempts || 0, "highest attempts") +
-      "</div><div style='height:8px'></div>" +
-      kvl("Average attempts (active)", v.averageAttempts || 0) +
-      kvl("Rule", "two identical normalized identities; no exhaustion");
-  }).catch(function () {});
-}
-
-var vvLiveStop = false, vvLiveBusy = false;
-$("#vvLiveBtn").onclick = function () {
-  confirmSheet(
-    "Run Vision Verification (live)",
-    "Runs Stage 2 one batch at a time with live progress. It is the same paced drain shape as Stage 1 and is safe to stop anytime.",
-    false
-  ).then(function (ok) { if (ok) runVerificationLive(); });
-};
-$("#vvLiveStopBtn").onclick = function () { vvLiveStop = true; };
-function runVerificationLive() {
-  if (vvLiveBusy) return;
-  vvLiveBusy = true; vvLiveStop = false;
-  $("#vvLive").style.display = "block";
-  $("#vvLiveBtn").disabled = true; $("#vvLiveStopBtn").disabled = false;
-  var t0 = Date.now(), total = null, processed = 0, batch = 0;
-  function finish(msg) {
-    vvLiveBusy = false;
-    $("#vvLiveBtn").disabled = false; $("#vvLiveStopBtn").disabled = true;
-    $("#vvLiveStat").innerHTML += " — " + esc(msg);
-    toast("Verification " + msg);
-    loadVerification(); loadProgress();
-  }
-  function step() {
-    if (vvLiveStop) { finish("stopped"); return; }
-    api("verification", { body: { batches: 1, confirm: true } }).then(function (r) {
-      batch += 1;
-      if (r.nothingToDo) { finish("queue empty"); return; }
-      if (r.failed) {
-        if (r.providerLimit) $("#vvLiveStat").innerHTML += providerLimitHtml(r.providerLimit);
-        finish(r.providerLimit && r.providerLimit.category === "request_allowance_zero"
-          ? "stopped: Mistral request allowance is zero"
-          : "stopped on Mistral error");
-        return;
-      }
-      if (total == null) total = r.pending || 0;
-      var rem = r.remaining == null ? total : r.remaining;
-      processed = Math.max(processed, total - rem);
-      var pct = total ? Math.min(100, Math.round((processed / total) * 100)) : 100;
-      var el = (Date.now() - t0) / 1000;
-      var rate = processed > 0 ? processed / (el / 3600) : 0;
-      var etaH = rate > 0 && rem > 0 ? rem / rate : 0;
-      $("#vvLiveBar").style.width = pct + "%";
-      $("#vvLiveStat").innerHTML = "batch " + batch + " · " + processed + "/" + total +
-        " (" + pct + "%) · verified " + (r.verified || 0) + " · unmatched " +
-        (r.unmatched || 0) + " · ETA " + (etaH ? fmtDur(etaH) : "~");
-      loadVerification();
-      if (rem > 0 && batch < 40) step(); else finish("done");
-    }).catch(function (e) { finish(e.message || "error"); });
-  }
-  step();
-}
-
-var lastVerificationJobStatus = null;
-function loadVerificationJob() {
-  return api("verification/job").then(function (r) {
-    var j = r.job, st = j ? j.status : "idle";
-    if (lastVerificationJobStatus === "running" && st !== "running") {
-      loadVerification(); loadProgress();
-    }
-    lastVerificationJobStatus = st;
-    var tag = $("#vvJobTag");
-    tag.textContent = st;
-    tag.className = "tag" + (st === "running" ? " run" : "");
-    $("#vvStartBtn").disabled = st === "running";
-    $("#vvStopBtn").disabled = st !== "running";
-    if (!j) { $("#vvJobPanel").innerHTML = '<span class="mut">No job yet.</span>'; return; }
-    var total = j.total || 0, processed = j.processed || 0;
-    var pct = total ? Math.min(100, Math.round((processed / total) * 100)) : (st === "done" ? 100 : 0);
-    $("#vvJobPanel").innerHTML =
-      '<div class="bar"><i style="width:' + pct + '%;background:var(--acc)"></i></div>' +
-      '<div style="height:8px"></div>' +
-      kvl("Status", st) + kvl("Processed", processed + " / " + total + " (" + pct + "%)") +
-      kvl("Verified", j.verified || 0) +
-      kvl("Non-matching attempts (will retry)", j.continuingAttempts || 0) +
-      kvl("Remaining", j.remaining == null ? "—" : j.remaining) +
-      kvl("Batches (hops)", j.hops || 0) +
-      (j.last_error ? kvl("Last error", j.last_error) : "");
-  }).catch(function () {});
-}
-$("#vvStartBtn").onclick = function () {
-  confirmSheet(
-    "Run Vision Verification (background)",
-    "Drains Stage 2 to empty on the server. You can close this page and it keeps running.",
-    false
-  ).then(function (ok) {
-    if (!ok) return;
-    api("verification/start", { body: { confirm: true } }).then(function (r) {
-      toast(r.nothingToDo ? "Verification queue empty" : r.alreadyRunning ? "Already running" : "Verification started");
-      loadVerificationJob();
-    }).catch(function (e) { toast(e.message || "error", true); });
-  });
-};
-$("#vvStopBtn").onclick = function () {
-  api("verification/stop", { body: {} }).then(function () { toast("Stopping…"); loadVerificationJob(); })
-    .catch(function (e) { toast(e.message || "error", true); });
-};
-
-function loadQueue() { return api("queue").then(renderQueue).catch(function () {}); }
-function renderQueue(q) {
-  var r = q.resolution;
-  $("#queueOut").innerHTML =
-    '<div class="qgrid">' +
-      kpiBox(q.vision.queued, "vision queue") +
-      kpiBox(r.unresolved, "unresolved") +
-      kpiBox(r.minted, "minted") +
-    "</div><div style='height:8px'></div>" +
-    kvl("Deferred (total)", r.deferred) +
-    kvl("· declined", r.declined) +
-    kvl("· low corroboration", r.low_corroboration) +
-    kvl("· too few tokens", r.too_few_tokens) +
-    kvl("· or-deal", r.or_deal) +
-    kvl("Bands auto / review / created", (q.bands.auto || 0) + " / " + (q.bands.review || 0) + " / " + (q.bands.created || 0));
-}
-$("#qResolveBtn").onclick = function () {
-  var b = $("#qResolveBtn");
-  confirmSheet("Resolve Backlog", "Resolves every stored-but-unresolved enrichment into the registry (D1-only, no vision calls).", false).then(function (ok) {
-    if (!ok) return;
-    b.disabled = true; b.innerHTML = '<span class="spin"></span>';
-    api("resolve", { body: { confirm: true } }).then(function (r) {
-      toast("Resolved: attached " + r.attached + " · created " + r.created + " · deferred " + r.deferred);
-      loadQueue(); loadProgress();
-    }).catch(function (e) { toast(e.message, true); })
-      .finally(function () { b.disabled = false; b.textContent = "Resolve Backlog"; });
-  });
-};
-$("#qReopenBtn").onclick = function () {
-  var b = $("#qReopenBtn"); b.disabled = true;
-  api("inspector?filter=deferred&limit=200").then(function (d) {
-    var ids = d.items.map(function (x) { return x.id; });
-    /* Both early exits hand the button back: it used to stay disabled until a
-       page reload after "none to re-open" or Cancel. */
-    if (!ids.length) { toast("No deferred offers to re-open"); b.disabled = false; return; }
-    confirmSheet("Re-open " + ids.length + " deferred",
-      "Un-stamps the resolution verdict on the " + ids.length + " currently-deferred offers so the drain re-resolves them, then resolves now.",
-      false).then(function (ok) {
-      if (!ok) { b.disabled = false; return; }
-      b.innerHTML = '<span class="spin"></span>';
-      api("reopen", { body: { ids: ids, confirm: true } }).then(function (r) {
-        var res = r.resolution || {};
-        toast("Re-opened " + r.reopened + " · attached " + (res.attached || 0) + " · created " + (res.created || 0));
-        loadQueue(); loadProgress();
-      }).catch(function (e) { toast(e.message, true); })
-        .finally(function () { b.disabled = false; b.textContent = "Re-open Deferred"; });
-    });
-  }).catch(function (e) { toast(e.message, true); b.disabled = false; });
-};
 
 /* ---------- Ops tab §8: registry maintenance ---------- */
 $("#resolveBtn").onclick = function () {
