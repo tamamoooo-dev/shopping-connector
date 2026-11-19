@@ -577,6 +577,15 @@ CREATE INDEX IF NOT EXISTS ix_offer_enrichments_arabic_shadow_missing
         != 'commerce-score-v1')
     ELSE 0 END;
 
+-- Resolution verdict counts (2026-11-18, migrate-2026-11-18-d1-overload.sql).
+-- The ops console's Vision and Pipeline screens and /registry/stats count
+-- rows per mint_verdict. Unindexed, that read every enrichment row with its
+-- JSON (5.7 s on production D1), and D1 refused the requests queued behind it
+-- as "overloaded". The index answers the count alone and also serves the
+-- resolution feed (mint_verdict IS NULL).
+CREATE INDEX IF NOT EXISTS ix_offer_enrichments_mint_verdict
+  ON offer_enrichments(mint_verdict);
+
 -- Source attempts are retained independently from the canonical enrichment.
 -- A rejected Vision attempt is a completed critical-path operation even when
 -- OCR is unavailable; the queue below records the asynchronous escalation.
@@ -842,6 +851,10 @@ CREATE TABLE IF NOT EXISTS product_sightings (
 
 -- Price History V2 reads: all sightings of a product, week-ordered (§7).
 CREATE INDEX IF NOT EXISTS ix_sightings_product ON product_sightings(product_id, week);
+
+-- Registry stats (registryStore.stats: sightings per match_band, and per week)
+-- read this small index instead of every sighting row (2026-11-18).
+CREATE INDEX IF NOT EXISTS ix_sightings_week_band ON product_sightings(week, match_band);
 
 -- Mini marts (2026-11-04): offers shops post on their public Snapchat story
 -- (minimarts.js). Same DDL as migrate-2026-11-04-minimarts.sql.

@@ -202,4 +202,37 @@ await test('Stage 2 coordinator is driven by the ready queue, not all current of
   close();
 });
 
+// 2026-11-18: the unindexed verdict count read every enrichment row (5.7 s on
+// production D1) and made D1 refuse the console's other reads as overloaded.
+await test('verdict counts read only the mint_verdict index', async () => {
+  const { db, raw, close } = createSqliteD1(['schema.sql']);
+  const insert = raw.prepare(
+    'INSERT INTO offer_enrichments (id,enriched_at,extraction_json,mint_verdict) VALUES (?,?,?,?)',
+  );
+  ['minted', 'minted', 'review', null].forEach((verdict, index) => {
+    insert.run(`verdict:${index}`, '2026-11-18T00:00:00.000Z', '{"big":"json"}', verdict);
+  });
+  const plan = details(raw, `SELECT COALESCE(mint_verdict, 'unresolved') AS verdict, COUNT(*) AS n
+    FROM offer_enrichments GROUP BY verdict`);
+  assert.match(plan, /COVERING INDEX ix_offer_enrichments_mint_verdict/);
+  assert.deepEqual(await createD1EnrichStore(db).verdictCounts(),
+    { minted: 2, review: 1, unresolved: 1 });
+  const feed = details(raw, `SELECT o.id FROM offer_enrichments e JOIN offers o ON o.id = e.id
+    WHERE e.mint_verdict IS NULL AND o.valid_to >= ? ORDER BY o.detected_at DESC LIMIT ?`,
+  '2026-11-18', 50);
+  assert.doesNotMatch(feed, /SCAN e\b/);
+  close();
+});
+
+await test('registry sighting stats read the week/band index, not every sighting', async () => {
+  const { raw, close } = createSqliteD1(['schema.sql']);
+  const bands = details(raw, 'SELECT match_band AS band, COUNT(*) AS n FROM product_sightings GROUP BY match_band');
+  assert.match(bands, /COVERING INDEX ix_sightings_week_band/);
+  const weekly = details(raw, `SELECT week, SUM(CASE WHEN match_band = 'created' THEN 1 ELSE 0 END) AS created,
+      COUNT(*) AS sightings
+    FROM product_sightings GROUP BY week ORDER BY week DESC LIMIT 12`);
+  assert.match(weekly, /COVERING INDEX ix_sightings_week_band/);
+  close();
+});
+
 console.log(`\nD1 row-read regressions: ${tests} tests OK`);

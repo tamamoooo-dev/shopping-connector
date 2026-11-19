@@ -147,7 +147,12 @@ check('missing store -> throws', throws(() => newSightingRow({ offerId: 'o', pro
 console.log('schema/migration consistency:');
 const here = new URL('.', import.meta.url);
 const schema = readFileSync(new URL('../../schema.sql', here), 'utf8');
-const migration = readFileSync(new URL('../../migrate-2026-07-registry.sql', here), 'utf8');
+// Later migrations that add registry DDL join the comparison (2026-11-18:
+// ix_sightings_week_band for the registry stats counts).
+const migration = [
+  '../../migrate-2026-07-registry.sql',
+  '../../migrate-2026-11-18-d1-overload.sql',
+].map((file) => readFileSync(new URL(file, here), 'utf8')).join(';\n');
 
 function registryDdl(sql) {
   const stmts = sql
@@ -161,7 +166,7 @@ function registryDdl(sql) {
 }
 const a = registryDdl(schema);
 const b = registryDdl(migration);
-check('registry DDL present in schema.sql (3 tables + 5 indexes)', a.length === 8);
+check('registry DDL present in schema.sql (3 tables + 6 indexes)', a.length === 9);
 check('migration DDL identical to schema.sql', JSON.stringify(a) === JSON.stringify(b));
 
 if (failures) {
