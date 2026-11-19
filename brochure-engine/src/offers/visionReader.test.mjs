@@ -4,7 +4,7 @@
 // fetch or Mistral call, and Stage 2 never re-reads it.
 import assert from 'node:assert/strict';
 import {
-  DEFAULT_VISION_READER, HAIKU_VISION_MODEL, VISION_READER_BATCH_TEMPLATE, VISION_READER_HOLD_MAX_MS,
+  DEFAULT_VISION_READER, HAIKU_VISION_MODEL, VISION_READER_BATCH_TEMPLATE, VISION_READER_HOLD_MAX_MS, VISION_READER_SECOND_TEMPLATE,
   VISION_READER_ON_MS, createVisionReaderState, normalizeVisionReader, observationsFromReadings,
   oneReadingStatements, readVisionReaderSetting, setVisionReaderLimit, visionReaderGate,
   visionReaderPrompt, whoReadsVision, writeVisionReaderSetting,
@@ -65,6 +65,8 @@ console.log('the prompt:');
   ok(VISION_READER_BATCH_TEMPLATE.replaceAll('{n}', '10') === ten, 'the template the PC fills is the same text');
   ok(ten.includes('number printed in a black band') && ten.includes('"crop": the number printed in its band'),
     'the crop number is read from the band printed in each picture (the PC draws it)');
+  ok(VISION_READER_SECOND_TEMPLATE.endsWith(ENRICHMENT_VISION_PROMPT) && VISION_READER_SECOND_TEMPLATE.includes('Read ONLY the offer sold at {price} SAR'),
+    'the second read: the production prompt unchanged, told which price to read');
 }
 
 console.log('readings in:');
@@ -160,6 +162,8 @@ console.log('saving, one reading (real SQL):');
   const queue = await (await call('/vision/reader/queue?crops=5')).json();
   ok(queue.mode === 'haiku' && queue.offers.length === 1 && queue.offers[0].id === ids['103'], 'the queue hands out only unread crops');
   ok(queue.prompt === ENRICHMENT_VISION_PROMPT && queue.batchPrompt === VISION_READER_BATCH_TEMPLATE, 'with the prompts the PC fills');
+  ok(queue.secondPrompt === VISION_READER_SECOND_TEMPLATE && typeof queue.offers[0].price === 'number',
+    "and each offer's D4D price, for a difficult crop's second read");
   const posted = await (await call('/vision/reader/readings', {
     method: 'POST',
     body: JSON.stringify({ readings: [{ id: ids['103'], reading: { name_en: 'Cutey Cat Food', brand: 'Cutey', package_size: '1.5kg', current_price: 28.99 } }] }),

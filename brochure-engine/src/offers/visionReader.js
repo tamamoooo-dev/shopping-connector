@@ -210,6 +210,15 @@ export function visionReaderPrompt(count) {
 // the engine, not with the PC.
 export const VISION_READER_BATCH_TEMPLATE = framedPrompt('{n}');
 
+// The second read of one difficult crop (offers/secondRead.js says which),
+// told D4D's price: "{price}" is filled in by the PC. The production prompt
+// follows unchanged.
+export const VISION_READER_SECOND_TEMPLATE = [
+  'This flyer crop is cut from a flyer page. It may show more than one product, or parts of neighbouring offers at its edges. Read ONLY the offer sold at {price} SAR: the product whose own price tag or caption shows {price}. Ignore every other product, price and caption in the crop. When {price} SAR buys a choice of products, copy each product\'s name joined by " / ". If {price} is not printed as a selling price anywhere in the crop, return current_price null.',
+  '',
+  ENRICHMENT_VISION_PROMPT,
+].join('\n');
+
 // [{ id, reading: { name_en, ... } }] -> { [offerId]: observation }, the shape
 // drainEnrichment's `observations` takes. The batch label is not a reading
 // field and is dropped; anything that is not one reading object is skipped.

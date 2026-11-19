@@ -25,7 +25,7 @@ import { rebuildRow, summarize } from './offers/rebuild.js';
 import { readVisionModelSetting } from './offers/visionModel.js';
 import {
   createVisionReaderState, HAIKU_VISION_MODEL, observationsFromReadings, oneReadingStatements,
-  setVisionReaderLimit, VISION_READER_BATCH_TEMPLATE, VISION_READER_MAX_QUEUE,
+  setVisionReaderLimit, VISION_READER_BATCH_TEMPLATE, VISION_READER_MAX_QUEUE, VISION_READER_SECOND_TEMPLATE,
   VISION_READER_MAX_READINGS, visionReaderGate, visionReaderPrompt,
 } from './offers/visionReader.js';
 import { createKeyChain } from './offers/mistralKeys.js';
@@ -501,7 +501,10 @@ export async function handleRequest(request, ctx) {
         model: HAIKU_VISION_MODEL,
         prompt: visionReaderPrompt(1),
         batchPrompt: VISION_READER_BATCH_TEMPLATE,
-        offers: rows.map((r) => ({ id: r.id, imageUrl: r.image_url })),
+        // A difficult crop is read once more on its own, told D4D's price
+        // (offers/secondRead.js; at most 5% of a run's crops).
+        secondPrompt: VISION_READER_SECOND_TEMPLATE,
+        offers: rows.map((r) => ({ id: r.id, imageUrl: r.image_url, price: r.price ?? null })),
       });
     }
 

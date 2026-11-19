@@ -29,6 +29,14 @@
 // picture's reading. Measured: 0 of 1,100 readings moved, $0.24–0.30 per
 // 1,000 crops (was $0.32).
 //
+// Difficult crops read twice, at most 5% (2026-11-19, owner: "make rules for
+// the two products crops or any difficult crops .. read twice as an
+// exception .. up to 5 percent"). After a call, a crop whose reading misses
+// D4D's price, names nothing, or names two products at two prices is read
+// once more ON ITS OWN, told D4D's price (src/offers/secondRead.js; the
+// engine sends the prompt). The better of the two readings is posted.
+// Measured: 2.5% of random crops, ~$0.02 more per 1,000.
+//
 // Accounts: the PC's own Claude login first, then the backup sign-in
 // (%USERPROFILE%\.claude-backup, login-backup.cmd), sharing logs/accounts.json
 // with the Mini marts reader so a limit one finds the other knows. With every
@@ -49,6 +57,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import sharp from 'sharp';
 import { loadIngestSecret } from '../local-secrets.mjs';
 import { limitOf, limitedEntry, reportUntil, usableAccount } from '../src/readerLimits.js';
+import { chooseReading, secondReadReason, secondReadsAllowed } from '../src/offers/secondRead.js';
 
 const ENGINE = process.env.ENGINE_URL || 'https://brochure-engine.tamamoooo.workers.dev';
 const PER_CALL = 10;
@@ -249,7 +258,7 @@ function rereadDone() {
 // --- the run -------------------------------------------------------------------------
 async function main() {
   const started = Date.now();
-  const run = { reader: REREAD ? 'haiku-reread' : 'haiku', crops: 0, pictures: 0, calls: 0, readings: 0, published: 0, saved: 0, missing: 0, kept: 0, cropErrors: 0, postErrors: 0, workers: WORKERS, errors: [] };
+  const run = { reader: REREAD ? 'haiku-reread' : 'haiku', crops: 0, pictures: 0, calls: 0, readings: 0, published: 0, saved: 0, missing: 0, kept: 0, second: 0, secondUsed: 0, secondCapped: 0, secondWhy: {}, cropErrors: 0, postErrors: 0, workers: WORKERS, errors: [] };
   // --reread: the offers to read again, minus those a previous start finished.
   let rereadList = null;
   if (REREAD) {
@@ -286,7 +295,7 @@ async function main() {
           stopped = `switch: ${q.mode}`;
           return;
         }
-        prompts = { single: q.prompt, batch: q.batchPrompt };
+        prompts = { single: q.prompt, batch: q.batchPrompt, second: q.secondPrompt || null };
         model = q.model || model;
         const offered = REREAD ? rereadList.filter((o) => !seen.has(o.id)).slice(0, QUEUE_ASK) : (q.offers || []);
         const fresh = offered.filter((o) => o?.id && o.imageUrl && !seen.has(o.id));
@@ -447,6 +456,35 @@ async function main() {
           }
         }
       });
+      // A difficult crop is read once more on its own, told D4D's price; the
+      // better reading is posted. At most 5% of the run's crops.
+      if (prompts.second) {
+        const asked = new Map(); // picture|price -> the second reading
+        for (const r of readings) {
+          const o = group.find((x) => x.id === r.id);
+          const why = secondReadReason(r.reading, o?.price);
+          if (!why) continue;
+          const key = `${o.imageUrl}|${o.price}`;
+          if (!asked.has(key)) {
+            if (run.second >= secondReadsAllowed(run.crops)) {
+              run.secondCapped += 1;
+              continue;
+            }
+            run.second += 1;
+            run.secondWhy[why] = (run.secondWhy[why] || 0) + 1;
+            const raw2 = await ask([
+              { type: 'image', source: { type: 'base64', media_type: 'image/jpeg', data: o.data } },
+              { type: 'text', text: prompts.second.replaceAll('{price}', String(o.price)) },
+            ], model, run.errors);
+            asked.set(key, raw2 == null ? null : parse(raw2));
+          }
+          const chosen = chooseReading(r.reading, asked.get(key), o.price);
+          if (chosen !== r.reading) {
+            r.reading = chosen;
+            run.secondUsed += 1;
+          }
+        }
+      }
       run.readings += readings.length;
       for (let i = 0; i < readings.length; i += POST_MAX) await post(readings.slice(i, i + POST_MAX));
     }
