@@ -232,6 +232,7 @@ export function applyUnitPrice(offer, row, isServable = true) {
   const sale = conflict ? {version:'sale-reading-v1',status:'ambiguous',price:offer.price,
     count:null,package_size:null} : storedSale;
   const unboundSize = !!sale && (sale.status!=='matched' || !sale.package_size);
+  let sizeLeftName = false;
   if (sale?.status==='matched' && sale.package_size) {
     offer.sizeReading=resolveOfferSize({size:sale.package_size,nameEn:offer.name,nameAr:offer.nameAr,
       sale,nonGrocery:isNonGrocery(offer.category ?? row?.category)});
@@ -239,7 +240,10 @@ export function applyUnitPrice(offer, row, isServable = true) {
     offer.sizeReading=null; offer.sizeDisplayAr=null; offer.sizeDisplayEn=null;
     offer.sizeOptions=[]; offer.assortedSizes=false;
     if (!isNonGrocery(offer.category ?? row?.category)) {
+      const before = [offer.name, offer.nameAr];
       offer.name=withoutUnboundSizes(offer.name); offer.nameAr=withoutUnboundSizes(offer.nameAr);
+      const text = (s) => String(s ?? '').replace(/\s+/gu, ' ').trim();
+      sizeLeftName = text(before[0]) !== text(offer.name) || text(before[1]) !== text(offer.nameAr);
     }
   }
   // Only a SERVABLE reading may contribute its size/unit: an unservable
@@ -376,7 +380,34 @@ export function applyUnitPrice(offer, row, isServable = true) {
     packageType: isServable ? (row?.e_package_type ?? null) : null,
     name,
   });
+  // The "see the image" note (owner, 2026-11-19: "refer you to pics often").
+  // It asks the shopper to check a quantity against the picture, so it is for
+  // a size or count that WAS read but could not be tied to the price. A
+  // reading that found D4D's exact price and no size or count anywhere (a
+  // kettle, per-kilo produce, a shirt) has nothing to check, and those were
+  // 72% of the notes. The size stays unbound either way: `sizeUnbound` keeps
+  // the Value Watch's per-item exclusion exactly where it was.
+  if (offer.quantityReviewRequired === true && nothingToCheck({ sale, conflict, sizeLeftName, size: offer.size })) {
+    offer.quantityReviewRequired = false;
+    offer.quantityReviewReason = null;
+    offer.sizeUnbound = true;
+  } else if ('sizeUnbound' in offer) {
+    delete offer.sizeUnbound;
+  }
   return offer.unitPrice;
+}
+
+// One piece is not a quantity to check: "1", "1 PC", "1 Set", "حبة".
+const SINGLE_PIECE = /^\s*(?:1|١)?\s*(?:pcs?\.?|pieces?|sets?|packs?|units?|حبة|حبه|قطعة|طقم|عبوة)?\s*$/iu;
+
+// True when a sale reading confirmed D4D's price and read no size or count
+// anywhere: not on the price line, not in the general caption, not in the name.
+export function nothingToCheck({ sale, conflict = null, sizeLeftName = false, size = null }) {
+  if (!sale || conflict || sale.status !== 'matched' || sizeLeftName || size) return false;
+  if (sale.package_size || (sale.count ?? 0) > 1) return false;
+  const read = sale.original || {};
+  if (read.package_size != null && String(read.package_size).trim()) return false;
+  return read.quantity == null || SINGLE_PIECE.test(String(read.quantity));
 }
 
 // --- corroboration -------------------------------------------------------------

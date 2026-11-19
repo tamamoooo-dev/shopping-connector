@@ -266,8 +266,9 @@ async function searchFlyers(ctx, queries, notes) {
         applyEnrichment(offer, row); // the same servable gate Search serves from
         if (!(offer.name || offer.nameAr) || offer.price == null) continue;
         // A price whose package size could not be bound to it cannot be
-        // compared per item.
-        if (offer.quantityReviewRequired) continue;
+        // compared per item — with or without the shopper's "see the image"
+        // note (sizeUnbound: no size was read at all, so no note).
+        if (offer.quantityReviewRequired || offer.sizeUnbound) continue;
         found.push({ store: offer.store, source: 'flyer', listing: flyerListing(offer, row), query });
       }
     }

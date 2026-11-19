@@ -38,6 +38,37 @@ assert.ok(Math.abs(priced('800g',3,44.99).unitPrice.value-44.99/2.4)<1e-10);
 const uncertain={name:'Chicken 10x1000g',price:49.99};
 applyUnitPrice(uncertain,{e_size:'10x1000g',e_sale:{version:'sale-reading-v1',price:49.99,status:'unmatched'}});
 assert.equal(uncertain.unitPrice,null); assert.equal(uncertain.quantityReviewRequired,true);
+// The "see the image" note is for a size or count that WAS read but is not
+// tied to the price (2026-11-19). Nothing read = nothing to check.
+const noted = (sale, name = 'Kettle', extra = {}) => {
+  const o = { name, price: 59, ...extra };
+  applyUnitPrice(o, { e_sale: { version: 'sale-reading-v1', price: 59, count: null, package_size: null, ...sale } });
+  return o;
+};
+const kettle = noted({ status: 'matched', original: { package_size: null, quantity: null } });
+assert.equal(kettle.quantityReviewRequired, false, "D4D's price found and no size anywhere: no note");
+assert.equal(kettle.quantityReviewReason, null);
+assert.equal(kettle.sizeUnbound, true, 'still no size tied to the price: the Value Watch keeps it out');
+assert.equal(kettle.size, null);
+assert.equal(kettle.unitPrice, null);
+for (const q of ['1', '1 PC', '1 Pc.', '1 Set', 'حبة', 1]) {
+  assert.equal(noted({ status: 'matched', original: { package_size: null, quantity: q } }).quantityReviewRequired, false, `one piece (${q}) is nothing to check`);
+}
+for (const [why, sale, name, extra] of [
+  ['a size off the price line', { status: 'matched', original: { package_size: '500g', quantity: null } }],
+  ['a count', { status: 'matched', original: { package_size: null, quantity: '6' } }],
+  ['a deal count without a size', { status: 'matched', count: 3, text: '3 PCS', original: {} }],
+  ["D4D's price not on the crop", { status: 'unmatched', original: {} }],
+  ['a deal/pack clash', { status: 'ambiguous', original: {} }],
+  ['a size the name had to drop', { status: 'matched', original: {} }, 'Basmati Rice 5Kg', { category: 'rice' }],
+]) {
+  const o = noted(sale, name, extra);
+  assert.equal(o.quantityReviewRequired, true, why);
+  assert.equal('sizeUnbound' in o, false, why);
+}
+const boundKettle = noted({ status: 'matched', package_size: '1.7L', original: { package_size: '1.7L' } });
+assert.equal(boundKettle.quantityReviewRequired, false);
+assert.equal('sizeUnbound' in boundKettle, false, 'a bound size is not unbound');
 const db = new DatabaseSync(':memory:');db.exec('CREATE TABLE o(price REAL); CREATE TABLE e(extraction_json TEXT)');
 db.prepare('INSERT INTO o VALUES(?)').run(49.99);db.prepare('INSERT INTO e VALUES(?)').run(JSON.stringify(stored));
 assert.deepEqual(JSON.parse(db.prepare(`SELECT ${saleObservationSql()} AS sale FROM o,e`).get().sale),readSaleObservation(stored,49.99));
