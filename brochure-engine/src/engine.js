@@ -78,6 +78,7 @@ import {
 } from './minimarts.js';
 import { PRESENTER, cropKeyFor, shopStyle } from './minimartCrop.js';
 import { archiveDoc } from './storage/offerArchive.js';
+import { valueLinesDoc } from './offers/valueLines.js';
 import { CATEGORY_PROMPT, categoryOf } from './minimartCategory.js';
 
 // The honesty disclaimer every offers read carries (the aggregator machine-
@@ -1300,6 +1301,18 @@ export async function handleRequest(request, ctx) {
     if (!ctx.offerArchive) return json({ error: 'Price archive unavailable.' }, 503);
     const limit = Number(url.searchParams.get('limit')) || 500;
     return json(archiveDoc(q, await ctx.offerArchive.search({ q, limit })));
+  }
+
+  // Every saved flyer price for a search, priced per kg / L / piece by the
+  // read path (offers/valueLines.js) — the brochure card's lowest-value
+  // history. Read only; the card decides which lines are the same product.
+  if (path === '/prices/lines' && request.method === 'GET') {
+    const q = historyQuery();
+    if (!q) return json({ error: "Missing required parameter 'q'." }, 400);
+    if (!ctx.offerArchive && !ctx.offerStore) return json({ error: 'Price archive unavailable.' }, 503);
+    const limit = Number(url.searchParams.get('limit')) || 1000;
+    const doc = await valueLinesDoc(q, { offerArchive: ctx.offerArchive, offerStore: ctx.offerStore, limit });
+    return json(doc, 200, { 'Cache-Control': 'public, max-age=3600' });
   }
 
   if (path === '/prices/archive/stats' && request.method === 'GET') {
